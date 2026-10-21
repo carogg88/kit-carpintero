@@ -29,26 +29,30 @@ interface LengthFieldProps {
   mm: number;
   units: Units;
   min?: number;
+  max?: number;
   onCommit: (mm: number) => void;
   compact?: boolean;
+  /** Id de un aviso que describe el campo (por ejemplo, una medida fuera de lo habitual). */
+  describedBy?: string;
 }
 
 /** Campo de medida: se escribe en la unidad elegida y se valida al salir del campo. */
-export function LengthField({ label, mm, units, min = 1, onCommit, compact }: LengthFieldProps) {
+export function LengthField({ label, mm, units, min = 1, max, onCommit, compact, describedBy }: LengthFieldProps) {
   const id = useId();
-  const [text, setText] = useState(() => formatNumber(mm, units));
+  const [text, setText] = useState(() => (mm ? formatNumber(mm, units) : ''));
   const [error, setError] = useState<string | null>(null);
   // Si la medida cambia desde afuera (deshacer, arrastrar), el campo la muestra de nuevo.
   const [shown, setShown] = useState({ mm, units });
   if (shown.mm !== mm || shown.units !== units) {
     setShown({ mm, units });
-    setText(formatNumber(mm, units));
+    setText(mm ? formatNumber(mm, units) : '');
     setError(null);
   }
   const commit = () => {
     const v = parseLength(text, units);
     if (v === null) return setError(units === 'cm' ? 'Escribí un número, por ejemplo 72,5' : 'Escribí pulgadas, por ejemplo 2 7/8');
     if (v < min) return setError(`Tiene que ser de ${formatNumber(min, units)} o más`);
+    if (max !== undefined && v > max) return setError(`Tiene que ser de ${formatNumber(max, units)} o menos`);
     setError(null);
     if (Math.abs(v - mm) > 0.01) onCommit(v);
     else setText(formatNumber(mm, units));
@@ -62,7 +66,7 @@ export function LengthField({ label, mm, units, min = 1, onCommit, compact }: Le
         inputMode="decimal"
         value={text}
         aria-invalid={!!error}
-        aria-describedby={error ? `${id}-e` : undefined}
+        aria-describedby={[error ? `${id}-e` : '', describedBy ?? ''].filter(Boolean).join(' ') || undefined}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}

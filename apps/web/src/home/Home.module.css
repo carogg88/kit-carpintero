@@ -14,7 +14,6 @@
   border: 1px solid var(--line); border-radius: var(--radius-m); text-decoration: none;
 }
 .startPrimary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.start[aria-disabled='true'] { opacity: 0.6; }
 .startIcon { flex-shrink: 0; width: 44px; height: 44px; border-radius: 10px; background: var(--signal); display: flex; align-items: center; justify-content: center; }
 .startIconSoft { background: var(--accent-soft); color: var(--accent); }
 .startText { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
@@ -26,9 +25,7 @@
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; color: var(--ink); font: 500 13px var(--font-ui);
   cursor: pointer; min-height: 88px; justify-content: center; transition: border-color 150ms ease;
 }
-.template:hover:not(:disabled) { border-color: var(--accent); }
-.template:disabled { cursor: default; color: var(--muted); }
-.soon { font-size: 11px; color: var(--muted); }
+.template:hover { border-color: var(--accent); }
 .sectionHead { display: flex; align-items: center; justify-content: space-between; }
 .link { min-height: var(--tap); padding: 0; border: 0; background: none; color: var(--accent); font: 500 14px var(--font-ui); cursor: pointer; }
 .error { margin: 0; color: var(--danger); font-size: 14px; }

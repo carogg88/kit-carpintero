@@ -29,6 +29,13 @@
   --paper-muted: #5b6460;
   --paper-accent: #1e5a7a;
   --desk: #e6e4dc;
+  /* Avisos que no impiden seguir. */
+  --warn-bg: #fcf1da;
+  --warn-ink: #6b4a12;
+  --warn-line: #b7791f;
+  /* Calcado sobre la foto. */
+  --trace: #1e5a7a;
+  --trace-fill: rgba(30, 90, 122, 0.16);
 
   --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-num: 'IBM Plex Mono', ui-monospace, monospace;
@@ -67,8 +74,10 @@
     --piece-line: #d2a978;
     --waste: #4d5551;
     --dark-card: #26302c;
-    --dark-card-field: #1a1f1d;
-  --desk: #0d100f;
+      --dark-card-field: #1a1f1d;
+    --warn-bg: #3a2e16;
+    --warn-ink: #f6dca6;
+    --warn-line: #e0a84a;
     --desk: #0d100f;
     color-scheme: dark;
   }
@@ -94,6 +103,9 @@
   --waste: #4d5551;
   --dark-card: #26302c;
   --dark-card-field: #1a1f1d;
+  --warn-bg: #3a2e16;
+  --warn-ink: #f6dca6;
+  --warn-line: #e0a84a;
   --desk: #0d100f;
   color-scheme: dark;
 }
