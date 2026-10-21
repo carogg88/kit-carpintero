@@ -2,6 +2,9 @@ import { useId, useState } from 'react';
 import {
   componentCopies,
   defaultJointParams,
+  depthUnder,
+  describePocket,
+  faceSize,
   duplicatePart,
   endJoint,
   formatNumber,
@@ -9,6 +12,7 @@ import {
   jointOptions,
   makeComponent,
   makeUnique,
+  MEASURED_FROM,
   newPart,
   parseLength,
   partAxesBySize,
@@ -18,10 +22,11 @@ import {
   type Joint,
   type NewPartKind,
   type Part,
+  type Pocket,
   type Project,
   type Units,
 } from '@kitc/core';
-import { IconLink, IconWarn } from './icons';
+import { IconLink, IconTrash, IconWarn } from './icons';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
 
@@ -175,11 +180,55 @@ function JointCard({ joint, partId, project }: { joint: Joint; partId: string; p
   );
 }
 
+const AXIS_LABELS = ['Ancho', 'Alto', 'Fondo'] as const;
+
+/** Un vaciado o calado de la pieza, con sus medidas editables. */
+function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocket; part: Part; units: Units; onChange: (recipe: (p: Pocket) => void) => void; onRemove: () => void }) {
+  const throughId = useId();
+  const { axes, size } = faceSize(part, pocket.axis);
+  const thick = depthUnder(part, pocket.axis);
+  const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
+  const s = pocket.shape;
+  const from = (i: 0 | 1) => `${s.kind === 'circle' ? 'Centro desde' : 'Desde'} ${MEASURED_FROM[axes[i]]}`;
+  return (
+    <div className={styles.pocketCard}>
+      <div className={styles.pocketHead}>
+        <span className={styles.pocketTitle}>
+          <strong>{pocket.id}</strong> {describePocket(pocket, n).replace(/^./, (c) => c.toUpperCase())}
+        </span>
+        <button type="button" className={styles.iconBtnSmall} aria-label={`Borrar ${pocket.id}`} title="Borrar" onClick={onRemove}>
+          <IconTrash />
+        </button>
+      </div>
+      <div className={styles.pocketFields}>
+        {s.kind === 'rect' ? (
+          <>
+            <LengthField label={AXIS_LABELS[axes[0]]} mm={s.w} units={units} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.w = v))} />
+            <LengthField label={AXIS_LABELS[axes[1]]} mm={s.h} units={units} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.h = v))} />
+          </>
+        ) : (
+          <LengthField label="Diámetro" mm={s.d} units={units} max={Math.max(...size)} onCommit={(v) => onChange((p) => p.shape.kind === 'circle' && (p.shape.d = v))} />
+        )}
+        <LengthField label={from(0)} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
+        <LengthField label={from(1)} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
+        {!pocket.through && (
+          <LengthField label="Profundidad" mm={pocket.depth} units={units} min={0.5} max={thick} onCommit={(v) => onChange((p) => void (p.depth = v))} />
+        )}
+      </div>
+      <label className={styles.check} htmlFor={throughId}>
+        <input id={throughId} type="checkbox" checked={pocket.through} onChange={(e) => onChange((p) => void (p.through = e.target.checked))} />
+        Atraviesa la pieza
+      </label>
+    </div>
+  );
+}
+
 type EdgeKind = 'rectos' | 'round' | 'chamfer';
 
 function PartEditor({ part, project }: { part: Part; project: Project }) {
   const commit = useEditor((s) => s.commit);
   const select = useEditor((s) => s.select);
+  const setTool = useEditor((s) => s.setTool);
   const units = project.units;
   const nameId = useId();
   const woodId = useId();
@@ -275,6 +324,29 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           )}
         </div>
       </fieldset>
+      <div className={styles.stack}>
+        <span className={styles.legend}>Vaciados y calados ({part.pockets.length})</span>
+        {part.pockets.length === 0 && (
+          <p className={styles.muted}>
+            Con <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('draw')}>Dibujar</button> marcás un rectángulo o un círculo en una cara y se saca de la pieza.
+          </p>
+        )}
+        {part.pockets.map((pk) => (
+          <PocketCard
+            key={pk.id}
+            pocket={pk}
+            part={part}
+            units={units}
+            onChange={(recipe) =>
+              update((q) => {
+                const x = q.pockets.find((y) => y.id === pk.id);
+                if (x) recipe(x);
+              })
+            }
+            onRemove={() => update((q) => void (q.pockets = q.pockets.filter((y) => y.id !== pk.id)))}
+          />
+        ))}
+      </div>
       <div className={styles.stack}>
         <span className={styles.legend}>Uniones de esta pieza ({joints.length})</span>
         {joints.length === 0 && <p className={styles.muted}>Acercá esta pieza a otra hasta que se toquen y se propone un encastre.</p>}

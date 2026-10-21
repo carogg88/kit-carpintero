@@ -1,5 +1,5 @@
-import { basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCompound, makeCylinder, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
-import { engineCamera, jointGeometry, partBox, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
+import { basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
+import { engineCamera, jointGeometry, partBox, pocketSolid, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -50,6 +50,14 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     }
   }
 
+  for (const p of part.pockets) {
+    try {
+      shape = shape.cut(toShape(pocketSolid(part, p)));
+    } catch {
+      warning = `No se pudo hacer el ${p.through ? 'calado' : 'vaciado'} ${p.id}`;
+    }
+  }
+
   for (const j of project.joints) {
     if (j.partA !== part.id && j.partB !== part.id) continue;
     const a = project.parts.find((p) => p.id === j.partA);
@@ -78,9 +86,17 @@ export function projectShapes(shapes: Shape3D[], view: Pick<EngineView, 'project
   const r = GCWithScope();
   const cam = engineCamera(view.projection);
   const camera = new ProjectionCamera([0, 0, 0], cam.dir, cam.xAxis);
-  const compound = shapes.length === 1 ? shapes[0]! : makeCompound(shapes);
+  // Compuesto armado a mano: `makeCompound` de replicad borra las piezas, y el worker las guarda para reusarlas.
+  let compound = shapes[0]!.wrapped;
+  if (shapes.length > 1) {
+    const builder = r(new oc.TopoDS_Builder());
+    const c = r(new oc.TopoDS_Compound());
+    builder.MakeCompound(c);
+    for (const s of shapes) builder.Add(c, s.wrapped);
+    compound = c;
+  }
   const algo = r(new oc.HLRBRep_Algo());
-  algo.Add(compound.wrapped, 0);
+  algo.Add(compound, 0);
   algo.Projector(r(new oc.HLRAlgo_Projector(camera.wrapped)));
   algo.Update();
   algo.Hide();
@@ -118,7 +134,6 @@ export function projectShapes(shapes: Shape3D[], view: Pick<EngineView, 'project
     }
     c.delete();
   }
-  if (compound !== shapes[0]) compound.delete();
   camera.delete();
   return { segments: new Float32Array(segs), hidden: new Uint8Array(hidden) };
 }

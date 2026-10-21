@@ -108,3 +108,24 @@ export const IconDownload = () => (
     <path d="M5 21h14" />
   </svg>
 );
+export const IconDraw = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20h4L19 9l-4-4L4 16z" />
+    <path d="m13 7 4 4" />
+  </svg>
+);
+export const IconRect = () => (
+  <svg {...base}>
+    <rect x="4" y="6" width="16" height="12" rx="1" />
+  </svg>
+);
+export const IconCircle = () => (
+  <svg {...base}>
+    <circle cx="12" cy="12" r="8" />
+  </svg>
+);
+export const IconTrash = () => (
+  <svg {...base}>
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+  </svg>
+);

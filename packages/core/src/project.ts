@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -22,6 +22,28 @@ export const Operation = z.discriminatedUnion('kind', [
 ]);
 export type Operation = z.infer<typeof Operation>;
 
+/** Figura dibujada en una cara. u, v: medidas desde la esquina mínima de la pieza sobre los otros dos ejes. */
+export const PocketShape = z.discriminatedUnion('kind', [
+  /** Rectángulo: (u, v) es la esquina más cercana al origen. */
+  z.object({ kind: z.literal('rect'), u: z.number(), v: z.number(), w: z.number().positive(), h: z.number().positive() }),
+  /** Círculo: (u, v) es el centro. */
+  z.object({ kind: z.literal('circle'), u: z.number(), v: z.number(), d: z.number().positive() }),
+]);
+export type PocketShape = z.infer<typeof PocketShape>;
+
+/** Vaciado o calado: una figura dibujada en una cara que se saca de la pieza. */
+export const Pocket = z.object({
+  id: z.string(),
+  /** Eje perpendicular a la cara y de qué lado está (1 la del máximo, -1 la del mínimo). */
+  axis: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  side: z.union([z.literal(1), z.literal(-1)]),
+  shape: PocketShape,
+  depth: z.number().positive(),
+  /** Calado: atraviesa la pieza y la profundidad no cuenta. */
+  through: z.boolean().default(false),
+});
+export type Pocket = z.infer<typeof Pocket>;
+
 export const Part = z.object({
   id: z.string(),
   name: z.string(),
@@ -32,6 +54,8 @@ export const Part = z.object({
   /** Rotación en grados alrededor de X, Y, Z. */
   rotation: Vec3.default([0, 0, 0]),
   ops: z.array(Operation).default([]),
+  /** Vaciados y calados dibujados en las caras, en orden. */
+  pockets: z.array(Pocket).default([]),
   /** Componente al que pertenece: todas sus copias comparten forma, madera y operaciones. */
   component: z.string().optional(),
 });
@@ -80,6 +104,8 @@ type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
 const migrations: Record<number, Migration> = {
   // v2 suma los componentes; los proyectos anteriores no tienen ninguno.
   1: (d) => ({ ...d, components: [] }),
+  // v3 suma los vaciados de cada pieza; el esquema los completa vacíos.
+  2: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

@@ -1,6 +1,7 @@
 import { partAxesBySize } from './edit';
 import { endJoint, jointGeometry, solidBox } from './joints';
 import { partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
+import { pocketSolid } from './pockets';
 import type { Part, Project } from './project';
 
 /**
@@ -218,7 +219,8 @@ export function partProjection(part: Part): Projection {
 /** Despiece: la pieza con sus espigas y, ocultas, sus mortajas y agujeros. */
 export function drawPart(project: Project, part: Part): Drawing {
   const projection = partProjection(part);
-  return { ...drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part)], projection), engine: { parts: [part.id], projection } };
+  const pockets: DrawItem[] = part.pockets.map((p) => ({ id: `${part.id}-${p.id}`, box: solidBox(pocketSolid(part, p)), joint: true, owner: part.id, hole: true }));
+  return { ...drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...pockets], projection), engine: { parts: [part.id], projection } };
 }
 
 /** Dos vistas de detalle de un encastre, encuadradas donde se tocan las piezas. */

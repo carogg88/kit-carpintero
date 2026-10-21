@@ -59,6 +59,25 @@
 .toolbar button:hover { background: var(--surface-2); }
 .toolbar button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
 .toolSep { width: 1px; background: var(--line); margin: 6px 2px; }
+.stage[data-tool='draw'] canvas { cursor: crosshair; }
+
+/* Dibujar: figura, cara elegida y salida. */
+.drawBar {
+  position: absolute; top: 52px; left: var(--space-2); right: var(--space-2); display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1); padding-right: var(--space-1); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-card); font-size: 14px;
+}
+.drawBar > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: var(--space-1); }
+.shapes { display: flex; gap: 2px; padding: 2px; background: var(--surface-2); border-radius: var(--radius-pill); }
+.shapes button {
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink); cursor: pointer; transition: background-color 150ms ease;
+}
+.shapes button[aria-pressed='true'] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgb(43 54 40 / 0.18); }
+.done {
+  height: 40px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--forest); color: var(--forest-ink);
+  font: 600 14px var(--font-ui); cursor: pointer;
+}
 
 .views {
   position: absolute; top: var(--space-2); right: var(--space-2); display: flex; gap: 2px; padding: 3px;
@@ -109,6 +128,7 @@
 .grabber { align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); flex-shrink: 0; }
 .panelHead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .link { min-height: var(--tap); padding: 0; border: 0; background: none; color: var(--accent); font: 500 13px var(--font-ui); cursor: pointer; }
+.inlineLink { min-height: 0; font-size: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .eyebrow { font-family: var(--font-num); font-size: 12px; color: var(--muted); }
 .panelTitle { margin: 2px 0 4px; font-size: 18px; font-weight: 600; }
 .legend {
@@ -144,6 +164,17 @@
 }
 .jointSelect:hover, .jointSelect:focus-visible { border-color: var(--line-strong); }
 
+.pocketCard { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: 14px; }
+.pocketHead { display: flex; align-items: flex-start; gap: var(--space-2); }
+.pocketTitle { flex: 1; font-size: 14px; line-height: 1.4; padding-top: 10px; }
+.pocketFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
+.iconBtnSmall {
+  width: var(--tap); height: var(--tap); flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0;
+  border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; transition: background-color 150ms ease, color 150ms ease;
+}
+.iconBtnSmall:hover { background: var(--surface-2); color: var(--danger); }
+.check { display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap); font-size: 14px; cursor: pointer; }
+.check input { width: 20px; height: 20px; accent-color: var(--forest); }
 .componentBox { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px dashed var(--line-strong); border-radius: 14px; }
 .componentBox .btn { flex: none; align-self: flex-start; padding: 0 var(--space-4); }
 .componentBox .muted { margin: 0; line-height: 1.45; }
@@ -202,6 +233,7 @@
   .views { top: var(--space-3); right: var(--space-3); border-radius: 12px; padding: var(--space-1); }
   .views button { height: 40px; padding: 0 14px; font-size: 14px; }
   .engine { top: auto; bottom: var(--space-3); left: auto; right: var(--space-3); }
+  .drawBar { top: auto; bottom: var(--space-3); left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100% - 2 * var(--space-3) - 64px); }
   .panel { flex: 1 1 360px; max-width: 420px; margin: 0; padding: 20px; gap: 18px; border: 1px solid var(--line); border-radius: var(--radius-m); }
   .grabber { display: none; }
   .footer { justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-5) var(--space-4); background: transparent; border: 0; font-size: 14px; color: var(--muted); }

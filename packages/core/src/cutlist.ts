@@ -128,6 +128,10 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     else if (BY_END.has(k)) work.push(n === 1 ? k : `${k} en ${n} puntas`);
     else work.push(plural(n, one, many));
   }
+  const through = part.pockets.filter((p) => p.through).length;
+  const blind = part.pockets.length - through;
+  if (through) work.push(plural(through, 'calado', 'calados'));
+  if (blind) work.push(plural(blind, 'vaciado', 'vaciados'));
   const op = part.ops[0];
   if (op) work.push(op.kind === 'round' ? `cantos redondeados ${op.radius} mm` : `cantos chaflanados ${op.size} mm`);
   const finished = [...boxSize(box)].sort((x, y) => y - x);

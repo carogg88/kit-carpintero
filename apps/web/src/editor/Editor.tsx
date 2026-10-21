@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatLength, parseLength } from '@kitc/core';
+import { faceName, formatLength, parseLength } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
 import { CutsView } from './CutsView';
 import {
   IconBack,
+  IconCircle,
+  IconDraw,
+  IconRect,
   IconCuts,
   IconJoints,
   IconLogo,
@@ -31,6 +34,7 @@ const TOOLS: [Tool, string, string, () => React.JSX.Element][] = [
   ['select', 'Seleccionar', 'V', IconSelect],
   ['push', 'Empujar o tirar una cara', 'P', IconPush],
   ['move', 'Mover pieza', 'M', IconMove],
+  ['draw', 'Dibujar en una cara', 'D', IconDraw],
 ];
 const VIEWS: [View, string, string][] = [
   ['iso', 'Iso', 'Iso'],
@@ -42,6 +46,13 @@ const TIPS: Record<Tool, string> = {
   select: 'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.',
   push: 'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.',
   move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.',
+  draw: 'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina o un círculo desde su centro. Se pega a los bordes, al centro y cada 5 mm.',
+};
+
+/** "la cara de arriba", "el frente". */
+const faceLabel = (axis: 0 | 1 | 2, side: 1 | -1) => {
+  const name = faceName(axis, side);
+  return name === 'frente' ? 'el frente' : `la ${name}`;
 };
 
 type SaveState = 'saved' | 'saving' | 'error';
@@ -84,8 +95,12 @@ function useShortcuts(modelo: boolean) {
       if (k === 'v') s.setTool('select');
       else if (k === 'p') s.setTool('push');
       else if (k === 'm') s.setTool('move');
+      else if (k === 'd') s.setTool('draw');
       else if (k === 'x') s.setXray(!s.xray);
-      else if (k === 'escape') s.select(null);
+      else if (k === 'escape') {
+        if (s.drawFace) s.setDrawFace(null);
+        else s.select(null);
+      }
       else if ((k === 'delete' || k === 'backspace') && s.selectedId) {
         const id = s.selectedId;
         s.commit((d) => void (d.parts = d.parts.filter((p) => p.id !== id)));
@@ -221,7 +236,9 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const hasPush = useEditor((s) => s.lastPush !== null);
-  const { undo, redo, setTool, setXray, setView, setCopyMove } = useEditor.getState();
+  const drawFace = useEditor((s) => s.drawFace);
+  const drawShape = useEditor((s) => s.drawShape);
+  const { undo, redo, setTool, setXray, setView, setCopyMove, setDrawFace, setDrawShape } = useEditor.getState();
   const selected = useSelectedPart();
   const saveState = useAutosave();
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
@@ -337,7 +354,33 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 </button>
               ))}
             </div>
-            {selected && selDims && (
+            {tool === 'draw' && (
+              <div className={styles.drawBar}>
+                <div className={styles.shapes} role="group" aria-label="Figura">
+                  <button type="button" aria-pressed={drawShape === 'rect'} aria-label="Rectángulo" title="Rectángulo" onClick={() => setDrawShape('rect')}>
+                    <IconRect />
+                  </button>
+                  <button type="button" aria-pressed={drawShape === 'circle'} aria-label="Círculo" title="Círculo" onClick={() => setDrawShape('circle')}>
+                    <IconCircle />
+                  </button>
+                </div>
+                <span role="status">
+                  {drawFace ? (
+                    <>
+                      En {faceLabel(drawFace.axis, drawFace.side)} de <strong>{drawFace.partId}</strong>
+                    </>
+                  ) : (
+                    'Tocá una cara'
+                  )}
+                </span>
+                {drawFace && (
+                  <button type="button" className={styles.done} onClick={() => setDrawFace(null)}>
+                    Listo
+                  </button>
+                )}
+              </div>
+            )}
+            {selected && selDims && tool !== 'draw' && (
               <span className={`${styles.chip} ${styles.desktopOnly}`}>
                 <strong>{selected.id}</strong> {selected.name}
                 <span className={styles.chipNum}>{selDims.map((mm) => formatLength(mm, project.units).replace(/ cm|″/, '')).join(' × ')}{project.units === 'cm' ? ' cm' : '″'}</span>
