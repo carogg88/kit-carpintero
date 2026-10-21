@@ -49,31 +49,61 @@
 .stage[data-tool='move'] canvas { cursor: move; }
 
 .toolbar {
-  position: absolute; left: var(--space-2); bottom: var(--space-2); display: flex; gap: var(--space-1);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: var(--space-1); box-shadow: var(--shadow-card);
+  position: absolute; left: var(--space-2); right: var(--space-2); bottom: var(--space-2); display: flex; justify-content: space-between; gap: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: var(--space-1); box-shadow: var(--shadow-card);
+  overflow-x: auto; scrollbar-width: none;
 }
+/* Cada herramienta con su nombre abajo: el ícono solo no alcanza para saber qué hace. */
 .toolbar button {
-  width: var(--tap); height: var(--tap); display: flex; align-items: center; justify-content: center; border: 0;
-  border-radius: 50%; background: transparent; color: var(--ink); cursor: pointer; transition: background-color 150ms ease;
+  flex: 1 1 0; min-width: 0; height: 52px; padding: 4px 1px 3px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: 0; border-radius: 12px; background: transparent; color: var(--ink); cursor: pointer; transition: background-color 150ms ease;
 }
+.toolbar button span { font: 500 10px/1 var(--font-ui); letter-spacing: -0.15px; white-space: nowrap; }
 .toolbar button:hover { background: var(--surface-2); }
 .toolbar button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
-.toolSep { width: 1px; background: var(--line); margin: 6px 2px; }
-/* En un celular angosto entran las siete herramientas y los rayos X: botones un poco más finos (siguen de 44 de alto). */
-@media (max-width: 430px) {
-  .toolbar { gap: 2px; max-width: calc(100% - 2 * var(--space-2)); overflow-x: auto; scrollbar-width: none; }
-  .toolbar button { width: 40px; flex: none; }
-}
+.toolbar button[aria-pressed='true'] span { font-weight: 600; }
+.toolSep { flex: none; width: 1px; background: var(--line); margin: 8px 0; }
 .stage[data-tool='draw'] canvas, .stage[data-tool='bevel'] canvas, .stage[data-tool='section'] canvas { cursor: crosshair; }
 .stage[data-tool='turn'] canvas { cursor: pointer; }
 
-/* Dibujar: figura, cara elegida y salida. */
-.drawBar {
+/* Pasos de la herramienta: qué hacer ahora y qué viene. En el celular, arriba y solo el paso en curso. */
+.guide {
   position: absolute; top: 52px; left: var(--space-2); right: var(--space-2); display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-1); padding-right: var(--space-1); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-card); font-size: 14px;
+  flex-wrap: wrap; row-gap: 2px; min-height: 48px; padding: var(--space-1); background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: var(--shadow-card); font-size: 14px; pointer-events: auto;
 }
-.drawBar > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: var(--space-1); }
+.steps { flex: 1 1 100%; order: 2; min-width: 0; display: flex; align-items: center; gap: var(--space-2); margin: 0; padding: 4px var(--space-1); list-style: none; }
+/* En el celular, los botones de la herramienta y Listo van en una fila y el paso abajo, entero. */
+.guide > .done { margin-left: auto; }
+.steps li { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); }
+.steps li[aria-current='step'] { flex: 1; color: var(--ink); font-weight: 600; }
+.steps li:not([aria-current='step']) { display: none; }
+.steps:not([data-numbered]) li { font-weight: 400; color: var(--ink); }
+.stepText { line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.stepNum {
+  flex: none; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+  border: 1.5px solid var(--line-strong); font: 600 12px/1 var(--font-num); color: var(--muted); background: var(--surface);
+}
+.steps li[aria-current='step'] .stepNum { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.steps li[data-done] .stepNum { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
+.guideToggle {
+  flex: none; display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px 0 10px; border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: 500 13px var(--font-ui); cursor: pointer;
+}
+.guideToggle[aria-pressed='true'] { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
+
+/* Lo que acaba de cambiar, con Deshacer. En el celular, arriba de las herramientas. */
+.notice {
+  position: absolute; left: var(--space-2); right: var(--space-2); bottom: calc(52px + var(--space-1) * 2 + var(--space-2) * 2 + 2px); display: flex; align-items: center; gap: var(--space-2);
+  padding: 6px 6px 6px 14px; border-radius: 14px; background: var(--ink); color: var(--bg); font-size: 14px; box-shadow: 0 6px 18px rgb(43 54 40 / 0.25);
+  animation: noticeIn 180ms ease-out;
+}
+.notice span { flex: 1; min-width: 0; line-height: 1.3; }
+.notice button {
+  flex: none; height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--signal); font: 600 14px var(--font-ui); cursor: pointer;
+}
+.notice button:hover { background: rgb(255 255 255 / 0.08); }
+@keyframes noticeIn { from { opacity: 0; transform: translateY(6px); } }
 .shapes { display: flex; gap: 2px; padding: 2px; background: var(--surface-2); border-radius: var(--radius-pill); }
 .shapes button {
   width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
@@ -110,8 +140,8 @@
 }
 .snap { color: var(--signal); font-family: var(--font-ui); font-size: 12px; }
 
-/* Encima de la barra de herramientas: con cinco herramientas, al lado ya no entra en un celular angosto. */
-.fabWrap { position: absolute; right: var(--space-2); bottom: calc(var(--space-2) * 2 + var(--tap) + var(--space-1) * 2 + 2px); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+/* Encima de la barra de herramientas, que ocupa todo el ancho. Solo con Elegir: con otra herramienta taparía la pieza. */
+.fabWrap { position: absolute; right: var(--space-2); bottom: calc(var(--space-2) * 2 + 52px + var(--space-1) * 2 + 2px); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
 .fab {
   width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 14px rgb(43 54 40 / 0.25);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -206,14 +236,12 @@
 
 /* ---------- Pie y barra inferior ---------- */
 .footer { display: flex; align-items: center; padding: var(--space-2) var(--space-4); background: var(--surface); border-top: 1px solid var(--line); }
-.footer > span { display: none; }
 .measure { display: flex; align-items: center; gap: var(--space-2); color: var(--ink); font-weight: 600; font-size: 14px; }
 .measure input {
   width: 120px; height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 10px;
   background: var(--surface); color: var(--ink);
 }
 .measure input:disabled { opacity: 0.55; }
-@media (max-width: 899px) { .footerIdle { display: none; } }
 
 .bottomNav {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border-top: 1px solid var(--line);
@@ -235,20 +263,33 @@
   .headerActions { margin-left: 0; gap: var(--space-2); }
   .main { flex-direction: row; gap: var(--space-4); padding: var(--space-4) var(--space-5); }
   .stage { flex: 999 1 560px; height: auto; margin: 0; border-radius: var(--radius-m); }
-  .toolbar { top: var(--space-3); left: var(--space-3); bottom: auto; flex-direction: column; }
-  .toolSep { width: auto; height: 1px; margin: 2px 6px; }
+  .toolbar { top: var(--space-3); left: var(--space-3); right: auto; bottom: auto; flex-direction: column; justify-content: flex-start; max-height: calc(100% - 2 * var(--space-3)); overflow: hidden auto; }
+  .toolbar button { flex: none; width: 60px; height: 50px; }
+  .toolSep { width: auto; height: 1px; margin: 2px 8px; }
+  .chip.desktopOnly { top: var(--space-3); bottom: auto; left: calc(var(--space-3) + 60px + var(--space-1) * 2 + 2px + var(--space-3)); }
+  .guide { top: auto; bottom: var(--space-3); left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100% - 2 * var(--space-3) - 160px); padding-right: var(--space-2); }
+  .guide:has(.done) { padding-right: var(--space-1); }
+  .guide { flex-wrap: nowrap; }
+  .steps { flex: 1 1 auto; order: 0; gap: var(--space-3); padding: 0 var(--space-1); }
+  .guide > .done { margin-left: 0; }
+  /* En la compu se ven todos los pasos; con texto, el de ahora, el que sigue y lo que ya quedó elegido. */
+  .steps li:not([aria-current='step']) { display: flex; }
+  .steps li:not([aria-current='step']):not([data-next]):not([data-detail]) .stepText,
+  .steps:has([data-detail]) li[data-next] .stepText { display: none; }
+  .steps li[aria-current='step'] { flex: 0 1 auto; }
+  .stepText { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notice { left: 50%; right: auto; transform: translateX(-50%); bottom: calc(var(--space-3) + 48px + 2px + var(--space-2)); max-width: 520px; width: max-content; animation: none; }
   .views { top: var(--space-3); right: var(--space-3); border-radius: 12px; padding: var(--space-1); }
   .views button { height: 40px; padding: 0 14px; font-size: 14px; }
-  .engine { top: auto; bottom: var(--space-3); left: auto; right: var(--space-3); }
-  .drawBar { top: auto; bottom: var(--space-3); left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100% - 2 * var(--space-3) - 64px); }
+  .engine { top: 64px; left: auto; right: var(--space-3); }
   .panel { flex: 1 1 360px; max-width: 420px; margin: 0; padding: 20px; gap: 18px; border: 1px solid var(--line); border-radius: var(--radius-m); }
   .grabber { display: none; }
-  .footer { justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-5) var(--space-4); background: transparent; border: 0; font-size: 14px; color: var(--muted); }
-  .footer > span { display: inline; }
+  .footer { justify-content: flex-end; gap: var(--space-3); padding: 0 var(--space-5) var(--space-4); background: transparent; border: 0; font-size: 14px; color: var(--muted); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .seg button, .toolbar button { transition: none; }
+  .notice { animation: none; }
 }
 
 /* ---------- Cabecera de Uniones y Cortes ---------- */
