@@ -144,6 +144,11 @@
 }
 .jointSelect:hover, .jointSelect:focus-visible { border-color: var(--line-strong); }
 
+.componentBox { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px dashed var(--line-strong); border-radius: 14px; }
+.componentBox .btn { flex: none; align-self: flex-start; padding: 0 var(--space-4); }
+.componentBox .muted { margin: 0; line-height: 1.45; }
+.componentOn { border-style: solid; border-color: var(--forest); background: var(--accent-soft); }
+.componentTitle { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
 .actionsRow { display: flex; gap: var(--space-2); margin-top: auto; }
 .btn {
   flex: 1; height: var(--tap); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--surface);

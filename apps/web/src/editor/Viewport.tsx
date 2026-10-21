@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { formatLength, partBox, snapCoord, snapMove, woodById, type Axis, type Box, type Part, type Project } from '@kitc/core';
+import { copyPart, formatLength, partBox, snapCoord, snapMove, woodById, type Axis, type Box, type Part, type Project } from '@kitc/core';
 import { useEditor, type View } from './store';
 import { partKey, type ExactMesh } from './useGeometry';
 
@@ -216,10 +216,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
 
   const units = project?.units ?? 'cm';
 
-  const startDrag = (e: ThreeEvent<PointerEvent>, part: Part) => {
-    const { tool, select, beginDrag } = useEditor.getState();
-    if (tool === 'select' || !e.face) return;
+  const startDrag = (e: ThreeEvent<PointerEvent>, original: Part) => {
+    const { tool, select, beginDrag, copyMove, project: current } = useEditor.getState();
+    if (tool === 'select' || !e.face || !current) return;
     e.stopPropagation();
+    // Copiar al mover: se arrastra una copia y la pieza original queda en su lugar.
+    const copying = tool === 'move' && (copyMove || e.nativeEvent.ctrlKey || e.nativeEvent.altKey);
+    const part = copying ? copyPart(current.parts, original) : original;
     const start = partBox(part);
     const n = e.face.normal;
     const abs = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
@@ -237,8 +240,10 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       dir,
       plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -e.point.y),
     };
-    select(part.id);
     beginDrag();
+    if (copying) useEditor.getState().dragUpdate((d) => void d.parts.push(structuredClone(part)));
+    select(part.id);
+    let moved = false;
     if (controlsRef.current) controlsRef.current.enabled = false;
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
@@ -278,6 +283,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           if (s.to) snaps.push(s.to);
           return s.value;
         });
+        if (shifts[0] || shifts[1]) moved = true;
         dragUpdate((d) => {
           const q = d.parts.find((x) => x.id === part.id);
           if (!q) return;
@@ -286,7 +292,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         });
         setHint({
           ...hintAt,
-          text: `${part.id} · ${formatLength(Math.abs(shifts[0]!), units)} ↔ · ${formatLength(Math.abs(shifts[1]!), units)} ↕`,
+          text: `${copying ? `Copia ${part.id}` : part.id} · ${formatLength(Math.abs(shifts[0]!), units)} ↔ · ${formatLength(Math.abs(shifts[1]!), units)} ↕`,
           snap: snaps.length ? `cara de ${[...new Set(snaps)].join(', ')}` : null,
         });
       }
@@ -297,8 +303,14 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       if (controlsRef.current) controlsRef.current.enabled = true;
-      const { endDrag, setHint } = useEditor.getState();
+      const { endDrag, cancelDrag, setHint } = useEditor.getState();
       setHint(null);
+      // Una copia que no se movió quedaría encima de la original: se descarta.
+      if (copying && !moved) {
+        cancelDrag();
+        select(original.id);
+        return;
+      }
       endDrag(drag.kind === 'push' ? { id: part.id, axis: drag.axis, sign: drag.sign } : undefined);
     };
     window.addEventListener('pointermove', onMove);

@@ -39,6 +39,18 @@ export const IconXray = () => (
     <rect x="4" y="4" width="16" height="16" rx="2" />
   </svg>
 );
+export const IconCopy = () => (
+  <svg {...base}>
+    <rect x="8" y="8" width="12" height="12" rx="2" />
+    <path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" />
+  </svg>
+);
+export const IconLink = () => (
+  <svg {...base} width={18} height={18}>
+    <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+  </svg>
+);
 export const IconPlus = () => (
   <svg {...base} width={24} height={24} strokeWidth={2.5}>
     <path d="M12 5v14M5 12h14" />

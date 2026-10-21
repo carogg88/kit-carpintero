@@ -10,3 +10,4 @@ export * from './cutlist';
 export * from './jointinfo';
 export * from './drawing';
 export * from './templates';
+export * from './components';

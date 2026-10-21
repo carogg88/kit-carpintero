@@ -96,7 +96,7 @@ export function duplicatePart(parts: Part[], part: Part): Part {
   return {
     ...structuredClone(part),
     id: nextPartId(parts, prefix),
-    name: `${part.name} (copia)`,
+    name: part.component ? part.name : `${part.name} (copia)`,
     position: [part.position[0] + width + 100, part.position[1], part.position[2]],
   };
 }

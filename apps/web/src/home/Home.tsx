@@ -62,7 +62,7 @@ const TEMPLATES = [
 
 function emptyProject(): Project {
   const now = new Date().toISOString();
-  return { schemaVersion: SCHEMA_VERSION, id: `proyecto-${now}`, name: 'Proyecto nuevo', units: 'cm', createdAt: now, updatedAt: now, parts: [], joints: [] };
+  return { schemaVersion: SCHEMA_VERSION, id: `proyecto-${now}`, name: 'Proyecto nuevo', units: 'cm', createdAt: now, updatedAt: now, parts: [], joints: [], components: [] };
 }
 
 /** "hoy", "ayer" o la fecha corta. */

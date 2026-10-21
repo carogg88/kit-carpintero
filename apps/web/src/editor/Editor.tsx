@@ -16,6 +16,7 @@ import {
   IconRedo,
   IconSelect,
   IconUndo,
+  IconCopy,
   IconXray,
 } from './icons';
 import { JointsView } from './JointsView';
@@ -40,7 +41,7 @@ const VIEWS: [View, string, string][] = [
 const TIPS: Record<Tool, string> = {
   select: 'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.',
   push: 'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.',
-  move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas.',
+  move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.',
 };
 
 type SaveState = 'saved' | 'saving' | 'error';
@@ -213,13 +214,14 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const project = useEditor((s) => s.project);
   const tool = useEditor((s) => s.tool);
   const xray = useEditor((s) => s.xray);
+  const copyMove = useEditor((s) => s.copyMove);
   const view = useEditor((s) => s.view);
   const hint = useEditor((s) => s.hint);
   const dragging = useEditor((s) => s.dragging);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const hasPush = useEditor((s) => s.lastPush !== null);
-  const { undo, redo, setTool, setXray, setView } = useEditor.getState();
+  const { undo, redo, setTool, setXray, setView, setCopyMove } = useEditor.getState();
   const selected = useSelectedPart();
   const saveState = useAutosave();
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
@@ -311,6 +313,17 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                   <Icon />
                 </button>
               ))}
+              {tool === 'move' && (
+                <button
+                  type="button"
+                  aria-pressed={copyMove}
+                  aria-label="Copiar al mover (o mantené Ctrl)"
+                  title="Copiar al mover (o mantené Ctrl)"
+                  onClick={() => setCopyMove(!copyMove)}
+                >
+                  <IconCopy />
+                </button>
+              )}
               <span className={styles.toolSep} aria-hidden="true" />
               <button type="button" aria-pressed={xray} aria-label="Rayos X (X)" title="Rayos X (X)" onClick={() => setXray(!xray)}>
                 <IconXray />

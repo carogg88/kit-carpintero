@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { syncJoints, type Project, type Units } from '@kitc/core';
+import { syncComponents, syncJoints, type Project, type Units } from '@kitc/core';
 
 export type Tool = 'select' | 'push' | 'move';
 export type View = 'iso' | 'front' | 'side' | 'top';
@@ -23,6 +23,8 @@ interface EditorState {
   selectedId: string | null;
   tool: Tool;
   xray: boolean;
+  /** Mover deja una copia en lugar de mover la pieza (botón del celular; en la compu, Ctrl u Opción). */
+  copyMove: boolean;
   view: View;
   /** Se incrementa para pedir que la cámara vuelva a encuadrar. */
   viewNonce: number;
@@ -38,11 +40,14 @@ interface EditorState {
   /** Cambio en vivo durante el arrastre. */
   dragUpdate: (recipe: (p: Draft<Project>) => void) => void;
   endDrag: (lastPush?: LastPush) => void;
+  /** Termina el arrastre sin cambios: vuelve a como estaba antes de empezar. */
+  cancelDrag: () => void;
   undo: () => void;
   redo: () => void;
   select: (id: string | null) => void;
   setTool: (t: Tool) => void;
   setXray: (on: boolean) => void;
+  setCopyMove: (on: boolean) => void;
   setView: (v: View) => void;
   setUnits: (u: Units) => void;
   setHint: (h: DragHint | null) => void;
@@ -59,10 +64,11 @@ const touch = (p: Draft<Project>) => {
   p.updatedAt = new Date().toISOString();
 };
 
-/** Aplica el cambio y deja los encastres al día con las piezas. */
+/** Aplica el cambio, iguala las copias de cada componente y deja los encastres al día con las piezas. */
 const apply = (p: Project, recipe: (p: Draft<Project>) => void, sync: boolean) =>
   produce(p, (d) => {
     recipe(d);
+    syncComponents(p, d as Project);
     if (sync) d.joints = syncJoints(d.parts as Project['parts'], d.joints as Project['joints']);
     touch(d);
   });
@@ -75,6 +81,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   selectedId: null,
   tool: 'select',
   xray: false,
+  copyMove: false,
   view: 'iso',
   viewNonce: 0,
   lastPush: null,
@@ -106,6 +113,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set({ dragging: false, project: apply(project, () => {}, true), ...(lastPush ? { lastPush } : {}) });
   },
 
+  cancelDrag: () => {
+    const { past } = get();
+    const prev = past.at(-1);
+    if (!prev) return;
+    set({ dragging: false, project: prev, past: past.slice(0, -1) });
+    if (get().selectedId && !prev.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
+  },
+
   undo: () => {
     const { project, past, future } = get();
     const prev = past.at(-1);
@@ -124,6 +139,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   select: (selectedId) => set({ selectedId }),
   setTool: (tool) => set({ tool }),
   setXray: (xray) => set({ xray }),
+  setCopyMove: (copyMove) => set({ copyMove }),
   setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1 })),
   setHint: (hint) => set({ hint }),
   setUnits: (units) => {
