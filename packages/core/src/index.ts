@@ -8,3 +8,4 @@ export * from './templates/table';
 export * from './edit';
 export * from './cutlist';
 export * from './jointinfo';
+export * from './drawing';

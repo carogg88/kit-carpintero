@@ -7,10 +7,10 @@ import { readProject } from './storage/db';
 
 /**
  * Rutas por hash, para que funcione en GitHub Pages: #/ inicio, #/proyecto/<id> modelo,
- * #/proyecto/<id>/uniones y #/proyecto/<id>/cortes.
+ * #/proyecto/<id>/uniones, /cortes y /plano.
  */
 function route(): { projectId: string | null; section: Section } {
-  const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes))?$/);
+  const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes|plano))?$/);
   return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null, section: (m?.[2] as Section | undefined) ?? 'modelo' };
 }
 
