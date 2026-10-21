@@ -3,6 +3,7 @@ import {
   buildTemplate,
   drawView,
   JOINT_NAMES,
+  t,
   templateDefaults,
   templateWarnings,
   WOODS,
@@ -21,13 +22,11 @@ import { clearDraft, peekDraft } from './draft';
 import { BackHeader, UnitsToggle } from './parts';
 import styles from './Nuevo.module.css';
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
 /** Frente y costado del mueble, con las líneas que se ven. */
 function Preview({ project }: { project: Project }) {
   const views: [Drawing, string][] = [
-    [drawView(project, 'front'), 'Frente'],
-    [drawView(project, 'side'), 'Costado'],
+    [drawView(project, 'front'), t('Frente')],
+    [drawView(project, 'side'), t('Costado')],
   ];
   const H = Math.max(...views.map(([d]) => d.bounds.v1 - d.bounds.v0));
   const gap = H * 0.25;
@@ -45,7 +44,7 @@ function Preview({ project }: { project: Project }) {
       <svg
         viewBox={`${-pad} ${-pad} ${W + 2 * pad} ${H + label + 2 * pad}`}
         role="img"
-        aria-label="Vista previa de frente y de costado, con las medidas actuales"
+        aria-label={t('Vista previa de frente y de costado, con las medidas actuales')}
       >
         {placed.map(({ d, title, x: ox }) => {
           const tx = (u: number) => ox + u - d.bounds.u0;
@@ -65,7 +64,8 @@ function Preview({ project }: { project: Project }) {
         })}
       </svg>
       <figcaption>
-        {plural(project.parts.length, 'pieza', 'piezas')} · {plural(project.joints.length, 'unión', 'uniones')}
+        {project.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: project.parts.length })} ·{' '}
+        {project.joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: project.joints.length })}
       </figcaption>
     </figure>
   );
@@ -81,7 +81,7 @@ function Fields({ fields, values, units, warnings, onChange }: { fields: Templat
           for (let i = f.min; i <= f.max; i++) n.push(i);
           return (
             <label key={f.key} className={styles.field}>
-              {f.label}
+              {t(f.label)}
               <select value={values[f.key]} onChange={(e) => onChange(f.key, Number(e.target.value))}>
                 {n.map((i) => (
                   <option key={i} value={i}>
@@ -94,7 +94,7 @@ function Fields({ fields, values, units, warnings, onChange }: { fields: Templat
         }
         return (
           <div key={f.key} className={warn ? styles.warnField : undefined}>
-            <LengthField label={f.label} mm={values[f.key]!} units={units} min={f.min} max={f.max} describedBy={warn ? `aviso-${f.key}` : undefined} onCommit={(v) => onChange(f.key, v)} />
+            <LengthField label={t(f.label)} mm={values[f.key]!} units={units} min={f.min} max={f.max} describedBy={warn ? `aviso-${f.key}` : undefined} onCommit={(v) => onChange(f.key, v)} />
           </div>
         );
       })}
@@ -111,7 +111,7 @@ function Warnings({ fields, warnings }: { fields: TemplateField[]; warnings: Map
           <p key={f.key} id={`aviso-${f.key}`} className={styles.warn}>
             <IconWarn />
             <span>
-              <strong>Aviso:</strong> {warnings.get(f.key)}. Podés seguir igual.
+              <strong>{t('Aviso:')}</strong> {t('{note}. Podés seguir igual.', { note: t(warnings.get(f.key)!) })}
             </span>
           </p>
         ))}
@@ -144,7 +144,7 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
 
   return (
     <div className={styles.screen}>
-      <BackHeader overline="Plantilla" title={def.name} back="#/">
+      <BackHeader overline={t('Plantilla')} title={t(def.name)} back="#/">
         <UnitsToggle units={units} onChange={setUnits} />
       </BackHeader>
       <div className={styles.layout}>
@@ -152,7 +152,7 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
           <Preview project={preview} />
           {fromPhoto && (
             <p className={styles.note}>
-              Las medidas que calcaste en la foto ya están cargadas. Revisalas y completá las que no se veían.
+              {t('Las medidas que calcaste en la foto ya están cargadas. Revisalas y completá las que no se veían.')}
             </p>
           )}
         </div>
@@ -164,33 +164,33 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
           }}
         >
           <fieldset className={styles.grid}>
-            <legend className={styles.legend}>Medidas generales</legend>
+            <legend className={styles.legend}>{t('Medidas generales')}</legend>
             <Fields fields={general} values={values} units={units} warnings={warnings} onChange={change} />
           </fieldset>
           <Warnings fields={general} warnings={warnings} />
           <fieldset className={styles.grid}>
-            <legend className={styles.legend}>Piezas</legend>
+            <legend className={styles.legend}>{t('Piezas')}</legend>
             <Fields fields={pieces} values={values} units={units} warnings={warnings} onChange={change} />
           </fieldset>
           <Warnings fields={pieces} warnings={warnings} />
           <label className={styles.field}>
-            Madera
+            {t('Madera')}
             <select value={wood} onChange={(e) => setWood(e.target.value)}>
               {WOODS.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name} · {w.hardness}
+                  {t(w.name)} · {t(w.hardness)}
                 </option>
               ))}
             </select>
           </label>
           {def.joints && (
             <fieldset className={styles.plain}>
-              <legend className={styles.label}>{def.joints.label}</legend>
+              <legend className={styles.label}>{t(def.joints.label)}</legend>
               <div className={styles.chips}>
                 {def.joints.options.map((o) => (
                   <label key={o} className={styles.chip}>
                     <input type="radio" name="union" value={o} checked={joint === o} onChange={() => setJoint(o)} />
-                    {o === 'clavija' ? 'Clavijas' : JOINT_NAMES[o]}
+                    {o === 'clavija' ? t('Clavijas') : t(JOINT_NAMES[o])}
                   </label>
                 ))}
               </div>
@@ -198,7 +198,7 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
           )}
           <div className={styles.footer}>
             <button type="submit" className={styles.primary} disabled={busy}>
-              {busy ? 'Creando…' : def.createLabel}
+              {busy ? t('Creando…') : t(def.createLabel)}
             </button>
           </div>
         </form>

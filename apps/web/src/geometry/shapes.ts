@@ -1,5 +1,5 @@
 import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
-import { bevelSolid, engineCamera, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
+import { bevelSolid, engineCamera, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -67,7 +67,7 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     try {
       shape = shape.cut(solid(sectionCutBox(part, s))).fuse(solid(sectionBox(part, s)));
     } catch {
-      warning = `No se pudo hacer el tramo ${s.id}`;
+      warning = t('No se pudo hacer el tramo {id}', { id: s.id });
     }
   }
 
@@ -75,7 +75,7 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     try {
       shape = op.kind === 'round' ? shape.fillet(op.radius) : shape.chamfer(op.size);
     } catch {
-      warning = `No se pudo ${op.kind === 'round' ? 'redondear' : 'chaflanar'} esta pieza`;
+      warning = op.kind === 'round' ? t('No se pudo redondear esta pieza') : t('No se pudo chaflanar esta pieza');
     }
   }
 
@@ -83,7 +83,7 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     try {
       shape = shape.cut(toShape(pocketSolid(part, p)));
     } catch {
-      warning = `No se pudo hacer el ${p.through ? 'calado' : 'vaciado'} ${p.id}`;
+      warning = p.through ? t('No se pudo hacer el calado {id}', { id: p.id }) : t('No se pudo hacer el vaciado {id}', { id: p.id });
     }
   }
 
@@ -91,7 +91,7 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     try {
       shape = shape.cut(toShape(bevelSolid(part, b)));
     } catch {
-      warning = `No se pudo hacer el bisel ${b.id}`;
+      warning = t('No se pudo hacer el bisel {id}', { id: b.id });
     }
   }
 
@@ -107,7 +107,7 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
       for (const s of isA ? [] : geo.addB) shape = shape.fuse(toShape(s));
       for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(toShape(s));
     } catch {
-      warning = `No se pudo cortar el encastre con ${isA ? j.partB : j.partA}`;
+      warning = t('No se pudo cortar el encastre con {id}', { id: isA ? j.partB : j.partA });
     }
   }
   return warning ? { shape, warning } : { shape };

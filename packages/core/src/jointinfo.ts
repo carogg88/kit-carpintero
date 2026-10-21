@@ -2,6 +2,7 @@ import { endContact, overlapBox, partBox, type Axis } from './geometry';
 import { jointGeometry, solidBox } from './joints';
 import { partAxesBySize } from './edit';
 import type { Joint, Part, Project } from './project';
+import { locale, t } from './i18n';
 
 /** Primera palabra del nombre de una pieza: "Pata delantera derecha" → "Pata". */
 export const partWord = (p: Part | undefined): string => p?.name.trim().split(/\s+/)[0] ?? '?';
@@ -23,7 +24,7 @@ export function groupJoints(project: Project): JointGroup[] {
     const a = partWord(find(j.partA));
     const b = partWord(find(j.partB));
     const key = `${a}|${b}`;
-    const g = groups.get(key) ?? { key, label: `${a} con ${b.toLocaleLowerCase('es')}`, joints: [] };
+    const g = groups.get(key) ?? { key, label: t('{a} con {b}', { a, b: b.toLocaleLowerCase(locale()) }), joints: [] };
     g.joints.push(j);
     groups.set(key, g);
   }
@@ -37,9 +38,9 @@ export function groupJoints(project: Project): JointGroup[] {
 export function jointContact(a: Part, b: Part): string {
   const ba = partBox(a);
   const bb = partBox(b);
-  if (overlapBox(ba, bb)) return 'se cruzan';
-  if (endContact(ba, bb)) return 'punta contra cara';
-  return 'cara contra cara';
+  if (overlapBox(ba, bb)) return t('se cruzan');
+  if (endContact(ba, bb)) return t('punta contra cara');
+  return t('cara contra cara');
 }
 
 /** Cuánto crece la pieza que entra por el encastre (espigas, lengüetas), por medida. */

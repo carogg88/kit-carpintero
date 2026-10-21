@@ -1,8 +1,8 @@
-import type { EngineView, Project } from '@kitc/core';
+import type { EngineView, Lang, Project } from '@kitc/core';
 
 /** `req` identifica el pedido: la respuesta lo trae de vuelta para descartar resultados viejos. */
 export type ToWorker =
-  | { type: 'init' }
+  | { type: 'init'; lang: Lang }
   | { type: 'build'; project: Project; only?: string[]; req?: number }
   | { type: 'views'; project: Project; views: { key: string; view: EngineView }[]; req: number };
 

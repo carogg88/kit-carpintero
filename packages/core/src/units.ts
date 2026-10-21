@@ -1,3 +1,5 @@
+import { locale } from './i18n';
+
 /** Todas las medidas se guardan en milímetros; las unidades son solo de presentación. */
 export type Units = 'cm' | 'in';
 
@@ -8,7 +10,7 @@ export const INCH_STEP_MM = MM_PER_INCH / 16;
 /** Número sin unidad: "72,5" en cm o "2 7/8" en pulgadas (fracciones de 1/16). */
 export function formatNumber(mm: number, units: Units): string {
   if (units === 'cm') {
-    return (Math.round(mm) / 10).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+    return (Math.round(mm) / 10).toLocaleString(locale(), { maximumFractionDigits: 1 });
   }
   const inch = mm / MM_PER_INCH;
   let whole = Math.floor(inch + 1e-9);
@@ -36,7 +38,7 @@ export function formatLength(mm: number, units: Units): string {
 
 /** Lee lo que escribe el usuario ("72,5", "2 7/8", "3/4″") y devuelve mm, o null si no se entiende. */
 export function parseLength(input: string, units: Units): number | null {
-  const s = input.trim().replace(/["″]|pulgadas|in|cm/gi, '').trim();
+  const s = input.trim().replace(/["″]|pulgadas|inches|inch|in|cm/gi, '').trim();
   if (!s) return null;
   if (units === 'cm') {
     const v = Number(s.replace(',', '.'));

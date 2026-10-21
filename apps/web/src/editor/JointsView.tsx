@@ -9,8 +9,11 @@ import {
   jointContact,
   jointGrowth,
   jointOptions,
+  locale,
   partBox,
   partWord,
+  t,
+  tk,
   type Joint,
   type JointGroup,
   type JointType,
@@ -26,19 +29,19 @@ import type { ExactMesh } from './useGeometry';
 import styles from './Sections.module.css';
 
 const ABOUT: Partial<Record<JointType, string>> = {
-  tope: 'Las piezas solo se apoyan, sin cortes. Se fijan con tornillos, clips de fijación o cola.',
-  mortaja: 'Encastre clásico para patas y faldones: fuerte y oculto. Se hace con escoplo o fresadora; la espiga va encolada.',
-  'media-madera': 'Cada pieza se rebaja a la mitad de su espesor y quedan al ras. Se hace con sierra y formón, o con fresadora.',
-  canal: 'Una ranura a lo largo de una pieza donde entra el canto de la otra. Ideal para fondos y paneles; se hace con fresadora o sierra de mesa.',
-  rebaje: 'Un escalón en el canto de una pieza donde apoya la otra. Se usa en fondos y tapas; se hace con fresadora o sierra de mesa.',
-  clavija: 'Tarugos de madera encolados en agujeros enfrentados. Rápido y prolijo con una plantilla para tarugos.',
-  'cola-milano': 'El encastre de los cajones finos: las colas se ensanchan hacia la punta y no se pueden sacar tirando. Se marca con falsa escuadra y se corta con serrucho de costilla y formón.',
-  dedos: 'Dedos rectos que se alternan entre las dos piezas: mucha superficie para la cola. Se hace con sierra de mesa y un patrón de dedos, o con fresadora.',
-  brida: 'Una horquilla en la punta de una pieza abraza a la otra. Fuerte y fácil de hacer con sierra de cinta o sierra de mesa.',
-  inglete: 'Las dos piezas se cortan en diagonal y la veta da la vuelta a la esquina sin que se vea la testa. Se corta con ingletadora o sierra de mesa inclinada.',
-  galleta: 'Galletas de madera comprimida encoladas en ranuras enfrentadas. Alinean paneles rápido; se hacen con galletera.',
-  machiembrado: 'Una lengüeta en el canto de una tabla entra en la canal de la otra. Para paneles y tablas encoladas de canto; se hace con fresas de machimbre o sierra de mesa.',
-  bolsillo: 'Tornillos que entran inclinados desde la cara de adentro. Rápido y sin prensas; se hace con una plantilla de bolsillo y mecha escalonada.',
+  tope: tk('Las piezas solo se apoyan, sin cortes. Se fijan con tornillos, clips de fijación o cola.'),
+  mortaja: tk('Encastre clásico para patas y faldones: fuerte y oculto. Se hace con escoplo o fresadora; la espiga va encolada.'),
+  'media-madera': tk('Cada pieza se rebaja a la mitad de su espesor y quedan al ras. Se hace con sierra y formón, o con fresadora.'),
+  canal: tk('Una ranura a lo largo de una pieza donde entra el canto de la otra. Ideal para fondos y paneles; se hace con fresadora o sierra de mesa.'),
+  rebaje: tk('Un escalón en el canto de una pieza donde apoya la otra. Se usa en fondos y tapas; se hace con fresadora o sierra de mesa.'),
+  clavija: tk('Tarugos de madera encolados en agujeros enfrentados. Rápido y prolijo con una plantilla para tarugos.'),
+  'cola-milano': tk('El encastre de los cajones finos: las colas se ensanchan hacia la punta y no se pueden sacar tirando. Se marca con falsa escuadra y se corta con serrucho de costilla y formón.'),
+  dedos: tk('Dedos rectos que se alternan entre las dos piezas: mucha superficie para la cola. Se hace con sierra de mesa y un patrón de dedos, o con fresadora.'),
+  brida: tk('Una horquilla en la punta de una pieza abraza a la otra. Fuerte y fácil de hacer con sierra de cinta o sierra de mesa.'),
+  inglete: tk('Las dos piezas se cortan en diagonal y la veta da la vuelta a la esquina sin que se vea la testa. Se corta con ingletadora o sierra de mesa inclinada.'),
+  galleta: tk('Galletas de madera comprimida encoladas en ranuras enfrentadas. Alinean paneles rápido; se hacen con galletera.'),
+  machiembrado: tk('Una lengüeta en el canto de una tabla entra en la canal de la otra. Para paneles y tablas encoladas de canto; se hace con fresas de machimbre o sierra de mesa.'),
+  bolsillo: tk('Tornillos que entran inclinados desde la cara de adentro. Rápido y sin prensas; se hace con una plantilla de bolsillo y mecha escalonada.'),
 };
 
 const SLOPES = [6, 8];
@@ -46,7 +49,7 @@ const SLOPES = [6, 8];
 const DOWEL_SIZES = [6, 8, 10, 12];
 const SHOWN = 4;
 
-const capitalize = (s: string) => s.charAt(0).toLocaleUpperCase('es') + s.slice(1);
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const minDim = (p: Part) => {
   const b = partBox(p);
   return Math.min(...b.max.map((v, i) => v - b.min[i]!));
@@ -57,15 +60,15 @@ function JointList({ groups, current, onPick }: { groups: JointGroup[]; current:
   return (
     <aside className={styles.jointList} aria-labelledby="uniones-titulo">
       <h1 id="uniones-titulo" className={styles.h1}>
-        Uniones del mueble
+        {t('Uniones del mueble')}
       </h1>
-      <p className={styles.muted}>La app encuentra dónde se tocan las piezas y te ofrece solo los encastres posibles en cada lugar.</p>
+      <p className={styles.muted}>{t('La app encuentra dónde se tocan las piezas y te ofrece solo los encastres posibles en cada lugar.')}</p>
       {groups.map((g) => {
         const at = g.joints.findIndex((j) => j.id === current.id);
         const all = open[g.key] || g.joints.length <= SHOWN + 1 || at >= SHOWN;
         const shown = all ? g.joints : g.joints.slice(0, SHOWN);
         return (
-          <section key={g.key} className={styles.group} aria-label={`${g.label}, ${g.joints.length} uniones`}>
+          <section key={g.key} className={styles.group} aria-label={t('{group}, {n} uniones', { group: g.label, n: g.joints.length })}>
             <h2 className={styles.eyebrow}>
               {g.label} · {g.joints.length}
             </h2>
@@ -77,14 +80,14 @@ function JointList({ groups, current, onPick }: { groups: JointGroup[]; current:
                     <span className={styles.pair}>
                       {j.partA} ↔ {j.partB}
                     </span>
-                    <span className={styles.typeName}>{JOINT_NAMES[j.type]}</span>
+                    <span className={styles.typeName}>{t(JOINT_NAMES[j.type])}</span>
                   </button>
                 </li>
               ))}
             </ul>
             {!all && (
               <button type="button" className={styles.more} onClick={() => setOpen({ ...open, [g.key]: true })}>
-                Ver {g.joints.length - SHOWN} más
+                {t('Ver {n} más', { n: g.joints.length - SHOWN })}
               </button>
             )}
           </section>
@@ -100,60 +103,65 @@ function ruleHint(j: Joint, a: Part, b: Part, n: (mm: number) => string): string
   switch (j.type) {
     case 'mortaja': {
       const thin = e ? partBox(b).max[e.thin] - partBox(b).min[e.thin] : minDim(b);
-      return `Regla del tercio: la espiga mide un tercio del espesor de ${b.id} (${n(thin)}), o sea ${n(thin / 3)}.`;
+      return t('Regla del tercio: la espiga mide un tercio del espesor de {id} ({thick}), o sea {size}.', { id: b.id, thick: n(thin), size: n(thin / 3) });
     }
     case 'clavija': {
       const thin = Math.min(minDim(a), minDim(b));
       const best = DOWEL_SIZES.reduce((x, y) => (Math.abs(y - thin / 2) < Math.abs(x - thin / 2) ? y : x));
-      return `El tarugo mide cerca de la mitad del espesor de la pieza más fina (${n(thin)}): conviene uno de ${best} mm.`;
+      return t('El tarugo mide cerca de la mitad del espesor de la pieza más fina ({thick}): conviene uno de {d} mm.', { thick: n(thin), d: best });
     }
     case 'canal':
     case 'rebaje':
-      return `La profundidad no debería pasar de la mitad del espesor de ${a.id} (${n(minDim(a))}).`;
+      return t('La profundidad no debería pasar de la mitad del espesor de {id} ({thick}).', { id: a.id, thick: n(minDim(a)) });
     case 'media-madera':
-      return 'Cada pieza pierde la mitad de su espesor en el cruce, así quedan al ras.';
+      return t('Cada pieza pierde la mitad de su espesor en el cruce, así quedan al ras.');
     case 'cola-milano':
-      return 'Pendiente 1:8 para maderas duras y 1:6 para blandas. Con el largo igual al espesor de la otra pieza, las colas quedan pasantes.';
+      return t('Pendiente 1:8 para maderas duras y 1:6 para blandas. Con el largo igual al espesor de la otra pieza, las colas quedan pasantes.');
     case 'dedos':
-      return `Los dedos andan bien del ancho del espesor de ${b.id} (${n(minDim(b))}).`;
+      return t('Los dedos andan bien del ancho del espesor de {id} ({thick}).', { id: b.id, thick: n(minDim(b)) });
     case 'brida': {
       const thin = e ? partBox(b).max[e.thin] - partBox(b).min[e.thin] : minDim(b);
-      return `Regla del tercio: cada mejilla de la horquilla y la lengüeta del medio miden un tercio del espesor de ${b.id} (${n(thin / 3)}).`;
+      return t('Regla del tercio: cada mejilla de la horquilla y la lengüeta del medio miden un tercio del espesor de {id} ({size}).', { id: b.id, size: n(thin / 3) });
     }
     case 'inglete':
-      return 'Con las dos piezas del mismo espesor, el corte queda a 45°.';
+      return t('Con las dos piezas del mismo espesor, el corte queda a 45°.');
     case 'galleta':
-      return 'Usá la galleta más grande que entre: del 20 si el ancho pasa los 8 cm. Una cada 15 cm.';
+      return t('Usá la galleta más grande que entre: del 20 si el ancho pasa los 8 cm. Una cada 15 cm.');
     case 'machiembrado':
-      return `La lengüeta mide un tercio del espesor de ${b.id} (${n(minDim(b))}) y entra la mitad de ese espesor.`;
+      return t('La lengüeta mide un tercio del espesor de {id} ({thick}) y entra la mitad de ese espesor.', { id: b.id, thick: n(minDim(b)) });
     case 'bolsillo':
-      return 'Tornillos de cabeza plana, de unos 3 cm para madera de 19 mm. Uno cada 12 cm.';
+      return t('Tornillos de cabeza plana, de unos 3 cm para madera de 19 mm. Uno cada 12 cm.');
     default:
-      return 'No lleva cortes: se fija con tornillos, clips de fijación o cola.';
+      return t('No lleva cortes: se fija con tornillos, clips de fijación o cola.');
   }
 }
 
 /** Qué cambia en la lista de cortes con este encastre. */
 function cutChanges(j: Joint, a: Part, b: Part, project: Project, n: (mm: number) => string): string[] {
-  const lines = jointGrowth(project, j).map((g) => `+${n(g.mm)} al ${g.along} de corte de ${g.partId}`);
+  const lines = jointGrowth(project, j).map((g) => {
+    const vars = { mm: n(g.mm), id: g.partId };
+    if (g.along === 'largo') return t('+{mm} al largo de corte de {id}', vars);
+    if (g.along === 'ancho') return t('+{mm} al ancho de corte de {id}', vars);
+    return t('+{mm} al espesor de corte de {id}', vars);
+  });
   switch (j.type) {
     case 'tope':
-      return ['No cambia ningún corte.'];
+      return [t('No cambia ningún corte.')];
     case 'mortaja':
     case 'canal':
     case 'rebaje':
-      return [...lines, `${capitalize(describeJoint(j, project))} en ${a.id}`];
+      return [...lines, t('{joint} en {id}', { joint: capitalize(describeJoint(j, project)), id: a.id })];
     case 'media-madera':
-      return [`Rebaje a media madera en ${a.id} y en ${b.id}`];
+      return [t('Rebaje a media madera en {a} y en {b}', { a: a.id, b: b.id })];
     case 'clavija': {
       const p = { ...defaultJointParams('clavija', partBox(a), partBox(b)), ...j.params };
-      return [`${p.count ?? 0} agujeros de ${p.diameter ?? 0} mm en ${a.id} y en ${b.id}`];
+      return [t('{count} agujeros de {d} mm en {a} y en {b}', { count: p.count ?? 0, d: p.diameter ?? 0, a: a.id, b: b.id })];
     }
     case 'galleta':
     case 'bolsillo':
       return [capitalize(describeJoint(j, project))];
     default:
-      return [...lines, `${capitalize(describeJoint(j, project))} entre ${a.id} y ${b.id}`];
+      return [...lines, t('{joint} entre {a} y {b}', { joint: capitalize(describeJoint(j, project)), a: a.id, b: b.id })];
   }
 }
 
@@ -186,12 +194,12 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
 
   const setType = (type: JointType) =>
     commit((d) => {
-      for (const t of targets) {
-        const j = d.joints.find((x) => x.id === t.id);
-        const pa = d.parts.find((p) => p.id === t.partA);
-        const pb = d.parts.find((p) => p.id === t.partB);
+      for (const target of targets) {
+        const j = d.joints.find((x) => x.id === target.id);
+        const pa = d.parts.find((p) => p.id === target.partA);
+        const pb = d.parts.find((p) => p.id === target.partB);
         if (!j || !pa || !pb) continue;
-        if (t.id === joint.id || jointOptions(partBox(pa as Part), partBox(pb as Part)).includes(type)) {
+        if (target.id === joint.id || jointOptions(partBox(pa as Part), partBox(pb as Part)).includes(type)) {
           j.type = type;
           j.params = {};
         }
@@ -199,8 +207,8 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
     });
   const setParam = (key: string, value: number) =>
     commit((d) => {
-      for (const t of targets) {
-        const j = d.joints.find((x) => x.id === t.id);
+      for (const target of targets) {
+        const j = d.joints.find((x) => x.id === target.id);
         if (j && j.type === joint.type) j.params[key] = value;
       }
     });
@@ -222,23 +230,23 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   );
   const upTo = (max: number) => Array.from({ length: max }, (_, i) => i + 1);
   const fineFields: Partial<Record<JointType, React.ReactNode[]>> = {
-    'cola-milano': [choose('count', 'Colas', upTo(8)), choose('slope', 'Pendiente', SLOPES, (v) => `1:${v}`), length('depth', 'Largo', 3)],
-    dedos: [choose('count', 'Dedos', upTo(12)), length('depth', 'Largo', 3)],
-    brida: [length('thickness', 'Lengüeta', 3), length('depth', 'Largo', 5)],
-    galleta: [choose('size', 'Galleta', BISCUITS.map(([size]) => size), (v) => `Nº ${v}`), choose('count', 'Cantidad', upTo(6))],
-    machiembrado: [length('thickness', 'Espesor', 2), length('depth', 'Largo', 3)],
-    bolsillo: [choose('count', 'Tornillos', upTo(6))],
+    'cola-milano': [choose('count', t('Colas'), upTo(8)), choose('slope', t('Pendiente'), SLOPES, (v) => `1:${v}`), length('depth', t('Largo'), 3)],
+    dedos: [choose('count', t('Dedos'), upTo(12)), length('depth', t('Largo'), 3)],
+    brida: [length('thickness', t('Lengüeta'), 3), length('depth', t('Largo'), 5)],
+    galleta: [choose('size', t('Galleta'), BISCUITS.map(([size]) => size), (v) => t('Nº {size}', { size: v })), choose('count', t('Cantidad'), upTo(6))],
+    machiembrado: [length('thickness', t('Espesor'), 2), length('depth', t('Largo'), 3)],
+    bolsillo: [choose('count', t('Tornillos'), upTo(6))],
   };
   const fields: React.ReactNode[] =
     fineFields[joint.type] ??
     (joint.type === 'mortaja'
-      ? [length('length', 'Largo', 5), length('thickness', 'Espesor', 3), length('shoulder', 'Hombro', 0)]
+      ? [length('length', t('Largo'), 5), length('thickness', t('Espesor'), 3), length('shoulder', t('Hombro'), 0)]
       : joint.type === 'canal' || joint.type === 'rebaje'
-        ? [length('depth', 'Profundidad')]
+        ? [length('depth', t('Profundidad'))]
         : joint.type === 'clavija'
           ? [
               <label key="d" className={styles.field}>
-                Diámetro
+                {t('Diámetro')}
                 <select value={params.diameter ?? 8} onChange={(e) => setParam('diameter', Number(e.target.value))}>
                   {DOWEL_SIZES.map((d) => (
                     <option key={d} value={d}>
@@ -248,7 +256,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
                 </select>
               </label>,
               <label key="c" className={styles.field}>
-                Cantidad
+                {t('Cantidad')}
                 <select value={params.count ?? 2} onChange={(e) => setParam('count', Number(e.target.value))}>
                   {Array.from({ length: 8 }, (_, i) => i + 1).map((c) => (
                     <option key={c} value={c}>
@@ -257,25 +265,25 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
                   ))}
                 </select>
               </label>,
-              length('depthA', `Hondo en ${a.id}`, 5),
-              length('depthB', `Hondo en ${b.id}`, 5),
+              length('depthA', t('Hondo en {id}', { id: a.id }), 5),
+              length('depthB', t('Hondo en {id}', { id: b.id }), 5),
             ]
           : []);
-  const legendB = joint.type === 'mortaja' ? 'Espiga' : joint.type === 'cola-milano' ? 'Colas' : `${b.id} ${b.name}`;
+  const legendB = joint.type === 'mortaja' ? t('Espiga') : joint.type === 'cola-milano' ? t('Colas') : `${b.id} ${b.name}`;
 
   return (
     <div className={styles.detailGrid}>
       <div className={styles.detailMain}>
         <button type="button" className={`${styles.backLink} ${styles.mobileOnly}`} onClick={onBack}>
           <IconBack />
-          Todas las uniones
+          {t('Todas las uniones')}
         </button>
         <div>
           <span className={styles.mono}>
             {a.id} {a.name} ↔ {b.id} {b.name} · {jointContact(a, b)}
           </span>
           <h2 id="detalle" className={styles.h2}>
-            {JOINT_NAMES[joint.type]}
+            {t(JOINT_NAMES[joint.type])}
           </h2>
         </div>
         <figure className={styles.detailFigure}>
@@ -283,7 +291,11 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             project={project}
             joint={joint}
             meshes={meshes}
-            label={`Detalle en rayos X: ${b.id} ${b.name} entra en ${a.id} ${a.name} con ${JOINT_NAMES[joint.type].toLocaleLowerCase('es')}`}
+            label={t('Detalle en rayos X: {b} entra en {a} con {joint}', {
+              b: `${b.id} ${b.name}`,
+              a: `${a.id} ${a.name}`,
+              joint: t(JOINT_NAMES[joint.type]).toLocaleLowerCase(locale()),
+            })}
           />
           <span className={styles.legend} style={{ top: 12 }}>
             <span className={styles.swatchSolid} aria-hidden="true" />
@@ -291,26 +303,26 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           </span>
           <span className={styles.legend} style={{ top: 44 }}>
             <span className={styles.swatchXray} aria-hidden="true" />
-            {partWord(a)} en rayos X
+            {t('{part} en rayos X', { part: partWord(a) })}
           </span>
-          <figcaption>Arrastrá para girar el detalle</figcaption>
+          <figcaption>{t('Arrastrá para girar el detalle')}</figcaption>
         </figure>
-        <p className={styles.muted}>{ABOUT[joint.type] ?? 'Este encastre todavía no tiene cortes en el modelo.'}</p>
+        <p className={styles.muted}>{t(ABOUT[joint.type] ?? 'Este encastre todavía no tiene cortes en el modelo.')}</p>
         {warning && (
           <p className={styles.warn} role="alert">
             <IconWarn />
-            El encastre no se pudo cortar del todo en el modelo. Revisá las medidas.
+            {t('El encastre no se pudo cortar del todo en el modelo. Revisá las medidas.')}
           </p>
         )}
       </div>
 
       <div className={styles.detailSide}>
         <fieldset className={styles.fieldset}>
-          <legend className={styles.eyebrow}>Tipo de encastre</legend>
-          {options.map((t) => (
-            <label key={t} className={styles.radio}>
-              <input type="radio" name={typeName} checked={joint.type === t} onChange={() => setType(t)} />
-              {JOINT_NAMES[t]}
+          <legend className={styles.eyebrow}>{t('Tipo de encastre')}</legend>
+          {options.map((type) => (
+            <label key={type} className={styles.radio}>
+              <input type="radio" name={typeName} checked={joint.type === type} onChange={() => setType(type)} />
+              {t(JOINT_NAMES[type])}
             </label>
           ))}
         </fieldset>
@@ -318,7 +330,9 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
         {fields.length > 0 && (
           <fieldset className={styles.params} data-count={fields.length}>
             <legend className={styles.eyebrow}>
-              Medidas {joint.type === 'mortaja' ? 'de la espiga' : 'del encastre'} ({units === 'cm' ? 'cm' : 'pulgadas'})
+              {joint.type === 'mortaja'
+                ? t('Medidas de la espiga ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })
+                : t('Medidas del encastre ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}
             </legend>
             {fields}
           </fieldset>
@@ -329,7 +343,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
         </p>
 
         <div className={styles.changes}>
-          <span className={styles.eyebrow}>Qué cambia en los cortes</span>
+          <span className={styles.eyebrow}>{t('Qué cambia en los cortes')}</span>
           {cutChanges(joint, a, b, project, n).map((line) => (
             <span key={line}>{line}</span>
           ))}
@@ -337,7 +351,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
         {group.joints.length > 1 && (
           <label className={styles.check}>
             <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} />
-            Aplicar a las {group.joints.length} uniones de {group.label.toLocaleLowerCase('es')}
+            {t('Aplicar a las {n} uniones de {group}', { n: group.joints.length, group: group.label.toLocaleLowerCase(locale()) })}
           </label>
         )}
       </div>
@@ -356,10 +370,10 @@ export function JointsView({ project, meshes }: { project: Project; meshes: Read
   if (!joint || !group) {
     return (
       <main className={styles.empty}>
-        <h1 className={styles.h1}>Todavía no hay uniones</h1>
-        <p className={styles.muted}>En el modelo, acercá dos piezas hasta que se toquen y la app te propone un encastre.</p>
+        <h1 className={styles.h1}>{t('Todavía no hay uniones')}</h1>
+        <p className={styles.muted}>{t('En el modelo, acercá dos piezas hasta que se toquen y la app te propone un encastre.')}</p>
         <a className={styles.primary} href={sectionHref(project.id, 'modelo')}>
-          Ir al modelo
+          {t('Ir al modelo')}
         </a>
       </main>
     );

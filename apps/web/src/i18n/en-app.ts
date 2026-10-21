@@ -1,0 +1,91 @@
+/** Inicio, rutas y arranque. */
+export default {
+  // Arranque
+  'Falta el elemento #root': 'The #root element is missing',
+
+  // Inicio
+  Mesa: 'Table',
+  Taburete: 'Stool',
+  'Caja de té': 'Tea box',
+  'En blanco': 'Blank',
+  'Proyecto nuevo': 'New project',
+  hoy: 'today',
+  ayer: 'yesterday',
+  'Sin piezas': 'No parts',
+  '1 pieza': '1 part',
+  '{n} piezas': '{n} parts',
+  proyecto: 'project',
+  'Más opciones de {name}': 'More options for {name}',
+  'Exportar archivo': 'Export file',
+  '¿Eliminar "{name}" de este dispositivo? No se puede deshacer.': 'Delete “{name}” from this device? This can’t be undone.',
+  Eliminar: 'Delete',
+  'El archivo no es un proyecto de Kit Carpintero.': 'That file isn’t a Kit Carpintero project.',
+  'Instalar la app': 'Install the app',
+  'Sin cuenta. Tus proyectos se guardan en este dispositivo.': 'Saved on this device, no account needed.',
+  '¿Qué mueble vas a hacer?': 'What are you building?',
+  'Desde una plantilla': 'From a template',
+  'Elegí un mueble y se arma con sus encastres; después ajustás cada medida':
+    'Pick a piece and it comes ready with its joints; then adjust every dimension',
+  'Desde una foto': 'From a photo',
+  'Marcá una medida que conozcas y calcá las piezas': 'Mark a size you know and trace the parts',
+  Plantillas: 'Templates',
+  'Mis proyectos': 'Your projects',
+  'Abrir archivo': 'Open file',
+  'Todavía no hay proyectos. Empezá con una plantilla.': 'No projects yet. Start with a template.',
+  'Para no perder un proyecto, exportalo como archivo desde el menú de cada uno.':
+    'To keep a project safe, export it as a file from its menu.',
+  'Probar el motor de geometría en este dispositivo': 'Test the geometry engine on this device',
+
+  // Nuevo desde plantilla
+  Costado: 'Side',
+  'Vista previa de frente y de costado, con las medidas actuales': 'Front and side preview, with the current dimensions',
+  'Aviso:': 'Heads-up:',
+  '{note}. Podés seguir igual.': '{note}. You can keep going anyway.',
+  Plantilla: 'Template',
+  'Las medidas que calcaste en la foto ya están cargadas. Revisalas y completá las que no se veían.':
+    'The dimensions you traced on the photo are already filled in. Check them and fill in the ones you couldn’t see.',
+  'Medidas generales': 'Overall dimensions',
+  Piezas: 'Parts',
+  Clavijas: 'Dowels',
+  'Creando…': 'Creating…',
+
+  // Nuevo desde foto
+  Foto: 'Photo',
+  'Calcar piezas': 'Trace parts',
+  'Tu foto': 'Your photo',
+  'Deshacer el último punto': 'Undo the last point',
+  'Achicar la foto': 'Zoom out',
+  'Ampliar la foto': 'Zoom in',
+  Pasos: 'Steps',
+  'No pudimos abrir esa imagen. Probá con una foto JPG o PNG.': 'We couldn’t open that image. Try a JPG or PNG photo.',
+  'Medida conocida': 'Known measurement',
+  'Nuevo desde foto': 'New from a photo',
+  '¿Qué mueble es?': 'What piece is it?',
+  'Elegir o sacar una foto': 'Choose or take a photo',
+  'La foto queda en este dispositivo; no se sube a ningún lado.': 'The photo stays on this device; it’s never uploaded.',
+  'Sacala de frente y desde lo más lejos que puedas, con el mueble entero en la foto: así las medidas salen parejas.':
+    'Shoot it straight on and from as far away as you can, with the whole piece in the frame, so the measurements come out even.',
+  'Seguir con la foto que elegiste': 'Continue with the photo you chose',
+  'Tocá los dos extremos de algo que sepas cuánto mide': 'Tap both ends of something whose length you know',
+  'Escribí cuánto mide': 'Type how long it is',
+  'Tu foto, con la medida conocida marcada': 'Your photo, with the known measurement marked',
+  'Tu foto. Tocá dos puntos para marcar una medida conocida': 'Your photo. Tap two points to mark a known measurement',
+  'Puede ser el alto del mueble, el largo de la tapa o una cinta métrica apoyada al lado. Cuanto más larga, mejor sale el resto.':
+    'It can be the height of the piece, the length of the top, or a tape measure placed next to it. The longer it is, the better the rest comes out.',
+  '¿Qué es?': 'What is it?',
+  'Otra cosa': 'Something else',
+  '¿Cuánto mide?': 'How long is it?',
+  'Cambiar foto': 'Change photo',
+  Seguir: 'Continue',
+  'Ahora tocá el otro extremo': 'Now tap the other end',
+  'Tocá los dos extremos: {field}': 'Tap both ends: {field}',
+  'Tu foto, con 1 medida calcada': 'Your photo, with 1 measurement traced',
+  'Tu foto, con {n} medidas calcadas': 'Your photo, with {n} measurements traced',
+  '¿Qué estás calcando?': 'What are you tracing?',
+  '{field} da {value}, fuera de lo que admite la plantilla ({min} a {max}). Volvé a calcarla.':
+    '{field} comes out at {value}, outside what the template allows ({min} to {max}). Trace it again.',
+  'Lo que no se ve en la foto, como el fondo o las patas de atrás, se completa con medidas habituales. Lo revisás en el paso siguiente.':
+    'Anything not visible in the photo, like the back or the rear legs, is filled in with typical dimensions. You’ll check it in the next step.',
+  'Revisar medidas': 'Review dimensions',
+  'Armar el modelo': 'Build the model',
+} satisfies Record<string, string>;

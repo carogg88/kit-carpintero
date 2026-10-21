@@ -5,9 +5,12 @@ import {
   dowelsNeeded,
   END_TRIM_MM,
   formatNumber,
+  getLang,
   KERF_MM,
+  locale,
   planedMm,
   shoppingList,
+  t,
   woodById,
   type CutRow,
   type Project,
@@ -61,44 +64,48 @@ const fileSlug = (s: string) =>
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'proyecto';
+    .replace(/^-|-$/g, '') || t('proyecto');
 
-function extraNote(r: CutRow, n: (mm: number) => string): string | null {
+/** Qué agrega largo a la pieza: se mira en sus encastres (las notas de trabajo cambian con el idioma). */
+function extraNote(r: CutRow, n: (mm: number) => string, project: Project): string | null {
   if (r.extraLength <= 0) return null;
   const base = n(r.cut[0] - r.extraLength);
-  const has = (w: string) => r.work.some((x) => x.toLocaleLowerCase('es').includes(w));
-  const ends = r.tongues === 1 ? '1 punta' : `${r.tongues} puntas`;
-  if (has('colas de milano')) return `${base} + colas en ${ends}`;
-  if (has('dedos')) return `${base} + dedos en ${ends}`;
-  if (has('inglete')) return `${base} + inglete en ${ends}`;
-  if (has('horquilla')) return `${base} + horquilla en ${ends}`;
-  const word = has('espiga') ? (r.tongues === 1 ? 'espiga' : 'espigas') : r.tongues === 1 ? 'lengüeta' : 'lengüetas';
-  return `${base} + ${r.tongues} ${word}`;
+  const id = r.ids[0];
+  // side 'B': la pieza que entra en la otra (la que lleva colas, horquilla o espiga).
+  const has = (type: string, side?: 'B') => project.joints.some((j) => j.type === type && (j.partB === id || (!side && j.partA === id)));
+  const ends = r.tongues === 1 ? t('1 punta') : t('{n} puntas', { n: r.tongues });
+  if (has('cola-milano', 'B')) return t('{base} + colas en {ends}', { base, ends });
+  if (has('dedos')) return t('{base} + dedos en {ends}', { base, ends });
+  if (has('inglete')) return t('{base} + inglete en {ends}', { base, ends });
+  if (has('brida', 'B')) return t('{base} + horquilla en {ends}', { base, ends });
+  const vars = { base, n: r.tongues };
+  if (has('mortaja', 'B')) return r.tongues === 1 ? t('{base} + {n} espiga', vars) : t('{base} + {n} espigas', vars);
+  return r.tongues === 1 ? t('{base} + {n} lengüeta', vars) : t('{base} + {n} lengüetas', vars);
 }
 
-function CutTable({ rows, n }: { rows: CutRow[]; n: (mm: number) => string }) {
+function CutTable({ rows, n, project }: { rows: CutRow[]; n: (mm: number) => string; project: Project }) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th scope="col">Pieza</th>
+            <th scope="col">{t('Pieza')}</th>
             <th scope="col" className={styles.num}>
-              Cant.
+              {t('Cant.')}
             </th>
             <th scope="col" className={styles.num}>
-              Largo de corte
+              {t('Largo de corte')}
             </th>
             <th scope="col" className={styles.num}>
-              Ancho × espesor
+              {t('Ancho × espesor')}
             </th>
-            <th scope="col">Madera</th>
-            <th scope="col">Trabajo</th>
+            <th scope="col">{t('Madera')}</th>
+            <th scope="col">{t('Trabajo')}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => {
-            const note = extraNote(r, n);
+            const note = extraNote(r, n, project);
             return (
               <tr key={r.ids.join()}>
                 <td>
@@ -125,11 +132,11 @@ function CutTable({ rows, n }: { rows: CutRow[]; n: (mm: number) => string }) {
   );
 }
 
-function CutCards({ rows, n, unit }: { rows: CutRow[]; n: (mm: number) => string; unit: string }) {
+function CutCards({ rows, n, unit, project }: { rows: CutRow[]; n: (mm: number) => string; unit: string; project: Project }) {
   return (
     <ul className={styles.cutCards}>
       {rows.map((r) => {
-        const note = extraNote(r, n);
+        const note = extraNote(r, n, project);
         return (
           <li key={r.ids.join()}>
             <div className={styles.cardHead}>
@@ -141,7 +148,7 @@ function CutCards({ rows, n, unit }: { rows: CutRow[]; n: (mm: number) => string
               {n(r.cut[0])} × {n(r.cut[1])} × {n(r.cut[2])}
               {unit}
             </span>
-            {note && <span className={styles.extra}>Largo: {note}</span>}
+            {note && <span className={styles.extra}>{t('Largo: {note}', { note })}</span>}
             <span className={styles.muted}>
               {woodName(r.wood)}
               {r.work.length > 0 && ` · ${r.work.join(' · ')}`}
@@ -159,7 +166,10 @@ function BoardDiagram({ board, n, showWood }: { board: StockBoard; n: (mm: numbe
   const width = planedMm(board.widthIn);
   const pct = (mm: number) => `${(mm / total) * 100}%`;
   const rest = Math.max(0, total - board.used);
-  const description = `${board.slots.map((s) => `${s.id} de ${n(s.length)}`).join(', ')}; sobran ${n(rest)}`;
+  const description = t('{pieces}; sobran {rest}', {
+    pieces: board.slots.map((s) => t('{id} de {len}', { id: s.id, len: n(s.length) })).join(', '),
+    rest: n(rest),
+  });
   return (
     <figure className={styles.board}>
       <figcaption>
@@ -196,8 +206,8 @@ function ShopChecklist({ shop, plan, rows, project }: { shop: ShopRow[]; plan: R
   return (
     <>
       {woods.map((w) => (
-        <section key={w} className={styles.checkGroup} aria-label={`Madera: ${woodName(w)}`}>
-          <h2 className={styles.eyebrow}>Madera · {woodName(w)}</h2>
+        <section key={w} className={styles.checkGroup} aria-label={t('Madera: {wood}', { wood: woodName(w) })}>
+          <h2 className={styles.eyebrow}>{t('Madera · {wood}', { wood: woodName(w) })}</h2>
           {shop
             .filter((s) => s.wood === w)
             .map((s) => {
@@ -232,42 +242,40 @@ export function CutsView({ project }: { project: Project }) {
   if (pieces === 0) {
     return (
       <main className={styles.empty}>
-        <h1 className={styles.h1}>Todavía no hay piezas</h1>
-        <p className={styles.muted}>Agregá piezas en el modelo y acá aparece qué cortar y qué comprar.</p>
+        <h1 className={styles.h1}>{t('Todavía no hay piezas')}</h1>
+        <p className={styles.muted}>{t('Agregá piezas en el modelo y acá aparece qué cortar y qué comprar.')}</p>
       </main>
     );
   }
 
   const woods = Object.keys(plan.feet);
   const feet = Object.values(plan.feet).reduce((s, v) => s + v, 0);
-  const feetLabel = woods.length === 1 ? `pies de ${woodName(woods[0]!).toLocaleLowerCase('es')}` : 'pies de madera';
-  const priceValue = Number(price.replace(/\./g, '').replace(',', '.'));
+  const feetLabel = woods.length === 1 ? t('pies de {wood}', { wood: woodName(woods[0]!).toLocaleLowerCase(locale()) }) : t('pies de madera');
+  // En español el punto separa miles y la coma los decimales; en inglés, al revés.
+  const priceValue = Number(getLang() === 'en' ? price.replace(/,/g, '') : price.replace(/\./g, '').replace(',', '.'));
   const total = priceValue > 0 ? Math.round(priceValue * feet) : null;
   const boardCount = shop.reduce((s, r) => s + r.count, 0);
   const glued = project.joints.some((j) => j.type !== 'tope') || rows.some((r) => r.boards > 1);
   const tooLong = plan.tooLong;
-  const exportCsv = () => download(`${fileSlug(project.name)}-cortes.csv`, cutsCsv(project, rows, shop));
+  const exportCsv = () => download(`${fileSlug(project.name)}-${t('cortes')}.csv`, cutsCsv(project, rows, shop));
 
   const hardware = (
     <>
-      <h2 className={styles.h3}>Herrajes y otros</h2>
+      <h2 className={styles.h3}>{t('Herrajes y otros')}</h2>
       <ul className={styles.plainList}>
         {dowels.map((d) => (
           <li key={`${d.diameter}-${d.length}`}>
-            <span>
-              Tarugos de {d.diameter} mm × {formatNumber(d.length, units)}
-              {unit}
-            </span>
+            <span>{t('Tarugos de {d} mm × {len}{unit}', { d: d.diameter, len: formatNumber(d.length, units), unit })}</span>
             <strong>× {d.count}</strong>
           </li>
         ))}
         {glued && (
           <li>
-            <span>Cola vinílica para madera</span>
+            <span>{t('Cola vinílica para madera')}</span>
             <strong>{pieces > 20 ? '500 g' : '250 g'}</strong>
           </li>
         )}
-        {!glued && dowels.length === 0 && <li className={styles.muted}>Nada más por ahora.</li>}
+        {!glued && dowels.length === 0 && <li className={styles.muted}>{t('Nada más por ahora.')}</li>}
       </ul>
     </>
   );
@@ -278,25 +286,25 @@ export function CutsView({ project }: { project: Project }) {
         <section className={styles.cutsMain} aria-labelledby="cortes-titulo" id="cortes-lista">
           <div className={styles.titleRow}>
             <h1 id="cortes-titulo" className={styles.h1}>
-              Lista de cortes
+              {t('Lista de cortes')}
             </h1>
-            <span className={styles.muted}>
-              {pieces} piezas · medidas de corte en {units === 'cm' ? 'cm' : 'pulgadas'}
-            </span>
+            <span className={styles.muted}>{t('{n} piezas · medidas de corte en {units}', { n: pieces, units: units === 'cm' ? 'cm' : t('pulgadas') })}</span>
             <button type="button" className={`${styles.secondary} ${styles.desktopOnly}`} onClick={exportCsv}>
               <IconDownload />
-              Exportar planilla
+              {t('Exportar planilla')}
             </button>
           </div>
-          <CutTable rows={rows} n={n} />
-          <CutCards rows={rows} n={n} unit={unit} />
+          <CutTable rows={rows} n={n} project={project} />
+          <CutCards rows={rows} n={n} unit={unit} project={project} />
           {tooLong.length > 0 && (
             <p className={styles.warn} role="alert">
-              {tooLong.join(', ')} {tooLong.length === 1 ? 'es más larga' : 'son más largas'} que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.
+              {tooLong.length === 1
+                ? t('{ids} es más larga que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.', { ids: tooLong.join(', ') })
+                : t('{ids} son más largas que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.', { ids: tooLong.join(', ') })}
             </p>
           )}
 
-          <h2 className={styles.h2}>Cómo cortar cada tabla</h2>
+          <h2 className={styles.h2}>{t('Cómo cortar cada tabla')}</h2>
           <div className={styles.diagrams}>
             {plan.boards.map((b, i) => (
               <BoardDiagram key={i} board={b} n={n} showWood={woods.length > 1} />
@@ -304,20 +312,20 @@ export function CutsView({ project }: { project: Project }) {
             <div className={styles.diagramLegend}>
               <span>
                 <span className={styles.swatchPiece} aria-hidden="true" />
-                Pieza
+                {t('Pieza')}
               </span>
               <span>
                 <span className={styles.swatchWaste} aria-hidden="true" />
-                Sobrante
+                {t('Sobrante')}
               </span>
-              <span>Corte de sierra: {KERF_MM} mm</span>
+              <span>{t('Corte de sierra: {kerf} mm', { kerf: KERF_MM })}</span>
             </div>
           </div>
         </section>
 
-        <aside className={styles.cutsAside} aria-label="Resumen de compra">
+        <aside className={styles.cutsAside} aria-label={t('Resumen de compra')}>
           <div className={`${styles.buyCard} ${styles.desktopOnly}`}>
-            <h2 className={styles.h3}>Para comprar en la maderera</h2>
+            <h2 className={styles.h3}>{t('Para comprar en la maderera')}</h2>
             <div className={styles.stats}>
               <div>
                 <span className={styles.bigNum}>{decimal(feet)}</span>
@@ -325,14 +333,14 @@ export function CutsView({ project }: { project: Project }) {
               </div>
               <div>
                 <span className={styles.bigNum}>{Math.round(plan.waste * 100)}%</span>
-                <span>de desperdicio</span>
+                <span>{t('de desperdicio')}</span>
               </div>
             </div>
             <label className={styles.darkField}>
-              Precio por pie (opcional)
+              {t('Precio por pie (opcional)')}
               <input
                 inputMode="decimal"
-                placeholder="$ precio de tu maderera"
+                placeholder={t('$ precio de tu maderera')}
                 value={price}
                 onChange={(e) => {
                   setPrice(e.target.value);
@@ -342,7 +350,7 @@ export function CutsView({ project }: { project: Project }) {
             </label>
             {total !== null && (
               <p className={styles.total}>
-                Total aproximado <strong>$ {total.toLocaleString('es-AR')}</strong>
+                {t('Total aproximado')} <strong>$ {total.toLocaleString(locale())}</strong>
               </p>
             )}
           </div>
@@ -350,7 +358,7 @@ export function CutsView({ project }: { project: Project }) {
           <div className={`${styles.tiles} ${styles.mobileOnly}`}>
             <div className={styles.tileDark}>
               <span className={styles.tileNum}>{boardCount}</span>
-              <span>tablas y tirantes</span>
+              <span>{t('tablas y tirantes')}</span>
             </div>
             <div className={styles.tile}>
               <span className={styles.tileNum}>{decimal(feet)}</span>
@@ -358,12 +366,12 @@ export function CutsView({ project }: { project: Project }) {
             </div>
             <div className={styles.tile}>
               <span className={styles.tileNum}>{Math.round(plan.waste * 100)}%</span>
-              <span>desperdicio</span>
+              <span>{t('desperdicio')}</span>
             </div>
           </div>
 
           <div className={`${styles.card} ${styles.desktopOnly}`}>
-            <h2 className={styles.h3}>Tablas</h2>
+            <h2 className={styles.h3}>{t('Tablas')}</h2>
             <ul className={styles.plainList}>
               {shop.map((s) => (
                 <li key={shopKey(s)}>
@@ -381,14 +389,14 @@ export function CutsView({ project }: { project: Project }) {
           <div className={`${styles.checklist} ${styles.mobileOnly}`}>
             <ShopChecklist shop={shop} plan={plan} rows={rows} project={project} />
             {hardware}
-            <p className={styles.muted}>Medidas comerciales de madereras de Buenos Aires. Cada tabla ya suma {KERF_MM} mm por corte de sierra.</p>
+            <p className={styles.muted}>{t('Medidas comerciales de madereras de Buenos Aires. Cada tabla ya suma {kerf} mm por corte de sierra.', { kerf: KERF_MM })}</p>
           </div>
 
           {woods.map((w) => (
             <div key={w} className={styles.card}>
-              <h2 className={styles.h3}>Sobre el {woodName(w).toLocaleLowerCase('es')}</h2>
+              <h2 className={styles.h3}>{t('Sobre el {wood}', { wood: woodName(w).toLocaleLowerCase(locale()) })}</h2>
               <p className={styles.muted}>
-                {woodById(w)?.about} Otras opciones: {alternativesText(w)}.
+                {t(woodById(w)?.about ?? '')} {t('Otras opciones: {list}.', { list: alternativesText(w) })}
               </p>
             </div>
           ))}
@@ -399,10 +407,10 @@ export function CutsView({ project }: { project: Project }) {
           e.preventDefault();
           document.getElementById('cortes-lista')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
         }}>
-          Ver cortes
+          {t('Ver cortes')}
         </a>
         <button type="button" className={styles.primary} onClick={exportCsv}>
-          Exportar planilla
+          {t('Exportar planilla')}
         </button>
       </div>
     </>

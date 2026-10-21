@@ -4,7 +4,7 @@ import { useEditor } from './editor/store';
 import { Home } from './home/Home';
 import { PhotoTrace } from './nuevo/PhotoTrace';
 import { TemplateForm } from './nuevo/TemplateForm';
-import { templateById } from '@kitc/core';
+import { t, templateById } from '@kitc/core';
 import { sectionHref, type Section } from './routes';
 import { readProject } from './storage/db';
 
@@ -52,9 +52,9 @@ export function App() {
   if (projectId && missing) {
     return (
       <main style={{ padding: 24 }}>
-        <p>No encontramos ese proyecto en este dispositivo.</p>
+        <p>{t('No encontramos ese proyecto en este dispositivo.')}</p>
         <button type="button" onClick={() => go(null)}>
-          Volver al inicio
+          {t('Volver al inicio')}
         </button>
       </main>
     );

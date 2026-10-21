@@ -1,0 +1,153 @@
+/** Editor: modelo 3D, herramientas, vista, guardado, lista de cortes en planilla y avisos del motor. */
+export default {
+  // Herramientas
+  Seleccionar: 'Select',
+  'Empujar o tirar una cara': 'Push or pull a face',
+  'Mover pieza': 'Move part',
+  'Dibujar en una cara': 'Draw on a face',
+  'Biselar o redondear': 'Bevel or round',
+  'Agrandar o achicar un tramo': 'Resize a section',
+  Herramientas: 'Tools',
+  'Copiar al mover (o mantené Ctrl)': 'Copy while moving (or hold Ctrl)',
+  'Rayos X (X)': 'X-ray (X)',
+
+  // Vistas
+  Vista: 'View',
+  'Vista 3D': '3D view',
+  Iso: 'Iso',
+  Frente: 'Front',
+  Lateral: 'Side',
+  Lado: 'Side',
+  Planta: 'Top',
+
+  // Consejos
+  'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.':
+    'Tap a part to edit it. Drag the background to orbit, and pinch or use the scroll wheel to zoom.',
+  'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.':
+    'Drag a face to stretch or shorten the part. It snaps to nearby faces; then type the exact measurement.',
+  'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.':
+    'Drag a part along the floor. It snaps to the faces of other parts. Hold Ctrl (Option on Mac) or use the copy button to leave a copy.',
+  'Tocá una cara cerca de una arista y arrastrá hacia adentro. Cerca de una esquina (por ejemplo, la punta de una tapa vista en planta) toma la arista que baja por la esquina. Elegí bisel o redondeo en la barra; la medida exacta se escribe en el panel.':
+    'Tap a face near an edge and drag inward. Near a corner (for example, the tip of a top seen from above) it takes the edge running down the corner. Pick bevel or round in the bar; type the exact size in the panel.',
+  'Tocá una pieza a lo largo (por ejemplo, una pata) y arrastrá para marcar el tramo. Arranca un poco más grueso; en el panel le das el ancho y el fondo que quieras, más grande o más chico. Se pega a las puntas y cada 5 mm.':
+    'Tap along a part (a leg, for example) and drag to mark the section. It starts a little thicker; in the panel, set any width and depth you want, larger or smaller. It snaps to the ends and every 5 mm.',
+  'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina, un círculo desde su centro o la cuerda de un arco (y tocá cuánto se curva). Se pega a los bordes, al centro y cada 5 mm.':
+    'Tap the face you want to draw on. Then drag a rectangle corner to corner, a circle from its center, or the chord of an arc (and tap how far it curves). It snaps to the edges, the center and every 5 mm.',
+
+  // Secciones del proyecto
+  'Secciones del proyecto': 'Project sections',
+  Modelo: 'Model',
+  Uniones: 'Joints',
+  Cortes: 'Cuts',
+  Plano: 'Plans',
+  'Lista de compras': 'Shopping list',
+
+  // Barra superior y guardado
+  'Volver a mis proyectos': 'Back to my projects',
+  'Volver al modelo': 'Back to the model',
+  'Deshacer (Ctrl+Z)': 'Undo (Ctrl+Z)',
+  'Rehacer (Ctrl+Y)': 'Redo (Ctrl+Y)',
+  'No se pudo guardar': "Couldn't save",
+  'Guardando…': 'Saving…',
+  'Guardado en este dispositivo': 'Saved on this device',
+  'Preparando los cortes exactos…': 'Preparing exact cuts…',
+  'No se pudieron calcular los cortes': "Couldn't compute the cuts",
+  '1 pieza no se pudo cortar del todo': "1 part couldn't be fully cut",
+  '{n} piezas no se pudieron cortar del todo': "{n} parts couldn't be fully cut",
+
+  // Medida y piezas
+  Medida: 'Size',
+  'Medida no válida': 'Invalid size',
+  'Agregar pieza': 'Add part',
+  'Modelo 3D de {name}': '3D model of {name}',
+  'Modelo 3D de {name}, con {part} elegida': '3D model of {name}, with {part} selected',
+  'Pieza seleccionada': 'Selected part',
+  'Piezas del proyecto': 'Project parts',
+
+  // Dibujar y biselar
+  Figura: 'Shape',
+  Rectángulo: 'Rectangle',
+  Círculo: 'Circle',
+  Arco: 'Arc',
+  'Tocá cuánto se curva': 'Tap how far it curves',
+  'En {face} de': 'On {face} of',
+  'Tocá una cara': 'Tap a face',
+  Listo: 'Done',
+  'Forma del canto': 'Edge shape',
+  'Bisel recto': 'Straight bevel',
+  Redondeo: 'Round',
+  'Redondeo: tocá una arista o esquina': 'Round: tap an edge or corner',
+  'Bisel: tocá una arista o esquina': 'Bevel: tap an edge or corner',
+  'Imán: {snap}': 'Snap: {snap}',
+
+  // Carteles mientras se arrastra
+  ancho: 'width',
+  alto: 'height',
+  fondo: 'depth',
+  piso: 'floor',
+  'cara de {id}': 'face of {id}',
+  'Copia {id}': 'Copy {id}',
+  borde: 'edge',
+  centro: 'center',
+  semicírculo: 'half circle',
+  Recta: 'Straight',
+  'Flecha {f} · R {r}': 'Rise {f} · R {r}',
+  'Cuerda {len}': 'Chord {len}',
+  '{a} y {b}': '{a} and {b}',
+  'igual que {id}': 'same as {id}',
+  'todo el ancho': 'full width',
+  'Redondeo R {r}': 'Round R {r}',
+  'Corte en ángulo {a} × {b}': 'Angled cut {a} × {b}',
+  'Bisel {a} × {b}': 'Bevel {a} × {b}',
+  'Esquina · {what}': 'Corner · {what}',
+  'Arrastrá hacia adentro': 'Drag inward',
+  'Tramo de {from} a {to} desde {side}': 'Section from {from} to {to}, measured from {side}',
+  'Arrastrá a lo largo de la pieza': 'Drag along the part',
+  punta: 'end',
+
+  // Lista de cortes y compras
+  tabla: 'board',
+  tablas: 'boards',
+  listón: 'batten',
+  listones: 'battens',
+  tirante: 'beam',
+  tirantes: 'beams',
+  duras: 'hard',
+  semiduras: 'medium-hard',
+  blandas: 'soft',
+  '{a} a {b}': '{a} to {b}',
+  '{a} o {b}': '{a} or {b}',
+  '{n} {kind} {thick} × {wide} de {len} m': '{n} {kind} {thick} × {wide}, {len} m long',
+  '{name}: {k} de {len}': '{name}: {k} × {len}',
+  '{name}: {k} tira de {len}, encoladas': '{name}: {k} strip of {len}, glued up',
+  '{name}: {k} tiras de {len}, encoladas': '{name}: {k} strips of {len}, glued up',
+  '{uses} · {feet} pies': '{uses} · {feet} bd ft',
+  pulgadas: 'inches',
+  'Lista de cortes': 'Cut list',
+  Pieza: 'Part',
+  Piezas: 'Parts',
+  Cantidad: 'Quantity',
+  'Largo de corte ({u})': 'Cut length ({u})',
+  'Ancho ({u})': 'Width ({u})',
+  'Espesor ({u})': 'Thickness ({u})',
+  Madera: 'Wood',
+  Trabajo: 'Work',
+  'Para comprar': 'To buy',
+  Tipo: 'Type',
+  Espesor: 'Thickness',
+  Ancho: 'Width',
+  'Largo (m)': 'Length (m)',
+
+  // Avisos del motor
+  'No se pudo hacer el tramo {id}': "Couldn't make section {id}",
+  'No se pudo redondear esta pieza': "Couldn't round this part",
+  'No se pudo chaflanar esta pieza': "Couldn't chamfer this part",
+  'No se pudo hacer el calado {id}': "Couldn't cut through-hole {id}",
+  'No se pudo hacer el vaciado {id}': "Couldn't cut pocket {id}",
+  'No se pudo hacer el bisel {id}': "Couldn't make bevel {id}",
+  'No se pudo cortar el encastre con {id}': "Couldn't cut the joint with {id}",
+
+  // Inicio y rutas
+  'No encontramos ese proyecto en este dispositivo.': "We couldn't find that project on this device.",
+  'Volver al inicio': 'Back to home',
+} satisfies Record<string, string>;

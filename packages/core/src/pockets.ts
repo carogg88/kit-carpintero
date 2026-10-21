@@ -1,18 +1,32 @@
 import { boxSize, otherAxes, partBox, type Axis, type Vec3 } from './geometry';
 import { arcPoints, circleThrough, type Solid } from './joints';
 import type { Part, Pocket, PocketShape } from './project';
+import { t, tk } from './i18n';
 
-/** Nombre de cada cara, por eje y lado. */
+const FACE_NAMES = [
+  [tk('cara izquierda'), tk('cara derecha')],
+  [tk('cara de abajo'), tk('cara de arriba')],
+  [tk('cara de atrás'), tk('frente')],
+] as const;
+
+/** Nombre de cada cara, por eje y lado, en el idioma actual. */
 export function faceName(axis: Axis, side: 1 | -1): string {
-  return [
-    ['cara izquierda', 'cara derecha'],
-    ['cara de abajo', 'cara de arriba'],
-    ['cara de atrás', 'frente'],
-  ][axis]![side > 0 ? 1 : 0]!;
+  return t(FACE_NAMES[axis][side > 0 ? 1 : 0]);
 }
 
-/** Desde dónde se mide sobre cada eje: la esquina mínima de la pieza. */
-export const MEASURED_FROM = ['la izquierda', 'abajo', 'atrás'] as const;
+const FACE_LABELS = [
+  [tk('la cara izquierda'), tk('la cara derecha')],
+  [tk('la cara de abajo'), tk('la cara de arriba')],
+  [tk('la cara de atrás'), tk('el frente')],
+] as const;
+
+/** "la cara de arriba", "el frente": la cara con su artículo, en el idioma actual. */
+export function faceLabelOf(axis: Axis, side: 1 | -1): string {
+  return t(FACE_LABELS[axis][side > 0 ? 1 : 0]);
+}
+
+/** Desde dónde se mide sobre cada eje: la esquina mínima de la pieza. Se traduce al mostrarlo, con `t`. */
+export const MEASURED_FROM = [tk('la izquierda'), tk('abajo'), tk('atrás')] as const;
 
 /** Medidas de la cara: los dos ejes que la forman y cuánto mide sobre cada uno. */
 export function faceSize(part: Part, axis: Axis): { axes: [Axis, Axis]; size: [number, number] } {
@@ -126,16 +140,22 @@ export function pocketSolid(part: Part, p: Pocket): Solid {
 
 /** En palabras de taller: "calado Ø 35 mm en la cara de arriba". */
 export function describePocket(p: Pocket, n: (mm: number) => string): string {
+  const face = faceLabelOf(p.axis, p.side);
+  const depth = n(p.depth);
   if (p.shape.kind === 'arc') {
-    const { radius } = arcInfo(p.shape);
-    const deep = p.through ? '' : `, ${n(p.depth)} de hondo`;
-    const where = `en la ${faceName(p.axis, p.side)}`.replace('en la frente', 'en el frente');
-    return `${p.through ? 'corte' : 'rebaje'} en arco R ${n(radius)}, flecha ${n(Math.abs(p.shape.bulge))}${deep} ${where}`;
+    const r = n(arcInfo(p.shape).radius);
+    const s = n(Math.abs(p.shape.bulge));
+    return p.through
+      ? t('corte en arco R {r}, flecha {s} en {face}', { r, s, face })
+      : t('rebaje en arco R {r}, flecha {s}, {depth} de hondo en {face}', { r, s, depth, face });
   }
-  const what = p.through ? 'calado' : 'vaciado';
-  const size = p.shape.kind === 'circle' ? `Ø ${n(p.shape.d)}` : `${n(p.shape.w)} × ${n(p.shape.h)}`;
-  const deep = p.through ? '' : `, ${n(p.depth)} de hondo`;
-  return `${what} ${size}${deep} en la ${faceName(p.axis, p.side)}`.replace('en la frente', 'en el frente');
+  if (p.shape.kind === 'circle') {
+    const d = n(p.shape.d);
+    return p.through ? t('calado Ø {d} en {face}', { d, face }) : t('vaciado Ø {d}, {depth} de hondo en {face}', { d, depth, face });
+  }
+  const w = n(p.shape.w);
+  const h = n(p.shape.h);
+  return p.through ? t('calado {w} × {h} en {face}', { w, h, face }) : t('vaciado {w} × {h}, {depth} de hondo en {face}', { w, h, depth, face });
 }
 
 /** Ajusta un punto de la cara a los bordes, al centro o a la grilla de 5 mm. `tol` en mm. */

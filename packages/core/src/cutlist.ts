@@ -5,6 +5,7 @@ import { arcInfo } from './pockets';
 import { describeSection, sectionBox } from './sections';
 import { jointGeometry, solidBox } from './joints';
 import type { Joint, Part, Project } from './project';
+import { t, tk } from './i18n';
 
 /** Corte de sierra, en mm. */
 export const KERF_MM = 3;
@@ -41,10 +42,34 @@ const unionBox = (a: Box, b: Box): Box => ({
   max: [Math.max(a.max[0], b.max[0]), Math.max(a.max[1], b.max[1]), Math.max(a.max[2], b.max[2])],
 });
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** "{n} bisel" o "{n} biseles", traducido. */
+const plural = (n: number, one: string, many: string) => t(n === 1 ? one : many, { n });
 
 /** Trabajos que se cuentan por punta, no por pieza suelta: "dedos en 2 puntas". */
-const BY_END = new Set(['pines de cola de milano', 'colas de milano', 'dedos']);
+const BY_END: Record<string, [string, string]> = {
+  'pines de cola de milano': [tk('pines de cola de milano'), tk('pines de cola de milano en {n} puntas')],
+  'colas de milano': [tk('colas de milano'), tk('colas de milano en {n} puntas')],
+  dedos: [tk('dedos'), tk('dedos en {n} puntas')],
+};
+
+/** Cómo se cuenta cada trabajo: una y varias. */
+const WORK_NAMES: Record<string, [string, string]> = {
+  mortaja: [tk('{n} mortaja'), tk('{n} mortajas')],
+  espiga: [tk('{n} espiga'), tk('{n} espigas')],
+  canal: [tk('{n} canal'), tk('{n} canales')],
+  'lengüeta de canal': [tk('{n} lengüeta para canal'), tk('{n} lengüetas para canal')],
+  rebaje: [tk('{n} rebaje'), tk('{n} rebajes')],
+  'lengüeta de rebaje': [tk('{n} lengüeta para rebaje'), tk('{n} lengüetas para rebaje')],
+  'media madera': [tk('{n} corte a media madera'), tk('{n} cortes a media madera')],
+  tarugo: [tk('{n} agujero para tarugo'), tk('{n} agujeros para tarugos')],
+  'rebaje de brida': [tk('{n} rebaje de brida'), tk('{n} rebajes de brida')],
+  'horquilla de brida': [tk('{n} horquilla de brida'), tk('{n} horquillas de brida')],
+  inglete: [tk('{n} inglete'), tk('{n} ingletes')],
+  'ranura para galleta': [tk('{n} ranura para galleta'), tk('{n} ranuras para galletas')],
+  'canal de machimbre': [tk('{n} canal de machimbre'), tk('{n} canales de machimbre')],
+  'lengüeta de machimbre': [tk('{n} lengüeta de machimbre'), tk('{n} lengüetas de machimbre')],
+  'agujero de bolsillo': [tk('{n} agujero de bolsillo'), tk('{n} agujeros de bolsillo')],
+};
 
 /** Medidas de corte y trabajos de una pieza, según sus encastres. */
 export function cutPiece(part: Part, project: Project): CutPiece {
@@ -110,50 +135,38 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     }
   }
   const work: string[] = [];
-  const names: Record<string, [string, string]> = {
-    mortaja: ['mortaja', 'mortajas'],
-    espiga: ['espiga', 'espigas'],
-    canal: ['canal', 'canales'],
-    'lengüeta de canal': ['lengüeta para canal', 'lengüetas para canal'],
-    rebaje: ['rebaje', 'rebajes'],
-    'lengüeta de rebaje': ['lengüeta para rebaje', 'lengüetas para rebaje'],
-    'media madera': ['corte a media madera', 'cortes a media madera'],
-    tarugo: ['agujero para tarugo', 'agujeros para tarugos'],
-    'rebaje de brida': ['rebaje de brida', 'rebajes de brida'],
-    'horquilla de brida': ['horquilla de brida', 'horquillas de brida'],
-    inglete: ['inglete', 'ingletes'],
-    'ranura para galleta': ['ranura para galleta', 'ranuras para galletas'],
-    'canal de machimbre': ['canal de machimbre', 'canales de machimbre'],
-    'lengüeta de machimbre': ['lengüeta de machimbre', 'lengüetas de machimbre'],
-    'agujero de bolsillo': ['agujero de bolsillo', 'agujeros de bolsillo'],
-  };
   for (const [k, n] of counts) {
-    const [one, many] = names[k] ?? [k, k];
-    if (k === 'espiga' && n === 2) work.push('espiga en cada punta');
-    else if (BY_END.has(k)) work.push(n === 1 ? k : `${k} en ${n} puntas`);
-    else work.push(plural(n, one, many));
+    const byEnd = BY_END[k];
+    if (k === 'espiga' && n === 2) work.push(t('espiga en cada punta'));
+    else if (byEnd) work.push(n === 1 ? t(byEnd[0]) : t(byEnd[1], { n }));
+    else {
+      const names = WORK_NAMES[k];
+      work.push(names ? plural(n, names[0], names[1]) : `${n} ${k}`);
+    }
   }
   const plain = part.pockets.filter((p) => p.shape.kind !== 'arc');
   const through = plain.filter((p) => p.through).length;
-  if (through) work.push(plural(through, 'calado', 'calados'));
-  if (plain.length - through) work.push(plural(plain.length - through, 'vaciado', 'vaciados'));
+  if (through) work.push(plural(through, tk('{n} calado'), tk('{n} calados')));
+  if (plain.length - through) work.push(plural(plain.length - through, tk('{n} vaciado'), tk('{n} vaciados')));
   // Cada arco con su radio: es lo que se traza con el compás o la plantilla.
   for (const p of part.pockets) {
-    if (p.shape.kind === 'arc') work.push(`${p.through ? 'corte' : 'rebaje'} en arco R ${Math.round(arcInfo(p.shape).radius)} mm`);
+    if (p.shape.kind !== 'arc') continue;
+    const r = Math.round(arcInfo(p.shape).radius);
+    work.push(p.through ? t('corte en arco R {r} mm', { r }) : t('rebaje en arco R {r} mm', { r }));
   }
   const angled = part.bevels.filter((b) => isAngleCut(part, b)).length;
-  if (angled) work.push(plural(angled, 'corte en ángulo', 'cortes en ángulo'));
+  if (angled) work.push(plural(angled, tk('{n} corte en ángulo'), tk('{n} cortes en ángulo')));
   const rounded = part.bevels.filter((b) => b.round);
   const flat = part.bevels.length - angled - rounded.length;
-  if (flat) work.push(plural(flat, 'bisel', 'biseles'));
+  if (flat) work.push(plural(flat, tk('{n} bisel'), tk('{n} biseles')));
   // Cada radio aparte: es la fresa o la plantilla que hay que tener.
   for (const r of [...new Set(rounded.map((b) => Math.round(b.da)))]) {
-    const count = rounded.filter((b) => Math.round(b.da) === r).length;
-    work.push(`${plural(count, 'arista redondeada', 'aristas redondeadas')} R ${r} mm`);
+    const n = rounded.filter((b) => Math.round(b.da) === r).length;
+    work.push(n === 1 ? t('{n} arista redondeada R {r} mm', { n, r }) : t('{n} aristas redondeadas R {r} mm', { n, r }));
   }
   for (const sec of part.sections) work.push(describeSection(sec, (mm) => `${Math.round(mm)} mm`).replace(/ mm × /, ' × '));
   const op = part.ops[0];
-  if (op) work.push(op.kind === 'round' ? `cantos redondeados ${op.radius} mm` : `cantos chaflanados ${op.size} mm`);
+  if (op) work.push(op.kind === 'round' ? t('cantos redondeados {r} mm', { r: op.radius }) : t('cantos chaflanados {s} mm', { s: op.size }));
   const finished = [...boxSize(box)].sort((x, y) => y - x);
   const cut = [...boxSize(outer)].sort((x, y) => y - x) as [number, number, number];
   return { part, cut, extraLength: Math.round(cut[0] - (finished[0] ?? 0)), tongues, work };
@@ -182,7 +195,7 @@ export function cutList(project: Project): CutRow[] {
   const rows = [...groups.values()].map((g) => {
     const c = g[0]!;
     const stock = stockFor(c.cut);
-    const work = stock && stock.boards > 1 ? [`encolar ${stock.boards} tablas`, ...c.work] : c.work;
+    const work = stock && stock.boards > 1 ? [t('encolar {n} tablas', { n: stock.boards }), ...c.work] : c.work;
     return {
       name: g.length > 1 ? commonName(g.map((x) => x.part.name)) : c.part.name,
       ids: g.map((x) => x.part.id),
@@ -201,7 +214,8 @@ export function cutList(project: Project): CutRow[] {
     if (same.length < 2) continue;
     const sorted = [...same].sort((x, y) => y.cut[0] - x.cut[0]);
     sorted.forEach((r, i) => {
-      r.name = sorted.length === 2 ? `${r.name} ${i === 0 ? 'largo' : 'corto'}` : `${r.name} ${i + 1}`;
+      const name = r.name;
+      r.name = sorted.length === 2 ? (i === 0 ? t('{name} largo', { name }) : t('{name} corto', { name })) : `${name} ${i + 1}`;
     });
   }
   return rows;
