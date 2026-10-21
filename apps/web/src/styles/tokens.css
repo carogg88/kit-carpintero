@@ -1,0 +1,65 @@
+/* Tokens del proyecto. Los componentes usan solo estas variables, nunca colores sueltos. */
+:root {
+  --bg: #f2f1ec;
+  --surface: #ffffff;
+  --surface-2: #f7f6f2;
+  --ink: #1c2320;
+  --muted: #5b6460;
+  --line: #e2e0d8;
+  --line-strong: #c9c6bb;
+  --accent: #1e5a7a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3eef3;
+  --signal: #f2b544;
+  --danger: #b3261e;
+
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius-s: 8px;
+  --radius-m: 14px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --tap: 44px;
+  --gutter: max(16px, env(safe-area-inset-left));
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #121614;
+    --surface: #1a1f1d;
+    --surface-2: #202624;
+    --ink: #e8ebe9;
+    --muted: #a3aca8;
+    --line: #2c3431;
+    --line-strong: #3d4743;
+    --accent: #7db9d6;
+    --accent-ink: #0d1b22;
+    --accent-soft: #1c2e37;
+    --signal: #f2b544;
+    --danger: #f2b8b5;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #121614;
+  --surface: #1a1f1d;
+  --surface-2: #202624;
+  --ink: #e8ebe9;
+  --muted: #a3aca8;
+  --line: #2c3431;
+  --line-strong: #3d4743;
+  --accent: #7db9d6;
+  --accent-ink: #0d1b22;
+  --accent-soft: #1c2e37;
+  --signal: #f2b544;
+  --danger: #f2b8b5;
+  color-scheme: dark;
+}
