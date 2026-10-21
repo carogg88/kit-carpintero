@@ -3,6 +3,7 @@ import { partBox } from '../geometry';
 import { partWord } from '../jointinfo';
 import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../project';
 import { createTable, TABLE_DEFAULTS } from './table';
+import { autoComponents } from '../components';
 
 /**
  * Plantillas: un formulario de medidas generales arma el mueble entero, con sus encastres.
@@ -57,7 +58,7 @@ const project = (id: string, name: string, now: string, parts: Part[], force: (a
     const params = defaultJointParams(type, partBox(a), partBox(b));
     return params ? { ...j, type, params: { ...params } } : j;
   });
-  return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints };
+  return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [] };
 };
 
 const boxPart = (wood: string, ops: Part['ops']) => (id: string, name: string, min: [number, number, number], max: [number, number, number]): Part => ({
@@ -232,6 +233,7 @@ export function templateWarnings(t: TemplateDef, v: Record<string, number>): { k
 export function buildTemplate(t: TemplateDef, v: Record<string, number>, wood: string, joint?: JointType, now = new Date().toISOString()): Project {
   const p = t.build({ ...templateDefaults(t), ...v }, wood, now);
   p.name = t.projectName;
+  autoComponents(p);
   if (!t.joints || !joint) return p;
   const groups = new Set(t.joints.groups);
   for (const j of p.joints) {

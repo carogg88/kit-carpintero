@@ -1,11 +1,14 @@
 import { useId, useState } from 'react';
 import {
+  componentCopies,
   defaultJointParams,
   duplicatePart,
   endJoint,
   formatNumber,
   JOINT_NAMES,
   jointOptions,
+  makeComponent,
+  makeUnique,
   newPart,
   parseLength,
   partAxesBySize,
@@ -18,7 +21,7 @@ import {
   type Project,
   type Units,
 } from '@kitc/core';
-import { IconWarn } from './icons';
+import { IconLink, IconWarn } from './icons';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
 
@@ -238,6 +241,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           ))}
         </select>
       </label>
+      <ComponentBox project={project} part={part} />
       <fieldset className={styles.plainFieldset}>
         <legend className={styles.legend}>Cantos</legend>
         <div className={styles.row}>
@@ -283,6 +287,40 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         </button>
       </div>
     </>
+  );
+}
+
+/** Componente de la pieza: cuántas copias vinculadas tiene, o el botón para crear uno. */
+function ComponentBox({ project, part }: { project: Project; part: Part }) {
+  const commit = useEditor((s) => s.commit);
+  const copies = componentCopies(project, part);
+  const component = project.components.find((c) => c.id === part.component);
+  if (!component) {
+    return (
+      <div className={styles.componentBox}>
+        <p className={styles.muted}>Si hacés un componente, cada copia de esta pieza cambia junto con las demás.</p>
+        <button type="button" className={styles.btn} onClick={() => commit((d) => void makeComponent(d as Project, part.id))}>
+          Hacer componente
+        </button>
+      </div>
+    );
+  }
+  const others = copies.filter((p) => p.id !== part.id).map((p) => p.id);
+  return (
+    <div className={`${styles.componentBox} ${styles.componentOn}`}>
+      <span className={styles.componentTitle}>
+        <IconLink />
+        Componente {component.name} · {copies.length} {copies.length === 1 ? 'copia' : 'copias'}
+      </span>
+      <p className={styles.muted}>
+        {others.length
+          ? `Las medidas, la madera y los cantos cambian también en ${others.join(', ')}. Mover una copia no mueve las otras.`
+          : 'Duplicala o copiala al mover y las copias quedan vinculadas.'}
+      </p>
+      <button type="button" className={styles.btn} onClick={() => commit((d) => makeUnique(d as Project, part.id))}>
+        Hacer única
+      </button>
+    </div>
   );
 }
 

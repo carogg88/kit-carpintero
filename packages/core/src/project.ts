@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -32,8 +32,14 @@ export const Part = z.object({
   /** Rotación en grados alrededor de X, Y, Z. */
   rotation: Vec3.default([0, 0, 0]),
   ops: z.array(Operation).default([]),
+  /** Componente al que pertenece: todas sus copias comparten forma, madera y operaciones. */
+  component: z.string().optional(),
 });
 export type Part = z.infer<typeof Part>;
+
+/** Componente: piezas iguales vinculadas. La forma vive en cada copia y se mantiene igual en todas. */
+export const Component = z.object({ id: z.string(), name: z.string() });
+export type Component = z.infer<typeof Component>;
 
 export const JOINT_TYPES = [
   // P1
@@ -65,12 +71,16 @@ export const Project = z.object({
   updatedAt: z.string(),
   parts: z.array(Part),
   joints: z.array(Joint),
+  components: z.array(Component).default([]),
 });
 export type Project = z.infer<typeof Project>;
 
 type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
 /** migrations[n] lleva un proyecto de la versión n a la n + 1. */
-const migrations: Record<number, Migration> = {};
+const migrations: Record<number, Migration> = {
+  // v2 suma los componentes; los proyectos anteriores no tienen ninguno.
+  1: (d) => ({ ...d, components: [] }),
+};
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };
 
