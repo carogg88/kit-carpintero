@@ -1,6 +1,11 @@
 import { useId, useState } from 'react';
 import {
+  acrossFace,
+  bevelAngle,
+  boxSize,
   componentCopies,
+  describeBevel,
+  faceLabel,
   defaultJointParams,
   depthUnder,
   describePocket,
@@ -19,6 +24,7 @@ import {
   partBox,
   WOODS,
   type Axis,
+  type Bevel,
   type Joint,
   type NewPartKind,
   type Part,
@@ -223,6 +229,80 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
   );
 }
 
+/** Ángulo en grados, con coma o punto. */
+function AngleField({ label, deg, max, onCommit }: { label: string; deg: number; max: number; onCommit: (deg: number) => void }) {
+  const id = useId();
+  const show = (d: number) => (Math.round(d * 10) / 10).toString().replace('.', ',');
+  const [text, setText] = useState(() => show(deg));
+  const [error, setError] = useState<string | null>(null);
+  const [shown, setShown] = useState(deg);
+  if (Math.abs(shown - deg) > 1e-6) {
+    setShown(deg);
+    setText(show(deg));
+    setError(null);
+  }
+  const commit = () => {
+    const v = Number(text.replace(',', '.').replace('°', '').trim());
+    if (!Number.isFinite(v) || v <= 0 || v >= 90) return setError('Entre 1° y 89°');
+    if (v > max + 0.05) return setError(`Con este ancho, hasta ${show(max)}°`);
+    setError(null);
+    if (Math.abs(v - deg) > 0.05) onCommit(v);
+    else setText(show(deg));
+  };
+  return (
+    <label className={styles.field} htmlFor={id}>
+      {label}
+      <input
+        id={id}
+        className={styles.num}
+        inputMode="decimal"
+        value={text}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-e` : undefined}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      {error && (
+        <span id={`${id}-e`} className={styles.error} role="alert">
+          <IconWarn />
+          {error}
+        </span>
+      )}
+    </label>
+  );
+}
+
+/** Un bisel o corte en ángulo: cuánto entra en cada cara y el ángulo que forma con la cara marcada. */
+function BevelCard({ bevel, part, units, onChange, onRemove }: { bevel: Bevel; part: Part; units: Units; onChange: (recipe: (b: Bevel) => void) => void; onRemove: () => void }) {
+  const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
+  const maxA = acrossFace(part, bevel.b);
+  const maxB = boxSize(partBox(part))[bevel.a.axis];
+  const cap = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
+  return (
+    <div className={styles.pocketCard}>
+      <div className={styles.pocketHead}>
+        <span className={styles.pocketTitle}>
+          <strong>{bevel.id}</strong> {cap(describeBevel(part, bevel, n))}
+        </span>
+        <button type="button" className={styles.iconBtnSmall} aria-label={`Borrar ${bevel.id}`} title="Borrar" onClick={onRemove}>
+          <IconTrash />
+        </button>
+      </div>
+      <div className={styles.pocketFields}>
+        <LengthField label={cap(`en ${faceLabel(bevel.a)}`)} mm={bevel.da} units={units} min={0.5} max={maxA} onCommit={(v) => onChange((b) => void (b.da = v))} />
+        <LengthField label={cap(`en ${faceLabel(bevel.b)}`)} mm={bevel.db} units={units} min={0.5} max={maxB} onCommit={(v) => onChange((b) => void (b.db = v))} />
+        <AngleField
+          label={`Ángulo con ${faceLabel(bevel.a)}`}
+          deg={bevelAngle(bevel)}
+          max={bevelAngle({ da: bevel.da, db: maxB })}
+          onCommit={(deg) => onChange((b) => void (b.db = Math.round(b.da * Math.tan((deg * Math.PI) / 180) * 100) / 100))}
+        />
+      </div>
+    </div>
+  );
+}
+
 type EdgeKind = 'rectos' | 'round' | 'chamfer';
 
 function PartEditor({ part, project }: { part: Part; project: Project }) {
@@ -344,6 +424,33 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
               })
             }
             onRemove={() => update((q) => void (q.pockets = q.pockets.filter((y) => y.id !== pk.id)))}
+          />
+        ))}
+      </div>
+      <div className={styles.stack}>
+        <span className={styles.legend}>Biseles y cortes en ángulo ({part.bevels.length})</span>
+        {part.bevels.length === 0 && (
+          <p className={styles.muted}>
+            Con{' '}
+            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('bevel')}>
+              Biselar
+            </button>{' '}
+            tocás una cara cerca de una arista y arrastrás hacia adentro. Si cruzás toda la cara, es un corte en ángulo.
+          </p>
+        )}
+        {part.bevels.map((bv) => (
+          <BevelCard
+            key={bv.id}
+            bevel={bv}
+            part={part}
+            units={units}
+            onChange={(recipe) =>
+              update((q) => {
+                const x = q.bevels.find((y) => y.id === bv.id);
+                if (x) recipe(x);
+              })
+            }
+            onRemove={() => update((q) => void (q.bevels = q.bevels.filter((y) => y.id !== bv.id)))}
           />
         ))}
       </div>

@@ -12,3 +12,4 @@ export * from './drawing';
 export * from './templates';
 export * from './components';
 export * from './pockets';
+export * from './bevels';

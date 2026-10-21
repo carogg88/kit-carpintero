@@ -1,5 +1,5 @@
 import { basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
-import { engineCamera, jointGeometry, partBox, pocketSolid, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
+import { bevelSolid, engineCamera, jointGeometry, partBox, pocketSolid, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -55,6 +55,14 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
       shape = shape.cut(toShape(pocketSolid(part, p)));
     } catch {
       warning = `No se pudo hacer el ${p.through ? 'calado' : 'vaciado'} ${p.id}`;
+    }
+  }
+
+  for (const b of part.bevels) {
+    try {
+      shape = shape.cut(toShape(bevelSolid(part, b)));
+    } catch {
+      warning = `No se pudo hacer el bisel ${b.id}`;
     }
   }
 

@@ -9,7 +9,7 @@ import type { Component, Part, Project } from './project';
 
 const json = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const shape = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, wood: p.wood });
+const shape = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, bevels: p.bevels, wood: p.wood });
 
 /**
  * Después de un cambio, pasa la forma, las operaciones y la madera de la copia que cambió a las demás
@@ -39,6 +39,7 @@ export function syncComponents(prev: Project | null, next: Project): void {
       p.base = json(s.base);
       p.ops = json(s.ops);
       p.pockets = json(s.pockets);
+      p.bevels = json(s.bevels);
       p.wood = s.wood;
       for (const k of [0, 1, 2]) p.position[k] = p.position[k]! + shift[k]!;
     }

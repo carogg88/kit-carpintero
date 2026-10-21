@@ -84,7 +84,7 @@ describe('plano con el motor', () => {
 
 describe('encastres finos en el motor', () => {
   const part = (id: string, position: [number, number, number], size: [number, number, number]): Part => ({
-    id, name: id, wood: 'cedro', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [], pockets: [],
+    id, name: id, wood: 'cedro', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [], pockets: [], bevels: [],
   });
   // Esquina de cajón, pata con faldón y dos tablas canto con canto.
   const corner = [part('A', [0, 0, 0], [18, 150, 400]), part('B', [18, 0, 0], [482, 150, 18])];
@@ -118,7 +118,7 @@ describe('encastres finos en el motor', () => {
 
 
 describe('vaciados en el motor', () => {
-  const board: Part = { id: 'T', name: 'T', wood: 'cedro', base: { kind: 'box', size: [400, 20, 300] }, position: [0, 0, 0], rotation: [0, 0, 0], ops: [], pockets: [] };
+  const board: Part = { id: 'T', name: 'T', wood: 'cedro', base: { kind: 'box', size: [400, 20, 300] }, position: [0, 0, 0], rotation: [0, 0, 0], ops: [], pockets: [], bevels: [] };
   const only = (part: Part): Project => ({ ...table, parts: [part], joints: [] });
   const vol = (part: Part) => {
     const { shape, warning } = partShape(part, only(part));
@@ -139,6 +139,15 @@ describe('vaciados en el motor', () => {
     const hole = Math.PI * 17.5 ** 2 * 20;
     expect((vol(board) - vol(top)) / hole).toBeCloseTo(1, 2);
     expect((vol(board) - vol(under)) / hole).toBeCloseTo(1, 2);
+  });
+
+  it('un bisel saca la cuña de la arista, y un corte en ángulo la de toda la cara', () => {
+    const up = { axis: 1, side: 1 } as const;
+    const front = { axis: 2, side: 1 } as const;
+    const bevel: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 12, db: 6 }] };
+    expect(vol(board) - vol(bevel)).toBeCloseTo((12 * 6) / 2 * 400, 0);
+    const slant: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 300, db: 10 }] };
+    expect(vol(board) - vol(slant)).toBeCloseTo((300 * 10) / 2 * 400, 0);
   });
 });
 

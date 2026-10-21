@@ -3,8 +3,13 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
+  acrossFace,
+  bevelSolid,
   copyPart,
   formatLength,
+  edgeNear,
+  isAngleCut,
+  newBevel,
   newPocket,
   otherAxes,
   partBox,
@@ -14,6 +19,7 @@ import {
   snapOnFace,
   woodById,
   type Axis,
+  type Bevel,
   type Box,
   type Part,
   type PocketShape,
@@ -298,6 +304,33 @@ function FaceOverlay({ part, face, accent, onPointerDown }: FaceOverlayProps) {
   );
 }
 
+/** Plano del bisel que se está marcando: el rectángulo por donde pasa el corte. */
+function BevelDraft({ accent }: { accent: string }) {
+  const draft = useEditor((s) => s.bevelDraft);
+  const part = useEditor((s) => s.project?.parts.find((p) => p.id === s.bevelDraft?.partId));
+  const points = useMemo(() => {
+    if (!draft || !part) return null;
+    const s = bevelSolid(part, draft.bevel);
+    if (s.kind !== 'prism') return null;
+    const box = partBox(part);
+    const { a, b, da, db } = draft.bevel;
+    const eu = (a.side > 0 ? box.max[a.axis] : box.min[a.axis])!;
+    const ev = (b.side > 0 ? box.max[b.axis] : box.min[b.axis])!;
+    const at = (u: number, v: number, t: number) => {
+      const p = new THREE.Vector3();
+      p.setComponent(a.axis, u);
+      p.setComponent(b.axis, v);
+      p.setComponent(s.axis, t);
+      return p;
+    };
+    const [t0, t1] = [box.min[s.axis], box.max[s.axis]];
+    const p1 = [eu, ev - b.side * da] as const;
+    const p2 = [eu - a.side * db, ev] as const;
+    return [at(...p1, t0), at(...p1, t1), at(...p2, t1), at(...p2, t0)];
+  }, [draft, part]);
+  return points ? <Loop points={points} color={accent} /> : null;
+}
+
 function Draft({ part, accent }: { part: Part; accent: string }) {
   const draft = useEditor((s) => s.draft);
   const points = useMemo(() => (draft ? outline(partBox(part), draft, draft.shape) : null), [draft, part]);
@@ -346,6 +379,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     if (tool === 'select' || !e.face || !current) return;
     e.stopPropagation();
     if (tool === 'draw') return pickFace(e, original);
+    if (tool === 'bevel') return startBevel(e, original);
     // Copiar al mover: se arrastra una copia y la pieza original queda en su lugar.
     const copying = tool === 'move' && (copyMove || e.nativeEvent.ctrlKey || e.nativeEvent.altKey);
     const part = copying ? copyPart(current.parts, original) : original;
@@ -532,6 +566,71 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     window.addEventListener('pointercancel', onUp);
   };
 
+  // Biselar: tocar una cara cerca de una arista y arrastrar hacia adentro marca hasta dónde llega el bisel.
+  const startBevel = (e: ThreeEvent<PointerEvent>, part: Part) => {
+    if (!e.face) return;
+    const n = e.face.normal;
+    const abs = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
+    const axis = abs.indexOf(Math.max(...abs)) as Axis;
+    const side = ([n.x, n.y, n.z][axis] ?? 0) > 0 ? 1 : -1;
+    const box = partBox(part);
+    if (Math.abs(e.point.getComponent(axis) - (side > 0 ? box.max[axis] : box.min[axis])) > 0.6) return;
+    const a = { axis, side } as const;
+    const { b } = edgeNear(part, a, [e.point.x, e.point.y, e.point.z]);
+    const { select, setBevelDraft, setHint, commit } = useEditor.getState();
+    select(part.id);
+    if (controlsRef.current) controlsRef.current.enabled = false;
+    const across = acrossFace(part, b);
+    const edgeAt = (b.side > 0 ? box.max[b.axis] : box.min[b.axis])!;
+    const tol = Math.max(3, across * 0.04);
+    const normal = new THREE.Vector3();
+    normal.setComponent(axis, 1);
+    const plane = new THREE.Plane(normal, -(side > 0 ? box.max[axis] : box.min[axis]));
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    let bevel: Bevel | null = null;
+
+    const onMove = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const pt = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(plane, pt)) return;
+      const raw = Math.min(across, Math.abs(edgeAt - pt.getComponent(b.axis)));
+      let da = Math.round(raw);
+      let snap: string | null = null;
+      if (across - raw <= tol) [da, snap] = [across, 'todo el ancho'];
+      else if (Math.abs(raw - across / 2) <= tol) [da, snap] = [across / 2, 'centro'];
+      bevel = da >= 1 ? newBevel(part, a, b, da) : null;
+      setBevelDraft(bevel ? { partId: part.id, bevel } : null);
+      const units = useEditor.getState().project?.units ?? 'cm';
+      setHint({
+        x: ev.clientX - rect.left,
+        y: ev.clientY - rect.top,
+        text: bevel ? `${isAngleCut(part, bevel) ? 'Corte en ángulo' : 'Bisel'} ${formatLength(bevel.da, units)} × ${formatLength(bevel.db, units)}` : 'Arrastrá hacia adentro',
+        snap,
+      });
+      invalidate();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      setBevelDraft(null);
+      setHint(null);
+      const done = bevel as Bevel | null;
+      if (!done) return;
+      commit((d) => {
+        const q = d.parts.find((x) => x.id === part.id);
+        if (q) q.bevels.push({ ...done, id: newBevel(q as Part, a, b, 1).id });
+      });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   const click = (e: ThreeEvent<MouseEvent>, part: Part) => {
     if (e.delta > 6) return;
     e.stopPropagation();
@@ -564,6 +663,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           />
         );
       })}
+      <BevelDraft accent={colors.accent} />
       {drawFace &&
         (() => {
           const part = project.parts.find((p) => p.id === drawFace.partId);
