@@ -1,14 +1,21 @@
 /// <reference lib="webworker" />
 import opencascade from 'replicad-opencascadejs';
 import wasmUrl from 'replicad-opencascadejs/wasm?url';
-import { makeBox, setOC, type Shape3D } from 'replicad';
-import { mortiseAndTenon, partBox, type Box, type Part, type Project } from '@kitc/core';
+import { makeBox, makeCylinder, setOC, type Shape3D } from 'replicad';
+import { jointGeometry, partBox, type Box, type Part, type Project, type Solid } from '@kitc/core';
 import type { FromWorker, PartMesh, ToWorker } from './protocol';
 
 declare const self: DedicatedWorkerGlobalScope;
 
 const send = (msg: FromWorker, transfer: Transferable[] = []) => self.postMessage(msg, transfer);
 const solid = (b: Box) => makeBox(b.min, b.max) as Shape3D;
+
+function toShape(s: Solid): Shape3D {
+  if (s.kind === 'box') return solid(s.box);
+  const direction: [number, number, number] = [0, 0, 0];
+  direction[s.axis] = s.dir;
+  return makeCylinder(s.radius, s.length, s.start, direction) as Shape3D;
+}
 
 /** Arma una pieza exacta: forma base, redondeos, espigas sumadas y mortajas restadas. */
 function buildPart(part: Part, project: Project): PartMesh {
@@ -26,17 +33,15 @@ function buildPart(part: Part, project: Project): PartMesh {
   }
 
   for (const j of project.joints) {
-    if (j.type !== 'mortaja' || (j.partA !== part.id && j.partB !== part.id)) continue;
+    if (j.partA !== part.id && j.partB !== part.id) continue;
     const a = project.parts.find((p) => p.id === j.partA);
     const b = project.parts.find((p) => p.id === j.partB);
     if (!a || !b) continue;
-    const geo = mortiseAndTenon(partBox(a), partBox(b), {
-      length: j.params.length ?? 40,
-      thickness: j.params.thickness ?? 7,
-      shoulder: j.params.shoulder ?? 10,
-    });
+    const geo = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     if (!geo) continue;
-    shape = part.id === j.partA ? shape.cut(solid(geo.mortise)) : shape.fuse(solid(geo.tenon));
+    const isA = part.id === j.partA;
+    for (const s of isA ? [] : geo.addB) shape = shape.fuse(toShape(s));
+    for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(toShape(s));
   }
 
   const mesh = shape.mesh({ tolerance: 0.3, angularTolerance: 0.3 });

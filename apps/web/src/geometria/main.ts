@@ -1,6 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { createTable, parseLength, TABLE_DEFAULTS, woodById, type Project } from '@kitc/core';
+import {
+  createTable,
+  defaultJointParams,
+  JOINT_NAMES,
+  jointOptions,
+  parseLength,
+  partBox,
+  TABLE_DEFAULTS,
+  woodById,
+  type JointType,
+  type Project,
+} from '@kitc/core';
 import type { FromWorker, PartMesh } from '../geometry/protocol';
 import '../styles/tokens.css';
 import '../styles/base.css';
@@ -140,9 +151,13 @@ let project = createTable();
 const worker = new Worker(new URL('../geometry/worker.ts', import.meta.url), { type: 'module' });
 let pending: { label: string; only?: string[] } | null = null;
 
+function setBusy(busy: boolean) {
+  [...buttons, $<HTMLSelectElement>('joint')].forEach((el) => (el.disabled = busy));
+}
+
 function build(label: string, only?: string[]) {
   pending = { label, ...(only ? { only } : {}) };
-  buttons.forEach((b) => (b.disabled = true));
+  setBusy(true);
   worker.postMessage({ type: 'build', project, ...(only ? { only } : {}) });
 }
 
@@ -165,21 +180,46 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     }
     msg.parts.forEach((p) => p.warning && warnings.add(`${p.id}: ${p.warning}`));
     render();
-    buttons.forEach((b) => (b.disabled = false));
+    setBusy(false);
   } else {
     loading.hidden = false;
     loading.textContent = `No se pudo calcular: ${msg.message}`;
-    buttons.forEach((b) => (b.disabled = false));
+    setBusy(false);
   }
 };
 worker.postMessage({ type: 'init' });
 
-rebuildBtn.onclick = () => {
+// ---------- Encastres ----------
+const jointSelect = $<HTMLSelectElement>('joint');
+const box = (id: string) => partBox(project.parts.find((p) => p.id === id)!);
+const firstJoint = project.joints[0]!;
+for (const t of jointOptions(box(firstJoint.partA), box(firstJoint.partB))) {
+  jointSelect.add(new Option(JOINT_NAMES[t], t, t === 'mortaja', t === 'mortaja'));
+}
+
+/** La misma mesa, con el radio del campo y el encastre elegido en las 8 uniones. */
+function tableFromControls(): Project {
   const r = parseLength($<HTMLInputElement>('radius').value, 'cm');
   const radius = r === null ? TABLE_DEFAULTS.edgeRadius : r / 10;
-  project = createTable({ ...TABLE_DEFAULTS, edgeRadius: radius });
+  const t = createTable({ ...TABLE_DEFAULTS, edgeRadius: radius });
+  const type = jointSelect.value as JointType;
+  const parts = new Map(t.parts.map((p) => [p.id, partBox(p)]));
+  t.joints = t.joints.map((j) => {
+    const params = defaultJointParams(type, parts.get(j.partA)!, parts.get(j.partB)!);
+    return params ? { ...j, type, params } : j;
+  });
+  return t;
+}
+
+rebuildBtn.onclick = () => {
+  project = tableFromControls();
   warnings.clear();
   build('Recalcular todo');
+};
+jointSelect.onchange = () => {
+  project = tableFromControls();
+  warnings.clear();
+  build(`Encastre: ${JOINT_NAMES[jointSelect.value as JointType]}`);
 };
 oneBtn.onclick = () => build('Recalcular una pata', ['P3']);
 xrayBtn.onclick = () => setXray(!xray);
