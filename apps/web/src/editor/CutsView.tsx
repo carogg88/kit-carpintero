@@ -16,6 +16,7 @@ import {
   type Project,
   type StockBoard,
 } from '@kitc/core';
+import { HelpTip } from '../help/Help';
 import { IconDownload } from './icons';
 import {
   alternativesText,
@@ -329,7 +330,10 @@ export function CutsView({ project }: { project: Project }) {
             <div className={styles.stats}>
               <div>
                 <span className={styles.bigNum}>{decimal(feet)}</span>
-                <span>{feetLabel}</span>
+                <span>
+                {feetLabel}
+                <HelpTip term="pie" />
+              </span>
               </div>
               <div>
                 <span className={styles.bigNum}>{Math.round(plan.waste * 100)}%</span>
@@ -362,7 +366,10 @@ export function CutsView({ project }: { project: Project }) {
             </div>
             <div className={styles.tile}>
               <span className={styles.tileNum}>{decimal(feet)}</span>
-              <span>{feetLabel}</span>
+              <span>
+                {feetLabel}
+                <HelpTip term="pie" />
+              </span>
             </div>
             <div className={styles.tile}>
               <span className={styles.tileNum}>{Math.round(plan.waste * 100)}%</span>

@@ -30,7 +30,7 @@ describe('textos del núcleo en inglés', () => {
     const leg = table.parts.find((p) => p.id === 'P1')!;
     expect(cutPiece(leg, table).work).toEqual(['2 mortises', 'rounded edges 3 mm']);
     const rows = cutList(table);
-    expect(rows.find((r) => r.ids.includes('T1'))?.work[0]).toBe('glue up 7 boards');
+    expect(rows.find((r) => r.ids.includes('T1'))?.work[0]).toBe('glue up 7 strips');
     const p = buildTemplate(templateById('mesa')!, {}, 'guatambu', 'mortaja', '2026-10-21T00:00:00Z');
     expect(p.name).toBe('Dining table');
     expect(p.parts.find((x) => x.id === 'P1')?.name).toBe('Leg (back left)');

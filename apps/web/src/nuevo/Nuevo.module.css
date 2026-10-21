@@ -14,24 +14,41 @@
 /* Formulario de plantilla: la vista previa arriba en el teléfono y al costado en la compu. */
 .layout { flex: 1; display: flex; flex-direction: column; }
 .aside { padding: var(--space-1) var(--gutter) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
-.preview { margin: 0; position: relative; height: 168px; border-radius: var(--radius-m); background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; padding: 14px 14px 30px; }
-.preview svg { width: 100%; height: 100%; }
-.preview line { stroke: var(--ink); stroke-width: 1.4; stroke-linecap: square; }
-.preview text { fill: var(--muted); font-family: var(--font-ui); }
+.preview {
+  margin: 0; position: relative; height: 300px; border-radius: var(--radius-m); background: var(--surface-2); border: 1px solid var(--line);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.canvas { flex: 1; min-height: 0; }
+/* Medida sobre la cota, en el medio de la línea. */
+.dimLabel {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap;
+  padding: 3px 8px; border-radius: var(--radius-pill); background: var(--forest); color: var(--forest-ink);
+  font: 600 13px var(--font-num); box-shadow: var(--shadow-card);
+}
 .preview figcaption {
-  position: absolute; left: 10px; bottom: 8px; font: 400 12px var(--font-num); color: var(--muted);
-  background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 2px 6px; border-radius: 6px;
+  display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 10px; border-top: 1px solid var(--line);
+  background: var(--surface); font-size: 13px; line-height: 1.4; color: var(--muted);
+}
+.preview figcaption strong { color: var(--ink); font-weight: 600; }
+.preview figcaption.hintOn strong { color: var(--accent); }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* En el teléfono la vista queda arriba mientras se completa el formulario, así se ve lo que se toca. */
+@media (max-width: 899px) {
+  .aside { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  .preview { height: 264px; }
+  /* Al tocar un campo, el navegador lo sube hasta debajo de la vista, no detrás de ella. */
+  :global(html):has(.aside) { scroll-padding-top: 290px; }
 }
 @media (min-width: 900px) {
   .layout { flex-direction: row; align-items: flex-start; gap: var(--space-5); padding: var(--space-3) var(--gutter) var(--space-5); }
   .aside { position: sticky; top: var(--space-4); flex: 1.1; padding: 0; }
-  .preview { height: 380px; }
+  .preview { height: 420px; }
   .form { flex: 1; padding: 0 !important; }
   .footer { position: static !important; margin: 0 !important; padding: var(--space-2) 0 0 !important; border: 0 !important; background: none !important; }
 }
 
 .form { display: flex; flex-direction: column; gap: 14px; padding: 0 var(--gutter); flex: 1; }
-.grid { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.grid { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
 .grid legend { grid-column: 1 / -1; }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
 .legend { padding: 0; margin-bottom: var(--space-2); font-size: 13px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); }
@@ -131,3 +148,7 @@
 @media (min-width: 900px) {
   .screen:has(.steps) { max-width: 760px; }
 }
+
+/* Guía al calcar: el mueble con la medida que se está calcando. */
+.preview.compact { height: 230px; margin-top: var(--space-3); }
+@media (min-width: 900px) { .preview.compact { height: 280px; } }

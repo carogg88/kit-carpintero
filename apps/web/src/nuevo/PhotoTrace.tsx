@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { buildTemplate, formatLength, t, templateById, tk, TEMPLATES, type TemplateDef, type Units } from '@kitc/core';
+import { buildTemplate, formatLength, t, templateById, templateDefaults, tk, TEMPLATES, type TemplateDef, type Units } from '@kitc/core';
 import { LengthField } from '../editor/PartPanel';
 import { IconUndo } from '../editor/icons';
 import { navigate, sectionHref } from '../routes';
 import { saveProject } from '../storage/db';
 import { clearDraft, setDraft } from './draft';
 import { BackHeader, UnitsToggle } from './parts';
+import { Preview } from './TemplateForm';
 import styles from './Nuevo.module.css';
 
 /** Punto en píxeles de la foto original. */
@@ -218,6 +219,8 @@ export function PhotoTrace() {
     navigate(sectionHref(p.id, 'modelo'));
   };
 
+  // El mueble con lo calcado hasta ahora, para mostrar dónde está la medida que se calca.
+  const guide = buildTemplate(def, { ...templateDefaults(def), ...usable }, 'guatambu', def.joints?.default, '2000-01-01T00:00:00.000Z');
   const fieldLabel = (k: string) => {
     const label = fields.find((f) => f.key === k)?.label;
     return label ? t(label) : '';
@@ -364,6 +367,7 @@ export function PhotoTrace() {
                 </button>
               ))}
             </div>
+            <Preview project={guide} field={fields.find((f) => f.key === current)} units={units} compact />
             {outOfRange.map((f) => (
               <p key={f.key} className={styles.errorText} role="alert">
                 {t('{field} da {value}, fuera de lo que admite la plantilla ({min} a {max}). Volvé a calcarla.', {

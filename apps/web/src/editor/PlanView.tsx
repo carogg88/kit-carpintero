@@ -252,7 +252,7 @@ function Sheet({ def, n, of, project, layers }: { def: SheetDef; n: number; of: 
   );
 }
 
-/** Hoja 1: frente, lateral y planta con las medidas generales. */
+/** Hoja 1: frente, costado y planta con las medidas generales. */
 function generalSheet(project: Project, refine: Refine): SheetDef {
   const n = (mm: number) => formatNumber(mm, project.units);
   const front = refine(drawView(project, 'front'));
@@ -290,7 +290,7 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
   return {
     key: 'general',
     title: t('Vistas generales'),
-    hint: t('Frente, lateral y planta'),
+    hint: t('Frente, costado y planta'),
     scale,
     body: (
       <>
@@ -299,8 +299,8 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
         <Lines d={top} at={tp} />
         <g className={styles.notes}>
           {title(fp, front, t('Frente'))}
-          {title(sp, side, t('Lateral'))}
-          {title(tp, top, t('Planta'))}
+          {title(sp, side, t('Costado'))}
+          {title(tp, top, t('Planta (desde arriba)'))}
           {labels(fp, front)}
           {labels(sp, side)}
           {labels(tp, top)}

@@ -72,7 +72,7 @@ export function cssColor(name: string, fallback: string): string {
   return v || fallback;
 }
 
-/** Órbita, encuadre de las vistas (Iso, Frente, Lateral, Planta) y reencuadre al cambiar el tamaño. */
+/** Órbita, encuadre de las vistas (3D, Frente, Costado, Arriba) y reencuadre al cambiar el tamaño. */
 function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls | null> }) {
   const { camera, gl, invalidate, size } = useThree();
   const project = useEditor((s) => s.project);
@@ -132,7 +132,7 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
     invalidate();
   });
 
-  // Encuadra la vista pedida (Iso, Frente, Lateral, Planta) con todo el mueble adentro.
+  // Encuadra la vista pedida (3D, Frente, Costado, Arriba) con todo el mueble adentro.
   const frame = useEffectEvent((instant: boolean) => {
     const p = useEditor.getState().project;
     if (!p || !(camera instanceof THREE.PerspectiveCamera)) return;

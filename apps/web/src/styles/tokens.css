@@ -16,6 +16,8 @@
   --forest: #343f31;
   --forest-ink: #ffffff;
   --signal: #c98a4e;
+  /* Vista previa de las plantillas: las piezas que cambia el campo elegido, distintas de cualquier madera. */
+  --measure: #e0a42b;
   --danger: #b3261e;
   /* Taller: rayos X, uniones sin cortes y plan de corte. */
   --xray-edge: #6b4a2b;

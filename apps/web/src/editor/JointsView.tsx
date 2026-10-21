@@ -13,13 +13,13 @@ import {
   partBox,
   partWord,
   t,
-  tk,
   type Joint,
   type JointGroup,
   type JointType,
   type Part,
   type Project,
 } from '@kitc/core';
+import { JOINT_ABOUT } from '../help/terms';
 import { sectionHref } from '../routes';
 import { IconBack, IconInfo, IconWarn } from './icons';
 import { JointDetail3D } from './JointDetail3D';
@@ -28,21 +28,6 @@ import { useEditor } from './store';
 import type { ExactMesh } from './useGeometry';
 import styles from './Sections.module.css';
 
-const ABOUT: Partial<Record<JointType, string>> = {
-  tope: tk('Las piezas solo se apoyan, sin cortes. Se fijan con tornillos, clips de fijación o cola.'),
-  mortaja: tk('Encastre clásico para patas y faldones: fuerte y oculto. Se hace con escoplo o fresadora; la espiga va encolada.'),
-  'media-madera': tk('Cada pieza se rebaja a la mitad de su espesor y quedan al ras. Se hace con sierra y formón, o con fresadora.'),
-  canal: tk('Una ranura a lo largo de una pieza donde entra el canto de la otra. Ideal para fondos y paneles; se hace con fresadora o sierra de mesa.'),
-  rebaje: tk('Un escalón en el canto de una pieza donde apoya la otra. Se usa en fondos y tapas; se hace con fresadora o sierra de mesa.'),
-  clavija: tk('Tarugos de madera encolados en agujeros enfrentados. Rápido y prolijo con una plantilla para tarugos.'),
-  'cola-milano': tk('El encastre de los cajones finos: las colas se ensanchan hacia la punta y no se pueden sacar tirando. Se marca con falsa escuadra y se corta con serrucho de costilla y formón.'),
-  dedos: tk('Dedos rectos que se alternan entre las dos piezas: mucha superficie para la cola. Se hace con sierra de mesa y un patrón de dedos, o con fresadora.'),
-  brida: tk('Una horquilla en la punta de una pieza abraza a la otra. Fuerte y fácil de hacer con sierra de cinta o sierra de mesa.'),
-  inglete: tk('Las dos piezas se cortan en diagonal y la veta da la vuelta a la esquina sin que se vea la testa. Se corta con ingletadora o sierra de mesa inclinada.'),
-  galleta: tk('Galletas de madera comprimida encoladas en ranuras enfrentadas. Alinean paneles rápido; se hacen con galletera.'),
-  machiembrado: tk('Una lengüeta en el canto de una tabla entra en la canal de la otra. Para paneles y tablas encoladas de canto; se hace con fresas de machimbre o sierra de mesa.'),
-  bolsillo: tk('Tornillos que entran inclinados desde la cara de adentro. Rápido y sin prensas; se hace con una plantilla de bolsillo y mecha escalonada.'),
-};
 
 const SLOPES = [6, 8];
 
@@ -307,7 +292,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           </span>
           <figcaption>{t('Arrastrá para girar el detalle')}</figcaption>
         </figure>
-        <p className={styles.muted}>{t(ABOUT[joint.type] ?? 'Este encastre todavía no tiene cortes en el modelo.')}</p>
+        <p className={styles.muted}>{t(JOINT_ABOUT[joint.type] ?? 'Este encastre todavía no tiene cortes en el modelo.')}</p>
         {warning && (
           <p className={styles.warn} role="alert">
             <IconWarn />
