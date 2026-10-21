@@ -45,7 +45,7 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
     position: min,
     rotation: [0, 0, 0],
     ops,
-    pockets: [],
+    pockets: [], bevels: [],
   });
   const x0 = inset;
   const x1 = W - inset - leg;

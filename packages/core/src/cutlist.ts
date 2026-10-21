@@ -1,5 +1,6 @@
 import { boardFeet, LENGTHS_M, planedMm, stockFor, stockKind, type StockKind } from './catalog/boards';
 import { boxSize, partBox, type Box } from './geometry';
+import { isAngleCut } from './bevels';
 import { jointGeometry, solidBox } from './joints';
 import type { Joint, Part, Project } from './project';
 
@@ -132,6 +133,9 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   const blind = part.pockets.length - through;
   if (through) work.push(plural(through, 'calado', 'calados'));
   if (blind) work.push(plural(blind, 'vaciado', 'vaciados'));
+  const angled = part.bevels.filter((b) => isAngleCut(part, b)).length;
+  if (angled) work.push(plural(angled, 'corte en ángulo', 'cortes en ángulo'));
+  if (part.bevels.length - angled) work.push(plural(part.bevels.length - angled, 'bisel', 'biseles'));
   const op = part.ops[0];
   if (op) work.push(op.kind === 'round' ? `cantos redondeados ${op.radius} mm` : `cantos chaflanados ${op.size} mm`);
   const finished = [...boxSize(box)].sort((x, y) => y - x);

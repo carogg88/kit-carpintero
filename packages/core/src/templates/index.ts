@@ -69,7 +69,7 @@ const boxPart = (wood: string, ops: Part['ops']) => (id: string, name: string, m
   position: min,
   rotation: [0, 0, 0],
   ops,
-  pockets: [],
+  pockets: [], bevels: [],
 });
 
 const round3: Part['ops'] = [{ kind: 'round', edges: 'all', radius: 3 }];

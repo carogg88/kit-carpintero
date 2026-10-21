@@ -59,7 +59,7 @@
 .toolbar button:hover { background: var(--surface-2); }
 .toolbar button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
 .toolSep { width: 1px; background: var(--line); margin: 6px 2px; }
-.stage[data-tool='draw'] canvas { cursor: crosshair; }
+.stage[data-tool='draw'] canvas, .stage[data-tool='bevel'] canvas { cursor: crosshair; }
 
 /* Dibujar: figura, cara elegida y salida. */
 .drawBar {
@@ -104,7 +104,8 @@
 }
 .snap { color: var(--signal); font-family: var(--font-ui); font-size: 12px; }
 
-.fabWrap { position: absolute; right: var(--space-2); bottom: var(--space-2); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+/* Encima de la barra de herramientas: con cinco herramientas, al lado ya no entra en un celular angosto. */
+.fabWrap { position: absolute; right: var(--space-2); bottom: calc(var(--space-2) * 2 + var(--tap) + var(--space-1) * 2 + 2px); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
 .fab {
   width: 56px; height: 56px; border: 0; border-radius: 50%; background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 14px rgb(43 54 40 / 0.25);
   display: flex; align-items: center; justify-content: center; cursor: pointer;

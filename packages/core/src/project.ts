@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -44,6 +44,22 @@ export const Pocket = z.object({
 });
 export type Pocket = z.infer<typeof Pocket>;
 
+const Face = z.object({ axis: z.union([z.literal(0), z.literal(1), z.literal(2)]), side: z.union([z.literal(1), z.literal(-1)]) });
+
+/**
+ * Bisel o corte en ángulo sobre una arista: la que forman la cara `a` (donde se marcó) y la cara vecina `b`.
+ * Saca la cuña que va de `da` mm adentro de la cara a hasta `db` mm adentro de la cara b, a todo lo largo.
+ * Si `da` cruza toda la cara, es un corte en ángulo de la punta o del canto.
+ */
+export const Bevel = z.object({
+  id: z.string(),
+  a: Face,
+  b: Face,
+  da: z.number().positive(),
+  db: z.number().positive(),
+});
+export type Bevel = z.infer<typeof Bevel>;
+
 export const Part = z.object({
   id: z.string(),
   name: z.string(),
@@ -56,6 +72,8 @@ export const Part = z.object({
   ops: z.array(Operation).default([]),
   /** Vaciados y calados dibujados en las caras, en orden. */
   pockets: z.array(Pocket).default([]),
+  /** Biseles y cortes en ángulo sobre las aristas. */
+  bevels: z.array(Bevel).default([]),
   /** Componente al que pertenece: todas sus copias comparten forma, madera y operaciones. */
   component: z.string().optional(),
 });
@@ -106,6 +124,7 @@ const migrations: Record<number, Migration> = {
   1: (d) => ({ ...d, components: [] }),
   // v3 suma los vaciados de cada pieza; el esquema los completa vacíos.
   2: (d) => d,
+  3: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

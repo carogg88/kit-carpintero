@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { faceName, formatLength, parseLength } from '@kitc/core';
+import { faceLabel, formatLength, parseLength } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
 import { CutsView } from './CutsView';
 import {
   IconBack,
+  IconBevel,
   IconCircle,
   IconDraw,
   IconRect,
@@ -35,6 +36,7 @@ const TOOLS: [Tool, string, string, () => React.JSX.Element][] = [
   ['push', 'Empujar o tirar una cara', 'P', IconPush],
   ['move', 'Mover pieza', 'M', IconMove],
   ['draw', 'Dibujar en una cara', 'D', IconDraw],
+  ['bevel', 'Biselar o cortar en ángulo', 'B', IconBevel],
 ];
 const VIEWS: [View, string, string][] = [
   ['iso', 'Iso', 'Iso'],
@@ -46,13 +48,8 @@ const TIPS: Record<Tool, string> = {
   select: 'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.',
   push: 'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.',
   move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.',
+  bevel: 'Tocá una cara cerca de la arista que querés biselar y arrastrá hacia adentro. Se pega al centro y a todo el ancho (corte en ángulo). El ángulo exacto se escribe en el panel.',
   draw: 'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina o un círculo desde su centro. Se pega a los bordes, al centro y cada 5 mm.',
-};
-
-/** "la cara de arriba", "el frente". */
-const faceLabel = (axis: 0 | 1 | 2, side: 1 | -1) => {
-  const name = faceName(axis, side);
-  return name === 'frente' ? 'el frente' : `la ${name}`;
 };
 
 type SaveState = 'saved' | 'saving' | 'error';
@@ -96,6 +93,7 @@ function useShortcuts(modelo: boolean) {
       else if (k === 'p') s.setTool('push');
       else if (k === 'm') s.setTool('move');
       else if (k === 'd') s.setTool('draw');
+      else if (k === 'b') s.setTool('bevel');
       else if (k === 'x') s.setXray(!s.xray);
       else if (k === 'escape') {
         if (s.drawFace) s.setDrawFace(null);
@@ -367,7 +365,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 <span role="status">
                   {drawFace ? (
                     <>
-                      En {faceLabel(drawFace.axis, drawFace.side)} de <strong>{drawFace.partId}</strong>
+                      En {faceLabel(drawFace)} de <strong>{drawFace.partId}</strong>
                     </>
                   ) : (
                     'Tocá una cara'

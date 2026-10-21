@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { syncComponents, syncJoints, type PocketShape, type Project, type Units } from '@kitc/core';
+import { syncComponents, syncJoints, type Bevel, type PocketShape, type Project, type Units } from '@kitc/core';
 
-export type Tool = 'select' | 'push' | 'move' | 'draw';
+export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel';
 export type View = 'iso' | 'front' | 'side' | 'top';
 
 /** Última cara empujada: la medida que se escribe abajo se aplica a ella. */
@@ -44,6 +44,8 @@ interface EditorState {
   drawShape: DrawShape;
   /** Figura que se está dibujando, para verla antes de soltar. */
   draft: (DrawFace & { shape: PocketShape }) | null;
+  /** Bisel que se está marcando, para verlo antes de soltar. */
+  bevelDraft: { partId: string; bevel: Bevel } | null;
 
   open: (p: Project) => void;
   close: () => void;
@@ -67,6 +69,7 @@ interface EditorState {
   setDrawFace: (f: DrawFace | null) => void;
   setDrawShape: (s: DrawShape) => void;
   setDraft: (d: EditorState['draft']) => void;
+  setBevelDraft: (d: EditorState['bevelDraft']) => void;
 }
 
 export interface DragHint {
@@ -105,6 +108,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   drawFace: null,
   drawShape: 'rect',
   draft: null,
+  bevelDraft: null,
 
   open: (project) => set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null }),
@@ -164,6 +168,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setDrawFace: (drawFace) => set((s) => (drawFace ? { drawFace } : { drawFace, viewNonce: s.viewNonce + 1 })),
   setDrawShape: (drawShape) => set({ drawShape }),
   setDraft: (draft) => set({ draft }),
+  setBevelDraft: (bevelDraft) => set({ bevelDraft }),
   setUnits: (units) => {
     const { project } = get();
     if (project) set({ project: produce(project, (d) => void (d.units = units)) });
