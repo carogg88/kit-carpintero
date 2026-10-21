@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
-import { drawPart } from './drawing';
+import { drawPart, partProjection, partSectionStops } from './drawing';
+import { partBox } from './geometry';
 import { loadProject, SCHEMA_VERSION } from './project';
 import { describeSection, newSection, sectionBox, sectionCutBox } from './sections';
 import { createTable } from './templates/table';
@@ -50,5 +51,15 @@ describe('tramos', () => {
     const r = loadProject(raw);
     expect(r.ok && r.project.schemaVersion).toBe(SCHEMA_VERSION);
     expect(r.ok && r.project.parts.every((p) => p.sections.length === 0)).toBe(true);
+  });
+});
+
+describe('cotas de los tramos en el despiece', () => {
+  it('marca dónde empieza y termina cada tramo a lo largo de la pieza', () => {
+    const p = partProjection(leg);
+    const foot = { ...leg, sections: [newSection(leg, p.u, 0, 150), newSection(leg, p.u, 300, 400)] };
+    expect(partSectionStops(foot, p).u).toEqual([150, 300, 400].map((x) => x + partBox(leg).min[p.u]));
+    expect(partSectionStops(foot, p).v).toEqual([]);
+    expect(drawPart({ ...table, parts: [foot], joints: [] }, foot).stops!.u).toHaveLength(3);
   });
 });

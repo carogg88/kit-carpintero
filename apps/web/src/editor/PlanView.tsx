@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   arcTemplate,
   cutList,
@@ -113,6 +113,13 @@ function Dim({ from, to, at, offset, text, vertical }: { from: number; to: numbe
       )}
     </g>
   );
+}
+
+/** Cotas en cadena entre las puntas de la pieza y las de sus tramos; sin tramos no dibuja nada. */
+function Chain({ stops, lo, hi, render }: { stops?: number[]; lo: number; hi: number; render: (a: number, b: number, key: number) => ReactNode }) {
+  if (!stops?.length) return null;
+  const at = [lo, ...stops, hi];
+  return <>{at.slice(1).map((b, i) => render(at[i]!, b, i))}</>;
 }
 
 /** Cota de radio: flecha que toca el arco por el lado de la madera y "R 125" en la punta de la línea. */
@@ -278,7 +285,9 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
       const part = project.parts.find((p) => p.id === r.ids[0])!;
       return { r, part, d: refine(drawPart(project, part)) };
     });
-    const scaleFor = (d: Drawing) => pickScale((s) => (d.bounds.u1 - d.bounds.u0) / s <= cellW - 26 && (d.bounds.v1 - d.bounds.v0) / s <= cellH - 22);
+    // Con tramos, la cota en cadena va pegada a la pieza y la total más afuera: hace falta un poco más de lugar.
+    const scaleFor = (d: Drawing) =>
+      pickScale((s) => (d.bounds.u1 - d.bounds.u0) / s <= cellW - 26 - (d.stops?.v.length ? 6 : 0) && (d.bounds.v1 - d.bounds.v0) / s <= cellH - 22 - (d.stops?.u.length ? 6 : 0));
     const scales = new Set(drawn.map(({ d }) => scaleFor(d)));
     sheets.push({
       key: `piezas-${i}`,
@@ -301,8 +310,10 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
               × {r.ids.length} · {woodName(r.wood)} · {t('espesor {n}', { n: n(thick) })} · 1:{scale}
             </text>
             <Lines d={d} at={p} />
-            <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={5} text={n(d.bounds.u1 - d.bounds.u0)} />
-            <Dim vertical from={py(p, d.bounds.v1)} to={py(p, d.bounds.v0)} at={px(p, d.bounds.u0)} offset={-5} text={n(d.bounds.v1 - d.bounds.v0)} />
+            <Chain stops={d.stops?.u} lo={d.bounds.u0} hi={d.bounds.u1} render={(a, b, k) => <Dim key={k} from={px(p, a)} to={px(p, b)} at={py(p, d.bounds.v0)} offset={5} text={n(b - a)} />} />
+            <Chain stops={d.stops?.v} lo={d.bounds.v0} hi={d.bounds.v1} render={(a, b, k) => <Dim key={k} vertical from={py(p, b)} to={py(p, a)} at={px(p, d.bounds.u0)} offset={-5} text={n(b - a)} />} />
+            <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={d.stops?.u.length ? 11 : 5} text={n(d.bounds.u1 - d.bounds.u0)} />
+            <Dim vertical from={py(p, d.bounds.v1)} to={py(p, d.bounds.v0)} at={px(p, d.bounds.u0)} offset={d.stops?.v.length ? -11 : -5} text={n(d.bounds.v1 - d.bounds.v0)} />
             {d.arcs?.map((m) => <Radius key={m.id} m={m} at={p} text={`R ${n(m.radius)}`} />)}
             {r.work.length > 0 && (
               <text x={cx + 6} y={cy + cellH - 3} className={`${styles.notes} ${styles.cellMeta}`}>
