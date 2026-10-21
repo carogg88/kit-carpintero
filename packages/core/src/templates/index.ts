@@ -24,6 +24,14 @@ export interface TemplateField {
   typical?: [number, number];
   /** Aviso cuando la medida queda fuera del rango habitual. */
   typicalNote?: string;
+  /** Qué es la medida, en palabras de taller y sin dibujo técnico. */
+  hint: string;
+  /**
+   * Qué marca la vista previa con el campo elegido: las piezas cuyo código empieza con `parts` y, si es
+   * una medida, la cota de la pieza `measure` (o de todo el mueble con 'all') a lo largo de `axis`.
+   * `fromFloor` mide desde el piso hasta abajo de la pieza.
+   */
+  shows: { parts: string; measure?: string; axis?: 0 | 1 | 2; fromFloor?: boolean };
 }
 
 export interface JointChoice {
@@ -142,11 +150,13 @@ export const TEMPLATES: TemplateDef[] = [
     projectName: tk('Mesa de comedor'),
     createLabel: tk('Crear mesa'),
     fields: [
-      { key: 'width', label: tk('Ancho'), group: 'general', default: TABLE_DEFAULTS.width, min: 400, max: 3500 },
-      { key: 'depth', label: tk('Fondo'), group: 'general', default: TABLE_DEFAULTS.depth, min: 300, max: 1500 },
+      { key: 'width', label: tk('Largo'), hint: tk('El lado largo de la tapa, de punta a punta.'), shows: { parts: 'T1', measure: 'all', axis: 0 }, group: 'general', default: TABLE_DEFAULTS.width, min: 400, max: 3500 },
+      { key: 'depth', label: tk('Fondo'), hint: tk('El lado corto de la tapa, de adelante hacia atrás.'), shows: { parts: 'T1', measure: 'all', axis: 2 }, group: 'general', default: TABLE_DEFAULTS.depth, min: 300, max: 1500 },
       {
         key: 'height',
         label: tk('Alto'),
+        hint: tk('Desde el piso hasta arriba de la tapa.'),
+        shows: { parts: 'P', measure: 'all', axis: 1 },
         group: 'general',
         default: TABLE_DEFAULTS.height,
         min: 300,
@@ -154,9 +164,9 @@ export const TEMPLATES: TemplateDef[] = [
         typical: [720, 760],
         typicalNote: tk('una mesa de comedor suele medir entre 72 y 76 cm de alto'),
       },
-      { key: 'leg', label: tk('Pata'), group: 'piezas', default: TABLE_DEFAULTS.leg, min: 30, max: 150 },
-      { key: 'top', label: tk('Tapa'), group: 'piezas', default: TABLE_DEFAULTS.top, min: 15, max: 60 },
-      { key: 'apronHeight', label: tk('Faldón'), group: 'piezas', default: TABLE_DEFAULTS.apronHeight, min: 50, max: 200 },
+      { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: TABLE_DEFAULTS.leg, min: 30, max: 150 },
+      { key: 'top', label: tk('Espesor de la tapa'), hint: tk('Lo grueso de la tabla de arriba.'), shows: { parts: 'T1', measure: 'T1', axis: 1 }, group: 'piezas', default: TABLE_DEFAULTS.top, min: 15, max: 60 },
+      { key: 'apronHeight', label: tk('Alto del faldón'), hint: tk('El faldón es la tabla que une las patas debajo de la tapa: cuánto baja.'), shows: { parts: 'F', measure: 'F1', axis: 1 }, group: 'piezas', default: TABLE_DEFAULTS.apronHeight, min: 50, max: 200 },
     ],
     joints: { groups: ['Pata|Faldón'], label: tk('Patas con faldón'), options: ['mortaja', 'clavija'], default: 'mortaja' },
     build: (v, wood, now) => createTable({ ...TABLE_DEFAULTS, ...v } as typeof TABLE_DEFAULTS, wood, now),
@@ -167,10 +177,12 @@ export const TEMPLATES: TemplateDef[] = [
     projectName: tk('Taburete'),
     createLabel: tk('Crear taburete'),
     fields: [
-      { key: 'width', label: tk('Asiento'), group: 'general', default: 340, min: 220, max: 600 },
+      { key: 'width', label: tk('Lado del asiento'), hint: tk('El asiento es cuadrado: es lo que mide cada lado.'), shows: { parts: 'S1', measure: 'S1', axis: 0 }, group: 'general', default: 340, min: 220, max: 600 },
       {
         key: 'height',
         label: tk('Alto'),
+        hint: tk('Desde el piso hasta arriba del asiento.'),
+        shows: { parts: 'P', measure: 'all', axis: 1 },
         group: 'general',
         default: 650,
         min: 300,
@@ -178,10 +190,10 @@ export const TEMPLATES: TemplateDef[] = [
         typical: [450, 780],
         typicalNote: tk('un taburete bajo mide unos 45 cm y uno de barra, entre 65 y 78 cm'),
       },
-      { key: 'rung', label: tk('Travesaño'), group: 'general', default: 220, min: 80, max: 500 },
-      { key: 'leg', label: tk('Pata'), group: 'piezas', default: 40, min: 25, max: 80 },
-      { key: 'seat', label: tk('Asiento'), group: 'piezas', default: 25, min: 15, max: 50 },
-      { key: 'apronHeight', label: tk('Faldón'), group: 'piezas', default: 70, min: 40, max: 120 },
+      { key: 'rung', label: tk('Altura del travesaño'), hint: tk('Los travesaños son las barras de abajo, donde se apoyan los pies: a qué altura del piso van.'), shows: { parts: 'R', measure: 'R1', axis: 1, fromFloor: true }, group: 'general', default: 220, min: 80, max: 500 },
+      { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: 40, min: 25, max: 80 },
+      { key: 'seat', label: tk('Espesor del asiento'), hint: tk('Lo grueso de la tabla donde te sentás.'), shows: { parts: 'S1', measure: 'S1', axis: 1 }, group: 'piezas', default: 25, min: 15, max: 50 },
+      { key: 'apronHeight', label: tk('Alto del faldón'), hint: tk('El faldón es la tabla que une las patas debajo del asiento: cuánto baja.'), shows: { parts: 'F', measure: 'F1', axis: 1 }, group: 'piezas', default: 70, min: 40, max: 120 },
     ],
     joints: { groups: ['Pata|Faldón', 'Pata|Travesaño'], label: tk('Patas con faldones y travesaños'), options: ['mortaja', 'clavija'], default: 'mortaja' },
     build: createStool,
@@ -192,11 +204,11 @@ export const TEMPLATES: TemplateDef[] = [
     projectName: tk('Estante'),
     createLabel: tk('Crear estante'),
     fields: [
-      { key: 'width', label: tk('Ancho'), group: 'general', default: 800, min: 300, max: 1200 },
-      { key: 'depth', label: tk('Fondo'), group: 'general', default: 300, min: 150, max: 600, typical: [200, 400], typicalNote: tk('un estante para libros suele tener entre 20 y 40 cm de fondo') },
-      { key: 'height', label: tk('Alto'), group: 'general', default: 1800, min: 400, max: 2400 },
-      { key: 'board', label: tk('Tabla'), group: 'piezas', default: 20, min: 12, max: 40 },
-      { key: 'shelves', label: tk('Estantes'), group: 'piezas', default: 5, min: 2, max: 10, count: true },
+      { key: 'width', label: tk('Ancho'), hint: tk('De lado a lado, por fuera.'), shows: { parts: 'E', measure: 'all', axis: 0 }, group: 'general', default: 800, min: 300, max: 1200 },
+      { key: 'depth', label: tk('Fondo'), hint: tk('De adelante hacia atrás: lo hondo de cada estante.'), shows: { parts: 'E', measure: 'all', axis: 2 }, group: 'general', default: 300, min: 150, max: 600, typical: [200, 400], typicalNote: tk('un estante para libros suele tener entre 20 y 40 cm de fondo') },
+      { key: 'height', label: tk('Alto'), hint: tk('Desde el piso hasta arriba de los laterales.'), shows: { parts: 'L', measure: 'all', axis: 1 }, group: 'general', default: 1800, min: 400, max: 2400 },
+      { key: 'board', label: tk('Espesor de las tablas'), hint: tk('Lo grueso de los laterales y de los estantes.'), shows: { parts: 'L', measure: 'L2', axis: 0 }, group: 'piezas', default: 20, min: 12, max: 40 },
+      { key: 'shelves', label: tk('Cantidad de estantes'), hint: tk('Cuántas tablas horizontales lleva, contando la de abajo y la de arriba.'), shows: { parts: 'E' }, group: 'piezas', default: 5, min: 2, max: 10, count: true },
     ],
     joints: { groups: ['Lateral|Estante', 'Lateral|Zócalo'], label: tk('Estantes con laterales'), options: ['canal', 'clavija'], default: 'canal' },
     build: createShelf,
@@ -207,11 +219,11 @@ export const TEMPLATES: TemplateDef[] = [
     projectName: tk('Caja de té'),
     createLabel: tk('Crear caja'),
     fields: [
-      { key: 'width', label: tk('Largo'), group: 'general', default: 240, min: 100, max: 600 },
-      { key: 'depth', label: tk('Ancho'), group: 'general', default: 160, min: 80, max: 400 },
-      { key: 'height', label: tk('Alto'), group: 'general', default: 90, min: 40, max: 300 },
-      { key: 'wall', label: tk('Paredes'), group: 'piezas', default: 10, min: 6, max: 20 },
-      { key: 'lid', label: tk('Tapa'), group: 'piezas', default: 10, min: 6, max: 20 },
+      { key: 'width', label: tk('Largo'), hint: tk('El lado largo de la caja, por fuera.'), shows: { parts: 'C1', measure: 'all', axis: 0 }, group: 'general', default: 240, min: 100, max: 600 },
+      { key: 'depth', label: tk('Ancho'), hint: tk('El lado corto de la caja, por fuera.'), shows: { parts: 'C4', measure: 'all', axis: 2 }, group: 'general', default: 160, min: 80, max: 400 },
+      { key: 'height', label: tk('Alto'), hint: tk('Desde la base hasta el borde de arriba, sin la tapa.'), shows: { parts: 'C', measure: 'C1', axis: 1 }, group: 'general', default: 90, min: 40, max: 300 },
+      { key: 'wall', label: tk('Espesor de las paredes'), hint: tk('Lo grueso de las cuatro tablas de los costados.'), shows: { parts: 'C', measure: 'C4', axis: 0 }, group: 'piezas', default: 10, min: 6, max: 20 },
+      { key: 'lid', label: tk('Espesor de la tapa'), hint: tk('Lo grueso de la tabla de arriba.'), shows: { parts: 'T1', measure: 'T1', axis: 1 }, group: 'piezas', default: 10, min: 6, max: 20 },
     ],
     joints: { groups: ['Frente|Costado', 'Fondo|Costado'], label: tk('Esquinas'), options: ['rebaje', 'dedos', 'cola-milano', 'inglete', 'clavija'], default: 'rebaje' },
     build: createBox,

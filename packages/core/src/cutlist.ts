@@ -197,7 +197,7 @@ export function cutList(project: Project): CutRow[] {
   const rows = [...groups.values()].map((g) => {
     const c = g[0]!;
     const stock = stockFor(c.cut);
-    const work = stock && stock.boards > 1 ? [t('encolar {n} tablas', { n: stock.boards }), ...c.work] : c.work;
+    const work = stock && stock.boards > 1 ? [t('encolar {n} tiras', { n: stock.boards }), ...c.work] : c.work;
     return {
       name: g.length > 1 ? commonName(g.map((x) => x.part.name)) : c.part.name,
       ids: g.map((x) => x.part.id),

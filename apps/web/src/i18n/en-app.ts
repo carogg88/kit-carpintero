@@ -38,7 +38,8 @@ export default {
 
   // Nuevo desde plantilla
   Costado: 'Side',
-  'Vista previa de frente y de costado, con las medidas actuales': 'Front and side preview, with the current dimensions',
+  'El mueble en 3D, con la medida elegida marcada': 'The piece in 3D, with the chosen measurement marked',
+  'Tocá una medida para verla en el dibujo': 'Tap a measurement to see it on the drawing',
   'Aviso:': 'Heads-up:',
   '{note}. Podés seguir igual.': '{note}. You can keep going anyway.',
   Plantilla: 'Template',

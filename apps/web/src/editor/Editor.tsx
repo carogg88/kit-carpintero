@@ -43,10 +43,10 @@ const TOOLS: [Tool, string, string, string, () => React.JSX.Element][] = [
   ['turn', tk('Tornear'), tk('Tornear'), 'R', IconTurn],
 ];
 const VIEWS: [View, string, string][] = [
-  ['iso', tk('Iso'), tk('Iso')],
+  ['iso', tk('3D'), tk('3D')],
   ['front', tk('Frente'), tk('Frente')],
-  ['side', tk('Lateral'), tk('Lado')],
-  ['top', tk('Planta'), tk('Planta')],
+  ['side', tk('Costado'), tk('Costado')],
+  ['top', tk('Arriba'), tk('Arriba')],
 ];
 
 type SaveState = 'saved' | 'saving' | 'error';
@@ -180,6 +180,7 @@ function AddPartButton() {
       )}
       <button type="button" className={styles.fab} aria-label={t('Agregar pieza')} aria-expanded={open} onClick={() => setOpen(!open)}>
         <IconPlus />
+        <span>{t('Pieza')}</span>
       </button>
     </div>
   );

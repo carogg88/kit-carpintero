@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { depthUnder, formatLength, newBevel, parseLength, partAxesBySize, t, tk, type Part } from '@kitc/core';
+import { depthUnder, formatLength, formatNumber, newBevel, parseLength, partAxesBySize, t, tk, type Part } from '@kitc/core';
 import { IconClose } from './icons';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
@@ -16,13 +16,13 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   const bubble = useEditor((s) => s.bubble);
   const project = useEditor((s) => s.project);
   const { commit, setBubble } = useEditor.getState();
-  const [text, setText] = useState('');
+  // null: sin tocar, el campo muestra la medida que quedó.
+  const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [shownFor, setShownFor] = useState(bubble);
-  // Una burbuja nueva arranca vacía.
   if (shownFor !== bubble) {
     setShownFor(bubble);
-    setText('');
+    setText(null);
     setError(null);
   }
   if (!bubble || !project) return null;
@@ -45,6 +45,8 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
     });
 
   const apply = () => {
+    // Sin cambios, el botón dice Listo y solo cierra.
+    if (text === null || text.trim() === formatNumber(current, units)) return setBubble(null);
     const v = parseLength(text, units);
     const min = target.kind === 'push' ? 3 : target.kind === 'bevel' ? 1 : 0.5;
     if (v === null || v < min) return setError(t('Medida no válida'));
@@ -111,15 +113,16 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
       ) : (
         <>
           <label htmlFor={id}>
-            {label} {!pocket && <span className={styles.bubbleId}>{part.id}</span>}
+            {label} {!pocket && <span className={styles.bubbleId}>{part.id}</span>}{' '}
+            <span className={styles.bubbleId}>{units === 'cm' ? 'cm' : t('pulg.')}</span>
           </label>
           <div className={styles.bubbleRow}>
             <input
               id={id}
               inputMode="decimal"
               autoComplete="off"
-              placeholder={formatLength(current, units)}
-              value={text}
+              value={text ?? formatNumber(current, units)}
+              onFocus={(e) => e.currentTarget.select()}
               aria-invalid={!!error}
               aria-describedby={error ? `${id}-error` : undefined}
               onChange={(e) => {
@@ -127,8 +130,8 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
                 setError(null);
               }}
             />
-            <button type="submit" className={styles.bubbleOk} disabled={!text.trim()}>
-              {t('Aplicar')}
+            <button type="submit" className={styles.bubbleOk}>
+              {text === null || text.trim() === formatNumber(current, units) ? t('Listo') : t('Aplicar')}
             </button>
             <button type="button" className={styles.bubbleClose} aria-label={t('Cerrar')} onClick={() => setBubble(null)}>
               <IconClose />

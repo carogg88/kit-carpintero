@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
 import {
   buildTemplate,
-  drawView,
   JOINT_NAMES,
   t,
   templateDefaults,
   templateWarnings,
   WOODS,
-  type Drawing,
   type JointType,
   type Project,
   type TemplateDef,
@@ -16,85 +14,103 @@ import {
 } from '@kitc/core';
 import { LengthField } from '../editor/PartPanel';
 import { IconWarn } from '../editor/icons';
+import { JointExplainer } from '../help/Help';
 import { navigate, sectionHref } from '../routes';
 import { saveProject } from '../storage/db';
 import { clearDraft, peekDraft } from './draft';
 import { BackHeader, UnitsToggle } from './parts';
+import { dimensionText, Preview3D } from './Preview3D';
 import styles from './Nuevo.module.css';
 
-/** Frente y costado del mueble, con las líneas que se ven. */
-function Preview({ project }: { project: Project }) {
-  const views: [Drawing, string][] = [
-    [drawView(project, 'front'), t('Frente')],
-    [drawView(project, 'side'), t('Costado')],
-  ];
-  const H = Math.max(...views.map(([d]) => d.bounds.v1 - d.bounds.v0));
-  const gap = H * 0.25;
-  const label = H * 0.2;
-  let x = 0;
-  const placed = views.map(([d, title]) => {
-    const at = { d, title, x };
-    x += d.bounds.u1 - d.bounds.u0 + gap;
-    return at;
-  });
-  const W = x - gap;
-  const pad = H * 0.04;
+/** El mueble en 3D. Con un campo elegido, marca qué mide y dice qué es. */
+export function Preview({ project, field, units, compact }: { project: Project; field?: TemplateField; units: Units; compact?: boolean }) {
+  const [label, setLabel] = useState<{ x: number; y: number } | null>(null);
+  const text = field ? dimensionText(field, project, units) : '';
   return (
-    <figure className={styles.preview}>
-      <svg
-        viewBox={`${-pad} ${-pad} ${W + 2 * pad} ${H + label + 2 * pad}`}
-        role="img"
-        aria-label={t('Vista previa de frente y de costado, con las medidas actuales')}
-      >
-        {placed.map(({ d, title, x: ox }) => {
-          const tx = (u: number) => ox + u - d.bounds.u0;
-          const ty = (v: number) => H - (v - d.bounds.v0);
-          return (
-            <g key={title}>
-              {d.lines
-                .filter((l) => !l.hidden && !l.joint)
-                .map((l, i) => (
-                  <line key={i} x1={tx(l.a[0])} y1={ty(l.a[1])} x2={tx(l.b[0])} y2={ty(l.b[1])} vectorEffect="non-scaling-stroke" />
-                ))}
-              <text x={tx((d.bounds.u0 + d.bounds.u1) / 2)} y={H + label * 0.85} fontSize={label * 0.62} textAnchor="middle">
-                {title}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <figcaption>
-        {project.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: project.parts.length })} ·{' '}
-        {project.joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: project.joints.length })}
+    <figure className={compact ? `${styles.preview} ${styles.compact}` : styles.preview} aria-label={t('El mueble en 3D, con la medida elegida marcada')}>
+      <Preview3D project={project} field={field} onLabel={setLabel} />
+      {field && label && text && (
+        <span className={styles.dimLabel} style={{ left: label.x, top: label.y }} aria-hidden="true">
+          {text}
+        </span>
+      )}
+      <figcaption className={field ? styles.hintOn : undefined} aria-live="polite">
+        {field ? (
+          <>
+            <span>
+              <strong>{t(field.label)}</strong>
+              {text ? ` · ${text}` : ''}
+            </span>
+            <span>{t(field.hint)}</span>
+          </>
+        ) : (
+          <>
+            <strong>{t('Tocá una medida para verla en el dibujo')}</strong>
+            <span>
+              {project.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: project.parts.length })} ·{' '}
+              {project.joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: project.joints.length })}
+            </span>
+          </>
+        )}
       </figcaption>
     </figure>
   );
 }
 
-function Fields({ fields, values, units, warnings, onChange }: { fields: TemplateField[]; values: Record<string, number>; units: Units; warnings: Map<string, string>; onChange: (k: string, v: number) => void }) {
+interface FieldsProps {
+  fields: TemplateField[];
+  values: Record<string, number>;
+  units: Units;
+  warnings: Map<string, string>;
+  onChange: (k: string, v: number) => void;
+  /** Campo con el foco o con el mouse encima, para marcarlo en el dibujo. */
+  onPoint: (k: string | null, how: 'focus' | 'hover') => void;
+}
+
+function Fields({ fields, values, units, warnings, onChange, onPoint }: FieldsProps) {
   return (
     <>
       {fields.map((f) => {
         const warn = warnings.get(f.key);
+        const point = {
+          onFocus: () => onPoint(f.key, 'focus'),
+          onBlur: () => onPoint(null, 'focus'),
+          onMouseEnter: () => onPoint(f.key, 'hover'),
+          onMouseLeave: () => onPoint(null, 'hover'),
+        };
         if (f.count) {
           const n: number[] = [];
           for (let i = f.min; i <= f.max; i++) n.push(i);
           return (
-            <label key={f.key} className={styles.field}>
+            <label key={f.key} className={styles.field} {...point}>
               {t(f.label)}
-              <select value={values[f.key]} onChange={(e) => onChange(f.key, Number(e.target.value))}>
+              <select aria-describedby={`ayuda-${f.key}`} value={values[f.key]} onChange={(e) => onChange(f.key, Number(e.target.value))}>
                 {n.map((i) => (
                   <option key={i} value={i}>
                     {i}
                   </option>
                 ))}
               </select>
+              <span id={`ayuda-${f.key}`} className={styles.srOnly}>
+                {t(f.hint)}
+              </span>
             </label>
           );
         }
         return (
-          <div key={f.key} className={warn ? styles.warnField : undefined}>
-            <LengthField label={t(f.label)} mm={values[f.key]!} units={units} min={f.min} max={f.max} describedBy={warn ? `aviso-${f.key}` : undefined} onCommit={(v) => onChange(f.key, v)} />
+          <div key={f.key} className={warn ? styles.warnField : undefined} {...point}>
+            <LengthField
+              label={t(f.label)}
+              mm={values[f.key]!}
+              units={units}
+              min={f.min}
+              max={f.max}
+              describedBy={[`ayuda-${f.key}`, warn ? `aviso-${f.key}` : ''].filter(Boolean).join(' ')}
+              onCommit={(v) => onChange(f.key, v)}
+            />
+            <span id={`ayuda-${f.key}`} className={styles.srOnly}>
+              {t(f.hint)}
+            </span>
           </div>
         );
       })}
@@ -133,6 +149,10 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
   const general = def.fields.filter((f) => f.group === 'general');
   const pieces = def.fields.filter((f) => f.group === 'piezas');
   const change = (k: string, v: number) => setValues((s) => ({ ...s, [k]: v }));
+  // El mouse encima manda sobre el foco, así se puede recorrer el formulario con la vista.
+  const [pointed, setPointed] = useState<{ focus: string | null; hover: string | null }>({ focus: null, hover: null });
+  const point = (k: string | null, how: 'focus' | 'hover') => setPointed((p) => ({ ...p, [how]: k }));
+  const active = def.fields.find((f) => f.key === (pointed.hover ?? pointed.focus));
 
   const create = async () => {
     setBusy(true);
@@ -149,7 +169,7 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
       </BackHeader>
       <div className={styles.layout}>
         <div className={styles.aside}>
-          <Preview project={preview} />
+          <Preview project={preview} field={active} units={units} />
           {fromPhoto && (
             <p className={styles.note}>
               {t('Las medidas que calcaste en la foto ya están cargadas. Revisalas y completá las que no se veían.')}
@@ -165,12 +185,12 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
         >
           <fieldset className={styles.grid}>
             <legend className={styles.legend}>{t('Medidas generales')}</legend>
-            <Fields fields={general} values={values} units={units} warnings={warnings} onChange={change} />
+            <Fields fields={general} values={values} units={units} warnings={warnings} onChange={change} onPoint={point} />
           </fieldset>
           <Warnings fields={general} warnings={warnings} />
           <fieldset className={styles.grid}>
             <legend className={styles.legend}>{t('Piezas')}</legend>
-            <Fields fields={pieces} values={values} units={units} warnings={warnings} onChange={change} />
+            <Fields fields={pieces} values={values} units={units} warnings={warnings} onChange={change} onPoint={point} />
           </fieldset>
           <Warnings fields={pieces} warnings={warnings} />
           <label className={styles.field}>
@@ -190,10 +210,11 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
                 {def.joints.options.map((o) => (
                   <label key={o} className={styles.chip}>
                     <input type="radio" name="union" value={o} checked={joint === o} onChange={() => setJoint(o)} />
-                    {o === 'clavija' ? t('Clavijas') : t(JOINT_NAMES[o])}
+                    {t(JOINT_NAMES[o])}
                   </label>
                 ))}
               </div>
+              {joint && <JointExplainer type={joint} />}
             </fieldset>
           )}
           <div className={styles.footer}>

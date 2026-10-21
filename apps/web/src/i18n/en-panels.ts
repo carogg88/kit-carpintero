@@ -92,7 +92,7 @@ export default {
   '60 × 4,5 × 4,5 cm': '60 × 4.5 × 4.5 cm',
   Tablero: 'Panel',
   '60 × 40 × 1,8 cm': '60 × 40 × 1.8 cm',
-  '{parts} piezas · {joints} encastres': '{parts} parts · {joints} joints',
+  '{parts} piezas · {joints} uniones': '{parts} parts · {joints} joints',
   Piezas: 'Parts',
   'Tocá una pieza en el modelo o en la lista para editarla.': 'Tap a part in the model or the list to edit it.',
   'Agregar pieza': 'Add part',
@@ -260,4 +260,22 @@ export default {
   'Agregar estación': 'Add station',
   'La distancia se mide desde {side}. Entre una estación y la siguiente, el perfil va recto, en curva o queda cuadrado (para encastrar).':
     'Distances are measured from {side}. Between one station and the next, the profile goes straight, curves, or stays square (for joinery).',
+  // Ayudas "?" (help/)
+  'Qué es: {term}': 'What is: {term}',
+  'Vaciados y calados': 'Pockets and cutouts',
+  'Biseles, redondeos y cortes en ángulo': 'Bevels, roundovers and angled cuts',
+  Tramos: 'Sections',
+  'Pie maderero': 'Board foot',
+  'Las aristas de la pieza. Rectos quedan en punta; redondeados, en curva (el radio dice qué tan grande); con chaflán, cortados en diagonal.':
+    'The edges of the part. Square edges stay sharp; rounded ones curve (the radius says how big); chamfered ones are cut at a slant.',
+  'Un vaciado saca madera de una cara sin atravesar la pieza, como el hueco de una manija. Un calado la atraviesa de lado a lado y deja un agujero.':
+    'A pocket removes wood from a face without going through, like a finger pull. A cutout goes all the way through and leaves a hole.',
+  'Un bisel corta una arista o una esquina en ángulo. Si el corte cruza toda la cara, la punta de la pieza queda en ángulo: es un corte en ángulo.':
+    'A bevel cuts an edge or a corner at an angle. If the cut crosses the whole face, the end of the part ends up angled: that is an angled cut.',
+  'Un pedazo del largo de la pieza con otra medida: el pie más grueso de una pata o un cuello más fino.':
+    'A stretch of the part’s length with a different size: a thicker foot on a leg or a slimmer neck.',
+  'Tornear es dar forma redonda a una pieza mientras gira en el torno. Se parte de un taco cuadrado, que es el que aparece en la lista de cortes.':
+    'Turning shapes a part round while it spins on the lathe. You start from a square blank, which is what the cut list shows.',
+  'Así se vende la madera en las madereras. Un pie es una tabla de 1 pulgada de espesor, 12 pulgadas de ancho y 1 pie (30,5 cm) de largo.':
+    'This is how lumberyards sell wood. A board foot is a board 1 inch thick, 12 inches wide and 1 foot (30.5 cm) long.',
 } satisfies Record<string, string>;

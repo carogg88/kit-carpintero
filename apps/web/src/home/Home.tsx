@@ -157,6 +157,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pulse, setPulse] = useState(false);
   const refresh = () => void listProjects().then(setProjects, () => setProjects([]));
   const install = useInstall();
 
@@ -224,7 +225,19 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
           {t('¿Qué mueble vas a hacer?')}
         </h1>
         <div className={styles.starts}>
-          <a href="#plantillas" className={`${styles.start} ${styles.startPrimary}`}>
+          <a
+            href="#plantillas"
+            className={`${styles.start} ${styles.startPrimary}`}
+            onClick={(e) => {
+              // Las plantillas pueden estar ya a la vista: se marcan y la primera queda lista para elegir.
+              e.preventDefault();
+              const first = document.querySelector<HTMLButtonElement>('#plantillas button');
+              first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              first?.focus({ preventScroll: true });
+              setPulse(true);
+              window.setTimeout(() => setPulse(false), 1200);
+            }}
+          >
             <span className={styles.startIcon} aria-hidden="true">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -251,11 +264,11 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="plantillas" id="plantillas">
+      <section className={styles.section} aria-labelledby="plantillas-t" id="plantillas">
         <h2 id="plantillas-t" className={styles.h2}>
           {t('Plantillas')}
         </h2>
-        <div className={styles.templates}>
+        <div className={pulse ? `${styles.templates} ${styles.pulse}` : styles.templates}>
           {TEMPLATES.map((tpl) => (
             <button key={tpl.id} type="button" className={styles.template} onClick={() => void create(tpl.id)}>
               {tpl.icon}
@@ -298,9 +311,11 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
         </ul>
       </section>
       <p className={styles.foot}>{t('Para no perder un proyecto, exportalo como archivo desde el menú de cada uno.')}</p>
-      <p className={styles.foot}>
-        <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>
-      </p>
+      {import.meta.env.DEV && (
+        <p className={styles.foot}>
+          <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>
+        </p>
+      )}
     </div>
   );
 }

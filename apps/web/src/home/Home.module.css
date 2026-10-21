@@ -67,3 +67,8 @@
 .dangerItem { color: var(--danger) !important; }
 .foot { margin: var(--space-4) var(--gutter) 0; font-size: 13px; color: var(--muted); }
 .foot a { color: var(--accent); display: inline-flex; min-height: var(--tap); align-items: center; }
+
+/* Al tocar "Desde una plantilla", las plantillas se marcan un momento para mostrar dónde elegir. */
+.pulse .template { animation: pulse 1.1s ease-out; }
+@keyframes pulse { 0%, 60% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .pulse .template { animation: none; border-color: var(--accent); } }

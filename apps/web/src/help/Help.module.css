@@ -1,0 +1,37 @@
+/* Ayudas para palabras de taller: el botón "?", su tarjeta y la explicación de un encastre. */
+
+/* El círculo se ve chico, pero el área para tocar mide 44 px. */
+.tip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 22px; height: 22px; margin: -11px 0 -11px 6px; padding: 0; border: 1px solid var(--line-strong); border-radius: 50%;
+  background: var(--surface); color: var(--muted); font: 600 12px var(--font-ui); line-height: 1; cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+.tip::before { content: ''; position: absolute; inset: -11px; }
+.tip:hover, .tip[aria-expanded='true'] { border-color: var(--accent); color: var(--accent); }
+.tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.card {
+  position: fixed; z-index: 50; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px;
+  border-radius: var(--radius-s); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-card), 0 12px 32px rgba(43, 54, 40, 0.16);
+  color: var(--ink); text-transform: none; letter-spacing: normal; font-weight: 400;
+  animation: show 140ms ease-out;
+}
+.card strong { font-size: 14px; font-weight: 600; }
+.card p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+@keyframes show { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+
+.drawing { width: 100%; height: auto; max-height: 96px; border-radius: 8px; background: var(--surface-2); }
+.piece { fill: var(--piece); stroke: var(--piece-line); stroke-width: 1.2; stroke-linejoin: round; }
+.mark { fill: var(--signal); stroke: var(--piece-line); stroke-width: 1.2; stroke-linejoin: round; }
+.hole { fill: none; stroke: var(--piece-line); stroke-width: 1.2; stroke-dasharray: 3 2.5; }
+.dimText { fill: var(--muted); font: 500 7px var(--font-num); }
+
+/* Explicación del encastre elegido en las plantillas. */
+.explainer {
+  display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: center; margin-top: 10px;
+  padding: 10px; border-radius: var(--radius-s); background: var(--surface); border: 1px solid var(--line);
+}
+.explainer .drawing { max-height: 68px; }
+.explainer p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }

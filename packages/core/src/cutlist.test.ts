@@ -26,7 +26,7 @@ describe('lista de cortes de la mesa', () => {
 
   it('cada pata lleva dos mortajas y la tapa se encola', () => {
     expect(row('Pata')?.work[0]).toBe('2 mortajas');
-    expect(row('Tapa')?.work[0]).toBe('encolar 7 tablas');
+    expect(row('Tapa')?.work[0]).toBe('encolar 7 tiras');
   });
 });
 

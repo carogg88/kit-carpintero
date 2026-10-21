@@ -39,6 +39,7 @@ import {
   type Section,
   type Units,
 } from '@kitc/core';
+import { HelpTip } from '../help/Help';
 import { IconLink, IconTrash, IconWarn } from './icons';
 import { TurningCard } from './TurningCard';
 import { useEditor } from './store';
@@ -457,7 +458,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       </label>
       <ComponentBox project={project} part={part} />
       <fieldset className={styles.plainFieldset}>
-        <legend className={styles.legend}>{t('Cantos')}</legend>
+        <legend className={styles.legend}>
+          {t('Cantos')}
+          <HelpTip term="cantos" />
+        </legend>
         <div className={styles.row}>
           <div className={styles.seg} role="group" aria-label={t('Tipo de canto')}>
             {(
@@ -478,7 +482,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         </div>
       </fieldset>
       <div className={styles.stack}>
-        <span className={styles.legend}>{t('Vaciados y calados ({n})', { n: part.pockets.length })}</span>
+        <span className={styles.legend}>
+          {t('Vaciados y calados ({n})', { n: part.pockets.length })}
+          <HelpTip term="vaciados" />
+        </span>
         {part.pockets.length === 0 && (
           <p className={styles.muted}>
             {t('Con')}{' '}
@@ -505,7 +512,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>{t('Biseles, redondeos y cortes en ángulo ({n})', { n: part.bevels.length })}</span>
+        <span className={styles.legend}>
+          {t('Biseles, redondeos y cortes en ángulo ({n})', { n: part.bevels.length })}
+          <HelpTip term="biseles" />
+        </span>
         {part.bevels.length === 0 && (
           <p className={styles.muted}>
             {t('Con')}{' '}
@@ -532,7 +542,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>{t('Tramos ({n})', { n: part.sections.length })}</span>
+        <span className={styles.legend}>
+          {t('Tramos ({n})', { n: part.sections.length })}
+          <HelpTip term="tramos" />
+        </span>
         {part.sections.length === 0 && (
           <p className={styles.muted}>
             {t('Con')}{' '}
@@ -559,7 +572,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>{t('Torneado')}</span>
+        <span className={styles.legend}>
+          {t('Torneado')}
+          <HelpTip term="torneado" />
+        </span>
         {part.turning ? (
           <TurningCard
             part={part}
@@ -687,7 +703,7 @@ function ProjectOverview({ project }: { project: Project }) {
     <>
       <div>
         <span className={styles.eyebrow}>
-          {t('{parts} piezas · {joints} encastres', { parts: project.parts.length, joints: project.joints.filter((j) => j.type !== 'tope').length })}
+          {t('{parts} piezas · {joints} uniones', { parts: project.parts.length, joints: project.joints.length })}
         </span>
         <h2 className={styles.panelTitle}>{t('Piezas')}</h2>
         <p className={styles.muted}>{t('Tocá una pieza en el modelo o en la lista para editarla.')}</p>

@@ -14,11 +14,9 @@ export default {
   // Vistas
   Vista: 'View',
   'Vista 3D': '3D view',
-  Iso: 'Iso',
+  '3D': '3D',
   Frente: 'Front',
-  Lateral: 'Side',
-  Lado: 'Side',
-  Planta: 'Top',
+  Arriba: 'Top',
 
   // Consejos
   'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.':
@@ -123,6 +121,7 @@ export default {
   '{name}: {k} tiras de {len}, encoladas': '{name}: {k} strips of {len}, glued up',
   '{uses} · {feet} pies': '{uses} · {feet} bd ft',
   pulgadas: 'inches',
+  'pulg.': 'in',
   'Lista de cortes': 'Cut list',
   Pieza: 'Part',
   Piezas: 'Parts',
