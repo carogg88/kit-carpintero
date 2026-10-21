@@ -1,5 +1,5 @@
 import { partAxesBySize } from './edit';
-import { endJoint, jointGeometry, type Solid } from './joints';
+import { endJoint, jointGeometry, solidBox } from './joints';
 import { partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
 import type { Part, Project } from './project';
 
@@ -179,23 +179,6 @@ export function drawItems(items: DrawItem[], p: Projection, window?: Rect2): Dra
     v1: Math.max(...pts.map((q) => q[1])),
   };
   return { lines: kept, joints: jointRects, labels, rects, bounds: pts.length || window ? bounds : { u0: 0, v0: 0, u1: 0, v1: 0 } };
-}
-
-/** Caja que envuelve un sólido (los cilindros, como su caja). */
-export function solidBox(s: Solid): Box {
-  if (s.kind === 'box') return s.box;
-  const min = [...s.start] as Box['min'];
-  const max = [...s.start] as Box['max'];
-  for (const k of [0, 1, 2] as Axis[]) {
-    if (k === s.axis) {
-      if (s.dir > 0) max[k] += s.length;
-      else min[k] -= s.length;
-    } else {
-      min[k] -= s.radius;
-      max[k] += s.radius;
-    }
-  }
-  return { min, max };
 }
 
 /** Sólidos de encastres de una pieza: lo que se le suma y lo que se le saca. */

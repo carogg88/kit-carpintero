@@ -15,7 +15,7 @@ export function grooveGeometry(a: Box, b: Box, p: { depth: number }): JointGeome
 }
 
 /** Lado del canto de A más cercano a B sobre el eje del espesor de B, y cuánto queda hasta él. */
-function nearestEdge(a: Box, j: EndJoint): { side: 'min' | 'max'; gap: number } {
+export function nearestEdge(a: Box, j: EndJoint): { side: 'min' | 'max'; gap: number } {
   const toMin = j.section.min[j.thin] - a.min[j.thin];
   const toMax = a.max[j.thin] - j.section.max[j.thin];
   return toMin <= toMax ? { side: 'min', gap: toMin } : { side: 'max', gap: toMax };

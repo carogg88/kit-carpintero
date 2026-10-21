@@ -211,7 +211,7 @@ export const TEMPLATES: TemplateDef[] = [
       { key: 'wall', label: 'Paredes', group: 'piezas', default: 10, min: 6, max: 20 },
       { key: 'lid', label: 'Tapa', group: 'piezas', default: 10, min: 6, max: 20 },
     ],
-    joints: { groups: ['Frente|Costado', 'Fondo|Costado'], label: 'Esquinas', options: ['rebaje', 'clavija'], default: 'rebaje' },
+    joints: { groups: ['Frente|Costado', 'Fondo|Costado'], label: 'Esquinas', options: ['rebaje', 'dedos', 'cola-milano', 'inglete', 'clavija'], default: 'rebaje' },
     build: createBox,
   },
 ];

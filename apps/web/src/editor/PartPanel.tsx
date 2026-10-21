@@ -113,8 +113,20 @@ export function describeJoint(j: Joint, project: Project): string {
       return 'cada pieza rebajada a la mitad';
     case 'clavija':
       return `${p.count ?? 0} tarugos de ${p.diameter ?? 0} mm`;
-    default:
-      return 'todavía sin cortes en el modelo';
+    case 'cola-milano':
+      return `${p.count ?? 0} ${p.count === 1 ? 'cola' : 'colas'} de milano 1:${p.slope ?? 8}`;
+    case 'dedos':
+      return `${p.count ?? 0} dedos de ${n(p.depth ?? 0)}${unit}`;
+    case 'brida':
+      return `brida, lengüeta de ${n(p.thickness ?? 0)}${unit}`;
+    case 'inglete':
+      return 'esquina en inglete';
+    case 'galleta':
+      return `${p.count ?? 0} ${p.count === 1 ? 'galleta' : 'galletas'} del ${p.size ?? 20}`;
+    case 'machiembrado':
+      return `machimbre, lengüeta de ${n(p.thickness ?? 0)} × ${n(p.depth ?? 0)}${unit}`;
+    case 'bolsillo':
+      return `${p.count ?? 0} ${p.count === 1 ? 'tornillo' : 'tornillos'} de bolsillo`;
   }
 }
 
