@@ -193,4 +193,7 @@ export default {
   largo: 'length',
   espesor: 'thickness',
   'Si querés, escribí la medida exacta': 'Type the exact size if you like',
+  Bisel: 'Bevel',
+  Aplicar: 'Apply',
+  Cerrar: 'Close',
 } satisfies Record<string, string>;
