@@ -600,7 +600,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         >
           {t('Duplicar')}
         </button>
-        <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={() => commit((d) => void (d.parts = d.parts.filter((x) => x.id !== part.id)))}>
+        <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={() => commit((d) => void (d.parts = d.parts.filter((x) => x.id !== part.id)), t('Borraste {id}', { id: part.id }))}>
           {t('Eliminar')}
         </button>
       </div>

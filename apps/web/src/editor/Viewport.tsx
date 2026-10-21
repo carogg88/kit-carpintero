@@ -48,6 +48,8 @@ const VIEW_DIRS: Record<View, [number, number, number]> = {
   top: [0, 1, 0.0001],
 };
 const AXIS_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
+/** Las medidas como las nombra el panel: de la más larga a la más corta. */
+const DIM_WORDS = [tk('largo'), tk('ancho'), tk('espesor')] as const;
 const snapName = (to: 'borde' | 'centro' | null) => (to === 'borde' ? t('borde') : to === 'centro' ? t('centro') : null);
 
 function bounds(project: Project): THREE.Box3 {
@@ -442,7 +444,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         commit((d) => {
           const q = d.parts.find((x) => x.id === original.id);
           if (q) q.turning = presetTurning(q as Part, 'cilindro');
-        });
+        }, t('Torneaste {id}', { id: original.id }));
       }
       return select(original.id);
     }
@@ -537,7 +539,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         select(original.id);
         return;
       }
-      endDrag(drag.kind === 'push' ? { id: part.id, axis: drag.axis, sign: drag.sign } : undefined);
+      if (drag.kind === 'push') {
+        const q = useEditor.getState().project?.parts.find((x) => x.id === part.id);
+        const size = q?.base.kind === 'box' ? q.base.size[drag.axis] : 0;
+        const changed = Math.abs(size - (drag.start.max[drag.axis] - drag.start.min[drag.axis])) > 0.05;
+        const label = t('{id} ahora mide {size} de {dim}', { id: part.id, size: formatLength(size, units), dim: t(DIM_WORDS[partAxesBySize(part).indexOf(drag.axis)]!) });
+        endDrag({ id: part.id, axis: drag.axis, sign: drag.sign }, changed ? label : undefined);
+      } else endDrag(undefined, moved ? (copying ? t('Hiciste la copia {id}', { id: part.id }) : t('Moviste {id}', { id: part.id })) : undefined);
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -653,7 +661,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       commit((d) => {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
-      });
+      }, s.kind === 'arc' ? t('Hiciste un corte en arco en {id}', { id: part.id }) : t('Hiciste un vaciado en {id}', { id: part.id }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -743,7 +751,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       commit((d) => {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.bevels.push({ ...done, id: newBevel(q as Part, done.a, done.b, 1).id });
-      });
+      }, round ? t('Hiciste un redondeo en {id}', { id: part.id }) : t('Hiciste un bisel en {id}', { id: part.id }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -807,7 +815,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       commit((d) => {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.sections.push({ ...done, id: nextSectionId(q as Part) });
-      });
+      }, t('Hiciste un tramo en {id}', { id: part.id }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

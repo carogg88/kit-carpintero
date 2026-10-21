@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { syncComponents, syncJoints, type Bevel, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
+import { syncComponents, syncJoints, t, type Bevel, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
 export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn';
 export type View = 'iso' | 'front' | 'side' | 'top';
@@ -54,15 +54,17 @@ interface EditorState {
   /** Tramo que se está marcando con el dedo o el mouse. */
   sectionDraft: { partId: string; section: Section } | null;
   arcChord: ArcChord | null;
+  /** Aviso de lo que acaba de cambiar, con la opción de deshacerlo. `key` cambia con cada aviso nuevo. */
+  notice: Notice | null;
 
   open: (p: Project) => void;
   close: () => void;
   /** Cambio con historial: una acción, un paso de deshacer. */
-  commit: (recipe: (p: Draft<Project>) => void) => void;
+  commit: (recipe: (p: Draft<Project>) => void, label?: string) => void;
   beginDrag: () => void;
   /** Cambio en vivo durante el arrastre. */
   dragUpdate: (recipe: (p: Draft<Project>) => void) => void;
-  endDrag: (lastPush?: LastPush) => void;
+  endDrag: (lastPush?: LastPush, label?: string) => void;
   /** Termina el arrastre sin cambios: vuelve a como estaba antes de empezar. */
   cancelDrag: () => void;
   undo: () => void;
@@ -81,6 +83,12 @@ interface EditorState {
   setBevelDraft: (d: EditorState['bevelDraft']) => void;
   setSectionDraft: (d: EditorState['sectionDraft']) => void;
   setArcChord: (c: ArcChord | null) => void;
+  dismissNotice: () => void;
+}
+
+export interface Notice {
+  text: string;
+  key: number;
 }
 
 export interface DragHint {
@@ -103,6 +111,27 @@ const apply = (p: Project, recipe: (p: Draft<Project>) => void, sync: boolean) =
     touch(d);
   });
 
+/**
+ * Lo que se dice después de un cambio: qué se hizo (si se dijo) y qué uniones se soltaron. Una unión se suelta
+ * cuando dos piezas que siguen en el proyecto dejan de tocarse; si se borró una pieza, el aviso ya lo dice.
+ */
+export function changeNotice(before: Project, after: Project, label?: string): string | null {
+  const pair = (a: string, b: string) => [a, b].sort().join('|');
+  const kept = new Set(after.joints.map((j) => pair(j.partA, j.partB)));
+  const ids = new Set(after.parts.map((p) => p.id));
+  const lost = [...new Set(before.joints.filter((j) => ids.has(j.partA) && ids.has(j.partB) && !kept.has(pair(j.partA, j.partB))).map((j) => pair(j.partA, j.partB)))];
+  const loose =
+    lost.length === 1 ? t('se soltó la unión de {a} con {b}', { a: lost[0]!.split('|')[0]!, b: lost[0]!.split('|')[1]! }) : lost.length ? t('se soltaron {n} uniones', { n: lost.length }) : null;
+  if (!loose) return label ?? null;
+  return label ? `${label} · ${loose}` : loose.replace(/^./, (c) => c.toUpperCase());
+}
+
+let noticeKey = 0;
+const noticeFor = (before: Project, after: Project, label?: string) => {
+  const text = changeNotice(before, after, label);
+  return text ? { notice: { text, key: ++noticeKey } } : {};
+};
+
 export const useEditor = create<EditorState>()((set, get) => ({
   project: null,
   past: [],
@@ -123,15 +152,17 @@ export const useEditor = create<EditorState>()((set, get) => ({
   bevelDraft: null,
   sectionDraft: null,
   arcChord: null,
+  notice: null,
 
-  open: (project) => set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null }),
-  close: () => set({ project: null, past: [], future: [], selectedId: null }),
+  open: (project) =>
+    set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null }),
+  close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null }),
 
-  commit: (recipe) => {
+  commit: (recipe, label) => {
     const { project, past } = get();
     if (!project) return;
     const next = apply(project, recipe, true);
-    set({ project: next, past: [...past, project].slice(-HISTORY), future: [] });
+    set({ project: next, past: [...past, project].slice(-HISTORY), future: [], ...noticeFor(project, next, label) });
     if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
 
@@ -144,10 +175,12 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { project } = get();
     if (project) set({ project: apply(project, recipe, false) });
   },
-  endDrag: (lastPush) => {
-    const { project } = get();
+  endDrag: (lastPush, label) => {
+    const { project, past } = get();
     if (!project) return;
-    set({ dragging: false, project: apply(project, () => {}, true), ...(lastPush ? { lastPush } : {}) });
+    const next = apply(project, () => {}, true);
+    const before = past.at(-1);
+    set({ dragging: false, project: next, ...(lastPush ? { lastPush } : {}), ...(before ? noticeFor(before, next, label) : {}) });
   },
 
   cancelDrag: () => {
@@ -162,14 +195,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { project, past, future } = get();
     const prev = past.at(-1);
     if (!project || !prev) return;
-    set({ project: prev, past: past.slice(0, -1), future: [project, ...future] });
+    set({ project: prev, past: past.slice(0, -1), future: [project, ...future], notice: null });
     if (get().selectedId && !prev.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
   redo: () => {
     const { project, past, future } = get();
     const next = future[0];
     if (!project || !next) return;
-    set({ project: next, past: [...past, project], future: future.slice(1) });
+    set({ project: next, past: [...past, project], future: future.slice(1), notice: null });
     if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
 
@@ -186,6 +219,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setBevelDraft: (bevelDraft) => set({ bevelDraft }),
   setSectionDraft: (sectionDraft) => set({ sectionDraft }),
   setArcChord: (arcChord) => set({ arcChord }),
+  dismissNotice: () => set({ notice: null }),
   setUnits: (units) => {
     const { project } = get();
     if (project) set({ project: produce(project, (d) => void (d.units = units)) });
