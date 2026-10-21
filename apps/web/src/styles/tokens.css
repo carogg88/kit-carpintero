@@ -1,47 +1,54 @@
-/* Tokens del proyecto. Los componentes usan solo estas variables, nunca colores sueltos. */
+/* Tokens del proyecto. Los componentes usan solo estas variables, nunca colores sueltos.
+   Paleta: verde bosque, madera y beige, sobre un blanco cálido. */
 :root {
-  --bg: #f2f1ec;
+  --bg: #f7f8f4;
   --surface: #ffffff;
-  --surface-2: #f7f6f2;
-  --ink: #1c2320;
-  --muted: #5b6460;
-  --line: #e2e0d8;
-  --line-strong: #c9c6bb;
-  --accent: #1e5a7a;
+  --surface-2: #eeefe9;
+  --ink: #2b3628;
+  --muted: #5e6759;
+  --line: #e3e5dd;
+  --line-strong: #cdd0c5;
+  /* Madera: botones principales, enlaces y lo elegido. */
+  --accent: #9e6027;
   --accent-ink: #ffffff;
-  --accent-soft: #e3eef3;
-  --signal: #f2b544;
+  --accent-soft: #e6dcd2;
+  /* Verde bosque: barras, tarjetas oscuras y botones secundarios. */
+  --forest: #343f31;
+  --forest-ink: #ffffff;
+  --signal: #c98a4e;
   --danger: #b3261e;
   /* Taller: rayos X, uniones sin cortes y plan de corte. */
   --xray-edge: #6b4a2b;
-  --joint-plain: #9db7c5;
+  --joint-plain: #b5c0a6;
   --piece: #ebcfa6;
   --piece-line: #6b4a2b;
-  --waste: #b9b4a6;
-  --dark-card: #1c2320;
+  --waste: #c3c5b9;
+  --dark-card: #343f31;
   --dark-card-ink: #ffffff;
-  --dark-card-muted: #d3d8d5;
-  --dark-card-field: #26302c;
-  --dark-card-line: #4a544f;
+  --dark-card-muted: #d6dbd2;
+  --dark-card-field: #2b3628;
+  --dark-card-line: #56614f;
   /* Hoja del plano: papel blanco en los dos modos, como se imprime. */
   --paper: #ffffff;
-  --paper-ink: #1c2320;
-  --paper-muted: #5b6460;
-  --paper-accent: #1e5a7a;
-  --desk: #e6e4dc;
+  --paper-ink: #2b3628;
+  --paper-muted: #5e6759;
+  --paper-accent: #9e6027;
+  --desk: #e8e9e3;
   /* Avisos que no impiden seguir. */
-  --warn-bg: #fcf1da;
-  --warn-ink: #6b4a12;
+  --warn-bg: #f6ebdc;
+  --warn-ink: #6b4216;
   --warn-line: #b7791f;
   /* Calcado sobre la foto. */
-  --trace: #1e5a7a;
-  --trace-fill: rgba(30, 90, 122, 0.16);
+  --trace: #343f31;
+  --trace-fill: rgba(52, 63, 49, 0.16);
 
-  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-num: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Inter con cifras de ancho fijo: las medidas se alinean sin cambiar de letra. */
+  --font-num: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  --radius-s: 8px;
-  --radius-m: 14px;
+  --radius-s: 12px;
+  --radius-m: 18px;
+  --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -50,62 +57,69 @@
   --space-6: 32px;
   --tap: 44px;
   --gutter: max(16px, env(safe-area-inset-left));
+  --shadow-card: 0 1px 2px rgba(43, 54, 40, 0.06), 0 4px 16px rgba(43, 54, 40, 0.06);
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #121614;
-    --surface: #1a1f1d;
-    --surface-2: #202624;
-    --ink: #e8ebe9;
-    --muted: #a3aca8;
-    --line: #2c3431;
-    --line-strong: #3d4743;
-    --accent: #7db9d6;
-    --accent-ink: #0d1b22;
-    --accent-soft: #1c2e37;
-    --signal: #f2b544;
+    --bg: #161a15;
+    --surface: #1f251d;
+    --surface-2: #272e25;
+    --ink: #e8e9e3;
+    --muted: #a9b0a3;
+    --line: #2f372d;
+    --line-strong: #434d40;
+    --accent: #d49a5e;
+    --accent-ink: #1b1410;
+    --accent-soft: #3a2e22;
+    --forest: #e6dcd2;
+    --forest-ink: #2b3628;
+    --signal: #e0a86a;
     --danger: #f2b8b5;
     --xray-edge: #d2a978;
-    --joint-plain: #6f8d9c;
+    --joint-plain: #6f7d63;
     --piece: #8a6a45;
     --piece-line: #d2a978;
-    --waste: #4d5551;
-    --dark-card: #26302c;
-      --dark-card-field: #1a1f1d;
+    --waste: #4b5347;
+    --dark-card: #2b3628;
+    --dark-card-field: #1f251d;
+    --dark-card-line: #4a5546;
     --warn-bg: #3a2e16;
     --warn-ink: #f6dca6;
     --warn-line: #e0a84a;
-    --desk: #0d100f;
+    --desk: #10130f;
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #121614;
-  --surface: #1a1f1d;
-  --surface-2: #202624;
-  --ink: #e8ebe9;
-  --muted: #a3aca8;
-  --line: #2c3431;
-  --line-strong: #3d4743;
-  --accent: #7db9d6;
-  --accent-ink: #0d1b22;
-  --accent-soft: #1c2e37;
-  --signal: #f2b544;
+  --bg: #161a15;
+  --surface: #1f251d;
+  --surface-2: #272e25;
+  --ink: #e8e9e3;
+  --muted: #a9b0a3;
+  --line: #2f372d;
+  --line-strong: #434d40;
+  --accent: #d49a5e;
+  --accent-ink: #1b1410;
+  --accent-soft: #3a2e22;
+  --forest: #e6dcd2;
+  --forest-ink: #2b3628;
+  --signal: #e0a86a;
   --danger: #f2b8b5;
   --xray-edge: #d2a978;
-  --joint-plain: #6f8d9c;
+  --joint-plain: #6f7d63;
   --piece: #8a6a45;
   --piece-line: #d2a978;
-  --waste: #4d5551;
-  --dark-card: #26302c;
-  --dark-card-field: #1a1f1d;
+  --waste: #4b5347;
+  --dark-card: #2b3628;
+  --dark-card-field: #1f251d;
+  --dark-card-line: #4a5546;
   --warn-bg: #3a2e16;
   --warn-ink: #f6dca6;
   --warn-line: #e0a84a;
-  --desk: #0d100f;
+  --desk: #10130f;
   color-scheme: dark;
 }

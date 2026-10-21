@@ -8,7 +8,7 @@
 .aside > details { order: 2; }
 .aside > .pdf { order: 3; }
 .aside > .note { order: 4; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 6px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 6px; }
 .eyebrow { margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
 summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; margin: -6px 0 0; cursor: pointer; }
 
@@ -21,7 +21,7 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
 .sheetList button:hover { background: var(--surface-2); }
 .sheetList button strong { font-weight: 500; white-space: nowrap; }
 .sheetList button span { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.sheetList button[aria-current='page'] { background: var(--accent-soft); border-color: var(--accent); }
+.sheetList button[aria-current='page'] { background: var(--accent-soft); border-color: var(--forest); }
 .sheetList button[aria-current='page'] strong { font-weight: 600; }
 
 .layers { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -36,13 +36,13 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
 
 .pdf {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 48px; padding: 0 var(--space-4);
-  border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font: 600 15px var(--font-ui); cursor: pointer;
+  border: 0; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-ink); font: 600 15px var(--font-ui); cursor: pointer;
   transition: background-color 150ms ease;
 }
-.pdf:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
+.pdf:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
 .note { margin: -4px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 
-.desk { min-width: 0; background: var(--desk); border-radius: 16px; padding: var(--space-3); overflow-x: auto; }
+.desk { min-width: 0; background: var(--desk); border-radius: var(--radius-m); padding: var(--space-3); overflow-x: auto; }
 .page { display: none; }
 .page[data-current] { display: block; }
 .sheet {

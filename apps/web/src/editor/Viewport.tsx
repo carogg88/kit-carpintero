@@ -210,7 +210,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const { camera, gl, invalidate } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
   const colors = useMemo(
-    () => ({ edge: cssColor('--ink', '#1C2320'), accent: cssColor('--accent', '#1E5A7A'), line: cssColor('--line-strong', '#C9C6BB') }),
+    () => ({ edge: cssColor('--ink', '#2B3628'), accent: cssColor('--accent', '#9E6027'), line: cssColor('--line-strong', '#C9C6BB') }),
     [],
   );
 

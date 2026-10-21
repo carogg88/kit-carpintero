@@ -257,7 +257,9 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             }}
           >
             <IconLogo />
-            Kit Carpintero
+            <span>
+              Kit <span className={styles.brandWood}>Carpintero</span>
+            </span>
           </a>
         </span>
         <div className={styles.titleBlock}>
