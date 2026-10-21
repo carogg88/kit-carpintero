@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawItems, drawJointDetail, drawPart, drawView, VIEWS } from './drawing';
+import { clipSegment, drawItems, drawJointDetail, drawPart, drawView, engineCamera, engineViewKey, VIEWS, withEngineLines } from './drawing';
 import { createTable } from './templates/table';
 
 const table = createTable(undefined, 'guatambu', '2026-10-21T00:00:00Z');
@@ -45,5 +45,41 @@ describe('dibujo técnico', () => {
     const d = drawJointDetail(table, j.id);
     expect(d?.views.length).toBe(2);
     expect(d?.views.every((v) => v.joints.length > 0)).toBe(true);
+  });
+
+  it('la cámara del motor mira desde el lado de quien mira y da vuelta v solo si hace falta', () => {
+    expect(engineCamera(VIEWS.front)).toEqual({ dir: [0, 0, 1], xAxis: [1, 0, 0], flipV: false });
+    expect(engineCamera(VIEWS.side).flipV).toBe(false);
+    expect(engineCamera(VIEWS.top).flipV).toBe(false);
+    // Largo en X, ancho en Z, espesor en Y: mirando desde +Y con X a la derecha, "arriba" del motor es -Z.
+    expect(engineCamera({ u: 0, uSign: 1, v: 2, vSign: 1, depth: 1, depthSign: 1 }).flipV).toBe(true);
+  });
+
+  it('recorta tramos oblicuos a la ventana', () => {
+    const w = { u0: 0, v0: 0, u1: 10, v1: 10 };
+    const l = { a: [-5, 5] as [number, number], b: [15, 5] as [number, number], hidden: false, joint: false };
+    expect(clipSegment(l, w)).toEqual({ ...l, a: [0, 5], b: [10, 5] });
+    expect(clipSegment({ ...l, a: [-5, -5], b: [5, 5] }, w)?.a).toEqual([0, 0]);
+    expect(clipSegment({ ...l, a: [20, 0], b: [30, 10] }, w)).toBeNull();
+  });
+
+  it('las líneas del motor reemplazan a las de cajas y ajustan el borde del dibujo', () => {
+    const d = drawView(table, 'front');
+    expect(d.engine?.parts.length).toBe(table.parts.length);
+    const e = withEngineLines(d, [0, 0, 100, 0, 0, 0, 0, 50], [0, 1]);
+    expect(e.lines).toEqual([
+      { a: [0, 0], b: [100, 0], hidden: false, joint: false },
+      { a: [0, 0], b: [0, 50], hidden: true, joint: false },
+    ]);
+    expect(e.bounds).toEqual({ u0: 0, v0: 0, u1: 100, v1: 50 });
+    expect(e.labels).toBe(d.labels);
+  });
+
+  it('el pedido al motor cambia solo si cambian sus piezas', () => {
+    const d = drawPart(table, table.parts[0]!).engine!;
+    const moved = { ...table, parts: table.parts.map((p, i) => (i === 0 ? { ...p, name: 'Otro nombre', wood: 'cedro' } : p)) };
+    expect(engineViewKey(moved, d)).toBe(engineViewKey(table, d));
+    const grown = { ...table, parts: table.parts.map((p, i) => (i === 0 && p.base.kind === 'box' ? { ...p, base: { ...p.base, size: [p.base.size[0] + 1, p.base.size[1], p.base.size[2]] as [number, number, number] } } : p)) };
+    expect(engineViewKey(grown, d)).not.toBe(engineViewKey(table, d));
   });
 });

@@ -9,12 +9,14 @@ import {
   JOINT_NAMES,
   partBox,
   type Drawing,
+  type EngineView,
   type Project,
   type Rect2,
   type Units,
 } from '@kitc/core';
 import { IconDownload } from './icons';
 import { capitalize, woodName } from './cutsData';
+import { useEngineLines } from './useGeometry';
 import styles from './Plan.module.css';
 
 /** Hoja A4 apaisada, en mm de papel. */
@@ -33,6 +35,9 @@ const LAYERS: [Layer, string][] = [
   ['encastres', 'Encastres resaltados'],
   ['notas', 'Notas y nombres'],
 ];
+
+/** Cambia las líneas de cajas por las de la forma exacta, si el motor ya las tiene. */
+type Refine = (d: Drawing) => Drawing;
 
 const pickScale = (fits: (s: number) => boolean) => SCALES.find(fits) ?? SCALES[SCALES.length - 1]!;
 
@@ -151,11 +156,11 @@ function Sheet({ def, n, of, project, layers }: { def: SheetDef; n: number; of: 
 }
 
 /** Hoja 1: frente, lateral y planta con las medidas generales. */
-function generalSheet(project: Project): SheetDef {
+function generalSheet(project: Project, refine: Refine): SheetDef {
   const n = (mm: number) => formatNumber(mm, project.units);
-  const front = drawView(project, 'front');
-  const side = drawView(project, 'side');
-  const top = drawView(project, 'top');
+  const front = refine(drawView(project, 'front'));
+  const side = refine(drawView(project, 'side'));
+  const top = refine(drawView(project, 'top'));
   const w = (d: Drawing) => d.bounds.u1 - d.bounds.u0;
   const h = (d: Drawing) => d.bounds.v1 - d.bounds.v0;
   const gap = 24;
@@ -222,7 +227,7 @@ function generalSheet(project: Project): SheetDef {
 }
 
 /** Hoja 2 (y siguientes): cada pieza distinta, acotada, con sus espigas y mortajas. */
-function partSheets(project: Project): SheetDef[] {
+function partSheets(project: Project, refine: Refine): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
   const rows = cutList(project);
   const PER = 8;
@@ -235,7 +240,7 @@ function partSheets(project: Project): SheetDef[] {
     const cellH = (H - 2 * M - TITLE_H) / nRows;
     const drawn = chunk.map((r) => {
       const part = project.parts.find((p) => p.id === r.ids[0])!;
-      return { r, part, d: drawPart(project, part) };
+      return { r, part, d: refine(drawPart(project, part)) };
     });
     const scaleFor = (d: Drawing) => pickScale((s) => (d.bounds.u1 - d.bounds.u0) / s <= cellW - 26 && (d.bounds.v1 - d.bounds.v0) / s <= cellH - 22);
     const scales = new Set(drawn.map(({ d }) => scaleFor(d)));
@@ -276,14 +281,14 @@ function partSheets(project: Project): SheetDef[] {
 }
 
 /** Hoja de encastres: un detalle por grupo de uniones con cortes, en dos vistas. */
-function jointSheets(project: Project): SheetDef[] {
+function jointSheets(project: Project, refine: Refine): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
   const groups = groupJoints(project).filter((g) => g.joints.some((j) => j.type !== 'tope'));
   const details = groups
     .map((g) => {
       const j = g.joints.find((x) => x.type !== 'tope')!;
       const d = drawJointDetail(project, j.id);
-      return d && { g, j, d };
+      return d && { g, j, d: { ...d, views: d.views.map(refine) } };
     })
     .filter((x) => x !== null);
   const PER = 3;
@@ -366,8 +371,20 @@ function jointSheets(project: Project): SheetDef[] {
   return sheets;
 }
 
+const buildSheets = (project: Project, refine: Refine) => [generalSheet(project, refine), ...partSheets(project, refine), ...jointSheets(project, refine)];
+
 export function PlanView({ project }: { project: Project }) {
-  const sheets = useMemo(() => [generalSheet(project), ...partSheets(project), ...jointSheets(project)], [project]);
+  // Primero con cajas, para saber qué vistas pedirle al motor; después cada vista cambia a la forma exacta cuando llega.
+  const wanted = useMemo(() => {
+    const views: EngineView[] = [];
+    buildSheets(project, (d) => {
+      if (d.engine) views.push(d.engine);
+      return d;
+    });
+    return views;
+  }, [project]);
+  const refine = useEngineLines(project, wanted);
+  const sheets = useMemo(() => buildSheets(project, refine), [project, refine]);
   const [current, setCurrent] = useState(0);
   const [layers, setLayers] = useState<Set<Layer>>(() => new Set<Layer>(['contornos', 'cotas', 'ocultas', 'notas']));
   const index = Math.min(current, sheets.length - 1);

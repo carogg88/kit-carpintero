@@ -1,4 +1,4 @@
-import type { Part } from './project';
+import type { Part, Project } from './project';
 
 /** Caja alineada a los ejes, en mm. X ancho, Y alto, Z fondo. */
 export type Vec3 = [number, number, number];
@@ -50,4 +50,20 @@ export function partBox(p: Part): Box {
   const [x, y, z] = p.position;
   const [w, h, d] = p.base.size;
   return { min: [x, y, z], max: [x + w, y + h, z + d] };
+}
+
+/**
+ * Lo que define la forma exacta de una pieza: su receta y los encastres que la tocan, con las cajas
+ * de las piezas vecinas. Si no cambia, el motor no tiene que volver a armarla.
+ */
+export function partKey(project: Project, id: string): string {
+  const part = project.parts.find((p) => p.id === id);
+  if (!part) return '';
+  const joints = project.joints
+    .filter((j) => j.partA === id || j.partB === id)
+    .map((j) => {
+      const other = project.parts.find((p) => p.id === (j.partA === id ? j.partB : j.partA));
+      return [j.type, j.partA, j.partB, j.params, other && other.base.kind === 'box' ? partBox(other) : null];
+    });
+  return JSON.stringify([part.base, part.position, part.rotation, part.ops, joints]);
 }

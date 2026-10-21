@@ -2,8 +2,8 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { partBox, woodById, type Box, type Joint, type Part, type Project } from '@kitc/core';
-import { partKey, type ExactMesh } from './useGeometry';
+import { partBox, partKey, woodById, type Box, type Joint, type Part, type Project } from '@kitc/core';
+import type { ExactMesh } from './useGeometry';
 import { cssColor } from './Viewport';
 
 const DIR = new THREE.Vector3(1, 0.72, 1.15).normalize();

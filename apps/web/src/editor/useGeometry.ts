@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { partBox, type Project } from '@kitc/core';
-import type { FromWorker, PartMesh } from '../geometry/protocol';
+import { engineViewKey, partKey, withEngineLines, type Drawing, type EngineView, type Project } from '@kitc/core';
+import type { FromWorker, PartMesh, ViewLines } from '../geometry/protocol';
 
 export type EngineStatus = 'loading' | 'ready' | 'error';
 
@@ -11,22 +11,6 @@ export interface ExactMesh {
   geometry: THREE.BufferGeometry;
   edges: THREE.BufferGeometry;
   warning?: string;
-}
-
-/**
- * Lo que define la forma exacta de una pieza: su receta y los encastres que la tocan, con las cajas
- * de las piezas vecinas. Si no cambia, no hace falta recalcularla.
- */
-export function partKey(project: Project, id: string): string {
-  const part = project.parts.find((p) => p.id === id);
-  if (!part) return '';
-  const joints = project.joints
-    .filter((j) => j.partA === id || j.partB === id)
-    .map((j) => {
-      const other = project.parts.find((p) => p.id === (j.partA === id ? j.partB : j.partA));
-      return [j.type, j.partA, j.partB, j.params, other && other.base.kind === 'box' ? partBox(other) : null];
-    });
-  return JSON.stringify([part.base, part.position, part.rotation, part.ops, joints]);
 }
 
 function toGeometry(m: PartMesh): Pick<ExactMesh, 'geometry' | 'edges'> {
@@ -113,4 +97,62 @@ export function useExactMeshes(project: Project | null, paused: boolean) {
   }, [project, paused, engineStatus, meshes]);
 
   return { engineStatus, meshes };
+}
+
+// Líneas del plano ya proyectadas, por pedido. Sobreviven a salir y volver a entrar al plano.
+const MAX_VIEWS = 300;
+let viewCache: ReadonlyMap<string, ViewLines> = new Map();
+
+function remember(views: ViewLines[]) {
+  const next = new Map(viewCache);
+  for (const v of views) {
+    next.delete(v.key);
+    next.set(v.key, v);
+  }
+  for (const k of next.keys()) {
+    if (next.size <= MAX_VIEWS) break;
+    next.delete(k);
+  }
+  viewCache = next;
+}
+
+/**
+ * Líneas exactas para los dibujos del plano. Devuelve una función que cambia las líneas de cajas de
+ * un dibujo por las que proyectó el motor, si ya están; si no, deja el dibujo como está y las pide.
+ */
+export function useEngineLines(project: Project, views: EngineView[]): (d: Drawing) => Drawing {
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>(status);
+  const [lines, setLines] = useState(viewCache);
+
+  useEffect(() => {
+    engine();
+    statusListeners.add(setEngineStatus);
+    return () => void statusListeners.delete(setEngineStatus);
+  }, []);
+
+  useEffect(() => {
+    if (engineStatus !== 'ready') return;
+    const wanted = new Map(views.map((view) => [engineViewKey(project, view), view]));
+    const missing = [...wanted].filter(([key]) => !viewCache.has(key)).map(([key, view]) => ({ key, view }));
+    if (!missing.length) return;
+    const req = nextReq++;
+    const onReply = (m: FromWorker) => {
+      if (m.type === 'ready' || m.req !== req) return;
+      replyListeners.delete(onReply);
+      if (m.type !== 'views') return;
+      remember(m.views);
+      setLines(viewCache);
+    };
+    replyListeners.add(onReply);
+    engine().postMessage({ type: 'views', project, views: missing, req });
+    return () => void replyListeners.delete(onReply);
+  }, [project, views, engineStatus]);
+
+  return useCallback(
+    (d: Drawing) => {
+      const got = d.engine && lines.get(engineViewKey(project, d.engine));
+      return got ? withEngineLines(d, got.segments, got.hidden) : d;
+    },
+    [project, lines],
+  );
 }
