@@ -17,7 +17,7 @@
         </a>
         <div>
           <h1>Prueba del motor de geometría</h1>
-          <p class="muted">Mesa con 8 mortajas y cantos redondeados de 3 mm, calculada con OpenCascade en tu dispositivo.</p>
+          <p class="muted">Mesa con 8 encastres y cantos redondeados de 3 mm, calculada con OpenCascade en tu dispositivo.</p>
         </div>
       </header>
       <main class="layout">
@@ -27,6 +27,10 @@
         <aside class="panel" aria-labelledby="res">
           <h2 id="res">Resultados</h2>
           <dl id="results" class="results"></dl>
+          <div class="field">
+            <label for="joint">Encastre entre patas y faldones</label>
+            <select id="joint" disabled></select>
+          </div>
           <div class="field">
             <label for="radius">Radio de los cantos (mm)</label>
             <input id="radius" inputmode="decimal" value="3" />

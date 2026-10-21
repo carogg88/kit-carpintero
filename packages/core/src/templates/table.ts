@@ -1,4 +1,4 @@
-import type { Box } from '../geometry';
+import { partBox } from '../geometry';
 import { defaultMortiseParams } from '../joints/mortise';
 import { SCHEMA_VERSION, type Joint, type Part, type Project } from '../project';
 
@@ -23,20 +23,13 @@ export const TABLE_DEFAULTS: TableDims = {
   depth: 900,
   height: 750,
   leg: 70,
-  top: 25,
-  apronHeight: 100,
+  top: 22,
+  apronHeight: 95,
   apronThickness: 22,
   inset: 30,
   setback: 12,
   edgeRadius: 3,
 };
-
-export function partBox(p: Part): Box {
-  if (p.base.kind !== 'box') throw new Error(`La pieza ${p.id} no es una caja`);
-  const [x, y, z] = p.position;
-  const [w, h, d] = p.base.size;
-  return { min: [x, y, z], max: [x + w, y + h, z + d] };
-}
 
 /** Mesa de 4 patas, 4 faldones con mortaja y espiga, y tapa sujeta con clips. */
 export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', now = new Date().toISOString()): Project {
