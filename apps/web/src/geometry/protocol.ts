@@ -1,6 +1,7 @@
 import type { Project } from '@kitc/core';
 
-export type ToWorker = { type: 'init' } | { type: 'build'; project: Project; only?: string[] };
+/** `req` identifica el pedido: la respuesta lo trae de vuelta para descartar resultados viejos. */
+export type ToWorker = { type: 'init' } | { type: 'build'; project: Project; only?: string[]; req?: number };
 
 export interface PartMesh {
   id: string;
@@ -14,5 +15,5 @@ export interface PartMesh {
 
 export type FromWorker =
   | { type: 'ready'; ms: number }
-  | { type: 'parts'; parts: PartMesh[]; ms: number }
-  | { type: 'error'; message: string };
+  | { type: 'parts'; parts: PartMesh[]; ms: number; req?: number }
+  | { type: 'error'; message: string; req?: number };

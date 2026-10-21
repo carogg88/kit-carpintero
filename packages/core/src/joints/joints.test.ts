@@ -60,7 +60,7 @@ describe('suggestJoints', () => {
     const joints = suggestJoints(t.parts.filter((p) => p.id !== 'T1'));
     expect(joints).toHaveLength(8);
     expect(joints.every((j) => j.type === 'mortaja' && j.partA.startsWith('P'))).toBe(true);
-    expect(new Set(joints.map((j) => `${j.partA}-${j.partB}`))).toEqual(new Set(t.joints.map((j) => j.id)));
+    expect(new Set(joints.map((j) => `${j.partA}-${j.partB}`))).toEqual(new Set(t.joints.filter((j) => j.type === 'mortaja').map((j) => j.id)));
   });
 
   it('en dos travesaños cruzados propone media madera', () => {

@@ -31,7 +31,7 @@ export const TABLE_DEFAULTS: TableDims = {
   edgeRadius: 3,
 };
 
-/** Mesa de 4 patas, 4 faldones con mortaja y espiga, y tapa sujeta con clips. */
+/** Mesa de 4 patas, 4 faldones con mortaja y espiga, y tapa apoyada (se sujeta con clips). */
 export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', now = new Date().toISOString()): Project {
   const { width: W, depth: D, height: H, leg, top, apronHeight: aH, apronThickness: aT, inset, setback } = d;
   const tY = H - top;
@@ -73,6 +73,10 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
     const params = defaultMortiseParams(partBox(a), partBox(b));
     if (!params) throw new Error(`${apronId} no toca a ${legId}`);
     joints.push({ id: `${legId}-${apronId}`, type: 'mortaja', partA: legId, partB: apronId, params: { ...params } });
+  }
+  // La tapa apoya sobre patas y faldones y se sujeta con clips: sin encastre.
+  for (const id of ['P1', 'P2', 'P3', 'P4', 'F1', 'F2', 'F3', 'F4']) {
+    joints.push({ id: `T1-${id}`, type: 'tope', partA: 'T1', partB: id, params: {} });
   }
   return {
     schemaVersion: SCHEMA_VERSION,
