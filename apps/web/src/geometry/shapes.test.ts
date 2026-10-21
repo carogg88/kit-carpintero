@@ -84,7 +84,7 @@ describe('plano con el motor', () => {
 
 describe('encastres finos en el motor', () => {
   const part = (id: string, position: [number, number, number], size: [number, number, number]): Part => ({
-    id, name: id, wood: 'cedro', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [],
+    id, name: id, wood: 'cedro', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [], pockets: [],
   });
   // Esquina de cajón, pata con faldón y dos tablas canto con canto.
   const corner = [part('A', [0, 0, 0], [18, 150, 400]), part('B', [18, 0, 0], [482, 150, 18])];
@@ -116,3 +116,37 @@ describe('encastres finos en el motor', () => {
   });
 });
 
+
+describe('vaciados en el motor', () => {
+  const board: Part = { id: 'T', name: 'T', wood: 'cedro', base: { kind: 'box', size: [400, 20, 300] }, position: [0, 0, 0], rotation: [0, 0, 0], ops: [], pockets: [] };
+  const only = (part: Part): Project => ({ ...table, parts: [part], joints: [] });
+  const vol = (part: Part) => {
+    const { shape, warning } = partShape(part, only(part));
+    expect(warning).toBeUndefined();
+    const v = measureVolume(shape);
+    shape.delete();
+    return v;
+  };
+
+  it('un rectángulo saca ancho × alto × profundidad', () => {
+    const p: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'rect', u: 50, v: 40, w: 100, h: 60 }, depth: 8, through: false }] };
+    expect(vol(board) - vol(p)).toBeCloseTo(100 * 60 * 8, 0);
+  });
+
+  it('un círculo pasante saca el cilindro entero, en cualquier cara', () => {
+    const top: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'circle', u: 200, v: 150, d: 35 }, depth: 10, through: true }] };
+    const under: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: -1, shape: { kind: 'circle', u: 200, v: 150, d: 35 }, depth: 10, through: true }] };
+    const hole = Math.PI * 17.5 ** 2 * 20;
+    expect((vol(board) - vol(top)) / hole).toBeCloseTo(1, 2);
+    expect((vol(board) - vol(under)) / hole).toBeCloseTo(1, 2);
+  });
+});
+
+it('las mismas piezas se proyectan varias veces sin rearmarlas', () => {
+  // El worker guarda cada pieza armada y la reusa en el 3D y en cada vista del plano.
+  const shapes = table.parts.map((p) => partShape(p, table).shape);
+  for (const view of ['front', 'side', 'top'] as const) {
+    expect(projectShapes(shapes, drawView(table, view).engine!).segments.length).toBeGreaterThan(0);
+  }
+  shapes.forEach((s) => s.delete());
+});

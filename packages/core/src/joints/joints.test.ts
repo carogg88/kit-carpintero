@@ -62,7 +62,7 @@ describe('suggestJoints', () => {
 
   it('en dos travesaños cruzados propone media madera', () => {
     const part = (id: string, position: [number, number, number], size: [number, number, number]) => ({
-      id, name: id, wood: 'pino', base: { kind: 'box' as const, size }, position, rotation: [0, 0, 0] as [number, number, number], ops: [],
+      id, name: id, wood: 'pino', base: { kind: 'box' as const, size }, position, rotation: [0, 0, 0] as [number, number, number], ops: [], pockets: [],
     });
     const j = suggestJoints([part('A', [0, 0, 0], [500, 22, 70]), part('B', [200, 0, -100], [70, 22, 500])]);
     expect(j).toMatchObject([{ type: 'media-madera', params: { ratio: 0.5 } }]);

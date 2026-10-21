@@ -2,8 +2,24 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { copyPart, formatLength, partBox, partKey, snapCoord, snapMove, woodById, type Axis, type Box, type Part, type Project } from '@kitc/core';
-import { useEditor, type View } from './store';
+import {
+  copyPart,
+  formatLength,
+  newPocket,
+  otherAxes,
+  partBox,
+  partKey,
+  snapCoord,
+  snapMove,
+  snapOnFace,
+  woodById,
+  type Axis,
+  type Box,
+  type Part,
+  type PocketShape,
+  type Project,
+} from '@kitc/core';
+import { useEditor, type DrawFace, type View } from './store';
 import type { ExactMesh } from './useGeometry';
 
 const VIEW_DIRS: Record<View, [number, number, number]> = {
@@ -36,6 +52,7 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   const project = useEditor((s) => s.project);
   const view = useEditor((s) => s.view);
   const viewNonce = useEditor((s) => s.viewNonce);
+  const drawFace = useEditor((s) => s.drawFace);
   const anim = useRef<((now: number) => void) | null>(null);
   const userOrbited = useRef(false);
 
@@ -59,18 +76,11 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
     };
   }, [camera, gl, invalidate, controlsRef]);
 
-  // Encuadra la vista pedida. Animado, salvo al abrir o si la persona prefiere menos movimiento.
-  const frame = useEffectEvent((instant: boolean) => {
+  // Lleva la cámara a mirar `center` desde `dir`. Animado, salvo al abrir o si la persona prefiere menos movimiento.
+  const flyTo = useEffectEvent((center: THREE.Vector3, dir: THREE.Vector3, dist: number, instant: boolean) => {
     const c = controlsRef.current;
-    const p = useEditor.getState().project;
-    if (!c || !p || !(camera instanceof THREE.PerspectiveCamera)) return;
-    const b = bounds(p);
-    const center = b.getCenter(new THREE.Vector3());
-    const r = b.getSize(new THREE.Vector3()).length() / 2;
-    const vHalf = (camera.fov * Math.PI) / 360;
-    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-    const dist = (r / Math.sin(Math.min(hHalf, vHalf))) * 0.98;
-    const to = center.clone().add(new THREE.Vector3(...VIEW_DIRS[useEditor.getState().view]).normalize().multiplyScalar(dist));
+    if (!c) return;
+    const to = center.clone().add(dir.clone().normalize().multiplyScalar(dist));
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (instant || reduce) {
       camera.position.copy(to);
@@ -92,6 +102,48 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
     };
     invalidate();
   });
+
+  // Encuadra la vista pedida (Iso, Frente, Lateral, Planta) con todo el mueble adentro.
+  const frame = useEffectEvent((instant: boolean) => {
+    const p = useEditor.getState().project;
+    if (!p || !(camera instanceof THREE.PerspectiveCamera)) return;
+    const b = bounds(p);
+    const r = b.getSize(new THREE.Vector3()).length() / 2;
+    const vHalf = (camera.fov * Math.PI) / 360;
+    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+    const dist = (r / Math.sin(Math.min(hHalf, vHalf))) * 0.98;
+    flyTo(b.getCenter(new THREE.Vector3()), new THREE.Vector3(...VIEW_DIRS[useEditor.getState().view]), dist, instant);
+  });
+
+  // Mira de frente la cara elegida para dibujar, con un margen alrededor.
+  const frameFace = useEffectEvent((f: DrawFace) => {
+    const part = useEditor.getState().project?.parts.find((q) => q.id === f.partId);
+    if (!part || !(camera instanceof THREE.PerspectiveCamera)) return;
+    const box = partBox(part);
+    const center = new THREE.Vector3(...box.min).add(new THREE.Vector3(...box.max)).multiplyScalar(0.5);
+    center.setComponent(f.axis, f.side > 0 ? box.max[f.axis] : box.min[f.axis]);
+    const dir = new THREE.Vector3();
+    dir.setComponent(f.axis, f.side);
+    // De arriba o de abajo, un pelo inclinada para que la cámara sepa dónde queda el fondo.
+    if (f.axis === 1) dir.z = 0.0001;
+    const across = f.axis === 0 ? 2 : 0;
+    const up = f.axis === 1 ? 2 : 1;
+    const vHalf = (camera.fov * Math.PI) / 360;
+    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+    const w = box.max[across] - box.min[across];
+    const h = box.max[up] - box.min[up];
+    const dist = Math.max(w / 2 / Math.tan(hHalf), h / 2 / Math.tan(vHalf)) * 1.25;
+    flyTo(center, dir, dist, false);
+  });
+
+  useEffect(() => {
+    const c = controlsRef.current;
+    if (!c) return;
+    // Dibujando, la vista queda de frente: se puede acercar y correr, pero no girar.
+    c.enableRotate = !drawFace;
+    c.maxPolarAngle = drawFace ? Math.PI : Math.PI * 0.495;
+    if (drawFace) frameFace(drawFace);
+  }, [drawFace, controlsRef]);
 
   const projectId = project?.id;
   useEffect(() => {
@@ -180,6 +232,78 @@ function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDow
   );
 }
 
+/** Esquinas de un rectángulo de la cara, apenas por fuera de la pieza para que se vea encima. */
+function facePoint(box: Box, f: DrawFace, u: number, v: number, lift = 0.4): THREE.Vector3 {
+  const [ua, va] = otherAxes(f.axis);
+  const p = new THREE.Vector3();
+  p.setComponent(f.axis, (f.side > 0 ? box.max[f.axis] : box.min[f.axis]) + f.side * lift);
+  p.setComponent(ua, box.min[ua] + u);
+  p.setComponent(va, box.min[va] + v);
+  return p;
+}
+
+function outline(box: Box, f: DrawFace, shape: PocketShape): THREE.Vector3[] {
+  if (shape.kind === 'circle') {
+    const r = shape.d / 2;
+    return Array.from({ length: 72 }, (_, i) => {
+      const a = (i / 72) * Math.PI * 2;
+      return facePoint(box, f, shape.u + r * Math.cos(a), shape.v + r * Math.sin(a), 0.6);
+    });
+  }
+  const { u, v, w, h } = shape;
+  return [facePoint(box, f, u, v, 0.6), facePoint(box, f, u + w, v, 0.6), facePoint(box, f, u + w, v + h, 0.6), facePoint(box, f, u, v + h, 0.6)];
+}
+
+/** Lazo cerrado de puntos: borde de la cara elegida o figura que se está dibujando. */
+function Loop({ points, color, opacity = 1 }: { points: THREE.Vector3[]; color: string; opacity?: number }) {
+  const line = useMemo(() => {
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    return new THREE.LineLoop(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthTest: false }));
+  }, [points, color, opacity]);
+  useEffect(() => () => {
+    line.geometry.dispose();
+    (line.material as THREE.Material).dispose();
+  }, [line]);
+  return <primitive object={line} renderOrder={2} />;
+}
+
+interface FaceOverlayProps {
+  part: Part;
+  face: DrawFace;
+  accent: string;
+  onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
+}
+
+/** Cara elegida para dibujar: un velo del color de acento que recibe el dedo o el puntero. */
+function FaceOverlay({ part, face, accent, onPointerDown }: FaceOverlayProps) {
+  const box = partBox(part);
+  const [ua, va] = otherAxes(face.axis);
+  const w = box.max[ua] - box.min[ua];
+  const h = box.max[va] - box.min[va];
+  const key = `${box.min.join()}|${box.max.join()}|${face.axis}|${face.side}`;
+  const corners = useMemo(() => [facePoint(box, face, 0, 0), facePoint(box, face, w, 0), facePoint(box, face, w, h), facePoint(box, face, 0, h)], [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry().setFromPoints(corners);
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    return g;
+  }, [corners]);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <group>
+      <mesh geometry={geo} onPointerDown={onPointerDown}>
+        <meshBasicMaterial color={accent} transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <Loop points={corners} color={accent} />
+    </group>
+  );
+}
+
+function Draft({ part, accent }: { part: Part; accent: string }) {
+  const draft = useEditor((s) => s.draft);
+  const points = useMemo(() => (draft ? outline(partBox(part), draft, draft.shape) : null), [draft, part]);
+  return points ? <Loop points={points} color={accent} /> : null;
+}
+
 interface Drag {
   kind: 'push' | 'move';
   part: Part;
@@ -207,6 +331,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const selectedId = useEditor((s) => s.selectedId);
   const xray = useEditor((s) => s.xray);
   const dragging = useEditor((s) => s.dragging);
+  const drawFace = useEditor((s) => s.drawFace);
   const { camera, gl, invalidate } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
   const colors = useMemo(
@@ -220,6 +345,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const { tool, select, beginDrag, copyMove, project: current } = useEditor.getState();
     if (tool === 'select' || !e.face || !current) return;
     e.stopPropagation();
+    if (tool === 'draw') return pickFace(e, original);
     // Copiar al mover: se arrastra una copia y la pieza original queda en su lugar.
     const copying = tool === 'move' && (copyMove || e.nativeEvent.ctrlKey || e.nativeEvent.altKey);
     const part = copying ? copyPart(current.parts, original) : original;
@@ -318,6 +444,94 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     window.addEventListener('pointercancel', onUp);
   };
 
+  // Dibujar, primer paso: tocar una cara la elige y la cámara la pone de frente.
+  const pickFace = (e: ThreeEvent<PointerEvent>, part: Part) => {
+    if (!e.face) return;
+    const n = e.face.normal;
+    const abs = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
+    const axis = abs.indexOf(Math.max(...abs)) as Axis;
+    const side = ([n.x, n.y, n.z][axis] ?? 0) > 0 ? 1 : -1;
+    const box = partBox(part);
+    // Solo las caras de afuera: las paredes de un vaciado o de un encastre no se eligen.
+    const at = side > 0 ? box.max[axis] : box.min[axis];
+    if (Math.abs(e.point.getComponent(axis) - at) > 0.6) return;
+    const { select, setDrawFace } = useEditor.getState();
+    select(part.id);
+    setDrawFace({ partId: part.id, axis, side });
+  };
+
+  // Dibujar, segundo paso: arrastrar sobre la cara elegida. Rectángulo de esquina a esquina; círculo desde el centro.
+  const startSketch = (e: ThreeEvent<PointerEvent>) => {
+    const { drawFace: face, drawShape, project: current } = useEditor.getState();
+    const part = current?.parts.find((q) => q.id === face?.partId);
+    if (!face || !part) return;
+    e.stopPropagation();
+    if (controlsRef.current) controlsRef.current.enabled = false;
+    const box = partBox(part);
+    const [ua, va] = otherAxes(face.axis);
+    const size = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]] as const;
+    const tol = Math.max(3, Math.max(...size) * 0.02);
+    const normal = new THREE.Vector3();
+    normal.setComponent(face.axis, 1);
+    const plane = new THREE.Plane(normal, -(face.side > 0 ? box.max[face.axis] : box.min[face.axis]));
+    const local = (pt: THREE.Vector3) => {
+      const u = snapOnFace(pt.getComponent(ua) - box.min[ua], size[0], tol);
+      const v = snapOnFace(pt.getComponent(va) - box.min[va], size[1], tol);
+      return { u: u.value, v: v.value, snaps: [u.to, v.to] };
+    };
+    const start = local(e.point);
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    let shape: PocketShape | null = null;
+
+    const onMove = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const pt = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(plane, pt)) return;
+      const end = local(pt);
+      const units = useEditor.getState().project?.units ?? 'cm';
+      let text: string;
+      let snaps: (string | null)[];
+      if (drawShape === 'circle') {
+        const d = Math.max(1, Math.round(Math.hypot(pt.getComponent(ua) - box.min[ua] - start.u, pt.getComponent(va) - box.min[va] - start.v) * 2));
+        shape = { kind: 'circle', u: start.u, v: start.v, d };
+        text = `Ø ${formatLength(d, units)}`;
+        snaps = start.snaps;
+      } else {
+        const w = Math.abs(end.u - start.u);
+        const h = Math.abs(end.v - start.v);
+        shape = w > 0 && h > 0 ? { kind: 'rect', u: Math.min(start.u, end.u), v: Math.min(start.v, end.v), w, h } : null;
+        text = `${formatLength(w, units)} × ${formatLength(h, units)}`;
+        snaps = end.snaps;
+      }
+      const named = [...new Set(snaps.filter(Boolean))];
+      useEditor.getState().setDraft(shape ? { ...face, shape } : null);
+      useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: named.length ? named.join(' y ') : null });
+      invalidate();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      const { setDraft, setHint, commit } = useEditor.getState();
+      setDraft(null);
+      setHint(null);
+      const s = shape as PocketShape | null;
+      // Un toque sin arrastrar, o una figura de menos de 3 mm, no deja nada.
+      if (!s || (s.kind === 'circle' ? s.d < 3 : s.w < 3 || s.h < 3)) return;
+      commit((d) => {
+        const q = d.parts.find((x) => x.id === part.id);
+        if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
+      });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   const click = (e: ThreeEvent<MouseEvent>, part: Part) => {
     if (e.delta > 6) return;
     e.stopPropagation();
@@ -350,6 +564,16 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           />
         );
       })}
+      {drawFace &&
+        (() => {
+          const part = project.parts.find((p) => p.id === drawFace.partId);
+          return part ? (
+            <>
+              <FaceOverlay part={part} face={drawFace} accent={colors.accent} onPointerDown={startSketch} />
+              <Draft part={part} accent={colors.accent} />
+            </>
+          ) : null;
+        })()}
     </>
   );
 }

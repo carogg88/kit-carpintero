@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { syncComponents, syncJoints, type Project, type Units } from '@kitc/core';
+import { syncComponents, syncJoints, type PocketShape, type Project, type Units } from '@kitc/core';
 
-export type Tool = 'select' | 'push' | 'move';
+export type Tool = 'select' | 'push' | 'move' | 'draw';
 export type View = 'iso' | 'front' | 'side' | 'top';
 
 /** Última cara empujada: la medida que se escribe abajo se aplica a ella. */
@@ -11,6 +11,15 @@ export interface LastPush {
   axis: 0 | 1 | 2;
   sign: 1 | -1;
 }
+
+/** Cara elegida para dibujar: la cámara la mira de frente. */
+export interface DrawFace {
+  partId: string;
+  axis: 0 | 1 | 2;
+  side: 1 | -1;
+}
+
+export type DrawShape = 'rect' | 'circle';
 
 const HISTORY = 80;
 
@@ -31,6 +40,10 @@ interface EditorState {
   lastPush: LastPush | null;
   /** Cartel junto al dedo o al puntero mientras se arrastra. */
   hint: DragHint | null;
+  drawFace: DrawFace | null;
+  drawShape: DrawShape;
+  /** Figura que se está dibujando, para verla antes de soltar. */
+  draft: (DrawFace & { shape: PocketShape }) | null;
 
   open: (p: Project) => void;
   close: () => void;
@@ -51,6 +64,9 @@ interface EditorState {
   setView: (v: View) => void;
   setUnits: (u: Units) => void;
   setHint: (h: DragHint | null) => void;
+  setDrawFace: (f: DrawFace | null) => void;
+  setDrawShape: (s: DrawShape) => void;
+  setDraft: (d: EditorState['draft']) => void;
 }
 
 export interface DragHint {
@@ -86,8 +102,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
   viewNonce: 0,
   lastPush: null,
   hint: null,
+  drawFace: null,
+  drawShape: 'rect',
+  draft: null,
 
-  open: (project) => set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso' }),
+  open: (project) => set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null }),
 
   commit: (recipe) => {
@@ -136,12 +155,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
     if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
 
-  select: (selectedId) => set({ selectedId }),
-  setTool: (tool) => set({ tool }),
+  select: (selectedId) => set((s) => ({ selectedId, ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}) })),
+  setTool: (tool) => set(tool === 'draw' ? { tool } : { tool, drawFace: null, draft: null }),
   setXray: (xray) => set({ xray }),
   setCopyMove: (copyMove) => set({ copyMove }),
-  setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1 })),
+  setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null })),
   setHint: (hint) => set({ hint }),
+  setDrawFace: (drawFace) => set((s) => (drawFace ? { drawFace } : { drawFace, viewNonce: s.viewNonce + 1 })),
+  setDrawShape: (drawShape) => set({ drawShape }),
+  setDraft: (draft) => set({ draft }),
   setUnits: (units) => {
     const { project } = get();
     if (project) set({ project: produce(project, (d) => void (d.units = units)) });
