@@ -54,7 +54,7 @@ describe('vaciados', () => {
 });
 
 describe('arcos', () => {
-  const board: Part = { ...top, position: [0, 0, 0], base: { kind: 'box', size: [400, 20, 300] }, ops: [], pockets: [], bevels: [] };
+  const board: Part = { ...top, position: [0, 0, 0], base: { kind: 'box', size: [400, 20, 300] }, ops: [], pockets: [], bevels: [], sections: [] };
   const arch = { kind: 'arc', u: 100, v: 0, u2: 300, v2: 0, bulge: 50, outside: false } as const;
   const corner = { kind: 'arc', u: 300, v: 300, u2: 400, v2: 200, bulge: 100 - 100 * Math.SQRT1_2, outside: false } as const;
 

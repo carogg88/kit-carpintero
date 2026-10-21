@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { syncComponents, syncJoints, type Bevel, type PocketShape, type Project, type Units } from '@kitc/core';
+import { syncComponents, syncJoints, type Bevel, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
-export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel';
+export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section';
 export type View = 'iso' | 'front' | 'side' | 'top';
 
 /** Última cara empujada: la medida que se escribe abajo se aplica a ella. */
@@ -51,6 +51,8 @@ interface EditorState {
   draft: (DrawFace & { shape: PocketShape }) | null;
   /** Bisel que se está marcando, para verlo antes de soltar. */
   bevelDraft: { partId: string; bevel: Bevel } | null;
+  /** Tramo que se está marcando con el dedo o el mouse. */
+  sectionDraft: { partId: string; section: Section } | null;
   arcChord: ArcChord | null;
 
   open: (p: Project) => void;
@@ -77,6 +79,7 @@ interface EditorState {
   setBevelRound: (round: boolean) => void;
   setDraft: (d: EditorState['draft']) => void;
   setBevelDraft: (d: EditorState['bevelDraft']) => void;
+  setSectionDraft: (d: EditorState['sectionDraft']) => void;
   setArcChord: (c: ArcChord | null) => void;
 }
 
@@ -118,6 +121,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   bevelRound: false,
   draft: null,
   bevelDraft: null,
+  sectionDraft: null,
   arcChord: null,
 
   open: (project) => set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null }),
@@ -180,6 +184,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setBevelRound: (bevelRound) => set({ bevelRound }),
   setDraft: (draft) => set({ draft }),
   setBevelDraft: (bevelDraft) => set({ bevelDraft }),
+  setSectionDraft: (sectionDraft) => set({ sectionDraft }),
   setArcChord: (arcChord) => set({ arcChord }),
   setUnits: (units) => {
     const { project } = get();

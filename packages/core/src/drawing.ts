@@ -2,6 +2,7 @@ import { partAxesBySize } from './edit';
 import { endJoint, jointGeometry, solidBox } from './joints';
 import { otherAxes, partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
 import { arcInfo, pocketSolid } from './pockets';
+import { sectionBox } from './sections';
 import type { Part, Project } from './project';
 
 /**
@@ -47,6 +48,8 @@ export interface DrawItem {
   owner?: string;
   /** Hueco: siempre se dibuja con línea oculta. */
   hole?: boolean;
+  /** Tramo con otra sección: se dibuja como la pieza pero no se resalta como encastre. */
+  section?: boolean;
 }
 
 export interface Line2 {
@@ -180,7 +183,7 @@ export function drawItems(items: DrawItem[], p: Projection, window?: Rect2): Dra
     .map(({ x, at }) => ({ id: x.item.id, at }));
 
   const kept = window ? lines.map((l) => clip(l, window)).filter((l): l is Line2 => l !== null) : lines;
-  const jointRects = all.filter((x) => x.item.joint && (!window || intersects(x.rect, window))).map((x) => x.rect);
+  const jointRects = all.filter((x) => x.item.joint && !x.item.section && (!window || intersects(x.rect, window))).map((x) => x.rect);
   const rects = solids.map((x) => ({ id: x.item.id, rect: x.rect }));
   const pts = kept.flatMap((l) => [l.a, l.b]);
   const bounds = window ?? {
@@ -212,11 +215,15 @@ export function partJointItems(project: Project, part: Part): DrawItem[] {
   return items;
 }
 
+/** Tramos con otra sección: con las cajas alcanzan para encuadrar y acotar hasta que llegan las líneas del motor. */
+export const partSectionItems = (part: Part): DrawItem[] =>
+  part.sections.map((s) => ({ id: `${part.id}-${s.id}`, box: sectionBox(part, s), joint: true, owner: part.id, section: true }));
+
 /** Vista general del mueble: piezas y, ocultas, las espigas y lengüetas. */
 export function drawView(project: Project, view: ViewName): Drawing {
   const boxes = project.parts.filter((p) => p.base.kind === 'box');
   const items: DrawItem[] = boxes.map((p) => ({ id: p.id, box: partBox(p) }));
-  for (const p of boxes) for (const it of partJointItems(project, p)) if (!it.hole) items.push(it);
+  for (const p of boxes) for (const it of [...partJointItems(project, p), ...partSectionItems(p)]) if (!it.hole) items.push(it);
   return { ...drawItems(items, VIEWS[view]), engine: { parts: boxes.map((p) => p.id), projection: VIEWS[view] } };
 }
 
@@ -230,7 +237,7 @@ export function partProjection(part: Part): Projection {
 export function drawPart(project: Project, part: Part): Drawing {
   const projection = partProjection(part);
   const pockets: DrawItem[] = part.pockets.map((p) => ({ id: `${part.id}-${p.id}`, box: solidBox(pocketSolid(part, p)), joint: true, owner: part.id, hole: true }));
-  const drawing = drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...pockets], projection);
+  const drawing = drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...partSectionItems(part), ...pockets], projection);
   return { ...drawing, arcs: partArcMarks(part, projection), engine: { parts: [part.id], projection } };
 }
 

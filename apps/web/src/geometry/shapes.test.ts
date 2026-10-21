@@ -84,7 +84,7 @@ describe('plano con el motor', () => {
 
 describe('encastres finos en el motor', () => {
   const part = (id: string, position: [number, number, number], size: [number, number, number]): Part => ({
-    id, name: id, wood: 'cedro', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [], pockets: [], bevels: [],
+    id, name: id, wood: 'cedro', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [], pockets: [], bevels: [], sections: [],
   });
   // Esquina de cajón, pata con faldón y dos tablas canto con canto.
   const corner = [part('A', [0, 0, 0], [18, 150, 400]), part('B', [18, 0, 0], [482, 150, 18])];
@@ -118,7 +118,7 @@ describe('encastres finos en el motor', () => {
 
 
 describe('vaciados en el motor', () => {
-  const board: Part = { id: 'T', name: 'T', wood: 'cedro', base: { kind: 'box', size: [400, 20, 300] }, position: [0, 0, 0], rotation: [0, 0, 0], ops: [], pockets: [], bevels: [] };
+  const board: Part = { id: 'T', name: 'T', wood: 'cedro', base: { kind: 'box', size: [400, 20, 300] }, position: [0, 0, 0], rotation: [0, 0, 0], ops: [], pockets: [], bevels: [], sections: [] };
   const only = (part: Part): Project => ({ ...table, parts: [part], joints: [] });
   const vol = (part: Part) => {
     const { shape, warning } = partShape(part, only(part));
@@ -157,6 +157,14 @@ describe('vaciados en el motor', () => {
     expect(vol(board) - vol(bevel)).toBeCloseTo((12 * 6) / 2 * 400, 0);
     const slant: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 300, db: 10, round: false }] };
     expect(vol(board) - vol(slant)).toBeCloseTo((300 * 10) / 2 * 400, 0);
+  });
+
+  it('un tramo más grueso suma y uno más fino saca, a lo largo del tramo', () => {
+    // board: 400 × 20 × 300; el tramo va sobre X, entre 0 y 100.
+    const thick: Part = { ...board, sections: [{ id: 'S1', axis: 0, from: 0, to: 100, size: [40, 320] }] };
+    expect(vol(thick) - vol(board)).toBeCloseTo(100 * (40 * 320 - 20 * 300), 0);
+    const thin: Part = { ...board, sections: [{ id: 'S1', axis: 0, from: 300, to: 400, size: [10, 200] }] };
+    expect(vol(board) - vol(thin)).toBeCloseTo(100 * (20 * 300 - 10 * 200), 0);
   });
 
   it('un redondeo saca lo de afuera del cuarto de círculo: en una esquina y a lo largo de un canto', () => {

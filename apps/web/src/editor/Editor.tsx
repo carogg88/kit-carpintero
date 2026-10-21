@@ -9,6 +9,7 @@ import {
   IconBevel,
   IconChamfer,
   IconRound,
+  IconSection,
   IconCircle,
   IconDraw,
   IconRect,
@@ -40,6 +41,7 @@ const TOOLS: [Tool, string, string, () => React.JSX.Element][] = [
   ['move', 'Mover pieza', 'M', IconMove],
   ['draw', 'Dibujar en una cara', 'D', IconDraw],
   ['bevel', 'Biselar o redondear', 'B', IconBevel],
+  ['section', 'Agrandar o achicar un tramo', 'T', IconSection],
 ];
 const VIEWS: [View, string, string][] = [
   ['iso', 'Iso', 'Iso'],
@@ -52,6 +54,8 @@ const TIPS: Record<Tool, string> = {
   push: 'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.',
   move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.',
   bevel: 'Tocá una cara cerca de una arista y arrastrá hacia adentro. Cerca de una esquina (por ejemplo, la punta de una tapa vista en planta) toma la arista que baja por la esquina. Elegí bisel o redondeo en la barra; la medida exacta se escribe en el panel.',
+  section:
+    'Tocá una pieza a lo largo (por ejemplo, una pata) y arrastrá para marcar el tramo. Arranca un poco más grueso; en el panel le das el ancho y el fondo que quieras, más grande o más chico. Se pega a las puntas y cada 5 mm.',
   draw: 'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina, un círculo desde su centro o la cuerda de un arco (y tocá cuánto se curva). Se pega a los bordes, al centro y cada 5 mm.',
 };
 
@@ -97,6 +101,7 @@ function useShortcuts(modelo: boolean) {
       else if (k === 'm') s.setTool('move');
       else if (k === 'd') s.setTool('draw');
       else if (k === 'b') s.setTool('bevel');
+      else if (k === 't') s.setTool('section');
       else if (k === 'x') s.setXray(!s.xray);
       else if (k === 'escape') {
         if (s.drawFace) s.setDrawFace(null);

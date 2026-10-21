@@ -10,6 +10,8 @@ import {
   defaultJointParams,
   depthUnder,
   describePocket,
+  describeSection,
+  otherAxes,
   faceSize,
   duplicatePart,
   endJoint,
@@ -31,6 +33,7 @@ import {
   type Part,
   type Pocket,
   type Project,
+  type Section,
   type Units,
 } from '@kitc/core';
 import { IconLink, IconTrash, IconWarn } from './icons';
@@ -336,6 +339,32 @@ function BevelCard({ bevel, part, units, onChange, onRemove }: { bevel: Bevel; p
   );
 }
 
+/** Un tramo con otra sección: de dónde a dónde va y cuánto mide de través. */
+function SectionCard({ section, part, units, onChange, onRemove }: { section: Section; part: Part; units: Units; onChange: (recipe: (s: Section) => void) => void; onRemove: () => void }) {
+  const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
+  const len = boxSize(partBox(part))[section.axis];
+  const [u, v] = otherAxes(section.axis);
+  const cap = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
+  return (
+    <div className={styles.pocketCard}>
+      <div className={styles.pocketHead}>
+        <span className={styles.pocketTitle}>
+          <strong>{section.id}</strong> {cap(describeSection(section, n))}
+        </span>
+        <button type="button" className={styles.iconBtnSmall} aria-label={`Borrar ${section.id}`} title="Borrar" onClick={onRemove}>
+          <IconTrash />
+        </button>
+      </div>
+      <div className={styles.pocketFields}>
+        <LengthField label={`Desde ${MEASURED_FROM[section.axis]}`} mm={section.from} units={units} min={0} max={section.to - 1} onCommit={(x) => onChange((s) => void (s.from = x))} />
+        <LengthField label="Hasta" mm={section.to} units={units} min={section.from + 1} max={len} onCommit={(x) => onChange((s) => void (s.to = x))} />
+        <LengthField label={AXIS_LABELS[u]} mm={section.size[0]} units={units} min={1} onCommit={(x) => onChange((s) => void (s.size[0] = x))} />
+        <LengthField label={AXIS_LABELS[v]} mm={section.size[1]} units={units} min={1} onCommit={(x) => onChange((s) => void (s.size[1] = x))} />
+      </div>
+    </div>
+  );
+}
+
 type EdgeKind = 'rectos' | 'round' | 'chamfer';
 
 function PartEditor({ part, project }: { part: Part; project: Project }) {
@@ -484,6 +513,33 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
               })
             }
             onRemove={() => update((q) => void (q.bevels = q.bevels.filter((y) => y.id !== bv.id)))}
+          />
+        ))}
+      </div>
+      <div className={styles.stack}>
+        <span className={styles.legend}>Tramos ({part.sections.length})</span>
+        {part.sections.length === 0 && (
+          <p className={styles.muted}>
+            Con{' '}
+            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('section')}>
+              Tramo
+            </button>{' '}
+            arrastrás a lo largo de la pieza y ese tramo pasa a tener otra medida: el pie más grueso de una pata, un cuello más fino.
+          </p>
+        )}
+        {part.sections.map((sec) => (
+          <SectionCard
+            key={sec.id}
+            section={sec}
+            part={part}
+            units={units}
+            onChange={(recipe) =>
+              update((q) => {
+                const x = q.sections.find((y) => y.id === sec.id);
+                if (x) recipe(x);
+              })
+            }
+            onRemove={() => update((q) => void (q.sections = q.sections.filter((y) => y.id !== sec.id)))}
           />
         ))}
       </div>

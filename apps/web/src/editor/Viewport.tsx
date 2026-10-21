@@ -13,7 +13,12 @@ import {
   formatLength,
   edgeNear,
   isAngleCut,
+  MEASURED_FROM,
   newBevel,
+  newSection,
+  nextSectionId,
+  partAxesBySize,
+  sectionBox,
   newPocket,
   otherAxes,
   partBox,
@@ -28,6 +33,7 @@ import {
   type Part,
   type PocketShape,
   type Project,
+  type Section,
 } from '@kitc/core';
 import { useEditor, type DrawFace, type View } from './store';
 import type { ExactMesh } from './useGeometry';
@@ -354,6 +360,28 @@ function BevelDraft({ accent }: { accent: string }) {
   return points ? <Loop points={points} color={accent} /> : null;
 }
 
+/** Tramo que se está marcando: la caja que va a ocupar. */
+function SectionDraft({ accent }: { accent: string }) {
+  const draft = useEditor((s) => s.sectionDraft);
+  const part = useEditor((s) => s.project?.parts.find((p) => p.id === s.sectionDraft?.partId));
+  const lines = useMemo(() => {
+    if (!draft || !part) return null;
+    const b = sectionBox(part, draft.section);
+    const size = new THREE.Vector3(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
+    const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x, size.y, size.z));
+    geo.translate((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
+    return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: accent, depthTest: false }));
+  }, [draft, part, accent]);
+  useEffect(
+    () => () => {
+      lines?.geometry.dispose();
+      (lines?.material as THREE.Material | undefined)?.dispose();
+    },
+    [lines],
+  );
+  return lines ? <primitive object={lines} renderOrder={2} /> : null;
+}
+
 function Draft({ part, accent }: { part: Part; accent: string }) {
   const draft = useEditor((s) => s.draft);
   const points = useMemo(() => (draft ? outline(partBox(part), draft, draft.shape) : null), [draft, part]);
@@ -403,6 +431,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     e.stopPropagation();
     if (tool === 'draw') return pickFace(e, original);
     if (tool === 'bevel') return startBevel(e, original);
+    if (tool === 'section') return startSection(e, original);
     // Copiar al mover: se arrastra una copia y la pieza original queda en su lugar.
     const copying = tool === 'move' && (copyMove || e.nativeEvent.ctrlKey || e.nativeEvent.altKey);
     const part = copying ? copyPart(current.parts, original) : original;
@@ -705,6 +734,70 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     window.addEventListener('pointercancel', onUp);
   };
 
+  // Tramo: tocar la pieza a lo largo y arrastrar marca de dónde a dónde va la sección nueva.
+  const startSection = (e: ThreeEvent<PointerEvent>, part: Part) => {
+    if (!e.face) return;
+    const [axis] = partAxesBySize(part);
+    const n = e.face.normal;
+    const abs = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
+    const faceAxis = abs.indexOf(Math.max(...abs)) as Axis;
+    // En la punta no hay largo que recorrer.
+    if (faceAxis === axis) return;
+    const box = partBox(part);
+    const len = box.max[axis] - box.min[axis];
+    const tol = Math.max(5, len * 0.03);
+    const along = (pt: THREE.Vector3) => Math.min(len, Math.max(0, pt.getComponent(axis) - box.min[axis]));
+    const snapTo = (t: number) => (t <= tol ? 0 : len - t <= tol ? len : Math.round(t / 5) * 5);
+    const t0 = snapTo(along(e.point));
+    const { select, setSectionDraft, setHint, commit } = useEditor.getState();
+    select(part.id);
+    if (controlsRef.current) controlsRef.current.enabled = false;
+    const normal = new THREE.Vector3();
+    normal.setComponent(faceAxis, 1);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, e.point.clone());
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    let section: Section | null = null;
+
+    const onMove = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const pt = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(plane, pt)) return;
+      const t = snapTo(along(pt));
+      section = Math.abs(t - t0) >= 5 ? newSection(part, axis, t0, t) : null;
+      setSectionDraft(section ? { partId: part.id, section } : null);
+      const units = useEditor.getState().project?.units ?? 'cm';
+      setHint({
+        x: ev.clientX - rect.left,
+        y: ev.clientY - rect.top,
+        text: section
+          ? `Tramo de ${formatLength(section.from, units)} a ${formatLength(section.to, units)} desde ${MEASURED_FROM[axis]}`
+          : 'Arrastrá a lo largo de la pieza',
+        snap: t === 0 || t === len ? 'punta' : null,
+      });
+      invalidate();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      setSectionDraft(null);
+      setHint(null);
+      const done = section as Section | null;
+      if (!done) return;
+      commit((d) => {
+        const q = d.parts.find((x) => x.id === part.id);
+        if (q) q.sections.push({ ...done, id: nextSectionId(q as Part) });
+      });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   const click = (e: ThreeEvent<MouseEvent>, part: Part) => {
     if (e.delta > 6) return;
     e.stopPropagation();
@@ -738,6 +831,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         );
       })}
       <BevelDraft accent={colors.accent} />
+      <SectionDraft accent={colors.accent} />
       {drawFace &&
         (() => {
           const part = project.parts.find((p) => p.id === drawFace.partId);

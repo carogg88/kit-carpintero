@@ -2,6 +2,7 @@ import { boardFeet, LENGTHS_M, planedMm, stockFor, stockKind, type StockKind } f
 import { boxSize, partBox, type Box } from './geometry';
 import { isAngleCut } from './bevels';
 import { arcInfo } from './pockets';
+import { describeSection, sectionBox } from './sections';
 import { jointGeometry, solidBox } from './joints';
 import type { Joint, Part, Project } from './project';
 
@@ -49,6 +50,8 @@ const BY_END = new Set(['pines de cola de milano', 'colas de milano', 'dedos']);
 export function cutPiece(part: Part, project: Project): CutPiece {
   const box = partBox(part);
   let outer = box;
+  // Un tramo más grueso pide una tabla más gruesa: la pieza se corta del tamaño mayor y se rebaja el resto.
+  for (const sec of part.sections) outer = unionBox(outer, sectionBox(part, sec));
   let tongues = 0;
   const counts = new Map<string, number>();
   const add = (k: string, n = 1) => counts.set(k, (counts.get(k) ?? 0) + n);
@@ -148,6 +151,7 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     const count = rounded.filter((b) => Math.round(b.da) === r).length;
     work.push(`${plural(count, 'arista redondeada', 'aristas redondeadas')} R ${r} mm`);
   }
+  for (const sec of part.sections) work.push(describeSection(sec, (mm) => `${Math.round(mm)} mm`).replace(/ mm × /, ' × '));
   const op = part.ops[0];
   if (op) work.push(op.kind === 'round' ? `cantos redondeados ${op.radius} mm` : `cantos chaflanados ${op.size} mm`);
   const finished = [...boxSize(box)].sort((x, y) => y - x);
