@@ -40,6 +40,7 @@ import {
   type Units,
 } from '@kitc/core';
 import { IconLink, IconTrash, IconWarn } from './icons';
+import { TurningCard } from './TurningCard';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
 
@@ -556,6 +557,29 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
             onRemove={() => update((q) => void (q.sections = q.sections.filter((y) => y.id !== sec.id)))}
           />
         ))}
+      </div>
+      <div className={styles.stack}>
+        <span className={styles.legend}>{t('Torneado')}</span>
+        {part.turning ? (
+          <TurningCard
+            part={part}
+            units={units}
+            onChange={(turning) =>
+              update((q) => {
+                if (turning) q.turning = turning;
+                else delete q.turning;
+              })
+            }
+          />
+        ) : (
+          <p className={styles.muted}>
+            {t('Con')}{' '}
+            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('turn')}>
+              {t('Tornear')}
+            </button>{' '}
+            {t('tocás una pieza larga y pasa a ser su taco girado en el torno: una pata, una columna, un barrote.')}
+          </p>
+        )}
       </div>
       <div className={styles.stack}>
         <span className={styles.legend}>{t('Uniones de esta pieza ({n})', { n: joints.length })}</span>

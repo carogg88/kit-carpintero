@@ -3,6 +3,7 @@ import { boxSize, partBox, type Box } from './geometry';
 import { isAngleCut } from './bevels';
 import { arcInfo } from './pockets';
 import { describeSection, sectionBox } from './sections';
+import { describeTurning } from './turning';
 import { jointGeometry, solidBox } from './joints';
 import type { Joint, Part, Project } from './project';
 import { t, tk } from './i18n';
@@ -164,8 +165,9 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     const n = rounded.filter((b) => Math.round(b.da) === r).length;
     work.push(n === 1 ? t('{n} arista redondeada R {r} mm', { n, r }) : t('{n} aristas redondeadas R {r} mm', { n, r }));
   }
+  if (part.turning) work.push(describeTurning(part, part.turning, (mm) => `${Math.round(mm)} mm`));
   for (const sec of part.sections) work.push(describeSection(sec, (mm) => `${Math.round(mm)} mm`).replace(/ mm × /, ' × '));
-  const op = part.ops[0];
+  const op = part.turning ? undefined : part.ops[0];
   if (op) work.push(op.kind === 'round' ? t('cantos redondeados {r} mm', { r: op.radius }) : t('cantos chaflanados {s} mm', { s: op.size }));
   const finished = [...boxSize(box)].sort((x, y) => y - x);
   const cut = [...boxSize(outer)].sort((x, y) => y - x) as [number, number, number];

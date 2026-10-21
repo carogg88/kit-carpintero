@@ -150,4 +150,5 @@ export default {
   // Inicio y rutas
   'No encontramos ese proyecto en este dispositivo.': "We couldn't find that project on this device.",
   'Volver al inicio': 'Back to home',
+  'No se pudo tornear esta pieza': "Couldn't turn this part",
 } satisfies Record<string, string>;

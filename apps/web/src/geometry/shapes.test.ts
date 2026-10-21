@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import opencascade from 'replicad-opencascadejs';
 import { measureVolume, setOC } from 'replicad';
-import { buildTemplate, defaultJointParams, drawJointDetail, partBox, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type JointType, type Line2, type Part, type Project } from '@kitc/core';
+import { buildTemplate, presetTurning, TURN_PRESETS, type TurnPreset, defaultJointParams, drawJointDetail, partBox, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type JointType, type Line2, type Part, type Project } from '@kitc/core';
 import { partShape, projectShapes } from './shapes';
 
 beforeAll(async () => {
@@ -176,6 +176,47 @@ describe('vaciados en el motor', () => {
     expect((vol(board) - vol(corner)) / (quarter(50) * 20)).toBeCloseTo(1, 3);
     const edge: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 10, db: 10, round: true }] };
     expect((vol(board) - vol(edge)) / (quarter(10) * 400)).toBeCloseTo(1, 3);
+  });
+});
+
+describe('torneado en el motor', () => {
+  // Taco de 60 × 60 × 600, parado: el largo va en Y.
+  const blank: Part = { id: 'C', name: 'C', wood: 'cedro', base: { kind: 'box', size: [60, 600, 60] }, position: [0, 0, 0], rotation: [0, 0, 0], ops: [], pockets: [], bevels: [], sections: [] };
+  const only = (part: Part): Project => ({ ...table, parts: [part], joints: [] });
+  const vol = (part: Part) => {
+    const { shape, warning } = partShape(part, only(part));
+    expect(warning).toBeUndefined();
+    const v = measureVolume(shape);
+    shape.delete();
+    return v;
+  };
+  const st = (at: number, d: number, to: 'straight' | 'curve' | 'square' = 'straight', bulge = 0) => ({ at, d, to, bulge });
+
+  it('un cilindro saca lo de afuera del círculo, y un cono deja el tronco de cono', () => {
+    expect(vol({ ...blank, turning: { axis: 1, stations: [st(0, 60), st(600, 60)] } }) / (Math.PI * 30 * 30 * 600)).toBeCloseTo(1, 3);
+    expect(vol({ ...blank, turning: { axis: 1, stations: [st(0, 40), st(600, 60)] } }) / ((Math.PI * 600 * (20 * 20 + 20 * 30 + 30 * 30)) / 3)).toBeCloseTo(1, 3);
+  });
+
+  it('lo cuadrado queda con la sección del taco', () => {
+    const p: Part = { ...blank, turning: { axis: 1, stations: [st(0, 60), st(400, 60), st(600, 60, 'square')] } };
+    expect(vol(p) / (Math.PI * 30 * 30 * 400 + 60 * 60 * 200)).toBeCloseTo(1, 3);
+  });
+
+  it('una cuenta suma madera y una garganta saca', () => {
+    const straight = Math.PI * 20 * 20 * 600;
+    expect(vol({ ...blank, turning: { axis: 1, stations: [st(0, 40), st(600, 40, 'curve', 8)] } })).toBeGreaterThan(straight);
+    expect(vol({ ...blank, turning: { axis: 1, stations: [st(0, 40), st(600, 40, 'curve', -8)] } })).toBeLessThan(straight);
+  });
+
+  it('una pieza con cantos redondeados se tornea igual: los cantos no se aplican', () => {
+    const p: Part = { ...blank, ops: [{ kind: 'round', edges: 'all', radius: 3 }], turning: presetTurning(blank, 'pata') };
+    expect(vol(p)).toBeGreaterThan(0);
+  });
+
+  it.each(Object.keys(TURN_PRESETS) as TurnPreset[])('el modelo %s se tornea sin avisos', (preset) => {
+    const v = vol({ ...blank, turning: presetTurning(blank, preset) });
+    expect(v).toBeGreaterThan(0);
+    expect(v).toBeLessThanOrEqual(60 * 60 * 600 + 1);
   });
 });
 

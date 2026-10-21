@@ -10,7 +10,7 @@ import { t } from './i18n';
 
 const json = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const shape = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, bevels: p.bevels, sections: p.sections, wood: p.wood });
+const shape = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, bevels: p.bevels, sections: p.sections, turning: p.turning, wood: p.wood });
 
 /**
  * Después de un cambio, pasa la forma, las operaciones y la madera de la copia que cambió a las demás
@@ -42,6 +42,8 @@ export function syncComponents(prev: Project | null, next: Project): void {
       p.pockets = json(s.pockets);
       p.bevels = json(s.bevels);
       p.sections = json(s.sections);
+      if (s.turning) p.turning = json(s.turning);
+      else delete p.turning;
       p.wood = s.wood;
       for (const k of [0, 1, 2]) p.position[k] = p.position[k]! + shift[k]!;
     }

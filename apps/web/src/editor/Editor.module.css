@@ -59,7 +59,13 @@
 .toolbar button:hover { background: var(--surface-2); }
 .toolbar button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
 .toolSep { width: 1px; background: var(--line); margin: 6px 2px; }
+/* En un celular angosto entran las siete herramientas y los rayos X: botones un poco más finos (siguen de 44 de alto). */
+@media (max-width: 430px) {
+  .toolbar { gap: 2px; max-width: calc(100% - 2 * var(--space-2)); overflow-x: auto; scrollbar-width: none; }
+  .toolbar button { width: 40px; flex: none; }
+}
 .stage[data-tool='draw'] canvas, .stage[data-tool='bevel'] canvas, .stage[data-tool='section'] canvas { cursor: crosshair; }
+.stage[data-tool='turn'] canvas { cursor: pointer; }
 
 /* Dibujar: figura, cara elegida y salida. */
 .drawBar {
@@ -258,3 +264,30 @@
   .shell { display: block; height: auto; overflow: visible; background: #fff; }
   .header, .bottomNav, .footer { display: none; }
 }
+
+/* Torneado: modelos para arrancar, silueta y estaciones. */
+.presets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.presets > span { flex-basis: 100%; }
+.presetBtn {
+  min-height: 36px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--ink); font: 500 13px var(--font-ui); cursor: pointer; transition: background 150ms ease, border-color 150ms ease;
+}
+.presetBtn:hover { background: var(--accent-soft); border-color: var(--accent); }
+.presetBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.turnProfile { width: 100%; height: auto; display: block; background: var(--surface-2); border-radius: 10px; }
+.turnBlank { fill: none; stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.turnShape { fill: var(--piece); stroke: var(--piece-line); stroke-width: 1.2; fill-rule: nonzero; }
+.turnAxis { stroke: var(--muted); stroke-width: 0.6; stroke-dasharray: 6 2 1 2; }
+.turnTick { stroke: var(--accent); stroke-width: 0.8; }
+.turnNum { fill: var(--muted); font: 600 9px var(--font-num); }
+.stations { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.station { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.stationNum {
+  flex: none; width: 24px; height: 24px; margin-top: 9px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); font: 600 12px var(--font-num);
+}
+.stationFields { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.stationFields select { height: 42px; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--ink); font: 500 14px var(--font-ui); }
+.stationEnd { font-size: 13px; color: var(--muted); min-height: 42px; display: flex; align-items: center; }
+.addStation { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-4); }
+@media (prefers-reduced-motion: reduce) { .presetBtn { transition: none; } }

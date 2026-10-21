@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
 import { syncComponents, syncJoints, type Bevel, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
-export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section';
+export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn';
 export type View = 'iso' | 'front' | 'side' | 'top';
 
 /** Última cara empujada: la medida que se escribe abajo se aplica a ella. */

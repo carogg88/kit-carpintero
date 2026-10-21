@@ -106,3 +106,4 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
   .page:last-child { break-after: auto; }
   .sheet { width: 297mm; height: 210mm; min-width: 0; max-width: none; box-shadow: none; }
 }
+.dimDot { fill: var(--paper-accent); stroke: none; }
