@@ -65,9 +65,9 @@ export function ToolGuide() {
           ),
         },
         { text: arcChord ? t('Tocá hasta dónde se curva') : t(STEP2_DRAW[drawShape]) },
-        { text: t('Tocá Listo para terminar') },
+        { text: t('Elegí vaciado o calado y qué tan hondo') },
       ];
-      active = drawFace ? 1 : 0;
+      active = bubble?.target.kind === 'pocket' ? 2 : drawFace ? 1 : 0;
       controls = (
         <div className={styles.shapes} role="group" aria-label={t('Figura')}>
           <button type="button" aria-pressed={drawShape === 'rect'} aria-label={t('Rectángulo')} title={t('Rectángulo')} onClick={() => setDrawShape('rect')}>
@@ -163,9 +163,11 @@ export function ChangeNotice() {
   return (
     <div className={styles.notice} role="status" key={notice.key}>
       <span>{notice.text}</span>
-      <button type="button" onClick={undo}>
-        {t('Deshacer')}
-      </button>
+      {notice.undo !== false && (
+        <button type="button" onClick={undo}>
+          {t('Deshacer')}
+        </button>
+      )}
     </div>
   );
 }

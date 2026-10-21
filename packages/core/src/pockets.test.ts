@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
 import { drawPart } from './drawing';
-import { arcInfo, arcTemplate, describePocket, newPocket, pocketSolid, snapOnFace } from './pockets';
+import { arcInfo, arcTemplate, arcTouchesEdge, describePocket, newPocket, pocketRegion, pocketSolid, snapOnFace } from './pockets';
 import { loadProject, SCHEMA_VERSION, type Part } from './project';
 import { createTable } from './templates/table';
 
@@ -64,9 +64,33 @@ describe('arcos', () => {
     expect(arcInfo(corner).radius).toBeCloseTo(100);
   });
 
+  const area = (pts: [number, number][]) => Math.abs(pts.reduce((s, p, i) => s + p[0] * pts[(i + 1) % pts.length]![1] - pts[(i + 1) % pts.length]![0] * p[1], 0)) / 2;
+
+  it('muestra antes de soltar lo que se va a sacar', () => {
+    // Faldón: el segmento circular de R 125 y cuerda 200.
+    const th = 2 * Math.asin(100 / 125);
+    expect(area(pocketRegion(board, 1, arch))).toBeCloseTo(((125 * 125) / 2) * (th - Math.sin(th)), -1);
+    // Esquina redondeada R 100: el cuadrado de 100 menos el cuarto de círculo.
+    expect(area(pocketRegion(board, 1, corner))).toBeCloseTo(100 * 100 - (Math.PI * 100 * 100) / 4, -1);
+    // Un rectángulo que se sale de la cara se ve recortado.
+    expect(area(pocketRegion(board, 1, { kind: 'rect', u: 350, v: 250, w: 100, h: 100 }))).toBeCloseTo(50 * 50);
+  });
+
+  it('un arco en el medio de la cara, que no toca ningún borde, no vale', () => {
+    expect(arcTouchesEdge(board, 1, arch)).toBe(true);
+    expect(arcTouchesEdge(board, 1, corner)).toBe(true);
+    expect(arcTouchesEdge(board, 1, { ...arch, v: 150, v2: 150 })).toBe(false);
+  });
+
   it('un faldón arqueado saca el segmento; una esquina, lo de afuera', () => {
     expect(newPocket(board, 1, 1, arch)).toMatchObject({ through: true, shape: { outside: false } });
     expect(newPocket(board, 1, 1, corner).shape).toMatchObject({ outside: true });
+    // Curvado hacia adentro, más de medio círculo: se come la esquina, no media tabla.
+    expect(newPocket(board, 1, 1, { ...corner, bulge: -100 - 100 * Math.SQRT1_2 }).shape).toMatchObject({ outside: false });
+    // Menos de medio círculo hacia adentro, con el centro todavía en la cara: también se come solo la esquina.
+    const bite = { kind: 'arc', u: 400, v: 240, u2: 340, v2: 300, bulge: 50 - Math.sqrt(50 * 50 - 1800), outside: false } as const;
+    expect(arcInfo(bite).radius).toBeCloseTo(50);
+    expect(newPocket(board, 1, 1, bite).shape).toMatchObject({ outside: false });
   });
 
   it('el sólido sigue el arco y, si es esquina, se cierra lejos del lado de la flecha', () => {

@@ -6,6 +6,9 @@ import {
   acrossFace,
   arcInfo,
   arcPoints,
+  arcTouchesEdge,
+  nextPocketId,
+  pocketRegion,
   bevelSolid,
   boxSize,
   copyPart,
@@ -392,10 +395,35 @@ function SectionDraft({ accent }: { accent: string }) {
   return lines ? <primitive object={lines} renderOrder={2} /> : null;
 }
 
-function Draft({ part, accent }: { part: Part; accent: string }) {
+/**
+ * Figura que se está dibujando: su borde y, sombreado, lo que se va a sacar de la pieza. Un arco que no toca
+ * ningún borde de la cara se ve en rojo: así no vale.
+ */
+function Draft({ part, accent, danger }: { part: Part; accent: string; danger: string }) {
   const draft = useEditor((s) => s.draft);
   const points = useMemo(() => (draft ? outline(partBox(part), draft, draft.shape) : null), [draft, part]);
-  return points ? <Loop points={points} color={accent} /> : null;
+  const invalid = draft?.shape.kind === 'arc' && !arcTouchesEdge(part, draft.axis, draft.shape, 1);
+  const fill = useMemo(() => {
+    if (!draft) return null;
+    const region = pocketRegion(part, draft.axis, draft.shape);
+    if (region.length < 3) return null;
+    const box = partBox(part);
+    const tris = THREE.ShapeUtils.triangulateShape(region.map(([u, v]) => new THREE.Vector2(u, v)), []);
+    const geo = new THREE.BufferGeometry().setFromPoints(region.map(([u, v]) => facePoint(box, draft, u, v, 0.5)));
+    geo.setIndex(tris.flat());
+    return geo;
+  }, [draft, part]);
+  useEffect(() => () => fill?.dispose(), [fill]);
+  return (
+    <>
+      {fill && !invalid && (
+        <mesh geometry={fill} renderOrder={2}>
+          <meshBasicMaterial color={accent} transparent opacity={0.38} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+        </mesh>
+      )}
+      {points && <Loop points={points} color={invalid ? danger : accent} />}
+    </>
+  );
 }
 
 interface Drag {
@@ -429,7 +457,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const { camera, gl, invalidate } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
   const colors = useMemo(
-    () => ({ edge: cssColor('--ink', '#2B3628'), accent: cssColor('--accent', '#9E6027'), line: cssColor('--line-strong', '#C9C6BB') }),
+    () => ({ edge: cssColor('--ink', '#2B3628'), accent: cssColor('--accent', '#9E6027'), line: cssColor('--line-strong', '#C9C6BB'), danger: cssColor('--danger', '#B3261E') }),
     [],
   );
 
@@ -620,6 +648,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const part = current?.parts.find((q) => q.id === face?.partId);
     if (!face || !part) return;
     if (controlsRef.current) controlsRef.current.enabled = false;
+    // Una figura nueva: la burbuja de la anterior ya quedó.
+    useEditor.getState().setBubble(null);
     const box = partBox(part);
     const [ua, va] = otherAxes(face.axis);
     const size = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]] as const;
@@ -650,6 +680,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       const units = useEditor.getState().project?.units ?? 'cm';
       let text: string;
       let snaps: (string | null)[];
+      let warning: string | undefined;
       if (bending) {
         const len = Math.hypot(bending.u2 - bending.u, bending.v2 - bending.v);
         const nu = -(bending.v2 - bending.v) / len;
@@ -668,6 +699,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         shape = { kind: 'arc', u: start.u, v: start.v, u2: end.u, v2: end.v, bulge: 0, outside: false };
         text = t('Cuerda {len}', { len: formatLength(len, units) });
         snaps = end.snaps;
+        if (!arcTouchesEdge(part, face.axis, shape, 1)) warning = t('Empezá o terminá en un borde');
       } else if (drawShape === 'circle') {
         const d = Math.max(1, Math.round(Math.hypot(pt.getComponent(ua) - box.min[ua] - start.u, pt.getComponent(va) - box.min[va] - start.v) * 2));
         shape = { kind: 'circle', u: start.u, v: start.v, d };
@@ -682,31 +714,40 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       }
       const named = [...new Set(snaps.filter(Boolean))];
       if (shape || !bending) useEditor.getState().setDraft(shape ? { ...face, shape } : null);
-      useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: named.length === 2 ? t('{a} y {b}', { a: named[0]!, b: named[1]! }) : (named[0] ?? null) });
+      useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: named.length === 2 ? t('{a} y {b}', { a: named[0]!, b: named[1]! }) : (named[0] ?? null), warn: warning });
       invalidate();
     };
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       if (controlsRef.current) controlsRef.current.enabled = true;
-      const { setDraft, setHint, commit, setArcChord } = useEditor.getState();
+      const { setDraft, setHint, commit, setArcChord, warn, setBubble } = useEditor.getState();
       setHint(null);
       const s = shape as PocketShape | null;
       if (s?.kind === 'arc' && !bending) {
+        if (Math.hypot(s.u2 - s.u, s.v2 - s.v) < 3) return setDraft(null);
+        // El arco le da forma a un borde o redondea una esquina: en el medio de la cara se llevaría un pedazo enorme.
+        if (!arcTouchesEdge(part, face.axis, s, 1)) {
+          setDraft(null);
+          return warn(t('El arco tiene que empezar o terminar en un borde de la cara'));
+        }
         // Cuerda marcada: queda a la vista hasta que se elija la flecha.
-        if (Math.hypot(s.u2 - s.u, s.v2 - s.v) >= 3) return setArcChord({ ...face, u: s.u, v: s.v, u2: s.u2, v2: s.v2 });
-        return setDraft(null);
+        return setArcChord({ ...face, u: s.u, v: s.v, u2: s.u2, v2: s.v2 });
       }
       if (bending && !s) return;
       setDraft(null);
       setArcChord(null);
       // Un toque sin arrastrar, o una figura de menos de 3 mm, no deja nada.
       if (!s || (s.kind === 'circle' ? s.d < 3 : s.kind === 'rect' ? s.w < 3 || s.h < 3 : false)) return;
+      const pocketId = nextPocketId(part);
       commit((d) => {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
       }, s.kind === 'arc' ? t('Hiciste un corte en arco en {id}', { id: part.id }) : t('Hiciste un vaciado en {id}', { id: part.id }));
+      // Al soltar: vaciado o calado, y cuánto de hondo, ahí mismo.
+      const rect = gl.domElement.getBoundingClientRect();
+      setBubble({ target: { kind: 'pocket', id: part.id, pocketId }, x: ev.clientX - rect.left, y: ev.clientY - rect.top });
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -922,7 +963,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           return part ? (
             <>
               <FaceOverlay part={part} face={drawFace} accent={colors.accent} onPointerDown={startSketch} />
-              <Draft part={part} accent={colors.accent} />
+              <Draft part={part} accent={colors.accent} danger={colors.danger} />
             </>
           ) : null;
         })()}

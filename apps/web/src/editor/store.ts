@@ -20,7 +20,7 @@ export interface DrawFace {
 }
 
 /** Lo que se acaba de estirar o biselar: la burbuja de medida junto a la pieza lo cambia. */
-export type MeasureTarget = ({ kind: 'push' } & LastPush) | { kind: 'bevel'; id: string; bevelId: string };
+export type MeasureTarget = ({ kind: 'push' } & LastPush) | { kind: 'bevel'; id: string; bevelId: string } | { kind: 'pocket'; id: string; pocketId: string };
 
 /** Burbuja para escribir la medida exacta, donde se soltó el arrastre (en píxeles de la vista 3D). */
 export interface Bubble {
@@ -97,12 +97,16 @@ interface EditorState {
   setSectionDraft: (d: EditorState['sectionDraft']) => void;
   setArcChord: (c: ArcChord | null) => void;
   dismissNotice: () => void;
+  /** Aviso sin cambio que deshacer: algo no se pudo hacer y por qué. */
+  warn: (text: string) => void;
   setBubble: (b: Bubble | null) => void;
 }
 
 export interface Notice {
   text: string;
   key: number;
+  /** false: no hubo cambio, el aviso no lleva Deshacer. */
+  undo?: boolean;
 }
 
 export interface DragHint {
@@ -110,6 +114,8 @@ export interface DragHint {
   y: number;
   text: string;
   snap: string | null;
+  /** Así no vale: se dice en lugar del imán. */
+  warn?: string;
 }
 
 const touch = (p: Draft<Project>) => {
@@ -249,6 +255,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setSectionDraft: (sectionDraft) => set({ sectionDraft }),
   setArcChord: (arcChord) => set({ arcChord }),
   dismissNotice: () => set({ notice: null }),
+  warn: (text) => set({ notice: { text, key: ++noticeKey, undo: false } }),
   setBubble: (bubble) => set({ bubble }),
   setUnits: (units) => {
     const { project } = get();
