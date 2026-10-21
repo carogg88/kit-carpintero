@@ -7,6 +7,8 @@ import {
   IconArc,
   IconBack,
   IconBevel,
+  IconChamfer,
+  IconRound,
   IconCircle,
   IconDraw,
   IconRect,
@@ -37,7 +39,7 @@ const TOOLS: [Tool, string, string, () => React.JSX.Element][] = [
   ['push', 'Empujar o tirar una cara', 'P', IconPush],
   ['move', 'Mover pieza', 'M', IconMove],
   ['draw', 'Dibujar en una cara', 'D', IconDraw],
-  ['bevel', 'Biselar o cortar en ángulo', 'B', IconBevel],
+  ['bevel', 'Biselar o redondear', 'B', IconBevel],
 ];
 const VIEWS: [View, string, string][] = [
   ['iso', 'Iso', 'Iso'],
@@ -49,7 +51,7 @@ const TIPS: Record<Tool, string> = {
   select: 'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.',
   push: 'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.',
   move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.',
-  bevel: 'Tocá una cara cerca de la arista que querés biselar y arrastrá hacia adentro. Se pega al centro y a todo el ancho (corte en ángulo). El ángulo exacto se escribe en el panel.',
+  bevel: 'Tocá una cara cerca de una arista y arrastrá hacia adentro. Cerca de una esquina (por ejemplo, la punta de una tapa vista en planta) toma la arista que baja por la esquina. Elegí bisel o redondeo en la barra; la medida exacta se escribe en el panel.',
   draw: 'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina, un círculo desde su centro o la cuerda de un arco (y tocá cuánto se curva). Se pega a los bordes, al centro y cada 5 mm.',
 };
 
@@ -238,7 +240,8 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const drawFace = useEditor((s) => s.drawFace);
   const drawShape = useEditor((s) => s.drawShape);
   const arcChord = useEditor((s) => s.arcChord);
-  const { undo, redo, setTool, setXray, setView, setCopyMove, setDrawFace, setDrawShape } = useEditor.getState();
+  const bevelRound = useEditor((s) => s.bevelRound);
+  const { undo, redo, setTool, setXray, setView, setCopyMove, setDrawFace, setDrawShape, setBevelRound } = useEditor.getState();
   const selected = useSelectedPart();
   const saveState = useAutosave();
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
@@ -385,7 +388,20 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 )}
               </div>
             )}
-            {selected && selDims && tool !== 'draw' && (
+            {tool === 'bevel' && (
+              <div className={styles.drawBar}>
+                <div className={styles.shapes} role="group" aria-label="Forma del canto">
+                  <button type="button" aria-pressed={!bevelRound} aria-label="Bisel recto" title="Bisel recto" onClick={() => setBevelRound(false)}>
+                    <IconChamfer />
+                  </button>
+                  <button type="button" aria-pressed={bevelRound} aria-label="Redondeo" title="Redondeo" onClick={() => setBevelRound(true)}>
+                    <IconRound />
+                  </button>
+                </div>
+                <span role="status">{bevelRound ? 'Redondeo: tocá una arista o esquina' : 'Bisel: tocá una arista o esquina'}</span>
+              </div>
+            )}
+            {selected && selDims && tool !== 'draw' && tool !== 'bevel' && (
               <span className={`${styles.chip} ${styles.desktopOnly}`}>
                 <strong>{selected.id}</strong> {selected.name}
                 <span className={styles.chipNum}>{selDims.map((mm) => formatLength(mm, project.units).replace(/ cm|″/, '')).join(' × ')}{project.units === 'cm' ? ' cm' : '″'}</span>

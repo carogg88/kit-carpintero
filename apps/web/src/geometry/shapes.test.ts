@@ -153,10 +153,21 @@ describe('vaciados en el motor', () => {
   it('un bisel saca la cuña de la arista, y un corte en ángulo la de toda la cara', () => {
     const up = { axis: 1, side: 1 } as const;
     const front = { axis: 2, side: 1 } as const;
-    const bevel: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 12, db: 6 }] };
+    const bevel: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 12, db: 6, round: false }] };
     expect(vol(board) - vol(bevel)).toBeCloseTo((12 * 6) / 2 * 400, 0);
-    const slant: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 300, db: 10 }] };
+    const slant: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 300, db: 10, round: false }] };
     expect(vol(board) - vol(slant)).toBeCloseTo((300 * 10) / 2 * 400, 0);
+  });
+
+  it('un redondeo saca lo de afuera del cuarto de círculo: en una esquina y a lo largo de un canto', () => {
+    const up = { axis: 1, side: 1 } as const;
+    const front = { axis: 2, side: 1 } as const;
+    const right = { axis: 0, side: 1 } as const;
+    const quarter = (r: number) => r * r - (Math.PI * r * r) / 4;
+    const corner: Part = { ...board, bevels: [{ id: 'B1', a: front, b: right, da: 50, db: 50, round: true }] };
+    expect((vol(board) - vol(corner)) / (quarter(50) * 20)).toBeCloseTo(1, 3);
+    const edge: Part = { ...board, bevels: [{ id: 'B1', a: up, b: front, da: 10, db: 10, round: true }] };
+    expect((vol(board) - vol(edge)) / (quarter(10) * 400)).toBeCloseTo(1, 3);
   });
 });
 

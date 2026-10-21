@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -63,6 +63,7 @@ const Face = z.object({ axis: z.union([z.literal(0), z.literal(1), z.literal(2)]
  * Bisel o corte en ángulo sobre una arista: la que forman la cara `a` (donde se marcó) y la cara vecina `b`.
  * Saca la cuña que va de `da` mm adentro de la cara a hasta `db` mm adentro de la cara b, a todo lo largo.
  * Si `da` cruza toda la cara, es un corte en ángulo de la punta o del canto.
+ * Con `round` la arista se redondea con radio `da` (y `db` vale lo mismo): esquinas de una tapa, cantos de una pata.
  */
 export const Bevel = z.object({
   id: z.string(),
@@ -70,6 +71,7 @@ export const Bevel = z.object({
   b: Face,
   da: z.number().positive(),
   db: z.number().positive(),
+  round: z.boolean().default(false),
 });
 export type Bevel = z.infer<typeof Bevel>;
 
@@ -139,6 +141,8 @@ const migrations: Record<number, Migration> = {
   2: (d) => d,
   3: (d) => d,
   4: (d) => d,
+  // v6 suma los redondeos de arista: los biseles viejos quedan rectos.
+  5: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

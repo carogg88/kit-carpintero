@@ -300,7 +300,7 @@ function AngleField({ label, deg, max, onCommit }: { label: string; deg: number;
   );
 }
 
-/** Un bisel o corte en ángulo: cuánto entra en cada cara y el ángulo que forma con la cara marcada. */
+/** Un bisel o corte en ángulo (cuánto entra en cada cara y el ángulo que forma con la cara marcada) o un redondeo (su radio). */
 function BevelCard({ bevel, part, units, onChange, onRemove }: { bevel: Bevel; part: Part; units: Units; onChange: (recipe: (b: Bevel) => void) => void; onRemove: () => void }) {
   const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
   const maxA = acrossFace(part, bevel.b);
@@ -316,16 +316,22 @@ function BevelCard({ bevel, part, units, onChange, onRemove }: { bevel: Bevel; p
           <IconTrash />
         </button>
       </div>
-      <div className={styles.pocketFields}>
-        <LengthField label={cap(`en ${faceLabel(bevel.a)}`)} mm={bevel.da} units={units} min={0.5} max={maxA} onCommit={(v) => onChange((b) => void (b.da = v))} />
-        <LengthField label={cap(`en ${faceLabel(bevel.b)}`)} mm={bevel.db} units={units} min={0.5} max={maxB} onCommit={(v) => onChange((b) => void (b.db = v))} />
-        <AngleField
-          label={`Ángulo con ${faceLabel(bevel.a)}`}
-          deg={bevelAngle(bevel)}
-          max={bevelAngle({ da: bevel.da, db: maxB })}
-          onCommit={(deg) => onChange((b) => void (b.db = Math.round(b.da * Math.tan((deg * Math.PI) / 180) * 100) / 100))}
-        />
-      </div>
+      {bevel.round ? (
+        <div className={styles.pocketFields}>
+          <LengthField label="Radio" mm={bevel.da} units={units} min={0.5} max={Math.min(maxA, maxB)} onCommit={(v) => onChange((b) => void (b.da = b.db = v))} />
+        </div>
+      ) : (
+        <div className={styles.pocketFields}>
+          <LengthField label={cap(`en ${faceLabel(bevel.a)}`)} mm={bevel.da} units={units} min={0.5} max={maxA} onCommit={(v) => onChange((b) => void (b.da = v))} />
+          <LengthField label={cap(`en ${faceLabel(bevel.b)}`)} mm={bevel.db} units={units} min={0.5} max={maxB} onCommit={(v) => onChange((b) => void (b.db = v))} />
+          <AngleField
+            label={`Ángulo con ${faceLabel(bevel.a)}`}
+            deg={bevelAngle(bevel)}
+            max={bevelAngle({ da: bevel.da, db: maxB })}
+            onCommit={(deg) => onChange((b) => void (b.db = Math.round(b.da * Math.tan((deg * Math.PI) / 180) * 100) / 100))}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -455,14 +461,14 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>Biseles y cortes en ángulo ({part.bevels.length})</span>
+        <span className={styles.legend}>Biseles, redondeos y cortes en ángulo ({part.bevels.length})</span>
         {part.bevels.length === 0 && (
           <p className={styles.muted}>
             Con{' '}
             <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('bevel')}>
               Biselar
             </button>{' '}
-            tocás una cara cerca de una arista y arrastrás hacia adentro. Si cruzás toda la cara, es un corte en ángulo.
+            tocás una cara cerca de una arista o una esquina y arrastrás hacia adentro. En la barra elegís bisel o redondeo; si un bisel cruza toda la cara, es un corte en ángulo.
           </p>
         )}
         {part.bevels.map((bv) => (

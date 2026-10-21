@@ -45,6 +45,8 @@ interface EditorState {
   hint: DragHint | null;
   drawFace: DrawFace | null;
   drawShape: DrawShape;
+  /** La herramienta de biselar redondea en vez de cortar recto. */
+  bevelRound: boolean;
   /** Figura que se está dibujando, para verla antes de soltar. */
   draft: (DrawFace & { shape: PocketShape }) | null;
   /** Bisel que se está marcando, para verlo antes de soltar. */
@@ -72,6 +74,7 @@ interface EditorState {
   setHint: (h: DragHint | null) => void;
   setDrawFace: (f: DrawFace | null) => void;
   setDrawShape: (s: DrawShape) => void;
+  setBevelRound: (round: boolean) => void;
   setDraft: (d: EditorState['draft']) => void;
   setBevelDraft: (d: EditorState['bevelDraft']) => void;
   setArcChord: (c: ArcChord | null) => void;
@@ -112,6 +115,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   hint: null,
   drawFace: null,
   drawShape: 'rect',
+  bevelRound: false,
   draft: null,
   bevelDraft: null,
   arcChord: null,
@@ -173,6 +177,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setHint: (hint) => set({ hint }),
   setDrawFace: (drawFace) => set((s) => ({ drawFace, arcChord: null, draft: null, ...(drawFace ? {} : { viewNonce: s.viewNonce + 1 }) })),
   setDrawShape: (drawShape) => set({ drawShape, arcChord: null, draft: null }),
+  setBevelRound: (bevelRound) => set({ bevelRound }),
   setDraft: (draft) => set({ draft }),
   setBevelDraft: (bevelDraft) => set({ bevelDraft }),
   setArcChord: (arcChord) => set({ arcChord }),

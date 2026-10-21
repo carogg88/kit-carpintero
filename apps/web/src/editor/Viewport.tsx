@@ -7,7 +7,9 @@ import {
   arcInfo,
   arcPoints,
   bevelSolid,
+  boxSize,
   copyPart,
+  cornerNear,
   formatLength,
   edgeNear,
   isAngleCut,
@@ -320,8 +322,20 @@ function BevelDraft({ accent }: { accent: string }) {
   const points = useMemo(() => {
     if (!draft || !part) return null;
     const s = bevelSolid(part, draft.bevel);
-    if (s.kind !== 'prism') return null;
     const box = partBox(part);
+    if (s.kind === 'arc') {
+      // Redondeo: el cuarto de círculo en las dos puntas de la arista.
+      const arc = arcPoints(s.a, s.mid, s.b, 24);
+      const at3 = (p: [number, number], t: number) => {
+        const v = new THREE.Vector3();
+        v.setComponent(s.u, p[0]);
+        v.setComponent(s.v, p[1]);
+        v.setComponent(s.axis, t);
+        return v;
+      };
+      return [...arc.map((p) => at3(p, box.min[s.axis])), ...arc.reverse().map((p) => at3(p, box.max[s.axis]))];
+    }
+    if (s.kind !== 'prism') return null;
     const { a, b, da, db } = draft.bevel;
     const eu = (a.side > 0 ? box.max[a.axis] : box.min[a.axis])!;
     const ev = (b.side > 0 ? box.max[b.axis] : box.min[b.axis])!;
@@ -615,7 +629,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const box = partBox(part);
     if (Math.abs(e.point.getComponent(axis) - (side > 0 ? box.max[axis] : box.min[axis])) > 0.6) return;
     const a = { axis, side } as const;
-    const { b } = edgeNear(part, a, [e.point.x, e.point.y, e.point.z]);
+    const touched = [e.point.x, e.point.y, e.point.z] as const;
+    const size = boxSize(box);
+    const round = useEditor.getState().bevelRound;
+    // Cerca de dos aristas a la vez se toma la esquina: la arista que corre perpendicular a la cara tocada.
+    const others = otherAxes(axis);
+    const corner = cornerNear(part, a, touched, Math.max(12, 0.06 * Math.min(size[others[0]], size[others[1]])));
+    const { b } = edgeNear(part, a, touched);
     const { select, setBevelDraft, setHint, commit } = useEditor.getState();
     select(part.id);
     if (controlsRef.current) controlsRef.current.enabled = false;
@@ -628,6 +648,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let bevel: Bevel | null = null;
+    const faceAt = (f: { axis: Axis; side: 1 | -1 }) => (f.side > 0 ? box.max[f.axis] : box.min[f.axis])!;
 
     const onMove = (ev: PointerEvent) => {
       const rect = gl.domElement.getBoundingClientRect();
@@ -635,18 +656,32 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       raycaster.setFromCamera(ndc, camera);
       const pt = new THREE.Vector3();
       if (!raycaster.ray.intersectPlane(plane, pt)) return;
-      const raw = Math.min(across, Math.abs(edgeAt - pt.getComponent(b.axis)));
-      let da = Math.round(raw);
       let snap: string | null = null;
-      if (across - raw <= tol) [da, snap] = [across, 'todo el ancho'];
-      else if (Math.abs(raw - across / 2) <= tol) [da, snap] = [across / 2, 'centro'];
-      bevel = da >= 1 ? newBevel(part, a, b, da) : null;
+      if (corner) {
+        // En la esquina manda lo que más se alejó de cualquiera de las dos caras.
+        const raw = Math.max(Math.abs(faceAt(corner.b) - pt.getComponent(corner.b.axis)), Math.abs(faceAt(corner.a) - pt.getComponent(corner.a.axis)));
+        // Cada 5 mm, o igual que otra esquina de la pieza: así las cuatro puntas de una tapa salen iguales.
+        let r = raw < 5 ? Math.round(raw) : Math.round(raw / 5) * 5;
+        const twin = part.bevels.find((x) => x.round === round && Math.abs(x.da - raw) <= Math.max(3, raw * 0.08));
+        if (twin) [r, snap] = [twin.da, `igual que ${twin.id}`];
+        bevel = r >= 1 ? newBevel(part, corner.a, corner.b, r, round) : null;
+      } else {
+        const raw = Math.min(across, Math.abs(edgeAt - pt.getComponent(b.axis)));
+        let da = Math.round(raw);
+        if (!round && across - raw <= tol) [da, snap] = [across, 'todo el ancho'];
+        else if (Math.abs(raw - across / 2) <= tol) [da, snap] = [across / 2, 'centro'];
+        bevel = da >= 1 ? newBevel(part, a, b, da, round) : null;
+      }
       setBevelDraft(bevel ? { partId: part.id, bevel } : null);
       const units = useEditor.getState().project?.units ?? 'cm';
+      const what = (bv: Bevel) =>
+        bv.round
+          ? `Redondeo R ${formatLength(bv.da, units)}`
+          : `${isAngleCut(part, bv) ? 'Corte en ángulo' : 'Bisel'} ${formatLength(bv.da, units)} × ${formatLength(bv.db, units)}`;
       setHint({
         x: ev.clientX - rect.left,
         y: ev.clientY - rect.top,
-        text: bevel ? `${isAngleCut(part, bevel) ? 'Corte en ángulo' : 'Bisel'} ${formatLength(bevel.da, units)} × ${formatLength(bevel.db, units)}` : 'Arrastrá hacia adentro',
+        text: bevel ? `${corner ? 'Esquina · ' : ''}${what(bevel)}` : 'Arrastrá hacia adentro',
         snap,
       });
       invalidate();
@@ -662,7 +697,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       if (!done) return;
       commit((d) => {
         const q = d.parts.find((x) => x.id === part.id);
-        if (q) q.bevels.push({ ...done, id: newBevel(q as Part, a, b, 1).id });
+        if (q) q.bevels.push({ ...done, id: newBevel(q as Part, done.a, done.b, 1).id });
       });
     };
     window.addEventListener('pointermove', onMove);
