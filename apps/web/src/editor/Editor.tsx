@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatLength, t, tk } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
@@ -25,7 +25,7 @@ import {
 import { JointsView } from './JointsView';
 import { PlanView } from './PlanView';
 import { ADD_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
-import { useEditor, useSelectedPart, type Tool, type View } from './store';
+import { useEditor, useSelectedPart, type DragHint, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
 import { MeasureBubble } from './MeasureBubble';
@@ -52,6 +52,23 @@ const VIEWS: [View, string, string][] = [
 type SaveState = 'saved' | 'saving' | 'error';
 
 /** Guarda el proyecto en el dispositivo medio segundo después del último cambio. */
+/** Cartel junto al dedo mientras se arrastra. Si no entra a la derecha, va a la izquierda. */
+function HintLabel({ hint }: { hint: DragHint }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const width = el?.parentElement?.clientWidth;
+    if (el && width) el.toggleAttribute('data-flip', hint.x + 14 + el.offsetWidth > width - 8);
+  }, [hint]);
+  return (
+    <span ref={ref} className={styles.hint} style={{ left: hint.x, top: hint.y }}>
+      {hint.text}
+      {hint.warn && <span className={styles.hintWarn}>{hint.warn}</span>}
+      {!hint.warn && hint.snap && <span className={styles.snap}>{t('Imán: {snap}', { snap: hint.snap })}</span>}
+    </span>
+  );
+}
+
 function useAutosave(): SaveState {
   const project = useEditor((s) => s.project);
   const dragging = useEditor((s) => s.dragging);
@@ -174,6 +191,8 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const project = useEditor((s) => s.project);
   const tool = useEditor((s) => s.tool);
   const xray = useEditor((s) => s.xray);
+  // Dibujando de frente a la cara: la vista no se cambia, así que en el celular la barra de vistas sobra.
+  const framed = useEditor((s) => !!s.drawFace && s.drawFramed);
   const view = useEditor((s) => s.view);
   const hint = useEditor((s) => s.hint);
   const dragging = useEditor((s) => s.dragging);
@@ -263,7 +282,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
       {modelo && (
         <>
         <main className={styles.main}>
-          <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool}>
+          <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool} data-framed={framed || undefined}>
             <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: project.name, part: selected.name }) : t('Modelo 3D de {name}', { name: project.name })} />
             <div className={styles.toolbar} role="toolbar" aria-label={t('Herramientas')}>
               {TOOLS.map(([id, label, short, key, Icon]) => (
@@ -302,12 +321,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 {engineText ?? (warnings === 1 ? t('1 pieza no se pudo cortar del todo') : t('{n} piezas no se pudieron cortar del todo', { n: warnings }))}
               </span>
             )}
-            {hint && (
-              <span className={styles.hint} style={{ left: hint.x, top: hint.y }}>
-                {hint.text}
-                {hint.snap && <span className={styles.snap}>{t('Imán: {snap}', { snap: hint.snap })}</span>}
-              </span>
-            )}
+            {hint && <HintLabel hint={hint} />}
             {tool === 'select' && (
               <span className={styles.mobileOnly}>
                 <AddPartButton />

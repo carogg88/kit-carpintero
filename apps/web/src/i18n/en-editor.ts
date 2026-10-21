@@ -196,4 +196,12 @@ export default {
   Bisel: 'Bevel',
   Aplicar: 'Apply',
   Cerrar: 'Close',
+  'Tiene que ser menos que el espesor ({size})': 'It has to be less than the thickness ({size})',
+  'Qué se saca': 'What gets removed',
+  Vaciado: 'Pocket',
+  Calado: 'Through cut',
+  'Atraviesa los {size} de la pieza': 'Goes through the full {size} of the part',
+  'Elegí vaciado o calado y qué tan hondo': 'Choose pocket or through cut, and how deep',
+  'Empezá o terminá en un borde': 'Start or end on an edge',
+  'El arco tiene que empezar o terminar en un borde de la cara': 'The arc has to start or end on an edge of the face',
 } satisfies Record<string, string>;

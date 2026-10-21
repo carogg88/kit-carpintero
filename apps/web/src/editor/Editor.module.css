@@ -103,6 +103,13 @@
   flex: none; height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--signal); font: 600 14px var(--font-ui); cursor: pointer;
 }
 .notice button:hover { background: rgb(255 255 255 / 0.08); }
+/* En el celular, mientras se dibuja de frente: sin barra de vistas, la guía bien arriba y el aviso más chico. */
+@media (max-width: 899px) {
+  .stage[data-framed] .views { display: none; }
+  .stage[data-framed] .guide { top: var(--space-2); }
+  .notice { padding: 4px 4px 4px 12px; font-size: 13px; border-radius: 12px; }
+  .notice button { height: 36px; padding: 0 12px; }
+}
 /* Medida exacta junto a la pieza, donde se soltó el arrastre. */
 .bubble {
   position: absolute; z-index: 2; width: 220px; display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 10px 12px;
@@ -128,6 +135,17 @@
   background: transparent; color: var(--muted); cursor: pointer;
 }
 .bubbleClose:hover { background: var(--surface-2); color: var(--ink); }
+/* Vaciado o calado, en la burbuja que sale al terminar de dibujar. */
+.bubbleHead { display: flex; align-items: center; gap: 6px; }
+.bubbleHead .bubbleId { flex: 1; margin-left: 0; white-space: nowrap; }
+.segmented { flex: none; display: flex; gap: 2px; padding: 2px; background: var(--surface-2); border-radius: var(--radius-pill); }
+.segmented button {
+  height: 40px; padding: 0 14px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink);
+  font: 500 14px var(--font-ui); cursor: pointer; transition: background-color 150ms ease;
+}
+.segmented button[aria-pressed='true'] { background: var(--surface); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgb(43 54 40 / 0.18); }
+.segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bubbleHint { font-size: 13px; color: var(--muted); line-height: 1.3; }
 @keyframes noticeIn { from { opacity: 0; transform: translateY(6px); } }
 .shapes { display: flex; gap: 2px; padding: 2px; background: var(--surface-2); border-radius: var(--radius-pill); }
 .shapes button {
@@ -163,7 +181,11 @@
   position: absolute; transform: translate(14px, -120%); pointer-events: none; display: flex; flex-direction: column; gap: 2px;
   padding: 6px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font: 500 13px var(--font-num); white-space: nowrap;
 }
+/* Cerca del borde derecho, el cartel va a la izquierda del dedo para no cortarse. */
+.hint[data-flip] { transform: translate(calc(-100% - 14px), -120%); }
 .snap { color: var(--signal); font-family: var(--font-ui); font-size: 12px; }
+/* Sobre el fondo oscuro del cartel, un rojo claro que se lee. */
+.hintWarn { color: #FFB4AB; font-family: var(--font-ui); font-size: 12px; font-weight: 600; }
 
 /* Encima de la barra de herramientas, que ocupa todo el ancho. Solo con Elegir: con otra herramienta taparía la pieza. */
 .fabWrap { position: absolute; right: var(--space-2); bottom: calc(var(--space-2) * 2 + 52px + var(--space-1) * 2 + 2px); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
@@ -305,7 +327,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .seg button, .toolbar button { transition: none; }
+  .seg button, .toolbar button, .segmented button { transition: none; }
   .notice, .bubble { animation: none; }
 }
 

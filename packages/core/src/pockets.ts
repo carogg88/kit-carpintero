@@ -74,13 +74,29 @@ export function arcTemplate(s: ArcShape, n = 240): { chord: number; sagitta: num
 }
 
 /**
- * Qué lado del arco se saca si nadie lo eligió: si el centro del círculo cae dentro de la cara, el arco
- * redondea una esquina y se saca lo de afuera; si no (un faldón arqueado), el segmento.
+ * Qué lado del arco se saca si nadie lo eligió: si el centro del círculo cae dentro de la cara y el arco se
+ * curva hacia el lado chico (la esquina), redondea esa esquina y se saca lo de afuera; si no (un faldón
+ * arqueado, o una curva que se mete en la pieza), el segmento.
  */
 export function arcOutsideByDefault(part: Part, axis: Axis, s: ArcShape): boolean {
   const { size } = faceSize(part, axis);
   const { center } = arcInfo(s);
-  return center[0] > 0.5 && center[0] < size[0] - 0.5 && center[1] > 0.5 && center[1] < size[1] - 0.5;
+  if (!(center[0] > 0.5 && center[0] < size[0] - 0.5 && center[1] > 0.5 && center[1] < size[1] - 0.5)) return false;
+  return area(beyondChord(s, size)) < (size[0] * size[1]) / 2;
+}
+
+const area = (pts: [number, number][]) => Math.abs(pts.reduce((a, p, i) => a + p[0] * pts[(i + 1) % pts.length]![1] - pts[(i + 1) % pts.length]![0] * p[1], 0)) / 2;
+
+/** La parte de la cara del lado hacia donde se curva el arco, más allá de la cuerda. */
+function beyondChord(s: ArcShape, size: [number, number]): [number, number][] {
+  const chord = Math.hypot(s.u2 - s.u, s.v2 - s.v);
+  const k = Math.hypot(size[0], size[1]) + 10;
+  const n: [number, number] = [(-(s.v2 - s.v) / chord) * Math.sign(s.bulge), ((s.u2 - s.u) / chord) * Math.sign(s.bulge)];
+  // La cuerda estirada de punta a punta de la cara, y de ahí lejos hacia la flecha.
+  const d: [number, number] = [((s.u2 - s.u) / chord) * k, ((s.v2 - s.v) / chord) * k];
+  const a: [number, number] = [s.u - d[0], s.v - d[1]];
+  const b: [number, number] = [s.u2 + d[0], s.v2 + d[1]];
+  return clipToFace([a, b, [b[0] + n[0] * k, b[1] + n[1] * k], [a[0] + n[0] * k, a[1] + n[1] * k]], size[0], size[1]);
 }
 
 /**
@@ -91,6 +107,73 @@ export function newPocket(part: Part, axis: Axis, side: 1 | -1, shape: PocketSha
   const through = shape.kind !== 'rect';
   const s = shape.kind === 'arc' ? { ...shape, outside: arcOutsideByDefault(part, axis, shape) } : shape;
   return { id: nextPocketId(part), axis, side, shape: s, depth: half(depthUnder(part, axis) / 2), through };
+}
+
+/** Recorta un polígono con el rectángulo de la cara (0..w, 0..h). */
+function clipToFace(poly: [number, number][], w: number, h: number): [number, number][] {
+  const edges: [(p: [number, number]) => number][] = [[(p) => p[0]], [(p) => w - p[0]], [(p) => p[1]], [(p) => h - p[1]]];
+  let out = poly;
+  for (const [inside] of edges) {
+    const src = out;
+    out = [];
+    for (let i = 0; i < src.length; i++) {
+      const p = src[i]!;
+      const q = src[(i + 1) % src.length]!;
+      const [dp, dq] = [inside(p), inside(q)];
+      if (dp >= 0) out.push(p);
+      if (dp >= 0 !== dq >= 0) {
+        const k = dp / (dp - dq);
+        out.push([p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k]);
+      }
+    }
+  }
+  return out;
+}
+
+/** El arco empieza o termina en un borde de la cara: le da forma a ese borde o redondea una esquina. */
+export function arcTouchesEdge(part: Part, axis: Axis, s: ArcShape, tol = 1): boolean {
+  const { size } = faceSize(part, axis);
+  const onEdge = (u: number, v: number) => Math.min(u, size[0] - u, v, size[1] - v) <= tol;
+  return onEdge(s.u, s.v) || onEdge(s.u2, s.v2);
+}
+
+/**
+ * Lo que se va a sacar de la cara, como polígono en coordenadas de la cara: sirve para verlo sombreado
+ * antes de soltar. Un arco que redondea saca todo lo que queda más allá de la curva, hasta el borde.
+ * `outside`: de qué lado del arco; si no se dice, el que elegiría un vaciado nuevo.
+ */
+export function pocketRegion(part: Part, axis: Axis, shape: PocketShape, outside?: boolean): [number, number][] {
+  const { size } = faceSize(part, axis);
+  if (shape.kind === 'rect') {
+    const { u, v, w, h } = shape;
+    return clipToFace(
+      [
+        [u, v],
+        [u + w, v],
+        [u + w, v + h],
+        [u, v + h],
+      ],
+      size[0],
+      size[1],
+    );
+  }
+  if (shape.kind === 'circle') {
+    const r = shape.d / 2;
+    const pts = Array.from({ length: 48 }, (_, i): [number, number] => [
+      shape.u + r * Math.cos((i / 48) * 2 * Math.PI),
+      shape.v + r * Math.sin((i / 48) * 2 * Math.PI),
+    ]);
+    return clipToFace(pts, size[0], size[1]);
+  }
+  if (shape.bulge === 0) return [];
+  const { mid, chord } = arcInfo(shape);
+  const arc = arcPoints([shape.u, shape.v], mid, [shape.u2, shape.v2], 48);
+  if (!(outside ?? arcOutsideByDefault(part, axis, shape))) return clipToFace(arc, size[0], size[1]);
+  const k = Math.hypot(size[0], size[1]) + 10;
+  const n: [number, number] = [(-(shape.v2 - shape.v) / chord) * Math.sign(shape.bulge), ((shape.u2 - shape.u) / chord) * Math.sign(shape.bulge)];
+  const b = arc[arc.length - 1]!;
+  const a = arc[0]!;
+  return clipToFace([...arc, [b[0] + n[0] * k, b[1] + n[1] * k], [a[0] + n[0] * k, a[1] + n[1] * k]], size[0], size[1]);
 }
 
 /** Lo que el vaciado saca de la pieza, en coordenadas del mueble. Sale 1 mm por la cara para cortar limpio. */
