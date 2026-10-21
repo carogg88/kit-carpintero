@@ -70,6 +70,8 @@ export interface Drawing {
   bounds: Rect2;
   /** Arcos que se ven de frente, para acotar el radio. */
   arcs?: ArcMark[];
+  /** Dónde empiezan y terminan los tramos con otra sección, a lo largo de cada eje del dibujo, para acotarlos en cadena. */
+  stops?: { u: number[]; v: number[] };
   /** Qué tiene que proyectar el motor para cambiar estas líneas por las de la forma exacta. */
   engine?: EngineView;
 }
@@ -238,7 +240,20 @@ export function drawPart(project: Project, part: Part): Drawing {
   const projection = partProjection(part);
   const pockets: DrawItem[] = part.pockets.map((p) => ({ id: `${part.id}-${p.id}`, box: solidBox(pocketSolid(part, p)), joint: true, owner: part.id, hole: true }));
   const drawing = drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...partSectionItems(part), ...pockets], projection);
-  return { ...drawing, arcs: partArcMarks(part, projection), engine: { parts: [part.id], projection } };
+  return { ...drawing, arcs: partArcMarks(part, projection), stops: partSectionStops(part, projection), engine: { parts: [part.id], projection } };
+}
+
+/** Puntas de los tramos que corren a lo largo de un eje del dibujo, sin repetir y sin las puntas de la pieza. */
+export function partSectionStops(part: Part, p: Projection): { u: number[]; v: number[] } {
+  const whole = project({ id: part.id, box: partBox(part) }, p).rect;
+  const u = new Set<number>();
+  const v = new Set<number>();
+  for (const s of part.sections) {
+    const { rect } = project({ id: s.id, box: sectionBox(part, s) }, p);
+    if (s.axis === p.u) [rect.u0, rect.u1].forEach((x) => x > whole.u0 + EPS && x < whole.u1 - EPS && u.add(x));
+    if (s.axis === p.v) [rect.v0, rect.v1].forEach((x) => x > whole.v0 + EPS && x < whole.v1 - EPS && v.add(x));
+  }
+  return { u: [...u].sort((a, b) => a - b), v: [...v].sort((a, b) => a - b) };
 }
 
 /** Los arcos marcados en una cara que se mira de frente (o de atrás) en esta proyección. */
