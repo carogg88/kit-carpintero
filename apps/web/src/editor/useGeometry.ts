@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { engineViewKey, partKey, withEngineLines, type Drawing, type EngineView, type Project } from '@kitc/core';
+import { engineViewKey, getLang, partKey, withEngineLines, type Drawing, type EngineView, type Project } from '@kitc/core';
 import type { FromWorker, PartMesh, ViewLines } from '../geometry/protocol';
 
 export type EngineStatus = 'loading' | 'ready' | 'error';
@@ -40,7 +40,7 @@ function engine(): Worker {
     }
     replyListeners.forEach((l) => l(e.data));
   };
-  worker.postMessage({ type: 'init' });
+  worker.postMessage({ type: 'init', lang: getLang() });
   return worker;
 }
 

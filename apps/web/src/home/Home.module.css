@@ -3,6 +3,14 @@
 .brand { display: flex; align-items: center; gap: var(--space-2); font-size: 18px; font-weight: 700; letter-spacing: -0.2px; }
 .brand svg { color: var(--forest); }
 .brandWood { color: var(--accent); }
+.headerActions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; }
+.lang { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); }
+.lang button {
+  min-height: 38px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--muted);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.lang button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
+.lang button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .install {
   display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4);
   border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); color: var(--ink);

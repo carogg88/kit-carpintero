@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatNumber, loadProject, partBox, SCHEMA_VERSION, woodById, type Project } from '@kitc/core';
+import { formatNumber, getLang, loadProject, partBox, SCHEMA_VERSION, woodById, type Project } from '@kitc/core';
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
 import { IconLogo } from '../editor/icons';
 import { navigate } from '../routes';
 import { useInstall } from '../pwa';
+import { switchLang } from '../i18n';
 import styles from './Home.module.css';
 
 const icon = { width: 28, height: 28, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true } as const;
@@ -196,14 +197,23 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
             Kit <span className={styles.brandWood}>Carpintero</span>
           </span>
         </span>
-        {install && (
-          <button type="button" className={styles.install} onClick={install}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
-            </svg>
-            Instalar la app
-          </button>
-        )}
+        <span className={styles.headerActions}>
+          {install && (
+            <button type="button" className={styles.install} onClick={install}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+              </svg>
+              Instalar la app
+            </button>
+          )}
+          <span className={styles.lang} role="group" aria-label="Idioma · Language">
+            {(['es', 'en'] as const).map((l) => (
+              <button key={l} type="button" lang={l} aria-pressed={getLang() === l} onClick={() => getLang() !== l && switchLang(l)}>
+                {l === 'es' ? 'Español' : 'English'}
+              </button>
+            ))}
+          </span>
+        </span>
       </header>
       <p className={styles.lead}>Sin cuenta. Tus proyectos se guardan en este dispositivo.</p>
 

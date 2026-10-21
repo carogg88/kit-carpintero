@@ -2,7 +2,8 @@
 import opencascade from 'replicad-opencascadejs';
 import wasmUrl from 'replicad-opencascadejs/wasm?url';
 import { setOC, type Shape3D } from 'replicad';
-import { partKey, type Part, type Project } from '@kitc/core';
+import { partKey, setLang, type Part, type Project } from '@kitc/core';
+import { loadMessages } from '../i18n';
 import type { FromWorker, PartMesh, ToWorker, ViewLines } from './protocol';
 import { partShape, projectShapes } from './shapes';
 
@@ -51,6 +52,9 @@ function buildPart(part: Part, project: Project): PartMesh {
 self.onmessage = async (e: MessageEvent<ToWorker>) => {
   try {
     if (e.data.type === 'init') {
+      // Los avisos de piezas que no se pudieron cortar salen en el idioma de la app.
+      loadMessages();
+      setLang(e.data.lang);
       const t0 = performance.now();
       const oc = await opencascade({ locateFile: () => wasmUrl });
       setOC(oc);

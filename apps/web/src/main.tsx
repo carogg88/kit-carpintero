@@ -4,10 +4,12 @@ import './styles/tokens.css';
 import './styles/base.css';
 import { App } from './App';
 import { setUpApp } from './pwa';
+import { initLang } from './i18n';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Falta el elemento #root');
 
+initLang();
 setUpApp();
 
 createRoot(root).render(

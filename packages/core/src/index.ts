@@ -1,3 +1,4 @@
+export * from './i18n';
 export * from './units';
 export * from './woods';
 export * from './project';
