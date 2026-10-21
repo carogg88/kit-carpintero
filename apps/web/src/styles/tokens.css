@@ -23,6 +23,12 @@
   --dark-card-muted: #d3d8d5;
   --dark-card-field: #26302c;
   --dark-card-line: #4a544f;
+  /* Hoja del plano: papel blanco en los dos modos, como se imprime. */
+  --paper: #ffffff;
+  --paper-ink: #1c2320;
+  --paper-muted: #5b6460;
+  --paper-accent: #1e5a7a;
+  --desk: #e6e4dc;
 
   --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-num: 'IBM Plex Mono', ui-monospace, monospace;
@@ -62,6 +68,8 @@
     --waste: #4d5551;
     --dark-card: #26302c;
     --dark-card-field: #1a1f1d;
+  --desk: #0d100f;
+    --desk: #0d100f;
     color-scheme: dark;
   }
 }
@@ -86,5 +94,6 @@
   --waste: #4d5551;
   --dark-card: #26302c;
   --dark-card-field: #1a1f1d;
+  --desk: #0d100f;
   color-scheme: dark;
 }

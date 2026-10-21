@@ -1,0 +1,273 @@
+import { partAxesBySize } from './edit';
+import { endJoint, jointGeometry, type Solid } from './joints';
+import { partBox, type Axis, type Box } from './geometry';
+import type { Part, Project } from './project';
+
+/**
+ * Dibujo técnico de cajas: proyección ortogonal, contornos visibles y líneas ocultas.
+ * Todo en mm del mueble; la hoja decide la escala.
+ */
+
+/** Rectángulo en el plano del dibujo (u a la derecha, v hacia arriba). */
+export interface Rect2 {
+  u0: number;
+  v0: number;
+  u1: number;
+  v1: number;
+}
+
+/** Cómo se mira: qué eje del mueble va a la derecha, cuál hacia arriba y cuál hacia el que mira. */
+export interface Projection {
+  u: Axis;
+  uSign: 1 | -1;
+  v: Axis;
+  vSign: 1 | -1;
+  depth: Axis;
+  /** 1 si quien mira está del lado positivo del eje de profundidad. */
+  depthSign: 1 | -1;
+}
+
+export type ViewName = 'front' | 'side' | 'top';
+
+/** Frente desde +Z, lateral desde +X (lado derecho), planta desde arriba con el frente abajo. */
+export const VIEWS: Record<ViewName, Projection> = {
+  front: { u: 0, uSign: 1, v: 1, vSign: 1, depth: 2, depthSign: 1 },
+  side: { u: 2, uSign: -1, v: 1, vSign: 1, depth: 0, depthSign: 1 },
+  top: { u: 0, uSign: 1, v: 2, vSign: -1, depth: 1, depthSign: 1 },
+};
+
+/** Algo a dibujar: una pieza, o un sólido de encastre que pertenece a una pieza. */
+export interface DrawItem {
+  id: string;
+  box: Box;
+  /** Sólido de encastre: espiga, lengüeta, mortaja o agujero. */
+  joint?: boolean;
+  /** Pieza dentro de la que está el sólido; no la tapa a ella misma. */
+  owner?: string;
+  /** Hueco: siempre se dibuja con línea oculta. */
+  hole?: boolean;
+}
+
+export interface Line2 {
+  a: [number, number];
+  b: [number, number];
+  hidden: boolean;
+  joint: boolean;
+}
+
+export interface Drawing {
+  lines: Line2[];
+  /** Rectángulos de encastres, para resaltarlos. */
+  joints: Rect2[];
+  /** Nombre de cada pieza donde se ve. */
+  labels: { id: string; at: [number, number] }[];
+  /** Rectángulo de cada pieza (no de los encastres), para acotar. */
+  rects: { id: string; rect: Rect2 }[];
+  bounds: Rect2;
+}
+
+interface Projected {
+  item: DrawItem;
+  rect: Rect2;
+  /** Cuán cerca de quien mira está la cara de adelante. */
+  near: number;
+}
+
+function project(item: DrawItem, p: Projection): Projected {
+  const range = (axis: Axis, sign: 1 | -1): [number, number] =>
+    sign > 0 ? [item.box.min[axis], item.box.max[axis]] : [-item.box.max[axis], -item.box.min[axis]];
+  const [u0, u1] = range(p.u, p.uSign);
+  const [v0, v1] = range(p.v, p.vSign);
+  const near = p.depthSign > 0 ? item.box.max[p.depth] : -item.box.min[p.depth];
+  return { item, rect: { u0, v0, u1, v1 }, near };
+}
+
+const EPS = 0.05;
+
+/** Tramos de [a, b] que no quedan dentro de ningún intervalo. Devuelve [libres, tapados]. */
+function split(a: number, b: number, covers: [number, number][]): [[number, number][], [number, number][]] {
+  const cs = covers
+    .map(([x, y]) => [Math.max(a, x), Math.min(b, y)] as [number, number])
+    .filter(([x, y]) => y - x > EPS)
+    .sort((m, n) => m[0] - n[0]);
+  const merged: [number, number][] = [];
+  for (const c of cs) {
+    const last = merged[merged.length - 1];
+    if (last && c[0] <= last[1] + EPS) last[1] = Math.max(last[1], c[1]);
+    else merged.push([...c]);
+  }
+  const free: [number, number][] = [];
+  let at = a;
+  for (const [x, y] of merged) {
+    if (x - at > EPS) free.push([at, x]);
+    at = Math.max(at, y);
+  }
+  if (b - at > EPS) free.push([at, b]);
+  return [free, merged];
+}
+
+/** Recorta un tramo horizontal o vertical a una ventana. */
+function clip(l: Line2, w: Rect2): Line2 | null {
+  const a: [number, number] = [Math.max(w.u0, Math.min(l.a[0], l.b[0])), Math.max(w.v0, Math.min(l.a[1], l.b[1]))];
+  const b: [number, number] = [Math.min(w.u1, Math.max(l.a[0], l.b[0])), Math.min(w.v1, Math.max(l.a[1], l.b[1]))];
+  const horizontal = Math.abs(l.a[1] - l.b[1]) < EPS;
+  if (horizontal ? l.a[1] < w.v0 - EPS || l.a[1] > w.v1 + EPS || b[0] - a[0] <= EPS : l.a[0] < w.u0 - EPS || l.a[0] > w.u1 + EPS || b[1] - a[1] <= EPS) {
+    return null;
+  }
+  return { ...l, a, b };
+}
+
+const intersects = (r: Rect2, w: Rect2) => r.u0 < w.u1 && r.u1 > w.u0 && r.v0 < w.v1 && r.v1 > w.v0;
+
+/** Dibuja cajas con líneas ocultas. Con `window`, solo lo que cae adentro (para detalles). */
+export function drawItems(items: DrawItem[], p: Projection, window?: Rect2): Drawing {
+  const all = items.map((i) => project(i, p));
+  const solids = all.filter((x) => !x.item.joint);
+  const lines: Line2[] = [];
+  for (const x of all) {
+    const r = x.rect;
+    const coverers = solids.filter((q) => q !== x && q.item.id !== x.item.owner && q.near > x.near + EPS);
+    const edges: { fixed: number; from: number; to: number; horizontal: boolean }[] = [
+      { fixed: r.v0, from: r.u0, to: r.u1, horizontal: true },
+      { fixed: r.v1, from: r.u0, to: r.u1, horizontal: true },
+      { fixed: r.u0, from: r.v0, to: r.v1, horizontal: false },
+      { fixed: r.u1, from: r.v0, to: r.v1, horizontal: false },
+    ];
+    for (const e of edges) {
+      const covers = coverers
+        .filter((q) => (e.horizontal ? q.rect.v0 < e.fixed - EPS && q.rect.v1 > e.fixed + EPS : q.rect.u0 < e.fixed - EPS && q.rect.u1 > e.fixed + EPS))
+        .map((q) => (e.horizontal ? [q.rect.u0, q.rect.u1] : [q.rect.v0, q.rect.v1]) as [number, number]);
+      const [free, covered] = x.item.hole ? [[], [[e.from, e.to] as [number, number]]] : split(e.from, e.to, covers);
+      const mk = (s: number, t: number, hidden: boolean): Line2 =>
+        e.horizontal
+          ? { a: [s, e.fixed], b: [t, e.fixed], hidden, joint: !!x.item.joint }
+          : { a: [e.fixed, s], b: [e.fixed, t], hidden, joint: !!x.item.joint };
+      for (const [s, t] of free) lines.push(mk(s, t, false));
+      for (const [s, t] of covered) lines.push(mk(s, t, true));
+    }
+  }
+
+  const visible = (pt: [number, number], self: Projected) =>
+    !solids.some((q) => q !== self && q.near > self.near + EPS && q.rect.u0 < pt[0] && q.rect.u1 > pt[0] && q.rect.v0 < pt[1] && q.rect.v1 > pt[1]);
+  const shown = (r: Rect2): Rect2 =>
+    window ? { u0: Math.max(r.u0, window.u0), v0: Math.max(r.v0, window.v0), u1: Math.min(r.u1, window.u1), v1: Math.min(r.v1, window.v1) } : r;
+  const labels = solids
+    .map((x) => {
+      const r = shown(x.rect);
+      return { x, at: [(r.u0 + r.u1) / 2, (r.v0 + r.v1) / 2] as [number, number] };
+    })
+    .filter(({ x, at }) => visible(at, x) && (!window || intersects(x.rect, window)))
+    .map(({ x, at }) => ({ id: x.item.id, at }));
+
+  const kept = window ? lines.map((l) => clip(l, window)).filter((l): l is Line2 => l !== null) : lines;
+  const jointRects = all.filter((x) => x.item.joint && (!window || intersects(x.rect, window))).map((x) => x.rect);
+  const rects = solids.map((x) => ({ id: x.item.id, rect: x.rect }));
+  const pts = kept.flatMap((l) => [l.a, l.b]);
+  const bounds = window ?? {
+    u0: Math.min(...pts.map((q) => q[0])),
+    v0: Math.min(...pts.map((q) => q[1])),
+    u1: Math.max(...pts.map((q) => q[0])),
+    v1: Math.max(...pts.map((q) => q[1])),
+  };
+  return { lines: kept, joints: jointRects, labels, rects, bounds: pts.length || window ? bounds : { u0: 0, v0: 0, u1: 0, v1: 0 } };
+}
+
+/** Caja que envuelve un sólido (los cilindros, como su caja). */
+export function solidBox(s: Solid): Box {
+  if (s.kind === 'box') return s.box;
+  const min = [...s.start] as Box['min'];
+  const max = [...s.start] as Box['max'];
+  for (const k of [0, 1, 2] as Axis[]) {
+    if (k === s.axis) {
+      if (s.dir > 0) max[k] += s.length;
+      else min[k] -= s.length;
+    } else {
+      min[k] -= s.radius;
+      max[k] += s.radius;
+    }
+  }
+  return { min, max };
+}
+
+/** Sólidos de encastres de una pieza: lo que se le suma y lo que se le saca. */
+export function partJointItems(project: Project, part: Part): DrawItem[] {
+  const items: DrawItem[] = [];
+  for (const j of project.joints) {
+    if (j.partA !== part.id && j.partB !== part.id) continue;
+    const a = project.parts.find((p) => p.id === j.partA);
+    const b = project.parts.find((p) => p.id === j.partB);
+    if (!a || !b || a.base.kind !== 'box' || b.base.kind !== 'box') continue;
+    const g = jointGeometry(j.type, partBox(a), partBox(b), j.params);
+    if (!g) continue;
+    if (j.partB === part.id) {
+      g.addB.forEach((s, i) => items.push({ id: `${j.id}+${i}`, box: solidBox(s), joint: true, owner: part.id }));
+      g.cutB.forEach((s, i) => items.push({ id: `${j.id}-b${i}`, box: solidBox(s), joint: true, owner: part.id, hole: true }));
+    } else {
+      g.cutA.forEach((s, i) => items.push({ id: `${j.id}-a${i}`, box: solidBox(s), joint: true, owner: part.id, hole: true }));
+    }
+  }
+  return items;
+}
+
+/** Vista general del mueble: piezas y, ocultas, las espigas y lengüetas. */
+export function drawView(project: Project, view: ViewName): Drawing {
+  const boxes = project.parts.filter((p) => p.base.kind === 'box');
+  const items: DrawItem[] = boxes.map((p) => ({ id: p.id, box: partBox(p) }));
+  for (const p of boxes) for (const it of partJointItems(project, p)) if (!it.hole) items.push(it);
+  return drawItems(items, VIEWS[view]);
+}
+
+/** Proyección de una pieza sola: largo a la derecha, ancho hacia arriba. */
+export function partProjection(part: Part): Projection {
+  const [l, w, t] = partAxesBySize(part);
+  return { u: l, uSign: 1, v: w, vSign: 1, depth: t, depthSign: 1 };
+}
+
+/** Despiece: la pieza con sus espigas y, ocultas, sus mortajas y agujeros. */
+export function drawPart(project: Project, part: Part): Drawing {
+  return drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part)], partProjection(part));
+}
+
+/** Dos vistas de detalle de un encastre, encuadradas donde se tocan las piezas. */
+export function drawJointDetail(project: Project, jointId: string): { views: Drawing[]; projections: Projection[] } | null {
+  const j = project.joints.find((x) => x.id === jointId);
+  const a = j && project.parts.find((p) => p.id === j.partA);
+  const b = j && project.parts.find((p) => p.id === j.partB);
+  if (!j || !a || !b || a.base.kind !== 'box' || b.base.kind !== 'box') return null;
+  const ba = partBox(a);
+  const bb = partBox(b);
+  const e = endJoint(ba, bb);
+  // Ejes: el largo de B, y en cada vista uno de los otros dos.
+  const [l, w, t] = partAxesBySize(b);
+  const along = e?.axis ?? l;
+  const across: [Axis, Axis] = e ? [e.thin, e.wide] : [t, w];
+  const items: DrawItem[] = [
+    { id: a.id, box: ba },
+    { id: b.id, box: bb },
+    ...partJointItems(project, a).filter((x) => x.id.startsWith(`${j.id}-`)),
+    ...partJointItems(project, b).filter((x) => x.id.startsWith(`${j.id}+`) || x.id.startsWith(`${j.id}-`)),
+  ];
+  const solids = items.filter((x) => x.joint).map((x) => x.box);
+  const focus: Box = solids.length
+    ? {
+        min: [0, 1, 2].map((k) => Math.min(...solids.map((s) => s.min[k]!))) as Box['min'],
+        max: [0, 1, 2].map((k) => Math.max(...solids.map((s) => s.max[k]!))) as Box['max'],
+      }
+    : {
+        min: [0, 1, 2].map((k) => Math.max(ba.min[k]!, bb.min[k]!) - 1) as Box['min'],
+        max: [0, 1, 2].map((k) => Math.min(ba.max[k]!, bb.max[k]!) + 1) as Box['max'],
+      };
+  const projections = across.map((k): Projection => {
+    const depth = ([0, 1, 2] as Axis[]).find((x) => x !== along && x !== k)!;
+    return { u: along, uSign: 1, v: k, vSign: 1, depth, depthSign: 1 };
+  });
+  const views = projections.map((p) => {
+    const f = project0(focus, p);
+    const pad = Math.max(40, 0.6 * Math.max(f.u1 - f.u0, f.v1 - f.v0));
+    const win = { u0: f.u0 - pad, v0: f.v0 - pad, u1: f.u1 + pad, v1: f.v1 + pad };
+    return drawItems(items, p, win);
+  });
+  return { views, projections };
+}
+
+const project0 = (box: Box, p: Projection) => project({ id: '', box }, p).rect;

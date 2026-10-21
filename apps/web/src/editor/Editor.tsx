@@ -19,6 +19,7 @@ import {
   IconXray,
 } from './icons';
 import { JointsView } from './JointsView';
+import { PlanView } from './PlanView';
 import { ADD_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
 import { useEditor, useSelectedPart, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
@@ -104,7 +105,7 @@ interface NavProps {
 }
 
 function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
-  const items: [Section | 'plano', string, () => React.JSX.Element][] = [
+  const items: [Section, string, () => React.JSX.Element][] = [
     ['modelo', 'Modelo', IconModel],
     ['uniones', 'Uniones', IconJoints],
     ['cortes', 'Cortes', IconCuts],
@@ -112,20 +113,13 @@ function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
   ];
   return (
     <nav aria-label="Secciones del proyecto" className={variant === 'tabs' ? styles.tabs : styles.bottomNav}>
-      {items.map(([key, label, Icon]) =>
-        key === 'plano' ? (
-          <span key={key} aria-disabled="true" title="Llega en la próxima versión">
-            {variant === 'bar' && <Icon />}
-            {label}
-          </span>
-        ) : (
-          <a key={key} href={sectionHref(projectId, key)} aria-current={section === key ? 'page' : undefined}>
-            {variant === 'bar' && <Icon />}
-            {label}
-            {key === 'uniones' && variant === 'tabs' && <span className={styles.badge}>{jointCount}</span>}
-          </a>
-        ),
-      )}
+      {items.map(([key, label, Icon]) => (
+        <a key={key} href={sectionHref(projectId, key)} aria-current={section === key ? 'page' : undefined}>
+          {variant === 'bar' && <Icon />}
+          {label}
+          {key === 'uniones' && variant === 'tabs' && <span className={styles.badge}>{jointCount}</span>}
+        </a>
+      ))}
     </nav>
   );
 }
@@ -213,7 +207,7 @@ function AddPartButton() {
   );
 }
 
-const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: 'Uniones', cortes: 'Lista de compras' };
+const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: 'Uniones', cortes: 'Lista de compras', plano: 'Plano' };
 
 export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
   const project = useEditor((s) => s.project);
@@ -303,6 +297,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
 
       {section === 'uniones' && <JointsView project={project} meshes={meshes} />}
       {section === 'cortes' && <CutsView project={project} />}
+      {section === 'plano' && <PlanView project={project} />}
       {modelo && (
         <>
         <main className={styles.main}>

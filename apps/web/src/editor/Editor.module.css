@@ -212,3 +212,8 @@
   .overline, .sectionTitle { display: none; }
   .desktopTitle { display: inline; font-weight: 600; }
 }
+
+@media print {
+  .shell { display: block; height: auto; overflow: visible; background: #fff; }
+  .header, .bottomNav, .footer { display: none; }
+}
