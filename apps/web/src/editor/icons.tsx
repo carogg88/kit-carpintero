@@ -162,3 +162,8 @@ export const IconArc = () => (
     <path d="M3 18h2M19 18h2" />
   </svg>
 );
+export const IconClose = () => (
+  <svg {...base} width={18} height={18}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </svg>
+);

@@ -192,4 +192,5 @@ export default {
   'se soltaron {n} uniones': '{n} joints came apart',
   largo: 'length',
   espesor: 'thickness',
+  'Si querés, escribí la medida exacta': 'Type the exact size if you like',
 } satisfies Record<string, string>;

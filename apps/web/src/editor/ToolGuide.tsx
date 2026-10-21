@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { faceLabel, t, tk } from '@kitc/core';
 import { IconArc, IconChamfer, IconCircle, IconCopy, IconRect, IconRound } from './icons';
+import { MeasureBubble } from './MeasureBubble';
 import { useEditor, useSelectedPart } from './store';
 import styles from './Editor.module.css';
 
@@ -25,7 +26,7 @@ export function ToolGuide() {
   const bevelRound = useEditor((s) => s.bevelRound);
   const copyMove = useEditor((s) => s.copyMove);
   const dragging = useEditor((s) => s.dragging);
-  const lastPush = useEditor((s) => s.lastPush);
+  const bubble = useEditor((s) => s.bubble);
   const { setDrawFace, setDrawShape, setBevelRound, setCopyMove } = useEditor.getState();
   const selected = useSelectedPart();
 
@@ -40,8 +41,8 @@ export function ToolGuide() {
       steps = [{ text: t('Tocá una pieza para editarla. Arrastrá el fondo para girar la vista.') }];
       break;
     case 'push':
-      steps = [{ text: t('Arrastrá una cara para estirar o acortar') }, { text: t('Escribí la medida exacta abajo, en Medida') }];
-      active = lastPush && !dragging && lastPush.id === selected?.id ? 1 : 0;
+      steps = [{ text: t('Arrastrá una cara para estirar o acortar') }, { text: t('Si querés, escribí la medida exacta') }];
+      active = bubble?.target.kind === 'push' ? 1 : 0;
       break;
     case 'move':
       steps = [{ text: copyMove ? t('Arrastrá la pieza: queda una copia') : t('Arrastrá la pieza por el piso') }, { text: t('Soltala donde va: se pega a las otras') }];
@@ -90,9 +91,9 @@ export function ToolGuide() {
     case 'bevel':
       steps = [
         { text: bevelRound ? t('Arrastrá desde una arista hacia adentro para redondear') : t('Arrastrá desde una arista hacia adentro') },
-        { text: t('Ajustá la medida en el panel') },
+        { text: t('Si querés, escribí la medida exacta') },
       ];
-      active = !dragging && selected && selected.bevels.length > 0 ? 1 : 0;
+      active = bubble?.target.kind === 'bevel' ? 1 : 0;
       controls = (
         <div className={styles.shapes} role="group" aria-label={t('Forma del canto')}>
           <button type="button" aria-pressed={!bevelRound} aria-label={t('Bisel recto')} title={t('Bisel recto')} onClick={() => setBevelRound(false)}>
@@ -140,6 +141,11 @@ export function ToolGuide() {
         {numbered ? t('Paso {n} de {total}: {text}', { n: active + 1, total: steps.length, text: steps[active]!.text }) : ''}
       </span>
       {action}
+      {bubble && (
+        <div className={styles.mobileOnly}>
+          <MeasureBubble docked />
+        </div>
+      )}
     </div>
   );
 }

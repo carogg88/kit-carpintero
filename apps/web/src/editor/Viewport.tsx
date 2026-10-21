@@ -38,6 +38,7 @@ import {
   type Project,
   type Section,
 } from '@kitc/core';
+import { DEAD_PX, gentle, roundMeasure } from './gesture';
 import { useEditor, type DrawFace, type View } from './store';
 import type { ExactMesh } from './useGeometry';
 
@@ -75,6 +76,7 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   const view = useEditor((s) => s.view);
   const viewNonce = useEditor((s) => s.viewNonce);
   const drawFace = useEditor((s) => s.drawFace);
+  const drawFramed = useEditor((s) => s.drawFramed);
   const anim = useRef<((now: number) => void) | null>(null);
   const userOrbited = useRef(false);
 
@@ -86,6 +88,8 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
     const onStart = () => {
       userOrbited.current = true;
       anim.current = null;
+      // Girando la vista, la burbuja de medida ya no queda junto a su pieza.
+      useEditor.getState().setBubble(null);
     };
     c.addEventListener('change', onChange);
     c.addEventListener('start', onStart);
@@ -162,10 +166,10 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
     const c = controlsRef.current;
     if (!c) return;
     // Dibujando, la vista queda de frente: se puede acercar y correr, pero no girar.
-    c.enableRotate = !drawFace;
-    c.maxPolarAngle = drawFace ? Math.PI : Math.PI * 0.495;
-    if (drawFace) frameFace(drawFace);
-  }, [drawFace, controlsRef]);
+    c.enableRotate = !(drawFace && drawFramed);
+    c.maxPolarAngle = drawFace && drawFramed ? Math.PI : Math.PI * 0.495;
+    if (drawFace && drawFramed) frameFace(drawFace);
+  }, [drawFace, drawFramed, controlsRef]);
 
   const projectId = project?.id;
   useEffect(() => {
@@ -468,6 +472,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       dir,
       plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -e.point.y),
     };
+    const [x0, y0] = [e.nativeEvent.clientX, e.nativeEvent.clientY];
     beginDrag();
     if (copying) useEditor.getState().dragUpdate((d) => void d.parts.push(structuredClone(part)));
     select(part.id);
@@ -484,9 +489,12 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       if (!p) return;
       const hintAt = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
       if (drag.kind === 'push') {
-        const pull = closestT(drag.origin, drag.dir, raycaster.ray);
-        const face = drag.sign > 0 ? drag.start.max[drag.axis] : drag.start.min[drag.axis];
-        const snap = snapCoord(p.parts, face + drag.sign * pull, drag.axis, part.id);
+        // Suave: un arrastre corto cambia unos milímetros; la medida queda redonda.
+        const pull = gentle(Math.hypot(ev.clientX - x0, ev.clientY - y0), closestT(drag.origin, drag.dir, raycaster.ray));
+        const opposite = drag.sign > 0 ? drag.start.min[drag.axis] : drag.start.max[drag.axis];
+        const startSize = drag.start.max[drag.axis] - drag.start.min[drag.axis];
+        const size = Math.abs(pull) < 20 ? Math.round(startSize + pull) : Math.round((startSize + pull) / 5) * 5;
+        const snap = snapCoord(p.parts, opposite + drag.sign * size, drag.axis, part.id);
         let min = drag.start.min[drag.axis];
         let max = drag.start.max[drag.axis];
         if (drag.sign > 0) max = Math.max(snap.value, min + 3);
@@ -505,6 +513,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       } else {
         const pt = new THREE.Vector3();
         if (!raycaster.ray.intersectPlane(drag.plane, pt)) return;
+        // Un toque o un temblor no corre la pieza.
+        if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) <= DEAD_PX) return;
         const snaps: string[] = [];
         const shifts = ([0, 2] as const).map((k) => {
           const s = snapMove(p.parts, drag.start, k, pt.getComponent(k) - drag.origin.getComponent(k), part.id);
@@ -526,12 +536,14 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       }
       invalidate();
     };
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      const last = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       if (controlsRef.current) controlsRef.current.enabled = true;
-      const { endDrag, cancelDrag, setHint } = useEditor.getState();
+      const { endDrag, cancelDrag, setHint, setBubble } = useEditor.getState();
       setHint(null);
       // Una copia que no se movió quedaría encima de la original: se descarta.
       if (copying && !moved) {
@@ -544,7 +556,10 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         const size = q?.base.kind === 'box' ? q.base.size[drag.axis] : 0;
         const changed = Math.abs(size - (drag.start.max[drag.axis] - drag.start.min[drag.axis])) > 0.05;
         const label = t('{id} ahora mide {size} de {dim}', { id: part.id, size: formatLength(size, units), dim: t(DIM_WORDS[partAxesBySize(part).indexOf(drag.axis)]!) });
-        endDrag({ id: part.id, axis: drag.axis, sign: drag.sign }, changed ? label : undefined);
+        const pushed = { id: part.id, axis: drag.axis, sign: drag.sign };
+        endDrag(pushed, changed ? label : undefined);
+        // Al soltar, la medida exacta se escribe ahí mismo.
+        setBubble({ target: { kind: 'push', ...pushed }, ...last });
       } else endDrag(undefined, moved ? (copying ? t('Hiciste la copia {id}', { id: part.id }) : t('Moviste {id}', { id: part.id })) : undefined);
     };
     window.addEventListener('pointermove', onMove);
@@ -563,17 +578,47 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     // Solo las caras de afuera: las paredes de un vaciado o de un encastre no se eligen.
     const at = side > 0 ? box.max[axis] : box.min[axis];
     if (Math.abs(e.point.getComponent(axis) - at) > 0.6) return;
-    const { select, setDrawFace } = useEditor.getState();
-    select(part.id);
-    setDrawFace({ partId: part.id, axis, side });
+    const face = { partId: part.id, axis, side } as const;
+    // Un toque elige la cara y la pone de frente. Si en cambio se arrastra de entrada, se dibuja ahí mismo
+    // sobre esa cara, sin mover la vista.
+    const point = e.point.clone();
+    const [x0, y0] = [e.nativeEvent.clientX, e.nativeEvent.clientY];
+    if (controlsRef.current) controlsRef.current.enabled = false;
+    const done = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    const onMove = (ev: PointerEvent) => {
+      if (Math.hypot(ev.clientX - x0, ev.clientY - y0) <= DEAD_PX) return;
+      done();
+      const { select, setDrawFace } = useEditor.getState();
+      select(part.id);
+      setDrawFace(face, false);
+      beginSketch(point, ev, true);
+    };
+    const onUp = () => {
+      done();
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      const { select, setDrawFace } = useEditor.getState();
+      select(part.id);
+      setDrawFace(face);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   };
 
   // Dibujar, segundo paso: arrastrar sobre la cara elegida. Rectángulo de esquina a esquina; círculo desde el centro.
   const startSketch = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    beginSketch(e.point, e.nativeEvent);
+  };
+  /** Arranca el trazo en `point` (sobre la cara elegida). `moving`: el dedo ya se está moviendo. */
+  const beginSketch = (point: THREE.Vector3, nativeEvent: PointerEvent, moving = false) => {
     const { drawFace: face, drawShape, project: current } = useEditor.getState();
     const part = current?.parts.find((q) => q.id === face?.partId);
     if (!face || !part) return;
-    e.stopPropagation();
     if (controlsRef.current) controlsRef.current.enabled = false;
     const box = partBox(part);
     const [ua, va] = otherAxes(face.axis);
@@ -587,7 +632,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       const v = snapOnFace(pt.getComponent(va) - box.min[va], size[1], tol);
       return { u: u.value, v: v.value, snaps: [snapName(u.to), snapName(v.to)] };
     };
-    const start = local(e.point);
+    const start = local(point);
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let shape: PocketShape | null = null;
@@ -667,7 +712,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     // Con la cuerda puesta alcanza con tocar: la flecha sale de donde se tocó.
-    if (bending) onMove(e.nativeEvent);
+    if (bending || moving) onMove(nativeEvent);
   };
 
   // Biselar: tocar una cara cerca de una arista y arrastrar hacia adentro marca hasta dónde llega el bisel.
@@ -700,6 +745,18 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const ndc = new THREE.Vector2();
     let bevel: Bevel | null = null;
     const faceAt = (f: { axis: Axis; side: 1 | -1 }) => (f.side > 0 ? box.max[f.axis] : box.min[f.axis])!;
+    // Hasta dónde llega el dedo desde la arista (o, en una esquina, desde la cara más lejana).
+    const reach = (pt: THREE.Vector3) =>
+      corner
+        ? Math.max(Math.abs(faceAt(corner.b) - pt.getComponent(corner.b.axis)), Math.abs(faceAt(corner.a) - pt.getComponent(corner.a.axis)))
+        : Math.min(across, Math.abs(edgeAt - pt.getComponent(b.axis)));
+    const reach0 = reach(e.point);
+    const [x0, y0] = [e.nativeEvent.clientX, e.nativeEvent.clientY];
+    // Suave: arranca en 3 mm y crece de a poco; recién con un arrastre largo sigue al dedo.
+    const amount = (pt: THREE.Vector3, ev: PointerEvent) => {
+      const grow = gentle(Math.hypot(ev.clientX - x0, ev.clientY - y0), reach(pt) - reach0);
+      return grow > 0 ? roundMeasure(3 + grow) : 0;
+    };
 
     const onMove = (ev: PointerEvent) => {
       const rect = gl.domElement.getBoundingClientRect();
@@ -710,15 +767,15 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       let snap: string | null = null;
       if (corner) {
         // En la esquina manda lo que más se alejó de cualquiera de las dos caras.
-        const raw = Math.max(Math.abs(faceAt(corner.b) - pt.getComponent(corner.b.axis)), Math.abs(faceAt(corner.a) - pt.getComponent(corner.a.axis)));
-        // Cada 5 mm, o igual que otra esquina de la pieza: así las cuatro puntas de una tapa salen iguales.
-        let r = raw < 5 ? Math.round(raw) : Math.round(raw / 5) * 5;
-        const twin = part.bevels.find((x) => x.round === round && Math.abs(x.da - raw) <= Math.max(3, raw * 0.08));
+        const raw = amount(pt, ev);
+        // Igual que otra esquina de la pieza, si se acerca: así las cuatro puntas de una tapa salen iguales.
+        let r = raw;
+        const twin = raw > 0 && part.bevels.find((x) => x.round === round && Math.abs(x.da - raw) <= Math.max(3, raw * 0.08));
         if (twin) [r, snap] = [twin.da, t('igual que {id}', { id: twin.id })];
         bevel = r >= 1 ? newBevel(part, corner.a, corner.b, r, round) : null;
       } else {
-        const raw = Math.min(across, Math.abs(edgeAt - pt.getComponent(b.axis)));
-        let da = Math.round(raw);
+        const raw = Math.min(across, amount(pt, ev));
+        let da = raw;
         if (!round && across - raw <= tol) [da, snap] = [across, t('todo el ancho')];
         else if (Math.abs(raw - across / 2) <= tol) [da, snap] = [across / 2, t('centro')];
         bevel = da >= 1 ? newBevel(part, a, b, da, round) : null;
@@ -739,7 +796,9 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       });
       invalidate();
     };
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      const last = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
@@ -752,6 +811,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.bevels.push({ ...done, id: newBevel(q as Part, done.a, done.b, 1).id });
       }, round ? t('Hiciste un redondeo en {id}', { id: part.id }) : t('Hiciste un bisel en {id}', { id: part.id }));
+      useEditor.getState().setBubble({ target: { kind: 'bevel', id: part.id, bevelId: done.id }, ...last });
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
