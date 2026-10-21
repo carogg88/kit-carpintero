@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatLength, parseLength } from '@kitc/core';
+import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
+import { CutsView } from './CutsView';
 import {
   IconBack,
   IconCuts,
@@ -16,6 +18,8 @@ import {
   IconUndo,
   IconXray,
 } from './icons';
+import { JointsView } from './JointsView';
+import { PlanView } from './PlanView';
 import { ADD_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
 import { useEditor, useSelectedPart, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
@@ -61,7 +65,8 @@ function useAutosave(): SaveState {
   return state;
 }
 
-function useShortcuts() {
+/** Atajos de teclado. Las herramientas y borrar piezas solo valen en Modelo; deshacer, en todas. */
+function useShortcuts(modelo: boolean) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useEditor.getState();
@@ -74,7 +79,7 @@ function useShortcuts() {
         else s.undo();
         return;
       }
-      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!modelo || typing || e.ctrlKey || e.metaKey || e.altKey) return;
       if (k === 'v') s.setTool('select');
       else if (k === 'p') s.setTool('push');
       else if (k === 'm') s.setTool('move');
@@ -89,32 +94,32 @@ function useShortcuts() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [modelo]);
 }
 
-function SectionNav({ jointCount, variant }: { jointCount: number; variant: 'tabs' | 'bar' }) {
-  const items: [string, () => React.JSX.Element, boolean][] = [
-    ['Modelo', IconModel, true],
-    ['Uniones', IconJoints, false],
-    ['Cortes', IconCuts, false],
-    ['Plano', IconPlan, false],
+interface NavProps {
+  projectId: string;
+  section: Section;
+  jointCount: number;
+  variant: 'tabs' | 'bar';
+}
+
+function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
+  const items: [Section, string, () => React.JSX.Element][] = [
+    ['modelo', 'Modelo', IconModel],
+    ['uniones', 'Uniones', IconJoints],
+    ['cortes', 'Cortes', IconCuts],
+    ['plano', 'Plano', IconPlan],
   ];
   return (
     <nav aria-label="Secciones del proyecto" className={variant === 'tabs' ? styles.tabs : styles.bottomNav}>
-      {items.map(([label, Icon, active]) =>
-        active ? (
-          <a key={label} href="#" aria-current="page" onClick={(e) => e.preventDefault()}>
-            {variant === 'bar' && <Icon />}
-            {label}
-          </a>
-        ) : (
-          <span key={label} aria-disabled="true" title="Llega en el próximo paso">
-            {variant === 'bar' && <Icon />}
-            {label}
-            {label === 'Uniones' && variant === 'tabs' && <span className={styles.badge}>{jointCount}</span>}
-          </span>
-        ),
-      )}
+      {items.map(([key, label, Icon]) => (
+        <a key={key} href={sectionHref(projectId, key)} aria-current={section === key ? 'page' : undefined}>
+          {variant === 'bar' && <Icon />}
+          {label}
+          {key === 'uniones' && variant === 'tabs' && <span className={styles.badge}>{jointCount}</span>}
+        </a>
+      ))}
     </nav>
   );
 }
@@ -202,7 +207,9 @@ function AddPartButton() {
   );
 }
 
-export function Editor({ onExit }: { onExit: () => void }) {
+const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: 'Uniones', cortes: 'Lista de compras', plano: 'Plano' };
+
+export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
   const project = useEditor((s) => s.project);
   const tool = useEditor((s) => s.tool);
   const xray = useEditor((s) => s.xray);
@@ -216,8 +223,10 @@ export function Editor({ onExit }: { onExit: () => void }) {
   const selected = useSelectedPart();
   const saveState = useAutosave();
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
-  useShortcuts();
+  useShortcuts(section === 'modelo');
   if (!project) return null;
+  const modelo = section === 'modelo';
+  const back = modelo ? onExit : () => (location.hash = sectionHref(project.id, 'modelo'));
 
   const warnings = [...meshes.values()].filter((m) => m.warning).length;
   const saveText = saveState === 'error' ? 'No se pudo guardar' : saveState === 'saving' ? 'Guardando…' : 'Guardado en este dispositivo';
@@ -229,7 +238,12 @@ export function Editor({ onExit }: { onExit: () => void }) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <span className={styles.mobileOnly}>
-          <button type="button" className={`${styles.iconBtn} ${styles.backBtn}`} aria-label="Volver a mis proyectos" onClick={onExit}>
+          <button
+            type="button"
+            className={`${styles.iconBtn} ${styles.backBtn}`}
+            aria-label={modelo ? 'Volver a mis proyectos' : 'Volver al modelo'}
+            onClick={back}
+          >
             <IconBack />
           </button>
         </span>
@@ -247,13 +261,26 @@ export function Editor({ onExit }: { onExit: () => void }) {
           </a>
         </span>
         <div className={styles.titleBlock}>
-          <h1>{project.name}</h1>
-          <span className={saveState === 'error' ? styles.errorText : styles.muted} role="status">
-            {saveText}
-          </span>
+          {modelo ? (
+            <>
+              <h1>{project.name}</h1>
+              <span className={saveState === 'error' ? styles.errorText : styles.muted} role="status">
+                {saveText}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className={`${styles.muted} ${styles.overline}`}>{project.name}</span>
+              <span className={styles.sectionTitle}>{SECTION_TITLES[section]}</span>
+              <span className={styles.desktopTitle}>{project.name}</span>
+              <span className={styles.srOnly} role="status">
+                {saveState === 'saved' ? '' : saveText}
+              </span>
+            </>
+          )}
         </div>
         <div className={styles.desktopOnly}>
-          <SectionNav jointCount={jointCount} variant="tabs" />
+          <SectionNav projectId={project.id} section={section} jointCount={jointCount} variant="tabs" />
         </div>
         <div className={styles.headerActions}>
           <button type="button" className={styles.iconBtn} aria-label="Deshacer (Ctrl+Z)" disabled={!canUndo} onClick={undo}>
@@ -268,62 +295,69 @@ export function Editor({ onExit }: { onExit: () => void }) {
         </div>
       </header>
 
-      <main className={styles.main}>
-        <section className={styles.stage} aria-label="Vista 3D" data-tool={tool}>
-          <Viewport meshes={meshes} label={`Modelo 3D de ${project.name}${selected ? `, con ${selected.name} elegida` : ''}`} />
-          <div className={styles.toolbar} role="toolbar" aria-label="Herramientas">
-            {TOOLS.map(([t, label, key, Icon]) => (
-              <button key={t} type="button" aria-pressed={tool === t} aria-label={`${label} (${key})`} title={`${label} (${key})`} onClick={() => setTool(t)}>
-                <Icon />
+      {section === 'uniones' && <JointsView project={project} meshes={meshes} />}
+      {section === 'cortes' && <CutsView project={project} />}
+      {section === 'plano' && <PlanView project={project} />}
+      {modelo && (
+        <>
+        <main className={styles.main}>
+          <section className={styles.stage} aria-label="Vista 3D" data-tool={tool}>
+            <Viewport meshes={meshes} label={`Modelo 3D de ${project.name}${selected ? `, con ${selected.name} elegida` : ''}`} />
+            <div className={styles.toolbar} role="toolbar" aria-label="Herramientas">
+              {TOOLS.map(([t, label, key, Icon]) => (
+                <button key={t} type="button" aria-pressed={tool === t} aria-label={`${label} (${key})`} title={`${label} (${key})`} onClick={() => setTool(t)}>
+                  <Icon />
+                </button>
+              ))}
+              <span className={styles.toolSep} aria-hidden="true" />
+              <button type="button" aria-pressed={xray} aria-label="Rayos X (X)" title="Rayos X (X)" onClick={() => setXray(!xray)}>
+                <IconXray />
               </button>
-            ))}
-            <span className={styles.toolSep} aria-hidden="true" />
-            <button type="button" aria-pressed={xray} aria-label="Rayos X (X)" title="Rayos X (X)" onClick={() => setXray(!xray)}>
-              <IconXray />
-            </button>
-          </div>
-          <div className={styles.views} role="group" aria-label="Vista">
-            {VIEWS.map(([v, label, short]) => (
-              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
-                <span className={styles.desktopOnly}>{label}</span>
-                <span className={styles.mobileOnly}>{short}</span>
-              </button>
-            ))}
-          </div>
-          {selected && selDims && (
-            <span className={`${styles.chip} ${styles.desktopOnly}`}>
-              <strong>{selected.id}</strong> {selected.name}
-              <span className={styles.chipNum}>{selDims.map((mm) => formatLength(mm, project.units).replace(/ cm|″/, '')).join(' × ')}{project.units === 'cm' ? ' cm' : '″'}</span>
+            </div>
+            <div className={styles.views} role="group" aria-label="Vista">
+              {VIEWS.map(([v, label, short]) => (
+                <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
+                  <span className={styles.desktopOnly}>{label}</span>
+                  <span className={styles.mobileOnly}>{short}</span>
+                </button>
+              ))}
+            </div>
+            {selected && selDims && (
+              <span className={`${styles.chip} ${styles.desktopOnly}`}>
+                <strong>{selected.id}</strong> {selected.name}
+                <span className={styles.chipNum}>{selDims.map((mm) => formatLength(mm, project.units).replace(/ cm|″/, '')).join(' × ')}{project.units === 'cm' ? ' cm' : '″'}</span>
+              </span>
+            )}
+            {(engineText || warnings > 0) && (
+              <span className={styles.engine} role="status">
+                {engineText ?? `${warnings} ${warnings === 1 ? 'pieza no se pudo' : 'piezas no se pudieron'} cortar del todo`}
+              </span>
+            )}
+            {hint && (
+              <span className={styles.hint} style={{ left: hint.x, top: hint.y }}>
+                {hint.text}
+                {hint.snap && <span className={styles.snap}>Imán: {hint.snap}</span>}
+              </span>
+            )}
+            <span className={styles.mobileOnly}>
+              <AddPartButton />
             </span>
-          )}
-          {(engineText || warnings > 0) && (
-            <span className={styles.engine} role="status">
-              {engineText ?? `${warnings} ${warnings === 1 ? 'pieza no se pudo' : 'piezas no se pudieron'} cortar del todo`}
-            </span>
-          )}
-          {hint && (
-            <span className={styles.hint} style={{ left: hint.x, top: hint.y }}>
-              {hint.text}
-              {hint.snap && <span className={styles.snap}>Imán: {hint.snap}</span>}
-            </span>
-          )}
-          <span className={styles.mobileOnly}>
-            <AddPartButton />
-          </span>
-        </section>
+          </section>
 
-        <aside className={styles.panel} aria-label={selected ? 'Pieza seleccionada' : 'Piezas del proyecto'}>
-          <span className={styles.grabber} aria-hidden="true" />
-          <PartPanel />
-        </aside>
-      </main>
+          <aside className={styles.panel} aria-label={selected ? 'Pieza seleccionada' : 'Piezas del proyecto'}>
+            <span className={styles.grabber} aria-hidden="true" />
+            <PartPanel />
+          </aside>
+        </main>
 
-      <footer className={`${styles.footer} ${hasPush || tool === 'push' ? '' : styles.footerIdle}`}>
-        <span>{TIPS[tool]}</span>
-        <MeasureBox />
-      </footer>
+        <footer className={`${styles.footer} ${hasPush || tool === 'push' ? '' : styles.footerIdle}`}>
+          <span>{TIPS[tool]}</span>
+          <MeasureBox />
+        </footer>
+        </>
+      )}
       <div className={styles.mobileOnly}>
-        <SectionNav jointCount={jointCount} variant="bar" />
+        <SectionNav projectId={project.id} section={section} jointCount={jointCount} variant="bar" />
       </div>
     </div>
   );

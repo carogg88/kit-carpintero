@@ -12,6 +12,23 @@
   --accent-soft: #e3eef3;
   --signal: #f2b544;
   --danger: #b3261e;
+  /* Taller: rayos X, uniones sin cortes y plan de corte. */
+  --xray-edge: #6b4a2b;
+  --joint-plain: #9db7c5;
+  --piece: #ebcfa6;
+  --piece-line: #6b4a2b;
+  --waste: #b9b4a6;
+  --dark-card: #1c2320;
+  --dark-card-ink: #ffffff;
+  --dark-card-muted: #d3d8d5;
+  --dark-card-field: #26302c;
+  --dark-card-line: #4a544f;
+  /* Hoja del plano: papel blanco en los dos modos, como se imprime. */
+  --paper: #ffffff;
+  --paper-ink: #1c2320;
+  --paper-muted: #5b6460;
+  --paper-accent: #1e5a7a;
+  --desk: #e6e4dc;
 
   --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-num: 'IBM Plex Mono', ui-monospace, monospace;
@@ -44,6 +61,15 @@
     --accent-soft: #1c2e37;
     --signal: #f2b544;
     --danger: #f2b8b5;
+    --xray-edge: #d2a978;
+    --joint-plain: #6f8d9c;
+    --piece: #8a6a45;
+    --piece-line: #d2a978;
+    --waste: #4d5551;
+    --dark-card: #26302c;
+    --dark-card-field: #1a1f1d;
+  --desk: #0d100f;
+    --desk: #0d100f;
     color-scheme: dark;
   }
 }
@@ -61,5 +87,13 @@
   --accent-soft: #1c2e37;
   --signal: #f2b544;
   --danger: #f2b8b5;
+  --xray-edge: #d2a978;
+  --joint-plain: #6f8d9c;
+  --piece: #8a6a45;
+  --piece-line: #d2a978;
+  --waste: #4d5551;
+  --dark-card: #26302c;
+  --dark-card-field: #1a1f1d;
+  --desk: #0d100f;
   color-scheme: dark;
 }
