@@ -4,6 +4,7 @@ import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
 import { IconLogo } from '../editor/icons';
 import { navigate } from '../routes';
+import { useInstall } from '../pwa';
 import styles from './Home.module.css';
 
 const icon = { width: 28, height: 28, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true } as const;
@@ -154,6 +155,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   const [fileError, setFileError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const refresh = () => void listProjects().then(setProjects, () => setProjects([]));
+  const install = useInstall();
 
   useEffect(() => {
     refresh();
@@ -194,6 +196,14 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
             Kit <span className={styles.brandWood}>Carpintero</span>
           </span>
         </span>
+        {install && (
+          <button type="button" className={styles.install} onClick={install}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+            </svg>
+            Instalar la app
+          </button>
+        )}
       </header>
       <p className={styles.lead}>Sin cuenta. Tus proyectos se guardan en este dispositivo.</p>
 
