@@ -189,4 +189,13 @@ export const MESSAGES_EN: Record<string, string> = {
   'Costado izquierdo': 'Side (left)',
   'Costado derecho': 'Side (right)',
   Base: 'Bottom',
+  // Torneado (turning.ts)
+  Cilindro: 'Cylinder',
+  'Columna de pie': 'Pedestal column',
+  'Pata de mesa': 'Table leg',
+  Barrote: 'Spindle',
+  'torneado, Ø {d}': 'turned, Ø {d}',
+  'torneado, Ø {min} a {max}': 'turned, Ø {min} to {max}',
+  '1 parte cuadrada': '1 square part',
+  '{n} partes cuadradas': '{n} square parts',
 };

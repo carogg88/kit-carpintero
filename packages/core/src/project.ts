@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -89,6 +89,26 @@ export const Section = z.object({
 });
 export type Section = z.infer<typeof Section>;
 
+/**
+ * Estación del torneado: a `at` mm de la punta mínima (sobre el eje del torneado) la pieza mide `d` de diámetro.
+ * `to` dice cómo se llega desde la estación anterior: recto (cono o cilindro), en curva o dejando el taco cuadrado.
+ * En curva, `bulge` es cuánto se aparta del recto en el medio: positivo hacia afuera (cuenta), negativo hacia adentro (garganta).
+ */
+export const TurnStation = z.object({
+  at: z.number().min(0),
+  d: z.number().positive(),
+  to: z.enum(['straight', 'curve', 'square']).default('straight'),
+  bulge: z.number().default(0),
+});
+export type TurnStation = z.infer<typeof TurnStation>;
+
+/** Pieza torneada: el taco gira sobre `axis` (por su centro) y el perfil sale de las estaciones, de punta a punta. */
+export const Turning = z.object({
+  axis: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  stations: z.array(TurnStation).min(2),
+});
+export type Turning = z.infer<typeof Turning>;
+
 export const Part = z.object({
   id: z.string(),
   name: z.string(),
@@ -105,6 +125,8 @@ export const Part = z.object({
   bevels: z.array(Bevel).default([]),
   /** Tramos con otra sección (más gruesos o más finos que la pieza). */
   sections: z.array(Section).default([]),
+  /** Torneado: si está, la pieza es el taco girado en el torno con este perfil. */
+  turning: Turning.optional(),
   /** Componente al que pertenece: todas sus copias comparten forma, madera y operaciones. */
   component: z.string().optional(),
 });
@@ -161,6 +183,8 @@ const migrations: Record<number, Migration> = {
   5: (d) => d,
   // v7 suma los tramos con otra sección; el esquema los completa vacíos.
   6: (d) => d,
+  // v8 suma el torneado; las piezas viejas no tienen.
+  7: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

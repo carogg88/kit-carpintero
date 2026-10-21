@@ -1,6 +1,6 @@
 import { partAxesBySize } from './edit';
 import { endJoint, jointGeometry, solidBox } from './joints';
-import { otherAxes, partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
+import { boxSize, otherAxes, partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
 import { arcInfo, pocketSolid } from './pockets';
 import { sectionBox } from './sections';
 import type { Part, Project } from './project';
@@ -72,6 +72,8 @@ export interface Drawing {
   arcs?: ArcMark[];
   /** Dónde empiezan y terminan los tramos con otra sección, a lo largo de cada eje del dibujo, para acotarlos en cadena. */
   stops?: { u: number[]; v: number[] };
+  /** Estaciones del torneado a lo largo del dibujo: dónde (u), a qué distancia de la punta y qué diámetro. */
+  turns?: TurnMark[];
   /** Qué tiene que proyectar el motor para cambiar estas líneas por las de la forma exacta. */
   engine?: EngineView;
 }
@@ -82,6 +84,16 @@ export interface ArcMark {
   at: [number, number];
   toward: [number, number];
   radius: number;
+}
+
+/** Estación de un torneado que corre a lo ancho del dibujo: `at` es la distancia desde la punta de la pieza. */
+export interface TurnMark {
+  u: number;
+  v: number;
+  at: number;
+  d: number;
+  /** De un lado o del otro queda cuadrado: el diámetro no se acota ahí. */
+  square: boolean;
 }
 
 /** Pedido al motor: proyectar estas piezas exactas, con líneas ocultas, y quedarse con lo que cae en la ventana. */
@@ -240,7 +252,23 @@ export function drawPart(project: Project, part: Part): Drawing {
   const projection = partProjection(part);
   const pockets: DrawItem[] = part.pockets.map((p) => ({ id: `${part.id}-${p.id}`, box: solidBox(pocketSolid(part, p)), joint: true, owner: part.id, hole: true }));
   const drawing = drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...partSectionItems(part), ...pockets], projection);
-  return { ...drawing, arcs: partArcMarks(part, projection), stops: partSectionStops(part, projection), engine: { parts: [part.id], projection } };
+  return { ...drawing, arcs: partArcMarks(part, projection), stops: partSectionStops(part, projection), turns: partTurnMarks(part, projection), engine: { parts: [part.id], projection } };
+}
+
+/** Estaciones del torneado, si el eje del torneado es el largo del dibujo. */
+export function partTurnMarks(part: Part, p: Projection): TurnMark[] {
+  const tu = part.turning;
+  if (!tu || tu.axis !== p.u) return [];
+  const box = partBox(part);
+  const center = (box.min[p.v] + box.max[p.v]) / 2;
+  const st = tu.stations;
+  return st.map((s, i) => ({
+    u: p.uSign * (box.min[p.u] + s.at),
+    v: p.vSign * center,
+    at: p.uSign > 0 ? s.at : boxSize(box)[p.u] - s.at,
+    d: s.d,
+    square: (i === 0 || s.to === 'square') && (i === st.length - 1 || st[i + 1]!.to === 'square'),
+  }));
 }
 
 /** Puntas de los tramos que corren a lo largo de un eje del dibujo, sin repetir y sin las puntas de la pieza. */

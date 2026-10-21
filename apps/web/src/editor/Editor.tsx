@@ -10,6 +10,7 @@ import {
   IconChamfer,
   IconRound,
   IconSection,
+  IconTurn,
   IconCircle,
   IconDraw,
   IconRect,
@@ -42,6 +43,7 @@ const TOOLS: [Tool, string, string, () => React.JSX.Element][] = [
   ['draw', tk('Dibujar en una cara'), 'D', IconDraw],
   ['bevel', tk('Biselar o redondear'), 'B', IconBevel],
   ['section', tk('Agrandar o achicar un tramo'), 'T', IconSection],
+  ['turn', tk('Tornear'), 'R', IconTurn],
 ];
 const VIEWS: [View, string, string][] = [
   ['iso', tk('Iso'), tk('Iso')],
@@ -56,6 +58,7 @@ const TIPS: Record<Tool, string> = {
   bevel: tk('Tocá una cara cerca de una arista y arrastrá hacia adentro. Cerca de una esquina (por ejemplo, la punta de una tapa vista en planta) toma la arista que baja por la esquina. Elegí bisel o redondeo en la barra; la medida exacta se escribe en el panel.'),
   section:
     tk('Tocá una pieza a lo largo (por ejemplo, una pata) y arrastrá para marcar el tramo. Arranca un poco más grueso; en el panel le das el ancho y el fondo que quieras, más grande o más chico. Se pega a las puntas y cada 5 mm.'),
+  turn: tk('Tocá una pieza larga (una pata, una columna) para tornearla. Arranca como un cilindro del grueso del taco; en el panel elegís un modelo y ajustás cada diámetro, cada curva y lo que queda cuadrado.'),
   draw: tk('Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina, un círculo desde su centro o la cuerda de un arco (y tocá cuánto se curva). Se pega a los bordes, al centro y cada 5 mm.'),
 };
 
@@ -102,6 +105,7 @@ function useShortcuts(modelo: boolean) {
       else if (k === 'd') s.setTool('draw');
       else if (k === 'b') s.setTool('bevel');
       else if (k === 't') s.setTool('section');
+      else if (k === 'r') s.setTool('turn');
       else if (k === 'x') s.setXray(!s.xray);
       else if (k === 'escape') {
         if (s.drawFace) s.setDrawFace(null);

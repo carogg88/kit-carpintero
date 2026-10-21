@@ -1,5 +1,5 @@
-import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
-import { bevelSolid, engineCamera, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
+import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, revolution, Vector, type Shape3D } from 'replicad';
+import { bevelSolid, engineCamera, otherAxes, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, turnSegments, type Box, type EngineView, type Part, type Project, type Solid, type Turning } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -57,10 +57,69 @@ function toShape(s: Solid): Shape3D {
   }
 }
 
-/** Arma una pieza exacta: forma base, redondeos, espigas sumadas y mortajas restadas. */
+/**
+ * El taco girado: el perfil (de la punta, por el contorno, a la otra punta y de vuelta por el eje) da una vuelta
+ * entera sobre el eje del torneado. Lo que queda cuadrado se suma después con la sección del taco.
+ */
+function turnedShape(part: Part, turning: Turning): Shape3D {
+  const box = partBox(part);
+  const axis = turning.axis;
+  const [u, v] = otherAxes(axis);
+  const cu = (box.min[u] + box.max[u]) / 2;
+  const cv = (box.min[v] + box.max[v]) / 2;
+  const at = ([along, r]: [number, number]): [number, number, number] => {
+    const q: [number, number, number] = [0, 0, 0];
+    q[axis] = box.min[axis] + along;
+    q[u] = cu + r;
+    q[v] = cv;
+    return q;
+  };
+  const segs = turnSegments(part, turning);
+  const len = box.max[axis] - box.min[axis];
+  const pts: [number, number][] = [[0, 0], segs[0]!.a];
+  const edges = [];
+  const line = (a: [number, number], b: [number, number]) => {
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) > 1e-3) edges.push(makeLine(at(a), at(b)));
+  };
+  line(pts[0]!, pts[1]!);
+  for (const s of segs) {
+    if (s.kind === 'curve' && s.mid) edges.push(makeThreePointArc(at(s.a), at(s.mid), at(s.b)));
+    else line(s.a, s.b);
+  }
+  line(segs[segs.length - 1]!.b, [len, 0]);
+  line([len, 0], [0, 0]);
+  const wire = assembleWire(edges);
+  const face = makeFace(wire);
+  const dir: [number, number, number] = [0, 0, 0];
+  dir[axis] = 1;
+  let shape = revolution(face, at([0, 0]), dir) as Shape3D;
+  edges.forEach((e) => e.delete());
+  wire.delete();
+  face.delete();
+  for (const s of segs) {
+    if (s.kind !== 'square') continue;
+    const b: Box = { min: [...box.min], max: [...box.max] };
+    b.min[axis] = box.min[axis] + s.a[0];
+    b.max[axis] = box.min[axis] + s.b[0];
+    if (b.max[axis] - b.min[axis] > 0.01) shape = shape.fuse(solid(b));
+  }
+  return shape;
+}
+
+/** Arma una pieza exacta: forma base (el taco, o torneada), redondeos, espigas sumadas y mortajas restadas. */
 export function partShape(part: Part, project: Project): { shape: Shape3D; warning?: string } {
   let shape = solid(partBox(part));
   let warning: string | undefined;
+
+  if (part.turning) {
+    try {
+      const turned = turnedShape(part, part.turning);
+      shape.delete();
+      shape = turned;
+    } catch {
+      warning = t('No se pudo tornear esta pieza');
+    }
+  }
 
   // Tramos primero: sacan la pieza a lo largo del tramo y ponen la sección nueva, y lo demás se hace sobre eso.
   for (const s of part.sections) {
@@ -71,7 +130,8 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     }
   }
 
-  for (const op of part.ops) {
+  // Los cantos redondeados o chaflanados son de una pieza escuadrada: en una torneada no van.
+  for (const op of part.turning ? [] : part.ops) {
     try {
       shape = op.kind === 'round' ? shape.fillet(op.radius) : shape.chamfer(op.size);
     } catch {

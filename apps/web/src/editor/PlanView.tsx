@@ -115,6 +115,54 @@ function Dim({ from, to, at, offset, text, vertical }: { from: number; to: numbe
   );
 }
 
+/**
+ * Torneado: debajo, la distancia de cada estación a la punta (cotas desde un mismo cero, como en la regla del tornero);
+ * arriba, el diámetro en cada estación que no queda dentro de lo cuadrado. Si dos textos se pisan, va el primero.
+ */
+function TurnDims({ d, at, n }: { d: Drawing; at: Place; n: (mm: number) => string }) {
+  const marks = d.turns ?? [];
+  if (!marks.length) return null;
+  const base = py(at, d.bounds.v0) + 3;
+  const top = py(at, d.bounds.v1) - 1.5;
+  const gap = 3.2;
+  const shown: { pos: boolean; dia: boolean }[] = [];
+  let lastPos = -Infinity;
+  let lastDia = -Infinity;
+  marks.forEach((m, i) => {
+    const x = px(at, m.u);
+    const pos = x - lastPos >= gap || i === marks.length - 1;
+    const dia = !m.square && x - lastDia >= gap;
+    if (pos) lastPos = x;
+    if (dia) lastDia = x;
+    shown.push({ pos, dia });
+  });
+  return (
+    <g className={styles.dim}>
+      <line x1={px(at, marks[0]!.u)} y1={base} x2={px(at, marks[marks.length - 1]!.u)} y2={base} />
+      {marks.map((m, i) => {
+        const x = px(at, m.u);
+        const { pos: showPos, dia: showDia } = shown[i]!;
+        return (
+          <g key={i}>
+            <line x1={x} y1={py(at, d.bounds.v0)} x2={x} y2={base + 1} />
+            <circle cx={x} cy={base} r={0.35} className={styles.dimDot} />
+            {showPos && (
+              <text x={x + 0.9} y={base + 1.2} transform={`rotate(-90 ${x + 0.9} ${base + 1.2})`} textAnchor="end">
+                {n(m.at)}
+              </text>
+            )}
+            {showDia && (
+              <text x={x + 0.9} y={top} transform={`rotate(-90 ${x + 0.9} ${top})`} textAnchor="start">
+                Ø {n(m.d)}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 /** Cotas en cadena entre las puntas de la pieza y las de sus tramos; sin tramos no dibuja nada. */
 function Chain({ stops, lo, hi, render }: { stops?: number[]; lo: number; hi: number; render: (a: number, b: number, key: number) => ReactNode }) {
   if (!stops?.length) return null;
@@ -286,8 +334,10 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
       return { r, part, d: refine(drawPart(project, part)) };
     });
     // Con tramos, la cota en cadena va pegada a la pieza y la total más afuera: hace falta un poco más de lugar.
+    // Un torneado lleva los diámetros arriba y las distancias abajo.
+    const extraV = (d: Drawing) => (d.stops?.u.length ? 6 : 0) + (d.turns?.length ? 20 : 0);
     const scaleFor = (d: Drawing) =>
-      pickScale((s) => (d.bounds.u1 - d.bounds.u0) / s <= cellW - 26 - (d.stops?.v.length ? 6 : 0) && (d.bounds.v1 - d.bounds.v0) / s <= cellH - 22 - (d.stops?.u.length ? 6 : 0));
+      pickScale((s) => (d.bounds.u1 - d.bounds.u0) / s <= cellW - 26 - (d.stops?.v.length ? 6 : 0) && (d.bounds.v1 - d.bounds.v0) / s <= cellH - 22 - extraV(d));
     const scales = new Set(drawn.map(({ d }) => scaleFor(d)));
     sheets.push({
       key: `piezas-${i}`,
@@ -298,7 +348,8 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
         const scale = scaleFor(d);
         const cx = M + (k % cols) * cellW;
         const cy = M + Math.floor(k / cols) * cellH;
-        const p: Place = { x: cx + 16, y: cy + 12, s: scale, b: d.bounds };
+        const p: Place = { x: cx + 16, y: cy + 12 + (d.turns?.length ? 9 : 0), s: scale, b: d.bounds };
+        const below = d.stops?.u.length ? 11 : d.turns?.length ? 15 : 5;
         const size = partBox(part);
         const thick = Math.min(...size.max.map((v, j) => v - size.min[j]!));
         return (
@@ -312,7 +363,8 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
             <Lines d={d} at={p} />
             <Chain stops={d.stops?.u} lo={d.bounds.u0} hi={d.bounds.u1} render={(a, b, k) => <Dim key={k} from={px(p, a)} to={px(p, b)} at={py(p, d.bounds.v0)} offset={5} text={n(b - a)} />} />
             <Chain stops={d.stops?.v} lo={d.bounds.v0} hi={d.bounds.v1} render={(a, b, k) => <Dim key={k} vertical from={py(p, b)} to={py(p, a)} at={px(p, d.bounds.u0)} offset={-5} text={n(b - a)} />} />
-            <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={d.stops?.u.length ? 11 : 5} text={n(d.bounds.u1 - d.bounds.u0)} />
+            <TurnDims d={d} at={p} n={n} />
+            <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={below} text={n(d.bounds.u1 - d.bounds.u0)} />
             <Dim vertical from={py(p, d.bounds.v1)} to={py(p, d.bounds.v0)} at={px(p, d.bounds.u0)} offset={d.stops?.v.length ? -11 : -5} text={n(d.bounds.v1 - d.bounds.v0)} />
             {d.arcs?.map((m) => <Radius key={m.id} m={m} at={p} text={`R ${n(m.radius)}`} />)}
             {r.work.length > 0 && (

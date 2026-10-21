@@ -141,6 +141,11 @@ export const IconSection = () => (
     <path d="M7 14h10v7H7z" />
   </svg>
 );
+export const IconTurn = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M9 3h6v3l-1 2 2 3-2 3v2l2 2v3H8v-3l2-2v-2l-2-3 2-3-1-2z" />
+  </svg>
+);
 export const IconRound = () => (
   <svg {...base} strokeLinejoin="round">
     <path d="M4 20V4h8a8 8 0 0 1 8 8v8z" />

@@ -236,4 +236,28 @@ export default {
   'Sobre el {wood}': 'About {wood}',
   'Otras opciones: {list}.': 'Other options: {list}.',
   'Ver cortes': 'See cuts',
+  // Torneado (TurningCard.tsx, PartPanel.tsx, Editor.tsx)
+  Tornear: 'Turn',
+  'Tocá una pieza larga (una pata, una columna) para tornearla. Arranca como un cilindro del grueso del taco; en el panel elegís un modelo y ajustás cada diámetro, cada curva y lo que queda cuadrado.':
+    'Tap a long part (a leg, a column) to turn it. It starts as a cylinder as thick as the blank; in the panel you pick a model and adjust each diameter, each curve and what stays square.',
+  Torneado: 'Turning',
+  'tocás una pieza larga y pasa a ser su taco girado en el torno: una pata, una columna, un barrote.':
+    'on a long part and it becomes its blank spun on the lathe: a leg, a column, a spindle.',
+  Recto: 'Straight',
+  'Curva hacia afuera': 'Bead (curves out)',
+  'Curva hacia adentro': 'Cove (curves in)',
+  'Queda cuadrado': 'Stays square',
+  'Perfil del torneado': 'Turning profile',
+  'Sacar torneado': 'Remove turning',
+  'Arrancar de un modelo': 'Start from a model',
+  'Taco de {side} × {side} × {len}. Ningún diámetro puede pasar el lado del taco.': 'Blank {side} × {side} × {len}. No diameter can be bigger than the side of the blank.',
+  A: 'At',
+  'Punta de {side}': 'End at {side}',
+  'Otra punta, a {n}': 'Other end, at {n}',
+  'Cómo llega desde la estación {n}': 'How it gets there from station {n}',
+  Curva: 'Curve',
+  'Borrar la estación {n}': 'Delete station {n}',
+  'Agregar estación': 'Add station',
+  'La distancia se mide desde {side}. Entre una estación y la siguiente, el perfil va recto, en curva o queda cuadrado (para encastrar).':
+    'Distances are measured from {side}. Between one station and the next, the profile goes straight, curves, or stays square (for joinery).',
 } satisfies Record<string, string>;

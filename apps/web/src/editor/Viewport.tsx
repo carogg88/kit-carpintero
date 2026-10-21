@@ -18,6 +18,7 @@ import {
   newSection,
   nextSectionId,
   partAxesBySize,
+  presetTurning,
   sectionBox,
   newPocket,
   otherAxes,
@@ -429,12 +430,22 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const units = project?.units ?? 'cm';
 
   const startDrag = (e: ThreeEvent<PointerEvent>, original: Part) => {
-    const { tool, select, beginDrag, copyMove, project: current } = useEditor.getState();
+    const { tool, select, beginDrag, copyMove, commit, project: current } = useEditor.getState();
     if (tool === 'select' || !e.face || !current) return;
     e.stopPropagation();
     if (tool === 'draw') return pickFace(e, original);
     if (tool === 'bevel') return startBevel(e, original);
     if (tool === 'section') return startSection(e, original);
+    if (tool === 'turn') {
+      // Tornear: la pieza pasa a ser su taco girado, como un cilindro; el perfil se arma en el panel.
+      if (!original.turning) {
+        commit((d) => {
+          const q = d.parts.find((x) => x.id === original.id);
+          if (q) q.turning = presetTurning(q as Part, 'cilindro');
+        });
+      }
+      return select(original.id);
+    }
     // Copiar al mover: se arrastra una copia y la pieza original queda en su lugar.
     const copying = tool === 'move' && (copyMove || e.nativeEvent.ctrlKey || e.nativeEvent.altKey);
     const part = copying ? copyPart(current.parts, original) : original;
