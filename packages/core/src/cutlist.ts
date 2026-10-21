@@ -140,7 +140,14 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   }
   const angled = part.bevels.filter((b) => isAngleCut(part, b)).length;
   if (angled) work.push(plural(angled, 'corte en ángulo', 'cortes en ángulo'));
-  if (part.bevels.length - angled) work.push(plural(part.bevels.length - angled, 'bisel', 'biseles'));
+  const rounded = part.bevels.filter((b) => b.round);
+  const flat = part.bevels.length - angled - rounded.length;
+  if (flat) work.push(plural(flat, 'bisel', 'biseles'));
+  // Cada radio aparte: es la fresa o la plantilla que hay que tener.
+  for (const r of [...new Set(rounded.map((b) => Math.round(b.da)))]) {
+    const count = rounded.filter((b) => Math.round(b.da) === r).length;
+    work.push(`${plural(count, 'arista redondeada', 'aristas redondeadas')} R ${r} mm`);
+  }
   const op = part.ops[0];
   if (op) work.push(op.kind === 'round' ? `cantos redondeados ${op.radius} mm` : `cantos chaflanados ${op.size} mm`);
   const finished = [...boxSize(box)].sort((x, y) => y - x);

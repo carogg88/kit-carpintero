@@ -135,6 +135,16 @@ export const IconBevel = () => (
     <path d="M14 4v6h6" strokeDasharray="2 2" />
   </svg>
 );
+export const IconRound = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h8a8 8 0 0 1 8 8v8z" />
+  </svg>
+);
+export const IconChamfer = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h10l6 6v10z" />
+  </svg>
+);
 export const IconArc = () => (
   <svg {...base}>
     <path d="M4 18a8 8 0 0 1 16 0" />
