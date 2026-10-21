@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   acrossFace,
+  arcInfo,
+  arcPoints,
   bevelSolid,
   copyPart,
   formatLength,
@@ -249,6 +251,13 @@ function facePoint(box: Box, f: DrawFace, u: number, v: number, lift = 0.4): THR
 }
 
 function outline(box: Box, f: DrawFace, shape: PocketShape): THREE.Vector3[] {
+  if (shape.kind === 'arc') {
+    const a: [number, number] = [shape.u, shape.v];
+    const b: [number, number] = [shape.u2, shape.v2];
+    // Mientras se marca la cuerda todavía no hay flecha: se ve la recta.
+    const pts = shape.bulge === 0 ? [a, b] : arcPoints(a, arcInfo(shape).mid, b, 48);
+    return pts.map(([u, v]) => facePoint(box, f, u, v, 0.6));
+  }
   if (shape.kind === 'circle') {
     const r = shape.d / 2;
     return Array.from({ length: 72 }, (_, i) => {
@@ -517,6 +526,9 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let shape: PocketShape | null = null;
+    // Arco, segundo paso: la cuerda ya está; ahora el dedo dice cuánto se curva.
+    const chord = useEditor.getState().arcChord;
+    const bending = drawShape === 'arc' && chord && chord.partId === face.partId && chord.axis === face.axis && chord.side === face.side ? chord : null;
 
     const onMove = (ev: PointerEvent) => {
       const rect = gl.domElement.getBoundingClientRect();
@@ -528,7 +540,25 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       const units = useEditor.getState().project?.units ?? 'cm';
       let text: string;
       let snaps: (string | null)[];
-      if (drawShape === 'circle') {
+      if (bending) {
+        const len = Math.hypot(bending.u2 - bending.u, bending.v2 - bending.v);
+        const nu = -(bending.v2 - bending.v) / len;
+        const nv = (bending.u2 - bending.u) / len;
+        const raw = (pt.getComponent(ua) - box.min[ua] - bending.u) * nu + (pt.getComponent(va) - box.min[va] - bending.v) * nv;
+        const max = len / 2;
+        let bulge = Math.max(-max, Math.min(max, Math.round(raw)));
+        snaps = [];
+        if (max - Math.abs(raw) <= tol) [bulge, snaps] = [Math.sign(raw) * max, ['semicírculo']];
+        const arc = { kind: 'arc', u: bending.u, v: bending.v, u2: bending.u2, v2: bending.v2, bulge, outside: false } as const;
+        shape = bulge === 0 ? null : arc;
+        text = bulge === 0 ? 'Recta' : `Flecha ${formatLength(Math.abs(bulge), units)} · R ${formatLength(arcInfo(arc).radius, units)}`;
+        if (!shape) useEditor.getState().setDraft({ ...face, shape: { ...arc, bulge: 0 } });
+      } else if (drawShape === 'arc') {
+        const len = Math.hypot(end.u - start.u, end.v - start.v);
+        shape = { kind: 'arc', u: start.u, v: start.v, u2: end.u, v2: end.v, bulge: 0, outside: false };
+        text = `Cuerda ${formatLength(len, units)}`;
+        snaps = end.snaps;
+      } else if (drawShape === 'circle') {
         const d = Math.max(1, Math.round(Math.hypot(pt.getComponent(ua) - box.min[ua] - start.u, pt.getComponent(va) - box.min[va] - start.v) * 2));
         shape = { kind: 'circle', u: start.u, v: start.v, d };
         text = `Ø ${formatLength(d, units)}`;
@@ -541,7 +571,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         snaps = end.snaps;
       }
       const named = [...new Set(snaps.filter(Boolean))];
-      useEditor.getState().setDraft(shape ? { ...face, shape } : null);
+      if (shape || !bending) useEditor.getState().setDraft(shape ? { ...face, shape } : null);
       useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: named.length ? named.join(' y ') : null });
       invalidate();
     };
@@ -550,12 +580,19 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       if (controlsRef.current) controlsRef.current.enabled = true;
-      const { setDraft, setHint, commit } = useEditor.getState();
-      setDraft(null);
+      const { setDraft, setHint, commit, setArcChord } = useEditor.getState();
       setHint(null);
       const s = shape as PocketShape | null;
+      if (s?.kind === 'arc' && !bending) {
+        // Cuerda marcada: queda a la vista hasta que se elija la flecha.
+        if (Math.hypot(s.u2 - s.u, s.v2 - s.v) >= 3) return setArcChord({ ...face, u: s.u, v: s.v, u2: s.u2, v2: s.v2 });
+        return setDraft(null);
+      }
+      if (bending && !s) return;
+      setDraft(null);
+      setArcChord(null);
       // Un toque sin arrastrar, o una figura de menos de 3 mm, no deja nada.
-      if (!s || (s.kind === 'circle' ? s.d < 3 : s.w < 3 || s.h < 3)) return;
+      if (!s || (s.kind === 'circle' ? s.d < 3 : s.kind === 'rect' ? s.w < 3 || s.h < 3 : false)) return;
       commit((d) => {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
@@ -564,6 +601,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
+    // Con la cuerda puesta alcanza con tocar: la flecha sale de donde se tocó.
+    if (bending) onMove(e.nativeEvent);
   };
 
   // Biselar: tocar una cara cerca de una arista y arrastrar hacia adentro marca hasta dónde llega el bisel.

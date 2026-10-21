@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import {
   acrossFace,
+  arcInfo,
   bevelAngle,
   boxSize,
   componentCopies,
@@ -53,13 +54,13 @@ interface LengthFieldProps {
 /** Campo de medida: se escribe en la unidad elegida y se valida al salir del campo. */
 export function LengthField({ label, mm, units, min = 1, max, onCommit, compact, describedBy }: LengthFieldProps) {
   const id = useId();
-  const [text, setText] = useState(() => (mm ? formatNumber(mm, units) : ''));
+  const [text, setText] = useState(() => (mm || min === 0 ? formatNumber(mm, units) : ''));
   const [error, setError] = useState<string | null>(null);
   // Si la medida cambia desde afuera (deshacer, arrastrar), el campo la muestra de nuevo.
   const [shown, setShown] = useState({ mm, units });
   if (shown.mm !== mm || shown.units !== units) {
     setShown({ mm, units });
-    setText(mm ? formatNumber(mm, units) : '');
+    setText(mm || min === 0 ? formatNumber(mm, units) : '');
     setError(null);
   }
   const commit = () => {
@@ -191,6 +192,7 @@ const AXIS_LABELS = ['Ancho', 'Alto', 'Fondo'] as const;
 /** Un vaciado o calado de la pieza, con sus medidas editables. */
 function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocket; part: Part; units: Units; onChange: (recipe: (p: Pocket) => void) => void; onRemove: () => void }) {
   const throughId = useId();
+  const otherId = useId();
   const { axes, size } = faceSize(part, pocket.axis);
   const thick = depthUnder(part, pocket.axis);
   const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
@@ -207,16 +209,35 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
         </button>
       </div>
       <div className={styles.pocketFields}>
-        {s.kind === 'rect' ? (
+        {s.kind === 'arc' ? (
           <>
-            <LengthField label={AXIS_LABELS[axes[0]]} mm={s.w} units={units} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.w = v))} />
-            <LengthField label={AXIS_LABELS[axes[1]]} mm={s.h} units={units} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.h = v))} />
+            <LengthField label={`Inicio desde ${MEASURED_FROM[axes[0]]}`} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
+            <LengthField label={`Inicio desde ${MEASURED_FROM[axes[1]]}`} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
+            <LengthField label={`Fin desde ${MEASURED_FROM[axes[0]]}`} mm={s.u2} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.u2 = v))} />
+            <LengthField label={`Fin desde ${MEASURED_FROM[axes[1]]}`} mm={s.v2} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.v2 = v))} />
+            <LengthField
+              label="Flecha"
+              mm={Math.abs(s.bulge)}
+              units={units}
+              min={0.5}
+              max={arcInfo(s).chord / 2}
+              onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.bulge = Math.sign(p.shape.bulge) * v))}
+            />
           </>
         ) : (
-          <LengthField label="Diámetro" mm={s.d} units={units} max={Math.max(...size)} onCommit={(v) => onChange((p) => p.shape.kind === 'circle' && (p.shape.d = v))} />
+          <>
+            {s.kind === 'rect' ? (
+              <>
+                <LengthField label={AXIS_LABELS[axes[0]]} mm={s.w} units={units} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.w = v))} />
+                <LengthField label={AXIS_LABELS[axes[1]]} mm={s.h} units={units} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.h = v))} />
+              </>
+            ) : (
+              <LengthField label="Diámetro" mm={s.d} units={units} max={Math.max(...size)} onCommit={(v) => onChange((p) => p.shape.kind === 'circle' && (p.shape.d = v))} />
+            )}
+            <LengthField label={from(0)} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
+            <LengthField label={from(1)} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
+          </>
         )}
-        <LengthField label={from(0)} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
-        <LengthField label={from(1)} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
         {!pocket.through && (
           <LengthField label="Profundidad" mm={pocket.depth} units={units} min={0.5} max={thick} onCommit={(v) => onChange((p) => void (p.depth = v))} />
         )}
@@ -225,6 +246,12 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
         <input id={throughId} type="checkbox" checked={pocket.through} onChange={(e) => onChange((p) => void (p.through = e.target.checked))} />
         Atraviesa la pieza
       </label>
+      {s.kind === 'arc' && (
+        <label className={styles.check} htmlFor={otherId}>
+          <input id={otherId} type="checkbox" checked={s.outside} onChange={(e) => onChange((p) => p.shape.kind === 'arc' && (p.shape.outside = e.target.checked))} />
+          Sacar lo de afuera del arco (esquina redondeada)
+        </label>
+      )}
     </div>
   );
 }

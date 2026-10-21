@@ -8,7 +8,9 @@ export type Solid =
   /** Polígono en el plano (u, v) estirado sobre `axis`, de `from` a `to`. Colas de milano, ingletes. */
   | { kind: 'prism'; axis: Axis; from: number; to: number; u: Axis; v: Axis; points: [number, number][] }
   /** Agujero en cualquier dirección (`dir` de largo 1): los de tornillo de bolsillo van inclinados. */
-  | { kind: 'bore'; start: Vec3; dir: Vec3; radius: number; length: number };
+  | { kind: 'bore'; start: Vec3; dir: Vec3; radius: number; length: number }
+  /** Perfil de un arco (de `a` a `b` pasando por `mid`) y una línea quebrada `rest` que vuelve a `a`, estirado como el prisma. */
+  | { kind: 'arc'; axis: Axis; from: number; to: number; u: Axis; v: Axis; a: [number, number]; mid: [number, number]; b: [number, number]; rest: [number, number][] };
 
 /** Lo que un encastre le hace a cada pieza: A recibe, B entra. */
 export interface JointGeometry {
@@ -60,6 +62,34 @@ export function slab(j: EndJoint, depth: number, base: Box = j.section): Box {
 /** Redondea a medio milímetro, la precisión de una buena regla de taller. */
 export const half = (mm: number) => Math.round(mm * 2) / 2;
 
+/** Puntos a lo largo del arco que pasa por a, mid y b (n tramos), para dibujarlo o medirlo. */
+export function arcPoints(a: [number, number], mid: [number, number], b: [number, number], n: number): [number, number][] {
+  const c = circleThrough(a, mid, b);
+  if (!c) return [a, b];
+  const ang = (p: [number, number]) => Math.atan2(p[1] - c.center[1], p[0] - c.center[0]);
+  const a0 = ang(a);
+  let a1 = ang(b);
+  const am = ang(mid);
+  // Recorre el sentido que pasa por mid.
+  const norm = (x: number) => ((x % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const ccw = norm(am - a0) < norm(a1 - a0);
+  a1 = ccw ? a0 + norm(a1 - a0) : a0 - norm(a0 - a1);
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const t = a0 + ((a1 - a0) * i) / n;
+    return [c.center[0] + c.radius * Math.cos(t), c.center[1] + c.radius * Math.sin(t)];
+  });
+}
+
+/** Círculo que pasa por tres puntos, o null si están alineados. */
+export function circleThrough(a: [number, number], b: [number, number], c: [number, number]): { center: [number, number]; radius: number } | null {
+  const d = 2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1]));
+  if (Math.abs(d) < 1e-9) return null;
+  const s = (p: [number, number]) => p[0] * p[0] + p[1] * p[1];
+  const ux = (s(a) * (b[1] - c[1]) + s(b) * (c[1] - a[1]) + s(c) * (a[1] - b[1])) / d;
+  const uy = (s(a) * (c[0] - b[0]) + s(b) * (a[0] - c[0]) + s(c) * (b[0] - a[0])) / d;
+  return { center: [ux, uy], radius: Math.hypot(a[0] - ux, a[1] - uy) };
+}
+
 /** Caja que envuelve un sólido (los cilindros y agujeros, como su caja). */
 export function solidBox(s: Solid): Box {
   switch (s.kind) {
@@ -88,6 +118,18 @@ export function solidBox(s: Solid): Box {
       max[s.u] = Math.max(...s.points.map((p) => p[0]));
       min[s.v] = Math.min(...s.points.map((p) => p[1]));
       max[s.v] = Math.max(...s.points.map((p) => p[1]));
+      return { min, max };
+    }
+    case 'arc': {
+      const pts = [...arcPoints(s.a, s.mid, s.b, 32), ...s.rest];
+      const min: Vec3 = [0, 0, 0];
+      const max: Vec3 = [0, 0, 0];
+      min[s.axis] = Math.min(s.from, s.to);
+      max[s.axis] = Math.max(s.from, s.to);
+      min[s.u] = Math.min(...pts.map((p) => p[0]));
+      max[s.u] = Math.max(...pts.map((p) => p[0]));
+      min[s.v] = Math.min(...pts.map((p) => p[1]));
+      max[s.v] = Math.max(...pts.map((p) => p[1]));
       return { min, max };
     }
     case 'bore': {

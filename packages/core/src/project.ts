@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -28,6 +28,19 @@ export const PocketShape = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('rect'), u: z.number(), v: z.number(), w: z.number().positive(), h: z.number().positive() }),
   /** Círculo: (u, v) es el centro. */
   z.object({ kind: z.literal('circle'), u: z.number(), v: z.number(), d: z.number().positive() }),
+  /**
+   * Arco de dos puntos: de (u, v) a (u2, v2), con la flecha `bulge` (positiva a la izquierda de la cuerda).
+   * Saca el segmento entre la cuerda y el arco, o con `outside` lo que queda más allá del arco (esquinas redondeadas).
+   */
+  z.object({
+    kind: z.literal('arc'),
+    u: z.number(),
+    v: z.number(),
+    u2: z.number(),
+    v2: z.number(),
+    bulge: z.number().refine((x) => x !== 0),
+    outside: z.boolean().default(false),
+  }),
 ]);
 export type PocketShape = z.infer<typeof PocketShape>;
 
@@ -125,6 +138,7 @@ const migrations: Record<number, Migration> = {
   // v3 suma los vaciados de cada pieza; el esquema los completa vacíos.
   2: (d) => d,
   3: (d) => d,
+  4: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

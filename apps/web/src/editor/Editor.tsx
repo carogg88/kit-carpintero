@@ -4,6 +4,7 @@ import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
 import { CutsView } from './CutsView';
 import {
+  IconArc,
   IconBack,
   IconBevel,
   IconCircle,
@@ -49,7 +50,7 @@ const TIPS: Record<Tool, string> = {
   push: 'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.',
   move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.',
   bevel: 'Tocá una cara cerca de la arista que querés biselar y arrastrá hacia adentro. Se pega al centro y a todo el ancho (corte en ángulo). El ángulo exacto se escribe en el panel.',
-  draw: 'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina o un círculo desde su centro. Se pega a los bordes, al centro y cada 5 mm.',
+  draw: 'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina, un círculo desde su centro o la cuerda de un arco (y tocá cuánto se curva). Se pega a los bordes, al centro y cada 5 mm.',
 };
 
 type SaveState = 'saved' | 'saving' | 'error';
@@ -236,6 +237,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const hasPush = useEditor((s) => s.lastPush !== null);
   const drawFace = useEditor((s) => s.drawFace);
   const drawShape = useEditor((s) => s.drawShape);
+  const arcChord = useEditor((s) => s.arcChord);
   const { undo, redo, setTool, setXray, setView, setCopyMove, setDrawFace, setDrawShape } = useEditor.getState();
   const selected = useSelectedPart();
   const saveState = useAutosave();
@@ -361,9 +363,14 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                   <button type="button" aria-pressed={drawShape === 'circle'} aria-label="Círculo" title="Círculo" onClick={() => setDrawShape('circle')}>
                     <IconCircle />
                   </button>
+                  <button type="button" aria-pressed={drawShape === 'arc'} aria-label="Arco" title="Arco" onClick={() => setDrawShape('arc')}>
+                    <IconArc />
+                  </button>
                 </div>
                 <span role="status">
-                  {drawFace ? (
+                  {arcChord ? (
+                    'Tocá cuánto se curva'
+                  ) : drawFace ? (
                     <>
                       En {faceLabel(drawFace)} de <strong>{drawFace.partId}</strong>
                     </>

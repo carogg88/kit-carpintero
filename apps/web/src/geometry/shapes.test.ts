@@ -141,6 +141,15 @@ describe('vaciados en el motor', () => {
     expect((vol(board) - vol(under)) / hole).toBeCloseTo(1, 2);
   });
 
+  it('un arco saca el segmento, o la esquina de afuera, con la curva exacta', () => {
+    const arch: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'arc', u: 100, v: 0, u2: 300, v2: 0, bulge: 50, outside: false }, depth: 10, through: true }] };
+    const theta = 2 * Math.asin(100 / 125);
+    expect((vol(board) - vol(arch)) / (((125 * 125) / 2) * (theta - Math.sin(theta)) * 20)).toBeCloseTo(1, 3);
+    const s = 100 - 100 * Math.SQRT1_2;
+    const corner: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'arc', u: 300, v: 300, u2: 400, v2: 200, bulge: s, outside: true }, depth: 10, through: true }] };
+    expect((vol(board) - vol(corner)) / ((10000 - Math.PI * 2500) * 20)).toBeCloseTo(1, 3);
+  });
+
   it('un bisel saca la cuña de la arista, y un corte en ángulo la de toda la cara', () => {
     const up = { axis: 1, side: 1 } as const;
     const front = { axis: 2, side: 1 } as const;

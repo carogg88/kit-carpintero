@@ -1,5 +1,5 @@
 import { boxSize, otherAxes, partBox, type Axis, type Vec3 } from './geometry';
-import type { Solid } from './joints';
+import { circleThrough, type Solid } from './joints';
 import type { Part, Pocket, PocketShape } from './project';
 
 /** Nombre de cada cara, por eje y lado. */
@@ -34,13 +34,39 @@ export function nextPocketId(part: Part): string {
 
 const half = (mm: number) => Math.round(mm * 2) / 2;
 
+type ArcShape = Extract<PocketShape, { kind: 'arc' }>;
+
+/** Medidas de un arco: largo de la cuerda, radio, punto medio del arco y centro. */
+export function arcInfo(s: ArcShape): { chord: number; radius: number; mid: [number, number]; center: [number, number] } {
+  const du = s.u2 - s.u;
+  const dv = s.v2 - s.v;
+  const chord = Math.hypot(du, dv);
+  // Normal a la izquierda de la cuerda: hacia ahí va una flecha positiva.
+  const mid: [number, number] = [(s.u + s.u2) / 2 - (dv / chord) * s.bulge, (s.v + s.v2) / 2 + (du / chord) * s.bulge];
+  const h = Math.abs(s.bulge);
+  const radius = (chord * chord) / (8 * h) + h / 2;
+  const c = circleThrough([s.u, s.v], mid, [s.u2, s.v2]);
+  return { chord, radius, mid, center: c?.center ?? mid };
+}
+
+/**
+ * Qué lado del arco se saca si nadie lo eligió: si el centro del círculo cae dentro de la cara, el arco
+ * redondea una esquina y se saca lo de afuera; si no (un faldón arqueado), el segmento.
+ */
+export function arcOutsideByDefault(part: Part, axis: Axis, s: ArcShape): boolean {
+  const { size } = faceSize(part, axis);
+  const { center } = arcInfo(s);
+  return center[0] > 0.5 && center[0] < size[0] - 0.5 && center[1] > 0.5 && center[1] < size[1] - 0.5;
+}
+
 /**
  * Vaciado nuevo: los círculos atraviesan la pieza (pasacables, calados) y los rectángulos bajan hasta
  * la mitad del espesor, que es lo que se hace con la fresadora.
  */
 export function newPocket(part: Part, axis: Axis, side: 1 | -1, shape: PocketShape): Pocket {
-  const through = shape.kind === 'circle';
-  return { id: nextPocketId(part), axis, side, shape, depth: half(depthUnder(part, axis) / 2), through };
+  const through = shape.kind !== 'rect';
+  const s = shape.kind === 'arc' ? { ...shape, outside: arcOutsideByDefault(part, axis, shape) } : shape;
+  return { id: nextPocketId(part), axis, side, shape: s, depth: half(depthUnder(part, axis) / 2), through };
 }
 
 /** Lo que el vaciado saca de la pieza, en coordenadas del mueble. Sale 1 mm por la cara para cortar limpio. */
@@ -51,6 +77,25 @@ export function pocketSolid(part: Part, p: Pocket): Solid {
   const depth = p.through ? box.max[p.axis] - box.min[p.axis] + 1 : p.depth;
   const inner = face - p.side * depth;
   const outer = face + p.side;
+  if (p.shape.kind === 'arc') {
+    const sh = p.shape;
+    const { mid } = arcInfo(sh);
+    const at = (pt: readonly [number, number]): [number, number] => [box.min[ua] + pt[0], box.min[va] + pt[1]];
+    const a = at([sh.u, sh.v]);
+    const b = at([sh.u2, sh.v2]);
+    let rest: [number, number][] = [];
+    if (sh.outside) {
+      // Más allá del arco: se cierra con dos puntos lejos de la cuerda, del lado de la flecha.
+      const { chord } = arcInfo(sh);
+      const k = Math.hypot(box.max[ua] - box.min[ua], box.max[va] - box.min[va]) + 10;
+      const n: [number, number] = [(-(sh.v2 - sh.v) / chord) * Math.sign(sh.bulge), ((sh.u2 - sh.u) / chord) * Math.sign(sh.bulge)];
+      rest = [
+        [b[0] + n[0] * k, b[1] + n[1] * k],
+        [a[0] + n[0] * k, a[1] + n[1] * k],
+      ];
+    }
+    return { kind: 'arc', axis: p.axis, from: Math.min(inner, outer), to: Math.max(inner, outer), u: ua, v: va, a, mid: at(mid), b, rest };
+  }
   if (p.shape.kind === 'circle') {
     const start: Vec3 = [0, 0, 0];
     start[p.axis] = outer;
@@ -71,6 +116,12 @@ export function pocketSolid(part: Part, p: Pocket): Solid {
 
 /** En palabras de taller: "calado Ø 35 mm en la cara de arriba". */
 export function describePocket(p: Pocket, n: (mm: number) => string): string {
+  if (p.shape.kind === 'arc') {
+    const { radius } = arcInfo(p.shape);
+    const deep = p.through ? '' : `, ${n(p.depth)} de hondo`;
+    const where = `en la ${faceName(p.axis, p.side)}`.replace('en la frente', 'en el frente');
+    return `${p.through ? 'corte' : 'rebaje'} en arco R ${n(radius)}, flecha ${n(Math.abs(p.shape.bulge))}${deep} ${where}`;
+  }
   const what = p.through ? 'calado' : 'vaciado';
   const size = p.shape.kind === 'circle' ? `Ø ${n(p.shape.d)}` : `${n(p.shape.w)} × ${n(p.shape.h)}`;
   const deep = p.through ? '' : `, ${n(p.depth)} de hondo`;
