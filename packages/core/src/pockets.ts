@@ -1,5 +1,5 @@
 import { boxSize, otherAxes, partBox, type Axis, type Vec3 } from './geometry';
-import { circleThrough, type Solid } from './joints';
+import { arcPoints, circleThrough, type Solid } from './joints';
 import type { Part, Pocket, PocketShape } from './project';
 
 /** Nombre de cada cara, por eje y lado. */
@@ -47,6 +47,16 @@ export function arcInfo(s: ArcShape): { chord: number; radius: number; mid: [num
   const radius = (chord * chord) / (8 * h) + h / 2;
   const c = circleThrough([s.u, s.v], mid, [s.u2, s.v2]);
   return { chord, radius, mid, center: c?.center ?? mid };
+}
+
+/**
+ * Plantilla de un arco, acostada: la cuerda va de (0, 0) a (cuerda, 0) y el arco sube hasta la flecha.
+ * Así se imprime a tamaño real y se apoya la cuerda sobre la línea trazada en la madera.
+ */
+export function arcTemplate(s: ArcShape, n = 240): { chord: number; sagitta: number; radius: number; points: [number, number][] } {
+  const { chord, radius } = arcInfo(s);
+  const sagitta = Math.abs(s.bulge);
+  return { chord, sagitta, radius, points: arcPoints([0, 0], [chord / 2, sagitta], [chord, 0], n) };
 }
 
 /**

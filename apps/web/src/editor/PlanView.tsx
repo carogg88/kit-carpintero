@@ -1,14 +1,19 @@
 import { useMemo, useState } from 'react';
 import {
+  arcTemplate,
   cutList,
   drawJointDetail,
   drawPart,
   drawView,
+  faceName,
   formatNumber,
   groupJoints,
   JOINT_NAMES,
+  MEASURED_FROM,
+  otherAxes,
   partBox,
   type Drawing,
+  type ArcMark,
   type EngineView,
   type Project,
   type Rect2,
@@ -104,6 +109,35 @@ function Dim({ from, to, at, offset, text, vertical }: { from: number; to: numbe
           {text}
         </text>
       )}
+    </g>
+  );
+}
+
+/** Cota de radio: flecha que toca el arco por el lado de la madera y "R 125" en la punta de la línea. */
+function Radius({ m, at, text }: { m: ArcMark; at: Place; text: string }) {
+  const x = px(at, m.at[0]);
+  const y = py(at, m.at[1]);
+  // En la hoja y crece hacia abajo.
+  const dx = m.toward[0];
+  const dy = -m.toward[1];
+  const len = 7;
+  const ex = x + dx * len;
+  const ey = y + dy * len;
+  const head = 1.4;
+  const side = (k: number): [number, number] => [x + dx * head * 1.6 - dy * head * 0.5 * k, y + dy * head * 1.6 + dx * head * 0.5 * k];
+  const [l, r] = [side(1), side(-1)];
+  const horizontal = Math.abs(dx) > Math.abs(dy);
+  return (
+    <g className={styles.dim}>
+      <line x1={x} y1={y} x2={ex} y2={ey} />
+      <polygon points={`${x},${y} ${l[0]},${l[1]} ${r[0]},${r[1]}`} className={styles.arrow} />
+      <text
+        x={horizontal ? ex + Math.sign(dx) * 1 : ex}
+        y={horizontal ? ey + 1 : ey + (dy > 0 ? 3 : -1.2)}
+        textAnchor={horizontal ? (dx > 0 ? 'start' : 'end') : 'middle'}
+      >
+        {text}
+      </text>
     </g>
   );
 }
@@ -267,6 +301,7 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
             <Lines d={d} at={p} />
             <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={5} text={n(d.bounds.u1 - d.bounds.u0)} />
             <Dim vertical from={py(p, d.bounds.v1)} to={py(p, d.bounds.v0)} at={px(p, d.bounds.u0)} offset={-5} text={n(d.bounds.v1 - d.bounds.v0)} />
+            {d.arcs?.map((m) => <Radius key={m.id} m={m} at={p} text={`R ${n(m.radius)}`} />)}
             {r.work.length > 0 && (
               <text x={cx + 6} y={cy + cellH - 3} className={`${styles.notes} ${styles.cellMeta}`}>
                 {capitalize(r.work.join(' · '))}
@@ -371,7 +406,153 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
   return sheets;
 }
 
-const buildSheets = (project: Project, refine: Refine) => [generalSheet(project, refine), ...partSheets(project, refine), ...jointSheets(project, refine)];
+/** Zona de la hoja donde va la plantilla; abajo a la izquierda queda lugar para la barra de control. */
+const TPL = { x0: M, y0: M + 15, x1: W - M, y1: H - M - TITLE_H - 3 };
+/** Cuánto se pisan dos hojas vecinas de una misma plantilla. */
+const OVERLAP = 16;
+
+/** Plantillas 1:1: cada arco acostado sobre su cuerda, repartido en las hojas que haga falta para pegarlas. */
+function templateSheets(project: Project): SheetDef[] {
+  const n = (mm: number) => formatNumber(mm, project.units);
+  const sheets: SheetDef[] = [];
+  for (const r of cutList(project)) {
+    const part = project.parts.find((p) => p.id === r.ids[0])!;
+    for (const pk of part.pockets) {
+      if (pk.shape.kind !== 'arc') continue;
+      const sh = pk.shape;
+      const t = arcTemplate(sh);
+      const ys = t.points.map((q) => q[1]);
+      const xs = t.points.map((q) => q[0]);
+      // Lugar para la cota de la cuerda abajo y para la de la flecha a la derecha.
+      const b = { u0: Math.min(0, ...xs) - 8, u1: Math.max(t.chord, ...xs) + 22, v0: Math.min(0, ...ys) - 16, v1: Math.max(...ys) + 10 };
+      const rw = TPL.x1 - TPL.x0;
+      const rh = TPL.y1 - TPL.y0;
+      const cw = b.u1 - b.u0;
+      const ch = b.v1 - b.v0;
+      const count = (c: number, r: number) => (c <= r ? 1 : Math.ceil((c - OVERLAP) / (r - OVERLAP)));
+      const cols = count(cw, rw);
+      const rows = count(ch, rh);
+      // Si entra en una hoja, centrada; si no, desde la punta izquierda de arriba.
+      const left = cols === 1 ? b.u0 - (rw - cw) / 2 : b.u0;
+      const top = rows === 1 ? b.v1 + (rh - ch) / 2 : b.v1;
+      const [ua, va] = otherAxes(pk.axis);
+      const face = faceName(pk.axis, pk.side) === 'frente' ? 'el frente' : `la ${faceName(pk.axis, pk.side)}`;
+      const where = (u: number, v: number) => `${n(u)} desde ${MEASURED_FROM[ua]} y ${n(v)} desde ${MEASURED_FROM[va]}`;
+      const what = `${pk.through ? 'Corte' : 'Rebaje'} en arco R ${n(t.radius)}`;
+      const removed = sh.outside
+        ? { x: t.chord / 2 - 4, y: t.sagitta + 5, text: 'Se saca lo de afuera del arco' }
+        : { x: t.chord / 2 - 4, y: t.sagitta > 14 ? t.sagitta / 3 : -6, text: 'Se saca entre la cuerda y el arco' };
+      const total = cols * rows;
+      for (let j = 0; j < rows; j++) {
+        for (let i = 0; i < cols; i++) {
+          const k = j * cols + i + 1;
+          const u0 = left + i * (rw - OVERLAP);
+          const v1 = top - j * (rh - OVERLAP);
+          const at: Place = { x: TPL.x0, y: TPL.y0, s: 1, b: { u0, v0: v1 - rh, u1: u0 + rw, v1 } };
+          const clip = `tpl-${r.ids[0]}-${pk.id}-${k}`.replace(/[^\w-]/g, '_');
+          // Cruces para pegar: sobre la línea del medio de cada franja que se pisa con la hoja de al lado.
+          const marks: [number, number][] = [];
+          const ysMarks = [v1 - 12, v1 - rh + 12];
+          const xsMarks = [u0 + 12, u0 + rw - 12];
+          if (i > 0) for (const y of ysMarks) marks.push([u0 + OVERLAP / 2, y]);
+          if (i < cols - 1) for (const y of ysMarks) marks.push([u0 + rw - OVERLAP / 2, y]);
+          if (j > 0) for (const x of xsMarks) marks.push([x, v1 - OVERLAP / 2]);
+          if (j < rows - 1) for (const x of xsMarks) marks.push([x, v1 - rh + OVERLAP / 2]);
+          const cross = (x: number, y: number, key: number) => (
+            <g key={key}>
+              <circle cx={px(at, x)} cy={py(at, y)} r={2.2} />
+              <line x1={px(at, x) - 4} y1={py(at, y)} x2={px(at, x) + 4} y2={py(at, y)} />
+              <line x1={px(at, x)} y1={py(at, y) - 4} x2={px(at, x)} y2={py(at, y) + 4} />
+            </g>
+          );
+          const pts = t.points.map((q) => `${px(at, q[0])},${py(at, q[1])}`).join(' ');
+          sheets.push({
+            key: `plantilla-${r.ids[0]}-${pk.id}-${k}`,
+            title: `Plantilla ${pk.id} · ${r.ids[0]}`,
+            hint: total > 1 ? `Arco R ${n(t.radius)}, hoja ${k} de ${total}` : `Arco R ${n(t.radius)} a tamaño real`,
+            scale: 1,
+            body: (
+              <>
+                <text x={M + 6} y={M + 6} className={styles.cellTitle}>
+                  Plantilla 1:1 · {r.name} · {r.ids.join(', ')} · {pk.id}
+                </text>
+                <text x={W - M - 6} y={M + 6} textAnchor="end" className={styles.cellMeta}>
+                  {total > 1 ? `Hoja ${k} de ${total}${rows > 1 ? ` (fila ${j + 1}, columna ${i + 1})` : ''}` : 'Una sola hoja'}
+                </text>
+                <text x={M + 6} y={M + 11} className={`${styles.notes} ${styles.cellMeta}`}>
+                  {what}, cuerda {n(t.chord)}, flecha {n(t.sagitta)}, en {face}: la cuerda va de {where(sh.u, sh.v)} a {where(sh.u2, sh.v2)}.
+                </text>
+                <clipPath id={clip}>
+                  <rect x={TPL.x0} y={TPL.y0} width={rw} height={rh} />
+                </clipPath>
+                <g clipPath={`url(#${clip})`}>
+                  {!sh.outside && <polygon points={pts} className={styles.cutAway} />}
+                  <g className={styles.contour}>
+                    <polyline points={pts} className={styles.templateArc} />
+                  </g>
+                  <g className={styles.guide}>
+                    <line x1={px(at, 0)} y1={py(at, 0)} x2={px(at, t.chord)} y2={py(at, 0)} />
+                    <line x1={px(at, 0)} y1={py(at, -5)} x2={px(at, 0)} y2={py(at, 5)} />
+                    <line x1={px(at, t.chord)} y1={py(at, -5)} x2={px(at, t.chord)} y2={py(at, 5)} />
+                    <line x1={px(at, t.chord / 2)} y1={py(at, -5)} x2={px(at, t.chord / 2)} y2={py(at, t.sagitta + 5)} className={styles.axisLine} />
+                  </g>
+                  <g className={styles.notes}>
+                    <text x={px(at, 0) + 1.5} y={py(at, 0) + 4} className={styles.cellMeta}>
+                      Inicio
+                    </text>
+                    <text x={px(at, t.chord) - 1.5} y={py(at, 0) + 4} textAnchor="end" className={styles.cellMeta}>
+                      Fin
+                    </text>
+                    <text x={px(at, removed.x)} y={py(at, removed.y)} textAnchor="end" className={styles.cellMeta}>
+                      {removed.text}
+                    </text>
+                  </g>
+                  <Dim from={px(at, 0)} to={px(at, t.chord)} at={py(at, 0)} offset={10} text={`cuerda ${n(t.chord)}`} />
+                  <Dim vertical from={py(at, t.sagitta)} to={py(at, 0)} at={px(at, t.chord / 2)} offset={8} text={`flecha ${n(t.sagitta)}`} />
+                  <g className={styles.register}>{marks.map(([x, y], m) => cross(x, y, m))}</g>
+                </g>
+                {i > 0 && <line x1={TPL.x0 + OVERLAP / 2} y1={TPL.y0} x2={TPL.x0 + OVERLAP / 2} y2={TPL.y1} className={styles.cutLine} />}
+                {j > 0 && <line x1={TPL.x0} y1={TPL.y0 + OVERLAP / 2} x2={TPL.x1} y2={TPL.y0 + OVERLAP / 2} className={styles.cutLine} />}
+                <Ruler x={M + 4} y={H - M - 7} />
+                <text x={M + 4} y={H - M - TITLE_H + 3} className={styles.cellMeta}>
+                  Imprimí al 100 %, sin «ajustar a la página». La barra tiene que medir 10 cm justos.
+                </text>
+                {total > 1 && (
+                  <text x={M + 4} y={H - M - TITLE_H + 7} className={styles.cellMeta}>
+                    Recortá por la línea de puntos y pegá sobre la hoja anterior haciendo coincidir las cruces.
+                  </text>
+                )}
+              </>
+            ),
+          });
+        }
+      }
+    }
+  }
+  return sheets;
+}
+
+/** Barra de 10 cm con marcas cada centímetro, para comprobar que la hoja salió a tamaño real. */
+function Ruler({ x, y }: { x: number; y: number }) {
+  return (
+    <g className={styles.ruler}>
+      <rect x={x} y={y - 2} width={100} height={2} />
+      {Array.from({ length: 11 }, (_, i) => (
+        <line key={i} x1={x + i * 10} y1={y - 2} x2={x + i * 10} y2={y - (i % 5 === 0 ? 5 : 3.6)} />
+      ))}
+      <text x={x + 104} y={y}>
+        10 cm
+      </text>
+    </g>
+  );
+}
+
+const buildSheets = (project: Project, refine: Refine) => [
+  generalSheet(project, refine),
+  ...partSheets(project, refine),
+  ...jointSheets(project, refine),
+  ...templateSheets(project),
+];
 
 export function PlanView({ project }: { project: Project }) {
   // Primero con cajas, para saber qué vistas pedirle al motor; después cada vista cambia a la forma exacta cuando llega.

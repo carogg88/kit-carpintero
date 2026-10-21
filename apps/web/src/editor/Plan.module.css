@@ -58,6 +58,17 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
 .joints rect { fill: var(--signal); fill-opacity: 0.55; }
 .dim line { stroke: var(--paper-accent); stroke-width: 0.18; }
 .dim text { fill: var(--paper-accent); font: 500 2.8px var(--font-num); }
+.arrow { fill: var(--paper-accent); stroke: none; }
+.templateArc { fill: none; stroke: var(--paper-ink); stroke-width: 0.6; stroke-linejoin: round; }
+.cutAway { fill: var(--signal); fill-opacity: 0.18; stroke: none; }
+.guide line { stroke: var(--paper-ink); stroke-width: 0.25; }
+.guide .axisLine { stroke: var(--paper-muted); stroke-dasharray: 3 1 0.6 1; }
+.register circle { fill: none; stroke: var(--paper-ink); stroke-width: 0.25; }
+.register line { stroke: var(--paper-ink); stroke-width: 0.25; }
+.cutLine { stroke: var(--paper-muted); stroke-width: 0.25; stroke-dasharray: 2 1.2; }
+.ruler rect { fill: var(--paper-ink); }
+.ruler line { stroke: var(--paper-ink); stroke-width: 0.25; }
+.ruler text { fill: var(--paper-ink); font: 600 2.8px var(--font-num); }
 .viewTitle { fill: var(--paper-ink); font: 600 3.4px var(--font-ui); }
 .partId { fill: var(--paper-muted); font: 500 2.4px var(--font-num); }
 .cellTitle { fill: var(--paper-ink); font: 600 3.2px var(--font-ui); }

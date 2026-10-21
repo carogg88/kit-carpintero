@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
-import { arcInfo, describePocket, newPocket, pocketSolid, snapOnFace } from './pockets';
+import { drawPart } from './drawing';
+import { arcInfo, arcTemplate, describePocket, newPocket, pocketSolid, snapOnFace } from './pockets';
 import { loadProject, SCHEMA_VERSION, type Part } from './project';
 import { createTable } from './templates/table';
 
@@ -83,5 +84,33 @@ describe('arcos', () => {
     expect(describePocket(p, mm)).toBe('corte en arco R 125 mm, flecha 50 mm en el frente');
     const part = { ...board, pockets: [p] };
     expect(cutPiece(part, { ...table, parts: [part], joints: [] }).work).toContain('corte en arco R 125 mm');
+  });
+
+  it('el despiece acota el radio del lado de la madera', () => {
+    const part = { ...board, pockets: [newPocket(board, 1, 1, arch), { ...newPocket(board, 1, 1, corner), id: 'V2' }] };
+    const arcs = drawPart({ ...table, parts: [part], joints: [] }, part).arcs!;
+    expect(arcs).toHaveLength(2);
+    expect(arcs[0]).toMatchObject({ id: 'V1', at: [200, 50], radius: 125 });
+    // El segmento se saca hacia la cuerda: la madera queda arriba, lejos del centro.
+    expect(arcs[0]!.toward[1]).toBeCloseTo(1);
+    // En la esquina la madera queda hacia el centro, adentro de la pieza.
+    expect(arcs[1]!.toward[0]).toBeLessThan(0);
+    expect(arcs[1]!.toward[1]).toBeLessThan(0);
+  });
+
+  it('un arco en un canto no se ve de frente: no lleva cota en el despiece', () => {
+    const part = { ...board, pockets: [newPocket(board, 2, 1, arch)] };
+    expect(drawPart({ ...table, parts: [part], joints: [] }, part).arcs).toEqual([]);
+  });
+
+  it('la plantilla acuesta el arco sobre la cuerda', () => {
+    const t = arcTemplate(corner);
+    expect(t.chord).toBeCloseTo(100 * Math.SQRT2);
+    expect(t.radius).toBeCloseTo(100);
+    expect(t.points[0]![0]).toBeCloseTo(0);
+    expect(t.points[0]![1]).toBeCloseTo(0);
+    expect(t.points.at(-1)![0]).toBeCloseTo(t.chord);
+    expect(t.points.at(-1)![1]).toBeCloseTo(0);
+    expect(Math.max(...t.points.map((q) => q[1]))).toBeCloseTo(t.sagitta);
   });
 });
