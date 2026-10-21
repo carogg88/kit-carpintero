@@ -175,3 +175,51 @@ export function describeTurning(part: Part, turning: Turning, n: (mm: number) =>
   if (!squares) return dia;
   return `${dia}, ${squares === 1 ? t('1 parte cuadrada') : t('{n} partes cuadradas', { n: squares })}`;
 }
+
+/** Puntos del arco que pasa por a, m y b, de a hasta b, cada `step` mm de largo de arco como mucho. */
+function arcPoints(a: [number, number], m: [number, number], b: [number, number], step: number): [number, number][] {
+  const d = 2 * (a[0] * (m[1] - b[1]) + m[0] * (b[1] - a[1]) + b[0] * (a[1] - m[1]));
+  if (Math.abs(d) < 1e-9) return [a, b];
+  const sq = (p: [number, number]) => p[0] * p[0] + p[1] * p[1];
+  const cx = (sq(a) * (m[1] - b[1]) + sq(m) * (b[1] - a[1]) + sq(b) * (a[1] - m[1])) / d;
+  const cy = (sq(a) * (b[0] - m[0]) + sq(m) * (a[0] - b[0]) + sq(b) * (m[0] - a[0])) / d;
+  const r = Math.hypot(a[0] - cx, a[1] - cy);
+  const ang = (p: [number, number]) => Math.atan2(p[1] - cy, p[0] - cx);
+  const a0 = ang(a);
+  // Recorrido de a hasta b pasando por m: hacia el lado donde está m.
+  const norm = (x: number) => ((x % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const toM = norm(ang(m) - a0);
+  const toB = norm(ang(b) - a0);
+  const sweep = toM <= toB ? toB : toB - 2 * Math.PI;
+  const n = Math.max(4, Math.ceil((Math.abs(sweep) * r) / step));
+  return Array.from({ length: n + 1 }, (_, i): [number, number] => {
+    const x = a0 + (sweep * i) / n;
+    return i === 0 ? a : i === n ? b : [cx + r * Math.cos(x), cy + r * Math.sin(x)];
+  });
+}
+
+/**
+ * Contorno de medio perfil, de la punta a la otra, en (distancia, radio): las curvas son los arcos exactos que gira
+ * el motor, y lo cuadrado va a la mitad del lado del taco. Sirve para dibujar la silueta y la plantilla 1:1.
+ */
+export function turnOutline(part: Part, turning: Turning, step = 1): [number, number][] {
+  const R = turnBlank(part, turning.axis).side / 2;
+  const out: [number, number][] = [];
+  const push = (p: [number, number]) => {
+    const last = out[out.length - 1];
+    if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1e-6) out.push(p);
+  };
+  for (const s of turnSegments(part, turning)) {
+    if (s.kind === 'square') {
+      push(s.a);
+      push([s.a[0], R]);
+      push([s.b[0], R]);
+      push(s.b);
+    } else if (s.kind === 'curve' && s.mid) arcPoints(s.a, s.mid, s.b, step).forEach(push);
+    else {
+      push(s.a);
+      push(s.b);
+    }
+  }
+  return out;
+}
