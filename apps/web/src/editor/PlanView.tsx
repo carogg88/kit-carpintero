@@ -14,8 +14,14 @@ import {
   partBox,
   t,
   tk,
+  turnBlank,
+  turnOutline,
+  turnSegments,
+  type CutRow,
   type Drawing,
   type ArcMark,
+  type Part,
+  type Turning,
   type EngineView,
   type Project,
   type Rect2,
@@ -479,7 +485,105 @@ const TPL = { x0: M, y0: M + 15, x1: W - M, y1: H - M - TITLE_H - 3 };
 /** Cuánto se pisan dos hojas vecinas de una misma plantilla. */
 const OVERLAP = 16;
 
-/** Plantillas 1:1: cada arco acostado sobre su cuerda, repartido en las hojas que haga falta para pegarlas. */
+interface TiledTemplate {
+  /** Clave única: parte de la clave de cada hoja y del recorte. */
+  id: string;
+  /** Lo que ocupa el dibujo, en mm del dibujo (v hacia arriba). */
+  b: Rect2;
+  title: string;
+  hint: (k: number, total: number) => string;
+  /** Primera línea de la hoja, después de "Plantilla 1:1". */
+  heading: string;
+  note: string;
+  draw: (at: Place) => ReactNode;
+}
+
+/**
+ * Reparte un dibujo a tamaño real en las hojas A4 que haga falta. Las hojas vecinas se pisan una franja, con cruces
+ * para pegarlas y la línea de corte; todas llevan la barra de 10 cm para comprobar la impresión.
+ */
+function tiledSheets({ id, b, title, hint, heading, note, draw }: TiledTemplate): SheetDef[] {
+  const rw = TPL.x1 - TPL.x0;
+  const rh = TPL.y1 - TPL.y0;
+  const cw = b.u1 - b.u0;
+  const ch = b.v1 - b.v0;
+  const count = (c: number, r: number) => (c <= r ? 1 : Math.ceil((c - OVERLAP) / (r - OVERLAP)));
+  const cols = count(cw, rw);
+  const rows = count(ch, rh);
+  // Si entra en una hoja, centrada; si no, desde la punta izquierda de arriba.
+  const left = cols === 1 ? b.u0 - (rw - cw) / 2 : b.u0;
+  const top = rows === 1 ? b.v1 + (rh - ch) / 2 : b.v1;
+  const total = cols * rows;
+  const sheets: SheetDef[] = [];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const k = j * cols + i + 1;
+      const u0 = left + i * (rw - OVERLAP);
+      const v1 = top - j * (rh - OVERLAP);
+      const at: Place = { x: TPL.x0, y: TPL.y0, s: 1, b: { u0, v0: v1 - rh, u1: u0 + rw, v1 } };
+      const clip = `tpl-${id}-${k}`.replace(/[^\w-]/g, '_');
+      // Cruces para pegar: sobre la línea del medio de cada franja que se pisa con la hoja de al lado.
+      const marks: [number, number][] = [];
+      const ysMarks = [v1 - 12, v1 - rh + 12];
+      const xsMarks = [u0 + 12, u0 + rw - 12];
+      if (i > 0) for (const y of ysMarks) marks.push([u0 + OVERLAP / 2, y]);
+      if (i < cols - 1) for (const y of ysMarks) marks.push([u0 + rw - OVERLAP / 2, y]);
+      if (j > 0) for (const x of xsMarks) marks.push([x, v1 - OVERLAP / 2]);
+      if (j < rows - 1) for (const x of xsMarks) marks.push([x, v1 - rh + OVERLAP / 2]);
+      const cross = (x: number, y: number, key: number) => (
+        <g key={key}>
+          <circle cx={px(at, x)} cy={py(at, y)} r={2.2} />
+          <line x1={px(at, x) - 4} y1={py(at, y)} x2={px(at, x) + 4} y2={py(at, y)} />
+          <line x1={px(at, x)} y1={py(at, y) - 4} x2={px(at, x)} y2={py(at, y) + 4} />
+        </g>
+      );
+      sheets.push({
+        key: `plantilla-${id}-${k}`,
+        title,
+        hint: hint(k, total),
+        scale: 1,
+        body: (
+          <>
+            <text x={M + 6} y={M + 6} className={styles.cellTitle}>
+              {t('Plantilla 1:1')} · {heading}
+            </text>
+            <text x={W - M - 6} y={M + 6} textAnchor="end" className={styles.cellMeta}>
+              {total > 1
+                ? rows > 1
+                  ? t('Hoja {k} de {total} (fila {row}, columna {col})', { k, total, row: j + 1, col: i + 1 })
+                  : t('Hoja {n} de {total}', { n: k, total })
+                : t('Una sola hoja')}
+            </text>
+            <text x={M + 6} y={M + 11} className={`${styles.notes} ${styles.cellMeta}`}>
+              {note}
+            </text>
+            <clipPath id={clip}>
+              <rect x={TPL.x0} y={TPL.y0} width={rw} height={rh} />
+            </clipPath>
+            <g clipPath={`url(#${clip})`}>
+              {draw(at)}
+              <g className={styles.register}>{marks.map(([x, y], m) => cross(x, y, m))}</g>
+            </g>
+            {i > 0 && <line x1={TPL.x0 + OVERLAP / 2} y1={TPL.y0} x2={TPL.x0 + OVERLAP / 2} y2={TPL.y1} className={styles.cutLine} />}
+            {j > 0 && <line x1={TPL.x0} y1={TPL.y0 + OVERLAP / 2} x2={TPL.x1} y2={TPL.y0 + OVERLAP / 2} className={styles.cutLine} />}
+            <Ruler x={M + 4} y={H - M - 7} />
+            <text x={M + 4} y={H - M - TITLE_H + 3} className={styles.cellMeta}>
+              {t('Imprimí al 100 %, sin «ajustar a la página». La barra tiene que medir 10 cm justos.')}
+            </text>
+            {total > 1 && (
+              <text x={M + 4} y={H - M - TITLE_H + 7} className={styles.cellMeta}>
+                {t('Recortá por la línea de puntos y pegá sobre la hoja anterior haciendo coincidir las cruces.')}
+              </text>
+            )}
+          </>
+        ),
+      });
+    }
+  }
+  return sheets;
+}
+
+/** Plantillas 1:1: cada arco acostado sobre su cuerda y cada torneado acostado sobre su eje, en las hojas que haga falta. */
 function templateSheets(project: Project): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
   const sheets: SheetDef[] = [];
@@ -491,18 +595,6 @@ function templateSheets(project: Project): SheetDef[] {
       const arc = arcTemplate(sh);
       const ys = arc.points.map((q) => q[1]);
       const xs = arc.points.map((q) => q[0]);
-      // Lugar para la cota de la cuerda abajo y para la de la flecha a la derecha.
-      const b = { u0: Math.min(0, ...xs) - 8, u1: Math.max(arc.chord, ...xs) + 22, v0: Math.min(0, ...ys) - 16, v1: Math.max(...ys) + 10 };
-      const rw = TPL.x1 - TPL.x0;
-      const rh = TPL.y1 - TPL.y0;
-      const cw = b.u1 - b.u0;
-      const ch = b.v1 - b.v0;
-      const count = (c: number, r: number) => (c <= r ? 1 : Math.ceil((c - OVERLAP) / (r - OVERLAP)));
-      const cols = count(cw, rw);
-      const rows = count(ch, rh);
-      // Si entra en una hoja, centrada; si no, desde la punta izquierda de arriba.
-      const left = cols === 1 ? b.u0 - (rw - cw) / 2 : b.u0;
-      const top = rows === 1 ? b.v1 + (rh - ch) / 2 : b.v1;
       const [ua, va] = otherAxes(pk.axis);
       const face = pk.axis === 2 && pk.side > 0 ? t('el frente') : t('la {face}', { face: t(faceName(pk.axis, pk.side)) });
       const where = (u: number, v: number) =>
@@ -511,105 +603,126 @@ function templateSheets(project: Project): SheetDef[] {
       const removed = sh.outside
         ? { x: arc.chord / 2 - 4, y: arc.sagitta + 5, text: t('Se saca lo de afuera del arco') }
         : { x: arc.chord / 2 - 4, y: arc.sagitta > 14 ? arc.sagitta / 3 : -6, text: t('Se saca entre la cuerda y el arco') };
-      const total = cols * rows;
-      for (let j = 0; j < rows; j++) {
-        for (let i = 0; i < cols; i++) {
-          const k = j * cols + i + 1;
-          const u0 = left + i * (rw - OVERLAP);
-          const v1 = top - j * (rh - OVERLAP);
-          const at: Place = { x: TPL.x0, y: TPL.y0, s: 1, b: { u0, v0: v1 - rh, u1: u0 + rw, v1 } };
-          const clip = `tpl-${r.ids[0]}-${pk.id}-${k}`.replace(/[^\w-]/g, '_');
-          // Cruces para pegar: sobre la línea del medio de cada franja que se pisa con la hoja de al lado.
-          const marks: [number, number][] = [];
-          const ysMarks = [v1 - 12, v1 - rh + 12];
-          const xsMarks = [u0 + 12, u0 + rw - 12];
-          if (i > 0) for (const y of ysMarks) marks.push([u0 + OVERLAP / 2, y]);
-          if (i < cols - 1) for (const y of ysMarks) marks.push([u0 + rw - OVERLAP / 2, y]);
-          if (j > 0) for (const x of xsMarks) marks.push([x, v1 - OVERLAP / 2]);
-          if (j < rows - 1) for (const x of xsMarks) marks.push([x, v1 - rh + OVERLAP / 2]);
-          const cross = (x: number, y: number, key: number) => (
-            <g key={key}>
-              <circle cx={px(at, x)} cy={py(at, y)} r={2.2} />
-              <line x1={px(at, x) - 4} y1={py(at, y)} x2={px(at, x) + 4} y2={py(at, y)} />
-              <line x1={px(at, x)} y1={py(at, y) - 4} x2={px(at, x)} y2={py(at, y) + 4} />
-            </g>
-          );
-          const pts = arc.points.map((q) => `${px(at, q[0])},${py(at, q[1])}`).join(' ');
-          sheets.push({
-            key: `plantilla-${r.ids[0]}-${pk.id}-${k}`,
-            title: t('Plantilla {id} · {part}', { id: pk.id, part: r.ids[0]! }),
-            hint: total > 1 ? t('Arco R {r}, hoja {k} de {total}', { r: n(arc.radius), k, total }) : t('Arco R {r} a tamaño real', { r: n(arc.radius) }),
-            scale: 1,
-            body: (
+      sheets.push(
+        ...tiledSheets({
+          id: `${r.ids[0]}-${pk.id}`,
+          // Lugar para la cota de la cuerda abajo y para la de la flecha a la derecha.
+          b: { u0: Math.min(0, ...xs) - 8, u1: Math.max(arc.chord, ...xs) + 22, v0: Math.min(0, ...ys) - 16, v1: Math.max(...ys) + 10 },
+          title: t('Plantilla {id} · {part}', { id: pk.id, part: r.ids[0]! }),
+          hint: (k, total) => (total > 1 ? t('Arco R {r}, hoja {k} de {total}', { r: n(arc.radius), k, total }) : t('Arco R {r} a tamaño real', { r: n(arc.radius) })),
+          heading: `${r.name} · ${r.ids.join(', ')} · ${pk.id}`,
+          note: t('{what}, cuerda {chord}, flecha {sagitta}, en {face}: la cuerda va de {from} a {to}.', {
+            what,
+            chord: n(arc.chord),
+            sagitta: n(arc.sagitta),
+            face,
+            from: where(sh.u, sh.v),
+            to: where(sh.u2, sh.v2),
+          }),
+          draw: (at) => {
+            const pts = arc.points.map((q) => `${px(at, q[0])},${py(at, q[1])}`).join(' ');
+            return (
               <>
-                <text x={M + 6} y={M + 6} className={styles.cellTitle}>
-                  {t('Plantilla 1:1')} · {r.name} · {r.ids.join(', ')} · {pk.id}
-                </text>
-                <text x={W - M - 6} y={M + 6} textAnchor="end" className={styles.cellMeta}>
-                  {total > 1
-                    ? rows > 1
-                      ? t('Hoja {k} de {total} (fila {row}, columna {col})', { k, total, row: j + 1, col: i + 1 })
-                      : t('Hoja {n} de {total}', { n: k, total })
-                    : t('Una sola hoja')}
-                </text>
-                <text x={M + 6} y={M + 11} className={`${styles.notes} ${styles.cellMeta}`}>
-                  {t('{what}, cuerda {chord}, flecha {sagitta}, en {face}: la cuerda va de {from} a {to}.', {
-                    what,
-                    chord: n(arc.chord),
-                    sagitta: n(arc.sagitta),
-                    face,
-                    from: where(sh.u, sh.v),
-                    to: where(sh.u2, sh.v2),
-                  })}
-                </text>
-                <clipPath id={clip}>
-                  <rect x={TPL.x0} y={TPL.y0} width={rw} height={rh} />
-                </clipPath>
-                <g clipPath={`url(#${clip})`}>
-                  {!sh.outside && <polygon points={pts} className={styles.cutAway} />}
-                  <g className={styles.contour}>
-                    <polyline points={pts} className={styles.templateArc} />
-                  </g>
-                  <g className={styles.guide}>
-                    <line x1={px(at, 0)} y1={py(at, 0)} x2={px(at, arc.chord)} y2={py(at, 0)} />
-                    <line x1={px(at, 0)} y1={py(at, -5)} x2={px(at, 0)} y2={py(at, 5)} />
-                    <line x1={px(at, arc.chord)} y1={py(at, -5)} x2={px(at, arc.chord)} y2={py(at, 5)} />
-                    <line x1={px(at, arc.chord / 2)} y1={py(at, -5)} x2={px(at, arc.chord / 2)} y2={py(at, arc.sagitta + 5)} className={styles.axisLine} />
-                  </g>
-                  <g className={styles.notes}>
-                    <text x={px(at, 0) + 1.5} y={py(at, 0) + 4} className={styles.cellMeta}>
-                      {t('Inicio')}
-                    </text>
-                    <text x={px(at, arc.chord) - 1.5} y={py(at, 0) + 4} textAnchor="end" className={styles.cellMeta}>
-                      {t('Fin')}
-                    </text>
-                    <text x={px(at, removed.x)} y={py(at, removed.y)} textAnchor="end" className={styles.cellMeta}>
-                      {removed.text}
-                    </text>
-                  </g>
-                  <Dim from={px(at, 0)} to={px(at, arc.chord)} at={py(at, 0)} offset={10} text={t('cuerda {n}', { n: n(arc.chord) })} />
-                  <Dim vertical from={py(at, arc.sagitta)} to={py(at, 0)} at={px(at, arc.chord / 2)} offset={8} text={t('flecha {n}', { n: n(arc.sagitta) })} />
-                  <g className={styles.register}>{marks.map(([x, y], m) => cross(x, y, m))}</g>
+                {!sh.outside && <polygon points={pts} className={styles.cutAway} />}
+                <g className={styles.contour}>
+                  <polyline points={pts} className={styles.templateArc} />
                 </g>
-                {i > 0 && <line x1={TPL.x0 + OVERLAP / 2} y1={TPL.y0} x2={TPL.x0 + OVERLAP / 2} y2={TPL.y1} className={styles.cutLine} />}
-                {j > 0 && <line x1={TPL.x0} y1={TPL.y0 + OVERLAP / 2} x2={TPL.x1} y2={TPL.y0 + OVERLAP / 2} className={styles.cutLine} />}
-                <Ruler x={M + 4} y={H - M - 7} />
-                <text x={M + 4} y={H - M - TITLE_H + 3} className={styles.cellMeta}>
-                  {t('Imprimí al 100 %, sin «ajustar a la página». La barra tiene que medir 10 cm justos.')}
-                </text>
-                {total > 1 && (
-                  <text x={M + 4} y={H - M - TITLE_H + 7} className={styles.cellMeta}>
-                    {t('Recortá por la línea de puntos y pegá sobre la hoja anterior haciendo coincidir las cruces.')}
+                <g className={styles.guide}>
+                  <line x1={px(at, 0)} y1={py(at, 0)} x2={px(at, arc.chord)} y2={py(at, 0)} />
+                  <line x1={px(at, 0)} y1={py(at, -5)} x2={px(at, 0)} y2={py(at, 5)} />
+                  <line x1={px(at, arc.chord)} y1={py(at, -5)} x2={px(at, arc.chord)} y2={py(at, 5)} />
+                  <line x1={px(at, arc.chord / 2)} y1={py(at, -5)} x2={px(at, arc.chord / 2)} y2={py(at, arc.sagitta + 5)} className={styles.axisLine} />
+                </g>
+                <g className={styles.notes}>
+                  <text x={px(at, 0) + 1.5} y={py(at, 0) + 4} className={styles.cellMeta}>
+                    {t('Inicio')}
                   </text>
-                )}
+                  <text x={px(at, arc.chord) - 1.5} y={py(at, 0) + 4} textAnchor="end" className={styles.cellMeta}>
+                    {t('Fin')}
+                  </text>
+                  <text x={px(at, removed.x)} y={py(at, removed.y)} textAnchor="end" className={styles.cellMeta}>
+                    {removed.text}
+                  </text>
+                </g>
+                <Dim from={px(at, 0)} to={px(at, arc.chord)} at={py(at, 0)} offset={10} text={t('cuerda {n}', { n: n(arc.chord) })} />
+                <Dim vertical from={py(at, arc.sagitta)} to={py(at, 0)} at={px(at, arc.chord / 2)} offset={8} text={t('flecha {n}', { n: n(arc.sagitta) })} />
               </>
-            ),
-          });
-        }
-      }
+            );
+          },
+        }),
+      );
     }
+    if (part.turning) sheets.push(...turningTemplate(part, part.turning, r, n));
   }
   return sheets;
+}
+
+/**
+ * Plantilla 1:1 del torneado: la silueta entera acostada sobre su eje, con cada estación marcada de arriba abajo,
+ * su distancia desde la punta y su diámetro. Recortada por el contorno sirve de plantilla para ir comparando en el torno;
+ * apoyada sobre el taco, de regla para marcar las estaciones.
+ */
+function turningTemplate(part: Part, turning: Turning, r: CutRow, n: (mm: number) => string): SheetDef[] {
+  const { len, side } = turnBlank(part, turning.axis);
+  const R = side / 2;
+  const half = turnOutline(part, turning, 0.5);
+  const st = turning.stations;
+  const segs = turnSegments(part, turning);
+  const square = (i: number) => (i === 0 || st[i]!.to === 'square') && (i === st.length - 1 || st[i + 1]!.to === 'square');
+  const from = t(MEASURED_FROM[turning.axis]);
+  return tiledSheets({
+    id: `${r.ids[0]}-torneado`,
+    // Arriba, los diámetros; abajo, las distancias; a los costados, las puntas.
+    b: { u0: -12, u1: len + 12, v0: -R - 26, v1: R + 22 },
+    title: t('Torneado · {part}', { part: r.ids[0]! }),
+    hint: (k, total) => (total > 1 ? t('Perfil del torneado, hoja {k} de {total}', { k, total }) : t('Perfil del torneado a tamaño real')),
+    heading: `${r.name} · ${r.ids.join(', ')}`,
+    note: t('Taco de {side} × {side} × {len}. Las distancias se miden desde {from}; con el calibre llevá cada diámetro a su estación.', {
+      side: n(side),
+      len: n(len),
+      from,
+    }),
+    draw: (at) => {
+      const line = (sign: 1 | -1) => half.map(([u, v]) => `${px(at, u)},${py(at, sign * v)}`).join(' ');
+      const outline = `${line(1)} ${half
+        .slice()
+        .reverse()
+        .map(([u, v]) => `${px(at, u)},${py(at, -v)}`)
+        .join(' ')}`;
+      return (
+        <>
+          <rect x={px(at, 0)} y={py(at, R)} width={len} height={side} className={styles.turnBlankTpl} />
+          <polygon points={outline} className={styles.turnTpl} />
+          <line x1={px(at, -8)} y1={py(at, 0)} x2={px(at, len + 8)} y2={py(at, 0)} className={styles.axisLine} />
+          {segs
+            .filter((s) => s.kind === 'square' && s.b[0] - s.a[0] > 24)
+            .map((s, i) => (
+              <text key={i} x={px(at, (s.a[0] + s.b[0]) / 2)} y={py(at, 0) - 1.5} textAnchor="middle" className={styles.cellMeta}>
+                {t('queda cuadrado')}
+              </text>
+            ))}
+          <g className={styles.dim}>
+            {st.map((s, i) => (
+              <g key={i}>
+                <line x1={px(at, s.at)} y1={py(at, R + 2)} x2={px(at, s.at)} y2={py(at, -R - 4)} />
+                <text x={px(at, s.at) + 1} y={py(at, -R - 5)} transform={`rotate(-90 ${px(at, s.at) + 1} ${py(at, -R - 5)})`} textAnchor="end">
+                  {i + 1} · {n(s.at)}
+                </text>
+                {!square(i) && (
+                  <text x={px(at, s.at) + 1} y={py(at, R + 3)} transform={`rotate(-90 ${px(at, s.at) + 1} ${py(at, R + 3)})`} textAnchor="start">
+                    Ø {n(s.d)}
+                  </text>
+                )}
+              </g>
+            ))}
+          </g>
+          <text x={px(at, 0)} y={py(at, -R - 22)} className={styles.cellMeta}>
+            {t('Punta de {side}', { side: from })}
+          </text>
+        </>
+      );
+    },
+  });
 }
 
 /** Barra de 10 cm con marcas cada centímetro, para comprobar que la hoja salió a tamaño real. */

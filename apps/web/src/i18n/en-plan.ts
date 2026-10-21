@@ -75,4 +75,11 @@ export default {
   'Descargar PDF': 'Download PDF',
   'Se abre la ventana de impresión: elegí «Guardar como PDF». Salen las {n} hojas en A4 apaisado.':
     'The print window opens: choose “Save as PDF”. All {n} sheets print on landscape A4.',
+  // Plantilla del torneado
+  'Torneado · {part}': 'Turning · {part}',
+  'Perfil del torneado, hoja {k} de {total}': 'Turning profile, sheet {k} of {total}',
+  'Perfil del torneado a tamaño real': 'Full-size turning profile',
+  'Taco de {side} × {side} × {len}. Las distancias se miden desde {from}; con el calibre llevá cada diámetro a su estación.':
+    'Blank {side} × {side} × {len}. Distances are measured from {from}; use calipers to take each diameter to its station.',
+  'queda cuadrado': 'stays square',
 } satisfies Record<string, string>;

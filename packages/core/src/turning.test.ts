@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
 import { drawPart } from './drawing';
 import { loadProject, SCHEMA_VERSION, type Part } from './project';
-import { addStation, cleanTurning, describeTurning, presetTurning, turnDiameters, turnSegments, TURN_PRESETS, type TurnPreset } from './turning';
+import { addStation, cleanTurning, describeTurning, turnOutline, presetTurning, turnDiameters, turnSegments, TURN_PRESETS, type TurnPreset } from './turning';
 import { createTable } from './templates/table';
 
 const table = createTable(undefined, 'guatambu', '2026-10-21T00:00:00Z');
@@ -64,5 +64,26 @@ describe('torneado', () => {
     const r = loadProject(JSON.parse(JSON.stringify({ ...table, schemaVersion: 7 })));
     expect(r.ok && r.project.schemaVersion).toBe(SCHEMA_VERSION);
     expect(r.ok && r.project.parts.every((p) => p.turning === undefined)).toBe(true);
+  });
+});
+
+describe('contorno del torneado', () => {
+  it('una curva sigue el arco exacto: pasa por el medio y no se aparta del círculo', () => {
+    const tu = { axis: 1 as const, stations: [{ at: 0, d: 40, to: 'straight' as const, bulge: 0 }, { at: 100, d: 40, to: 'curve' as const, bulge: 6 }] };
+    const pts = turnOutline(blank, tu, 1);
+    expect(pts[0]).toEqual([0, 20]);
+    expect(pts.at(-1)).toEqual([100, 20]);
+    const top = pts.reduce((m, p) => (p[1] > m[1] ? p : m));
+    expect(top[0]).toBeCloseTo(50, 0);
+    expect(top[1]).toBeCloseTo(26, 1);
+    // Radio del círculo por (0,20), (50,26), (100,20): (50² + 6²) / (2·6).
+    const r = (50 * 50 + 36) / 12;
+    for (const p of pts) expect(Math.hypot(p[0] - 50, p[1] - (26 - r))).toBeCloseTo(r, 3);
+  });
+
+  it('lo cuadrado sube hasta el lado del taco', () => {
+    const pts = turnOutline(blank, presetTurning(blank, 'pata'));
+    expect(pts.at(-1)).toEqual([600, 30]);
+    expect(pts.some((p) => p[1] === 30)).toBe(true);
   });
 });

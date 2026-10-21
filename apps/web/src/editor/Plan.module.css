@@ -107,3 +107,5 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
   .sheet { width: 297mm; height: 210mm; min-width: 0; max-width: none; box-shadow: none; }
 }
 .dimDot { fill: var(--paper-accent); stroke: none; }
+.turnTpl { fill: rgba(158, 96, 39, 0.08); stroke: var(--paper-ink); stroke-width: 0.35; stroke-linejoin: round; }
+.turnBlankTpl { fill: none; stroke: var(--paper-muted); stroke-width: 0.2; stroke-dasharray: 2 1.5; }
