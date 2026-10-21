@@ -1,6 +1,6 @@
 import { boardFeet, LENGTHS_M, planedMm, stockFor, stockKind, type StockKind } from './catalog/boards';
 import { boxSize, partBox, type Box } from './geometry';
-import { jointGeometry } from './joints';
+import { jointGeometry, solidBox } from './joints';
 import type { Joint, Part, Project } from './project';
 
 /** Corte de sierra, en mm. */
@@ -40,6 +40,9 @@ const unionBox = (a: Box, b: Box): Box => ({
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** Trabajos que se cuentan por punta, no por pieza suelta: "dedos en 2 puntas". */
+const BY_END = new Set(['pines de cola de milano', 'colas de milano', 'dedos']);
+
 /** Medidas de corte y trabajos de una pieza, según sus encastres. */
 export function cutPiece(part: Part, project: Project): CutPiece {
   const box = partBox(part);
@@ -56,7 +59,7 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     const g = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     const isA = j.partA === part.id;
     if (g && !isA) {
-      for (const s of g.addB) if (s.kind === 'box') outer = unionBox(outer, s.box);
+      for (const s of g.addB) outer = unionBox(outer, solidBox(s));
       if (g.addB.length) tongues += 1;
     }
     const p = { ...j.params };
@@ -76,6 +79,27 @@ export function cutPiece(part: Part, project: Project): CutPiece {
       case 'clavija':
         add('tarugo', g?.cutA.length ?? p.count ?? 0);
         break;
+      case 'cola-milano':
+        add(isA ? 'pines de cola de milano' : 'colas de milano');
+        break;
+      case 'dedos':
+        add('dedos');
+        break;
+      case 'brida':
+        add(isA ? 'rebaje de brida' : 'horquilla de brida');
+        break;
+      case 'inglete':
+        add('inglete');
+        break;
+      case 'galleta':
+        add('ranura para galleta', g ? (isA ? g.cutA.length : g.cutB.length) : (p.count ?? 0));
+        break;
+      case 'machiembrado':
+        add(isA ? 'canal de machimbre' : 'lengüeta de machimbre');
+        break;
+      case 'bolsillo':
+        if (!isA) add('agujero de bolsillo', (g?.cutB.length ?? 0) / 2);
+        break;
       default:
         break;
     }
@@ -90,10 +114,18 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     'lengüeta de rebaje': ['lengüeta para rebaje', 'lengüetas para rebaje'],
     'media madera': ['corte a media madera', 'cortes a media madera'],
     tarugo: ['agujero para tarugo', 'agujeros para tarugos'],
+    'rebaje de brida': ['rebaje de brida', 'rebajes de brida'],
+    'horquilla de brida': ['horquilla de brida', 'horquillas de brida'],
+    inglete: ['inglete', 'ingletes'],
+    'ranura para galleta': ['ranura para galleta', 'ranuras para galletas'],
+    'canal de machimbre': ['canal de machimbre', 'canales de machimbre'],
+    'lengüeta de machimbre': ['lengüeta de machimbre', 'lengüetas de machimbre'],
+    'agujero de bolsillo': ['agujero de bolsillo', 'agujeros de bolsillo'],
   };
   for (const [k, n] of counts) {
     const [one, many] = names[k] ?? [k, k];
     if (k === 'espiga' && n === 2) work.push('espiga en cada punta');
+    else if (BY_END.has(k)) work.push(n === 1 ? k : `${k} en ${n} puntas`);
     else work.push(plural(n, one, many));
   }
   const op = part.ops[0];

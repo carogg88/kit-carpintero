@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import {
+  BISCUITS,
   defaultJointParams,
   endJoint,
   formatNumber,
@@ -31,7 +32,16 @@ const ABOUT: Partial<Record<JointType, string>> = {
   canal: 'Una ranura a lo largo de una pieza donde entra el canto de la otra. Ideal para fondos y paneles; se hace con fresadora o sierra de mesa.',
   rebaje: 'Un escalón en el canto de una pieza donde apoya la otra. Se usa en fondos y tapas; se hace con fresadora o sierra de mesa.',
   clavija: 'Tarugos de madera encolados en agujeros enfrentados. Rápido y prolijo con una plantilla para tarugos.',
+  'cola-milano': 'El encastre de los cajones finos: las colas se ensanchan hacia la punta y no se pueden sacar tirando. Se marca con falsa escuadra y se corta con serrucho de costilla y formón.',
+  dedos: 'Dedos rectos que se alternan entre las dos piezas: mucha superficie para la cola. Se hace con sierra de mesa y un patrón de dedos, o con fresadora.',
+  brida: 'Una horquilla en la punta de una pieza abraza a la otra. Fuerte y fácil de hacer con sierra de cinta o sierra de mesa.',
+  inglete: 'Las dos piezas se cortan en diagonal y la veta da la vuelta a la esquina sin que se vea la testa. Se corta con ingletadora o sierra de mesa inclinada.',
+  galleta: 'Galletas de madera comprimida encoladas en ranuras enfrentadas. Alinean paneles rápido; se hacen con galletera.',
+  machiembrado: 'Una lengüeta en el canto de una tabla entra en la canal de la otra. Para paneles y tablas encoladas de canto; se hace con fresas de machimbre o sierra de mesa.',
+  bolsillo: 'Tornillos que entran inclinados desde la cara de adentro. Rápido y sin prensas; se hace con una plantilla de bolsillo y mecha escalonada.',
 };
+
+const SLOPES = [6, 8];
 
 const DOWEL_SIZES = [6, 8, 10, 12];
 const SHOWN = 4;
@@ -102,6 +112,22 @@ function ruleHint(j: Joint, a: Part, b: Part, n: (mm: number) => string): string
       return `La profundidad no debería pasar de la mitad del espesor de ${a.id} (${n(minDim(a))}).`;
     case 'media-madera':
       return 'Cada pieza pierde la mitad de su espesor en el cruce, así quedan al ras.';
+    case 'cola-milano':
+      return 'Pendiente 1:8 para maderas duras y 1:6 para blandas. Con el largo igual al espesor de la otra pieza, las colas quedan pasantes.';
+    case 'dedos':
+      return `Los dedos andan bien del ancho del espesor de ${b.id} (${n(minDim(b))}).`;
+    case 'brida': {
+      const thin = e ? partBox(b).max[e.thin] - partBox(b).min[e.thin] : minDim(b);
+      return `Regla del tercio: cada mejilla de la horquilla y la lengüeta del medio miden un tercio del espesor de ${b.id} (${n(thin / 3)}).`;
+    }
+    case 'inglete':
+      return 'Con las dos piezas del mismo espesor, el corte queda a 45°.';
+    case 'galleta':
+      return 'Usá la galleta más grande que entre: del 20 si el ancho pasa los 8 cm. Una cada 15 cm.';
+    case 'machiembrado':
+      return `La lengüeta mide un tercio del espesor de ${b.id} (${n(minDim(b))}) y entra la mitad de ese espesor.`;
+    case 'bolsillo':
+      return 'Tornillos de cabeza plana, de unos 3 cm para madera de 19 mm. Uno cada 12 cm.';
     default:
       return 'No lleva cortes: se fija con tornillos, clips de fijación o cola.';
   }
@@ -123,8 +149,11 @@ function cutChanges(j: Joint, a: Part, b: Part, project: Project, n: (mm: number
       const p = { ...defaultJointParams('clavija', partBox(a), partBox(b)), ...j.params };
       return [`${p.count ?? 0} agujeros de ${p.diameter ?? 0} mm en ${a.id} y en ${b.id}`];
     }
+    case 'galleta':
+    case 'bolsillo':
+      return [capitalize(describeJoint(j, project))];
     default:
-      return lines;
+      return [...lines, `${capitalize(describeJoint(j, project))} entre ${a.id} y ${b.id}`];
   }
 }
 
@@ -179,8 +208,30 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   const length = (key: string, label: string, min = 1) => (
     <LengthField key={`${joint.id}-${key}`} label={label} mm={params[key] ?? 0} units={units} min={min} onCommit={(v) => setParam(key, v)} />
   );
+  const choose = (key: string, label: string, values: number[], text: (v: number) => string = String) => (
+    <label key={key} className={styles.field}>
+      {label}
+      <select value={params[key] ?? values[0]} onChange={(e) => setParam(key, Number(e.target.value))}>
+        {values.map((v) => (
+          <option key={v} value={v}>
+            {text(v)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  const upTo = (max: number) => Array.from({ length: max }, (_, i) => i + 1);
+  const fineFields: Partial<Record<JointType, React.ReactNode[]>> = {
+    'cola-milano': [choose('count', 'Colas', upTo(8)), choose('slope', 'Pendiente', SLOPES, (v) => `1:${v}`), length('depth', 'Largo', 3)],
+    dedos: [choose('count', 'Dedos', upTo(12)), length('depth', 'Largo', 3)],
+    brida: [length('thickness', 'Lengüeta', 3), length('depth', 'Largo', 5)],
+    galleta: [choose('size', 'Galleta', BISCUITS.map(([size]) => size), (v) => `Nº ${v}`), choose('count', 'Cantidad', upTo(6))],
+    machiembrado: [length('thickness', 'Espesor', 2), length('depth', 'Largo', 3)],
+    bolsillo: [choose('count', 'Tornillos', upTo(6))],
+  };
   const fields: React.ReactNode[] =
-    joint.type === 'mortaja'
+    fineFields[joint.type] ??
+    (joint.type === 'mortaja'
       ? [length('length', 'Largo', 5), length('thickness', 'Espesor', 3), length('shoulder', 'Hombro', 0)]
       : joint.type === 'canal' || joint.type === 'rebaje'
         ? [length('depth', 'Profundidad')]
@@ -209,8 +260,8 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
               length('depthA', `Hondo en ${a.id}`, 5),
               length('depthB', `Hondo en ${b.id}`, 5),
             ]
-          : [];
-  const legendB = joint.type === 'mortaja' ? 'Espiga' : `${b.id} ${b.name}`;
+          : []);
+  const legendB = joint.type === 'mortaja' ? 'Espiga' : joint.type === 'cola-milano' ? 'Colas' : `${b.id} ${b.name}`;
 
   return (
     <div className={styles.detailGrid}>
@@ -262,7 +313,6 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
               {JOINT_NAMES[t]}
             </label>
           ))}
-          <span className={styles.note}>Cola de milano, brida, galleta y los demás encastres llegan en una próxima versión.</span>
         </fieldset>
 
         {fields.length > 0 && (

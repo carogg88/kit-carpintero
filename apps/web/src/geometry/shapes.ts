@@ -1,4 +1,4 @@
-import { cast, GCWithScope, getOC, makeBox, makeCompound, makeCylinder, ProjectionCamera, type Shape3D } from 'replicad';
+import { basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCompound, makeCylinder, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
 import { engineCamera, jointGeometry, partBox, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
 
 /**
@@ -9,10 +9,32 @@ import { engineCamera, jointGeometry, partBox, type Box, type EngineView, type P
 const solid = (b: Box) => makeBox(b.min, b.max) as Shape3D;
 
 function toShape(s: Solid): Shape3D {
-  if (s.kind === 'box') return solid(s.box);
-  const direction: [number, number, number] = [0, 0, 0];
-  direction[s.axis] = s.dir;
-  return makeCylinder(s.radius, s.length, s.start, direction) as Shape3D;
+  switch (s.kind) {
+    case 'box':
+      return solid(s.box);
+    case 'cylinder': {
+      const direction: [number, number, number] = [0, 0, 0];
+      direction[s.axis] = s.dir;
+      return makeCylinder(s.radius, s.length, s.start, direction) as Shape3D;
+    }
+    case 'bore':
+      return makeCylinder(s.radius, s.length, s.start, s.dir) as Shape3D;
+    case 'prism': {
+      const at = (u: number, v: number): [number, number, number] => {
+        const p: [number, number, number] = [0, 0, 0];
+        p[s.u] = u;
+        p[s.v] = v;
+        p[s.axis] = s.from;
+        return p;
+      };
+      const face = makePolygon(s.points.map(([u, v]) => at(u, v)));
+      const along: [number, number, number] = [0, 0, 0];
+      along[s.axis] = s.to - s.from;
+      const shape = basicFaceExtrusion(face, new Vector(along)) as Shape3D;
+      face.delete();
+      return shape;
+    }
+  }
 }
 
 /** Arma una pieza exacta: forma base, redondeos, espigas sumadas y mortajas restadas. */

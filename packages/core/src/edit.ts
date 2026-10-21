@@ -1,5 +1,5 @@
 import { boxSize, endContact, overlapBox, partBox, type Axis, type Box, type Vec3 } from './geometry';
-import { BASE_JOINTS, defaultJointParams, suggestJoints } from './joints';
+import { defaultJointParams, suggestJoints } from './joints';
 import type { Joint, Part } from './project';
 
 /**
@@ -117,16 +117,14 @@ export function syncJoints(parts: Part[], joints: Joint[]): Joint[] {
     const a = boxes.get(j.partA);
     const b = boxes.get(j.partB);
     if (!a || !b || !touches(a, b)) continue;
-    const hasGeometry = (BASE_JOINTS as readonly string[]).includes(j.type);
-    const stillFits = !hasGeometry || defaultJointParams(j.type, a, b) !== null;
-    if (stillFits) kept.set(key(j.partA, j.partB), j);
+    if (defaultJointParams(j.type, a, b) !== null) kept.set(key(j.partA, j.partB), j);
   }
   const result: Joint[] = [];
   for (const s of suggestJoints(parts)) {
     result.push(kept.get(key(s.partA, s.partB)) ?? s);
     kept.delete(key(s.partA, s.partB));
   }
-  // Contactos que la propuesta no ve pero la persona eligió (por ejemplo, un P2 sin geometría todavía).
+  // Contactos que la propuesta no ve pero la persona eligió.
   return [...result, ...kept.values()];
 }
 

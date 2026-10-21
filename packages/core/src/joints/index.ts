@@ -1,6 +1,22 @@
 import { boxSize, overlapBox, partBox, type Box } from '../geometry';
-import type { Joint, JointType, Part } from '../project';
+import { JOINT_TYPES, type Joint, type JointType, type Part } from '../project';
 import { endJoint, type JointGeometry } from './common';
+import {
+  biscuitGeometry,
+  bridleGeometry,
+  defaultBiscuitParams,
+  defaultBridleParams,
+  defaultDovetailParams,
+  defaultFingerParams,
+  defaultPocketParams,
+  defaultTongueParams,
+  dovetailGeometry,
+  fingerGeometry,
+  miterFits,
+  miterGeometry,
+  pocketGeometry,
+  tongueGeometry,
+} from './fine';
 import { defaultMortiseParams, mortiseGeometry } from './mortise';
 import {
   defaultDowelParams,
@@ -14,13 +30,12 @@ import {
 } from './others';
 
 export * from './common';
+export * from './fine';
 export * from './mortise';
 export * from './others';
 
 type Params = Record<string, number>;
 
-/** Encastres que ya tienen geometría. Los de P2 se suman acá a medida que llegan. */
-export const BASE_JOINTS = ['tope', 'mortaja', 'media-madera', 'canal', 'rebaje', 'clavija'] as const satisfies readonly JointType[];
 
 export const JOINT_NAMES: Record<JointType, string> = {
   tope: 'A tope',
@@ -30,7 +45,7 @@ export const JOINT_NAMES: Record<JointType, string> = {
   rebaje: 'Rebaje',
   clavija: 'Tarugos',
   'cola-milano': 'Cola de milano',
-  dedos: 'Caja y espiga (dedos)',
+  dedos: 'Ensamble de dedos',
   brida: 'Brida',
   inglete: 'Inglete',
   galleta: 'Galleta',
@@ -57,8 +72,32 @@ export function defaultJointParams(type: JointType, a: Box, b: Box): Params | nu
       const p = defaultDowelParams(a, b);
       return p && { ...p };
     }
-    default:
-      return null;
+    case 'cola-milano': {
+      const p = defaultDovetailParams(a, b);
+      return p && { ...p };
+    }
+    case 'dedos': {
+      const p = defaultFingerParams(a, b);
+      return p && { ...p };
+    }
+    case 'brida': {
+      const p = defaultBridleParams(a, b);
+      return p && { ...p };
+    }
+    case 'inglete':
+      return miterFits(a, b) ? {} : null;
+    case 'galleta': {
+      const p = defaultBiscuitParams(a, b);
+      return p && { ...p };
+    }
+    case 'machiembrado': {
+      const p = defaultTongueParams(a, b);
+      return p && { ...p };
+    }
+    case 'bolsillo': {
+      const p = defaultPocketParams(a, b);
+      return p && { ...p };
+    }
   }
 }
 
@@ -81,14 +120,26 @@ export function jointGeometry(type: JointType, a: Box, b: Box, params: Params = 
       return lapGeometry(a, b, { ratio: n('ratio') });
     case 'clavija':
       return dowelGeometry(a, b, { diameter: n('diameter'), count: n('count'), depthA: n('depthA'), depthB: n('depthB') });
-    default:
-      return null;
+    case 'cola-milano':
+      return dovetailGeometry(a, b, { count: n('count'), slope: n('slope'), depth: n('depth') });
+    case 'dedos':
+      return fingerGeometry(a, b, { count: n('count'), depth: n('depth') });
+    case 'brida':
+      return bridleGeometry(a, b, { thickness: n('thickness'), depth: n('depth') });
+    case 'inglete':
+      return miterGeometry(a, b);
+    case 'galleta':
+      return biscuitGeometry(a, b, { size: n('size'), count: n('count') });
+    case 'machiembrado':
+      return tongueGeometry(a, b, { thickness: n('thickness'), depth: n('depth') });
+    case 'bolsillo':
+      return pocketGeometry(a, b, { count: n('count') });
   }
 }
 
-/** Encastres base posibles entre A (recibe) y B (entra). */
+/** Encastres posibles entre A (recibe) y B (entra). */
 export function jointOptions(a: Box, b: Box): JointType[] {
-  return BASE_JOINTS.filter((t) => defaultJointParams(t, a, b) !== null);
+  return JOINT_TYPES.filter((t) => defaultJointParams(t, a, b) !== null);
 }
 
 /** Encastre que propondría un carpintero para estas dos piezas. */

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import opencascade from 'replicad-opencascadejs';
-import { setOC } from 'replicad';
-import { buildTemplate, drawJointDetail, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type Line2, type Project } from '@kitc/core';
+import { measureVolume, setOC } from 'replicad';
+import { buildTemplate, defaultJointParams, drawJointDetail, partBox, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type JointType, type Line2, type Part, type Project } from '@kitc/core';
 import { partShape, projectShapes } from './shapes';
 
 beforeAll(async () => {
@@ -81,3 +81,38 @@ describe('plano con el motor', () => {
     expect(exact.lines.some((l) => Math.abs(l.a[0] - l.b[0]) > 1e-3 && Math.abs(l.a[1] - l.b[1]) > 1e-3)).toBe(true);
   });
 });
+
+describe('encastres finos en el motor', () => {
+  const part = (id: string, position: [number, number, number], size: [number, number, number]): Part => ({
+    id, name: id, wood: 'cedro', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [],
+  });
+  // Esquina de cajón, pata con faldón y dos tablas canto con canto.
+  const corner = [part('A', [0, 0, 0], [18, 150, 400]), part('B', [18, 0, 0], [482, 150, 18])];
+  const legApron = [part('A', [30, 0, 30], [70, 728, 70]), part('B', [100, 633, 42], [1600, 95, 22])];
+  const boards = [part('A', [0, 0, 0], [100, 20, 1000]), part('B', [100, 0, 0], [100, 20, 1000])];
+  const cases: [JointType, Part[]][] = [
+    ['cola-milano', corner],
+    ['dedos', corner],
+    ['inglete', corner],
+    ['brida', legApron],
+    ['galleta', legApron],
+    ['machiembrado', boards],
+    ['bolsillo', legApron],
+  ];
+  const volume = (p: Part) => (p.base.kind === 'box' ? p.base.size[0] * p.base.size[1] * p.base.size[2] : 0);
+
+  it.each(cases)('%s se arma sin avisos', (type, parts) => {
+    const [a, b] = parts as [Part, Part];
+    const project: Project = { ...table, parts, joints: [{ id: 'J', type, partA: 'A', partB: 'B', params: {} }], components: [] };
+    expect(defaultJointParams(type, partBox(a), partBox(b))).not.toBeNull();
+    const built = parts.map((p) => partShape(p, project));
+    expect(built.map((x) => x.warning)).toEqual([undefined, undefined]);
+    const before = volume(a) + volume(b);
+    const after = built.reduce((sum, x) => sum + measureVolume(x.shape), 0);
+    built.forEach((x) => x.shape.delete());
+    // Lo que pierde A lo gana B; galletas, machimbre y bolsillos sacan madera.
+    if (['cola-milano', 'dedos', 'inglete', 'brida'].includes(type)) expect(after).toBeCloseTo(before, -1);
+    else expect(after).toBeLessThan(before);
+  });
+});
+

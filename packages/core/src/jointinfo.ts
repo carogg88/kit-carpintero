@@ -1,5 +1,5 @@
 import { endContact, overlapBox, partBox, type Axis } from './geometry';
-import { jointGeometry } from './joints';
+import { jointGeometry, solidBox } from './joints';
 import { partAxesBySize } from './edit';
 import type { Joint, Part, Project } from './project';
 
@@ -60,9 +60,9 @@ export function jointGrowth(project: Project, joint: Joint): JointGrowth[] {
   if (!g) return [];
   const grown = [0, 0, 0];
   for (const s of g.addB) {
-    if (s.kind !== 'box') continue;
+    const sb = solidBox(s);
     for (const k of [0, 1, 2] as Axis[]) {
-      const out = Math.max(0, box.min[k] - s.box.min[k]) + Math.max(0, s.box.max[k] - box.max[k]);
+      const out = Math.max(0, box.min[k] - sb.min[k]) + Math.max(0, sb.max[k] - box.max[k]);
       grown[k] = Math.max(grown[k] ?? 0, out);
     }
   }

@@ -11,8 +11,8 @@ const boxOf = (s: Solid | undefined) => {
 };
 
 describe('encastres base', () => {
-  it('entre pata y faldón (a 12 mm del canto) entran todos los de punta', () => {
-    expect(jointOptions(leg, apron)).toEqual(['tope', 'mortaja', 'canal', 'rebaje', 'clavija']);
+  it('entre pata y faldón (a 12 mm del canto) entran todos los de punta, menos inglete y machimbre', () => {
+    expect(jointOptions(leg, apron)).toEqual(['tope', 'mortaja', 'canal', 'rebaje', 'clavija', 'cola-milano', 'dedos', 'brida', 'galleta', 'bolsillo']);
   });
 
   it('canal: el faldón entra entero un tercio de la pata, hasta 12 mm', () => {
@@ -49,9 +49,6 @@ describe('encastres base', () => {
     expect(jointGeometry('tope', leg, apron)).toEqual({ cutA: [], cutB: [], addB: [] });
   });
 
-  it('los encastres de P2 todavía no tienen geometría', () => {
-    expect(jointGeometry('cola-milano', leg, apron)).toBeNull();
-  });
 });
 
 describe('suggestJoints', () => {

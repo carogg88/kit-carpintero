@@ -65,9 +65,15 @@ const fileSlug = (s: string) =>
 
 function extraNote(r: CutRow, n: (mm: number) => string): string | null {
   if (r.extraLength <= 0) return null;
-  const tenon = r.work.some((w) => w.includes('espiga'));
-  const word = tenon ? (r.tongues === 1 ? 'espiga' : 'espigas') : r.tongues === 1 ? 'lengüeta' : 'lengüetas';
-  return `${n(r.cut[0] - r.extraLength)} + ${r.tongues} ${word}`;
+  const base = n(r.cut[0] - r.extraLength);
+  const has = (w: string) => r.work.some((x) => x.toLocaleLowerCase('es').includes(w));
+  const ends = r.tongues === 1 ? '1 punta' : `${r.tongues} puntas`;
+  if (has('colas de milano')) return `${base} + colas en ${ends}`;
+  if (has('dedos')) return `${base} + dedos en ${ends}`;
+  if (has('inglete')) return `${base} + inglete en ${ends}`;
+  if (has('horquilla')) return `${base} + horquilla en ${ends}`;
+  const word = has('espiga') ? (r.tongues === 1 ? 'espiga' : 'espigas') : r.tongues === 1 ? 'lengüeta' : 'lengüetas';
+  return `${base} + ${r.tongues} ${word}`;
 }
 
 function CutTable({ rows, n }: { rows: CutRow[]; n: (mm: number) => string }) {
