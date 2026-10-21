@@ -109,7 +109,7 @@ export function JointDetail3D({ project, joint, meshes, label }: Props) {
     const m = meshes.get(id);
     return m && m.key === partKey(project, id) ? m : undefined;
   };
-  const colors = useMemo(() => ({ ink: cssColor('--ink', '#1C2320'), signal: cssColor('--signal', '#F2B544'), xray: cssColor('--xray-edge', '#6B4A2B') }), []);
+  const colors = useMemo(() => ({ ink: cssColor('--ink', '#2B3628'), signal: cssColor('--signal', '#C98A4E'), xray: cssColor('--xray-edge', '#6B4A2B') }), []);
   if (!a || !b) return null;
   const focus = focusBox(partBox(a), partBox(b));
   return (

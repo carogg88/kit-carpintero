@@ -8,16 +8,24 @@ Cada sección de la app se construye siguiendo esas pantallas y las reglas de ab
 
 Los colores, tipografías y espacios viven en `apps/web/src/styles/tokens.css`. Los componentes usan solo esas variables.
 
+Estilo desde 2026-10-21: inspirado en WoodHaven (verde bosque, madera y beige sobre un blanco cálido), con botones de píldora y tarjetas redondeadas.
+
 | Token | Claro | Oscuro | Uso |
 | --- | --- | --- | --- |
-| `--bg` | `#F2F1EC` | `#121614` | Fondo de la app |
-| `--surface` | `#FFFFFF` | `#1A1F1D` | Paneles y tarjetas |
-| `--ink` | `#1C2320` | `#E8EBE9` | Texto principal |
-| `--muted` | `#5B6460` | `#A3ACA8` | Texto secundario (4,5:1 o más) |
-| `--accent` | `#1E5A7A` | `#7DB9D6` | Acción principal, selección, cotas |
-| `--signal` | `#F2B544` | `#F2B544` | Encastres, botón de agregar |
+| `--bg` | `#F7F8F4` | `#161A15` | Fondo de la app |
+| `--surface` | `#FFFFFF` | `#1F251D` | Paneles y tarjetas |
+| `--surface-2` | `#EEEFE9` | `#272E25` | Fondos suaves |
+| `--ink` | `#2B3628` | `#E8E9E3` | Texto principal |
+| `--muted` | `#5E6759` | `#A9B0A3` | Texto secundario (4,5:1 o más) |
+| `--accent` | `#9E6027` | `#D49A5E` | Madera: acción principal, enlaces, cotas, pestaña actual |
+| `--accent-soft` | `#E6DCD2` | `#3A2E22` | Fondo de lo elegido en listas |
+| `--forest` | `#343F31` | `#E6DCD2` | Lo elegido en controles (herramienta, vista, unidades, opciones) y botones secundarios |
+| `--dark-card` | `#343F31` | `#2B3628` | Tarjetas oscuras de resumen |
+| `--signal` | `#C98A4E` | `#E0A86A` | Encastres resaltados y medida conocida en la foto |
 
-Tipografía: IBM Plex Sans para la interfaz, IBM Plex Mono para todas las medidas.
+Regla de color: madera para actuar, verde para lo elegido y la estructura, beige para fondos suaves. Nada de colores sueltos fuera de los tokens.
+
+Tipografía: Inter (400 a 700) en toda la app; las medidas usan cifras de ancho fijo (`tabular-nums`). Radios: 12 px en campos, 18 px en tarjetas y píldora (`--radius-pill`) en botones y controles.
 
 ## Reglas
 
