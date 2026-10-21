@@ -1,7 +1,7 @@
 import { partAxesBySize } from './edit';
 import { endJoint, jointGeometry, solidBox } from './joints';
-import { partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
-import { pocketSolid } from './pockets';
+import { otherAxes, partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
+import { arcInfo, pocketSolid } from './pockets';
 import type { Part, Project } from './project';
 
 /**
@@ -65,8 +65,18 @@ export interface Drawing {
   /** Rectángulo de cada pieza (no de los encastres), para acotar. */
   rects: { id: string; rect: Rect2 }[];
   bounds: Rect2;
+  /** Arcos que se ven de frente, para acotar el radio. */
+  arcs?: ArcMark[];
   /** Qué tiene que proyectar el motor para cambiar estas líneas por las de la forma exacta. */
   engine?: EngineView;
+}
+
+/** Cota de radio de un arco: dónde está el medio del arco y hacia qué lado queda la madera (unitario). */
+export interface ArcMark {
+  id: string;
+  at: [number, number];
+  toward: [number, number];
+  radius: number;
 }
 
 /** Pedido al motor: proyectar estas piezas exactas, con líneas ocultas, y quedarse con lo que cae en la ventana. */
@@ -220,7 +230,32 @@ export function partProjection(part: Part): Projection {
 export function drawPart(project: Project, part: Part): Drawing {
   const projection = partProjection(part);
   const pockets: DrawItem[] = part.pockets.map((p) => ({ id: `${part.id}-${p.id}`, box: solidBox(pocketSolid(part, p)), joint: true, owner: part.id, hole: true }));
-  return { ...drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...pockets], projection), engine: { parts: [part.id], projection } };
+  const drawing = drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...pockets], projection);
+  return { ...drawing, arcs: partArcMarks(part, projection), engine: { parts: [part.id], projection } };
+}
+
+/** Los arcos marcados en una cara que se mira de frente (o de atrás) en esta proyección. */
+export function partArcMarks(part: Part, p: Projection): ArcMark[] {
+  const box = partBox(part);
+  const marks: ArcMark[] = [];
+  for (const pk of part.pockets) {
+    if (pk.shape.kind !== 'arc' || pk.axis !== p.depth) continue;
+    const { mid, center, radius } = arcInfo(pk.shape);
+    const [ua, va] = otherAxes(pk.axis);
+    const flat = (pt: [number, number]): [number, number] => {
+      const q: Vec3 = [0, 0, 0];
+      q[ua] = box.min[ua] + pt[0];
+      q[va] = box.min[va] + pt[1];
+      return [p.uSign * q[p.u], p.vSign * q[p.v]];
+    };
+    const at = flat(mid);
+    const c = flat(center);
+    // Sin sacar lo de afuera, el arco es cóncavo hacia el corte: la madera queda del lado contrario al centro.
+    const sign = pk.shape.outside ? 1 : -1;
+    const len = Math.hypot(c[0] - at[0], c[1] - at[1]) || 1;
+    marks.push({ id: pk.id, at, toward: [(sign * (c[0] - at[0])) / len, (sign * (c[1] - at[1])) / len], radius });
+  }
+  return marks;
 }
 
 /** Dos vistas de detalle de un encastre, encuadradas donde se tocan las piezas. */
