@@ -23,3 +23,5 @@
 }
 .cardName { font-weight: 600; }
 .cardSize { font-family: var(--font-num); font-size: 14px; color: var(--muted); }
+.note { margin: var(--space-5) 0 0; }
+.note a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); font-weight: 500; }

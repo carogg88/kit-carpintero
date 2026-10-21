@@ -10,8 +10,12 @@
   },
   "dependencies": {
     "@kitc/core": "*",
+    "@types/three": "^0.186.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "replicad": "^1.1.0",
+    "replicad-opencascadejs": "^1.1.0",
+    "three": "^0.181.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

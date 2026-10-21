@@ -42,6 +42,9 @@ export function App() {
             </li>
           ))}
         </ul>
+        <p className={styles.note}>
+          <a href={`${import.meta.env.BASE_URL}geometria.html`}>Probar el motor de geometría en este dispositivo</a>
+        </p>
       </main>
     </div>
   );
