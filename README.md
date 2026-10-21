@@ -6,8 +6,8 @@ Web app gratuita para diseñar muebles de carpintería fina: piezas editables en
 
 | Carpeta | Qué tiene |
 | --- | --- |
-| `packages/core` | Núcleo sin React: modelo del proyecto (Zod, con versión y migraciones), unidades cm/pulgadas, maderas. Más adelante: encastres, cortes, reglas de revisión. |
-| `apps/web` | La app (React + Vite + TypeScript). |
+| `packages/core` | Núcleo sin React: modelo del proyecto (Zod, con versión y migraciones), unidades cm/pulgadas, maderas, catálogo de madereras, encastres base, imán y encastres que se actualizan solos. |
+| `apps/web` | La app (React + Vite + TypeScript): inicio, editor 3D (React Three Fiber, Zustand con deshacer) y guardado en el dispositivo (IndexedDB con Dexie). |
 
 ## Comandos
 

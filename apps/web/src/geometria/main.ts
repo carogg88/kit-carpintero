@@ -205,6 +205,7 @@ function tableFromControls(): Project {
   const type = jointSelect.value as JointType;
   const parts = new Map(t.parts.map((p) => [p.id, partBox(p)]));
   t.joints = t.joints.map((j) => {
+    if (j.type !== 'mortaja') return j;
     const params = defaultJointParams(type, parts.get(j.partA)!, parts.get(j.partB)!);
     return params ? { ...j, type, params } : j;
   });

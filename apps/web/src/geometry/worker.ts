@@ -40,8 +40,12 @@ function buildPart(part: Part, project: Project): PartMesh {
     const geo = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     if (!geo) continue;
     const isA = part.id === j.partA;
-    for (const s of isA ? [] : geo.addB) shape = shape.fuse(toShape(s));
-    for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(toShape(s));
+    try {
+      for (const s of isA ? [] : geo.addB) shape = shape.fuse(toShape(s));
+      for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(toShape(s));
+    } catch {
+      warning = `No se pudo cortar el encastre con ${isA ? j.partB : j.partA}`;
+    }
   }
 
   const mesh = shape.mesh({ tolerance: 0.3, angularTolerance: 0.3 });
@@ -66,13 +70,14 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
       setOC(oc);
       send({ type: 'ready', ms: performance.now() - t0 });
     } else {
-      const { project, only } = e.data;
+      const { project, only, req } = e.data;
       const t0 = performance.now();
       const parts = project.parts.filter((p) => !only || only.includes(p.id)).map((p) => buildPart(p, project));
       const transfer = parts.flatMap((p) => [p.vertices.buffer, p.normals.buffer, p.triangles.buffer, p.edges.buffer]);
-      send({ type: 'parts', parts, ms: performance.now() - t0 }, transfer);
+      send({ type: 'parts', parts, ms: performance.now() - t0, ...(req === undefined ? {} : { req }) }, transfer);
     }
   } catch (err) {
-    send({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+    const req = e.data.type === 'build' ? e.data.req : undefined;
+    send({ type: 'error', message: err instanceof Error ? err.message : String(err), ...(req === undefined ? {} : { req }) });
   }
 };
