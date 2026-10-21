@@ -1,6 +1,7 @@
 import { boxSize, endContact, overlapBox, partBox, type Axis, type Box, type Vec3 } from './geometry';
 import { defaultJointParams, suggestJoints } from './joints';
 import type { Joint, Part } from './project';
+import { t, tk } from './i18n';
 
 /**
  * Herramientas de edición que no dependen de la pantalla: imán a caras cercanas, piezas nuevas
@@ -67,9 +68,9 @@ export function nextPartId(parts: Part[], prefix: string): string {
 }
 
 export const NEW_PARTS = {
-  tabla: { prefix: 'N', name: 'Tabla', size: [600, 22, 146] },
-  liston: { prefix: 'L', name: 'Listón', size: [600, 45, 45] },
-  tablero: { prefix: 'B', name: 'Tablero', size: [600, 18, 400] },
+  tabla: { prefix: 'N', name: tk('Tabla'), size: [600, 22, 146] },
+  liston: { prefix: 'L', name: tk('Listón'), size: [600, 45, 45] },
+  tablero: { prefix: 'B', name: tk('Tablero'), size: [600, 18, 400] },
 } as const satisfies Record<string, { prefix: string; name: string; size: Vec3 }>;
 export type NewPartKind = keyof typeof NEW_PARTS;
 
@@ -80,7 +81,7 @@ export function newPart(parts: Part[], kind: NewPartKind, wood: string): Part {
   const id = nextPartId(parts, spec.prefix);
   return {
     id,
-    name: `${spec.name} ${id.slice(spec.prefix.length)}`,
+    name: `${t(spec.name)} ${id.slice(spec.prefix.length)}`,
     wood,
     base: { kind: 'box', size: [...spec.size] },
     position: [parts.length ? right + 150 : 0, 0, 0],
@@ -97,7 +98,7 @@ export function duplicatePart(parts: Part[], part: Part): Part {
   return {
     ...structuredClone(part),
     id: nextPartId(parts, prefix),
-    name: part.component ? part.name : `${part.name} (copia)`,
+    name: part.component ? part.name : t('{name} (copia)', { name: part.name }),
     position: [part.position[0] + width + 100, part.position[1], part.position[2]],
   };
 }

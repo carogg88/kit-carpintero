@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { faceLabel, formatLength, parseLength } from '@kitc/core';
+import { faceLabel, formatLength, parseLength, t, tk } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
 import { CutsView } from './CutsView';
@@ -36,27 +36,27 @@ import { Viewport } from './Viewport';
 import styles from './Editor.module.css';
 
 const TOOLS: [Tool, string, string, () => React.JSX.Element][] = [
-  ['select', 'Seleccionar', 'V', IconSelect],
-  ['push', 'Empujar o tirar una cara', 'P', IconPush],
-  ['move', 'Mover pieza', 'M', IconMove],
-  ['draw', 'Dibujar en una cara', 'D', IconDraw],
-  ['bevel', 'Biselar o redondear', 'B', IconBevel],
-  ['section', 'Agrandar o achicar un tramo', 'T', IconSection],
+  ['select', tk('Seleccionar'), 'V', IconSelect],
+  ['push', tk('Empujar o tirar una cara'), 'P', IconPush],
+  ['move', tk('Mover pieza'), 'M', IconMove],
+  ['draw', tk('Dibujar en una cara'), 'D', IconDraw],
+  ['bevel', tk('Biselar o redondear'), 'B', IconBevel],
+  ['section', tk('Agrandar o achicar un tramo'), 'T', IconSection],
 ];
 const VIEWS: [View, string, string][] = [
-  ['iso', 'Iso', 'Iso'],
-  ['front', 'Frente', 'Frente'],
-  ['side', 'Lateral', 'Lado'],
-  ['top', 'Planta', 'Planta'],
+  ['iso', tk('Iso'), tk('Iso')],
+  ['front', tk('Frente'), tk('Frente')],
+  ['side', tk('Lateral'), tk('Lado')],
+  ['top', tk('Planta'), tk('Planta')],
 ];
 const TIPS: Record<Tool, string> = {
-  select: 'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.',
-  push: 'Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.',
-  move: 'Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.',
-  bevel: 'Tocá una cara cerca de una arista y arrastrá hacia adentro. Cerca de una esquina (por ejemplo, la punta de una tapa vista en planta) toma la arista que baja por la esquina. Elegí bisel o redondeo en la barra; la medida exacta se escribe en el panel.',
+  select: tk('Tocá una pieza para editarla. Arrastrá el fondo para girar la vista y pellizcá o usá la rueda para acercar.'),
+  push: tk('Arrastrá una cara para estirar o acortar la pieza. Se pega a las caras cercanas; después escribí la medida exacta.'),
+  move: tk('Arrastrá una pieza sobre el piso. Se pega a las caras de las otras piezas. Con Ctrl (u Opción en Mac) o el botón de copiar, deja una copia.'),
+  bevel: tk('Tocá una cara cerca de una arista y arrastrá hacia adentro. Cerca de una esquina (por ejemplo, la punta de una tapa vista en planta) toma la arista que baja por la esquina. Elegí bisel o redondeo en la barra; la medida exacta se escribe en el panel.'),
   section:
-    'Tocá una pieza a lo largo (por ejemplo, una pata) y arrastrá para marcar el tramo. Arranca un poco más grueso; en el panel le das el ancho y el fondo que quieras, más grande o más chico. Se pega a las puntas y cada 5 mm.',
-  draw: 'Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina, un círculo desde su centro o la cuerda de un arco (y tocá cuánto se curva). Se pega a los bordes, al centro y cada 5 mm.',
+    tk('Tocá una pieza a lo largo (por ejemplo, una pata) y arrastrá para marcar el tramo. Arranca un poco más grueso; en el panel le das el ancho y el fondo que quieras, más grande o más chico. Se pega a las puntas y cada 5 mm.'),
+  draw: tk('Tocá la cara donde querés dibujar. Después arrastrá un rectángulo de esquina a esquina, un círculo desde su centro o la cuerda de un arco (y tocá cuánto se curva). Se pega a los bordes, al centro y cada 5 mm.'),
 };
 
 type SaveState = 'saved' | 'saving' | 'error';
@@ -69,14 +69,14 @@ function useAutosave(): SaveState {
   const first = useRef(project?.updatedAt);
   useEffect(() => {
     if (!project || dragging || project.updatedAt === first.current) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setState('saving');
       saveProject(project).then(
         () => setState('saved'),
         () => setState('error'),
       );
     }, 500);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [project, dragging]);
   return state;
 }
@@ -128,13 +128,13 @@ interface NavProps {
 
 function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
   const items: [Section, string, () => React.JSX.Element][] = [
-    ['modelo', 'Modelo', IconModel],
-    ['uniones', 'Uniones', IconJoints],
-    ['cortes', 'Cortes', IconCuts],
-    ['plano', 'Plano', IconPlan],
+    ['modelo', t('Modelo'), IconModel],
+    ['uniones', t('Uniones'), IconJoints],
+    ['cortes', t('Cortes'), IconCuts],
+    ['plano', t('Plano'), IconPlan],
   ];
   return (
-    <nav aria-label="Secciones del proyecto" className={variant === 'tabs' ? styles.tabs : styles.bottomNav}>
+    <nav aria-label={t('Secciones del proyecto')} className={variant === 'tabs' ? styles.tabs : styles.bottomNav}>
       {items.map(([key, label, Icon]) => (
         <a key={key} href={sectionHref(projectId, key)} aria-current={section === key ? 'page' : undefined}>
           {variant === 'bar' && <Icon />}
@@ -156,7 +156,7 @@ function MeasureBox() {
   const apply = () => {
     if (!text.trim() || !lastPush) return;
     const v = parseLength(text, units);
-    if (v === null || v < 3) return setError('Medida no válida');
+    if (v === null || v < 3) return setError(t('Medida no válida'));
     setError(null);
     commit((d) => {
       const q = d.parts.find((p) => p.id === lastPush.id);
@@ -175,7 +175,7 @@ function MeasureBox() {
         apply();
       }}
     >
-      <label htmlFor="medida">Medida</label>
+      <label htmlFor="medida">{t('Medida')}</label>
       <input
         id="medida"
         className={styles.num}
@@ -205,7 +205,7 @@ function AddPartButton() {
   return (
     <div className={styles.fabWrap}>
       {open && (
-        <div className={styles.addMenu} role="menu" aria-label="Agregar pieza">
+        <div className={styles.addMenu} role="menu" aria-label={t('Agregar pieza')}>
           {ADD_OPTIONS.map(([k, label, size]) => (
             <button
               key={k}
@@ -216,20 +216,20 @@ function AddPartButton() {
                 setOpen(false);
               }}
             >
-              <strong>{label}</strong>
-              <span>{size}</span>
+              <strong>{t(label)}</strong>
+              <span>{t(size)}</span>
             </button>
           ))}
         </div>
       )}
-      <button type="button" className={styles.fab} aria-label="Agregar pieza" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className={styles.fab} aria-label={t('Agregar pieza')} aria-expanded={open} onClick={() => setOpen(!open)}>
         <IconPlus />
       </button>
     </div>
   );
 }
 
-const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: 'Uniones', cortes: 'Lista de compras', plano: 'Plano' };
+const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Lista de compras'), plano: tk('Plano') };
 
 export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
   const project = useEditor((s) => s.project);
@@ -256,8 +256,8 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const back = modelo ? onExit : () => (location.hash = sectionHref(project.id, 'modelo'));
 
   const warnings = [...meshes.values()].filter((m) => m.warning).length;
-  const saveText = saveState === 'error' ? 'No se pudo guardar' : saveState === 'saving' ? 'Guardando…' : 'Guardado en este dispositivo';
-  const engineText = engineStatus === 'loading' ? 'Preparando los cortes exactos…' : engineStatus === 'error' ? 'No se pudieron calcular los cortes' : null;
+  const saveText = saveState === 'error' ? t('No se pudo guardar') : saveState === 'saving' ? t('Guardando…') : t('Guardado en este dispositivo');
+  const engineText = engineStatus === 'loading' ? t('Preparando los cortes exactos…') : engineStatus === 'error' ? t('No se pudieron calcular los cortes') : null;
   const jointCount = project.joints.length;
   const selDims = selected?.base.kind === 'box' ? [...selected.base.size].sort((a, b) => b - a) : null;
 
@@ -268,7 +268,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
           <button
             type="button"
             className={`${styles.iconBtn} ${styles.backBtn}`}
-            aria-label={modelo ? 'Volver a mis proyectos' : 'Volver al modelo'}
+            aria-label={modelo ? t('Volver a mis proyectos') : t('Volver al modelo')}
             onClick={back}
           >
             <IconBack />
@@ -300,7 +300,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
           ) : (
             <>
               <span className={`${styles.muted} ${styles.overline}`}>{project.name}</span>
-              <span className={styles.sectionTitle}>{SECTION_TITLES[section]}</span>
+              <span className={styles.sectionTitle}>{SECTION_TITLES[section] && t(SECTION_TITLES[section])}</span>
               <span className={styles.desktopTitle}>{project.name}</span>
               <span className={styles.srOnly} role="status">
                 {saveState === 'saved' ? '' : saveText}
@@ -312,10 +312,10 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
           <SectionNav projectId={project.id} section={section} jointCount={jointCount} variant="tabs" />
         </div>
         <div className={styles.headerActions}>
-          <button type="button" className={styles.iconBtn} aria-label="Deshacer (Ctrl+Z)" disabled={!canUndo} onClick={undo}>
+          <button type="button" className={styles.iconBtn} aria-label={t('Deshacer (Ctrl+Z)')} disabled={!canUndo} onClick={undo}>
             <IconUndo />
           </button>
-          <button type="button" className={styles.iconBtn} aria-label="Rehacer (Ctrl+Y)" disabled={!canRedo} onClick={redo}>
+          <button type="button" className={styles.iconBtn} aria-label={t('Rehacer (Ctrl+Y)')} disabled={!canRedo} onClick={redo}>
             <IconRedo />
           </button>
           <span className={styles.desktopOnly}>
@@ -330,11 +330,11 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
       {modelo && (
         <>
         <main className={styles.main}>
-          <section className={styles.stage} aria-label="Vista 3D" data-tool={tool}>
-            <Viewport meshes={meshes} label={`Modelo 3D de ${project.name}${selected ? `, con ${selected.name} elegida` : ''}`} />
-            <div className={styles.toolbar} role="toolbar" aria-label="Herramientas">
-              {TOOLS.map(([t, label, key, Icon]) => (
-                <button key={t} type="button" aria-pressed={tool === t} aria-label={`${label} (${key})`} title={`${label} (${key})`} onClick={() => setTool(t)}>
+          <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool}>
+            <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: project.name, part: selected.name }) : t('Modelo 3D de {name}', { name: project.name })} />
+            <div className={styles.toolbar} role="toolbar" aria-label={t('Herramientas')}>
+              {TOOLS.map(([id, label, key, Icon]) => (
+                <button key={id} type="button" aria-pressed={tool === id} aria-label={`${t(label)} (${key})`} title={`${t(label)} (${key})`} onClick={() => setTool(id)}>
                   <Icon />
                 </button>
               ))}
@@ -342,68 +342,68 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 <button
                   type="button"
                   aria-pressed={copyMove}
-                  aria-label="Copiar al mover (o mantené Ctrl)"
-                  title="Copiar al mover (o mantené Ctrl)"
+                  aria-label={t('Copiar al mover (o mantené Ctrl)')}
+                  title={t('Copiar al mover (o mantené Ctrl)')}
                   onClick={() => setCopyMove(!copyMove)}
                 >
                   <IconCopy />
                 </button>
               )}
               <span className={styles.toolSep} aria-hidden="true" />
-              <button type="button" aria-pressed={xray} aria-label="Rayos X (X)" title="Rayos X (X)" onClick={() => setXray(!xray)}>
+              <button type="button" aria-pressed={xray} aria-label={t('Rayos X (X)')} title={t('Rayos X (X)')} onClick={() => setXray(!xray)}>
                 <IconXray />
               </button>
             </div>
-            <div className={styles.views} role="group" aria-label="Vista">
+            <div className={styles.views} role="group" aria-label={t('Vista')}>
               {VIEWS.map(([v, label, short]) => (
                 <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
-                  <span className={styles.desktopOnly}>{label}</span>
-                  <span className={styles.mobileOnly}>{short}</span>
+                  <span className={styles.desktopOnly}>{t(label)}</span>
+                  <span className={styles.mobileOnly}>{t(short)}</span>
                 </button>
               ))}
             </div>
             {tool === 'draw' && (
               <div className={styles.drawBar}>
-                <div className={styles.shapes} role="group" aria-label="Figura">
-                  <button type="button" aria-pressed={drawShape === 'rect'} aria-label="Rectángulo" title="Rectángulo" onClick={() => setDrawShape('rect')}>
+                <div className={styles.shapes} role="group" aria-label={t('Figura')}>
+                  <button type="button" aria-pressed={drawShape === 'rect'} aria-label={t('Rectángulo')} title={t('Rectángulo')} onClick={() => setDrawShape('rect')}>
                     <IconRect />
                   </button>
-                  <button type="button" aria-pressed={drawShape === 'circle'} aria-label="Círculo" title="Círculo" onClick={() => setDrawShape('circle')}>
+                  <button type="button" aria-pressed={drawShape === 'circle'} aria-label={t('Círculo')} title={t('Círculo')} onClick={() => setDrawShape('circle')}>
                     <IconCircle />
                   </button>
-                  <button type="button" aria-pressed={drawShape === 'arc'} aria-label="Arco" title="Arco" onClick={() => setDrawShape('arc')}>
+                  <button type="button" aria-pressed={drawShape === 'arc'} aria-label={t('Arco')} title={t('Arco')} onClick={() => setDrawShape('arc')}>
                     <IconArc />
                   </button>
                 </div>
                 <span role="status">
                   {arcChord ? (
-                    'Tocá cuánto se curva'
+                    t('Tocá cuánto se curva')
                   ) : drawFace ? (
                     <>
-                      En {faceLabel(drawFace)} de <strong>{drawFace.partId}</strong>
+                      {t('En {face} de', { face: faceLabel(drawFace) })} <strong>{drawFace.partId}</strong>
                     </>
                   ) : (
-                    'Tocá una cara'
+                    t('Tocá una cara')
                   )}
                 </span>
                 {drawFace && (
                   <button type="button" className={styles.done} onClick={() => setDrawFace(null)}>
-                    Listo
+                    {t('Listo')}
                   </button>
                 )}
               </div>
             )}
             {tool === 'bevel' && (
               <div className={styles.drawBar}>
-                <div className={styles.shapes} role="group" aria-label="Forma del canto">
-                  <button type="button" aria-pressed={!bevelRound} aria-label="Bisel recto" title="Bisel recto" onClick={() => setBevelRound(false)}>
+                <div className={styles.shapes} role="group" aria-label={t('Forma del canto')}>
+                  <button type="button" aria-pressed={!bevelRound} aria-label={t('Bisel recto')} title={t('Bisel recto')} onClick={() => setBevelRound(false)}>
                     <IconChamfer />
                   </button>
-                  <button type="button" aria-pressed={bevelRound} aria-label="Redondeo" title="Redondeo" onClick={() => setBevelRound(true)}>
+                  <button type="button" aria-pressed={bevelRound} aria-label={t('Redondeo')} title={t('Redondeo')} onClick={() => setBevelRound(true)}>
                     <IconRound />
                   </button>
                 </div>
-                <span role="status">{bevelRound ? 'Redondeo: tocá una arista o esquina' : 'Bisel: tocá una arista o esquina'}</span>
+                <span role="status">{bevelRound ? t('Redondeo: tocá una arista o esquina') : t('Bisel: tocá una arista o esquina')}</span>
               </div>
             )}
             {selected && selDims && tool !== 'draw' && tool !== 'bevel' && (
@@ -414,13 +414,13 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             )}
             {(engineText || warnings > 0) && (
               <span className={styles.engine} role="status">
-                {engineText ?? `${warnings} ${warnings === 1 ? 'pieza no se pudo' : 'piezas no se pudieron'} cortar del todo`}
+                {engineText ?? (warnings === 1 ? t('1 pieza no se pudo cortar del todo') : t('{n} piezas no se pudieron cortar del todo', { n: warnings }))}
               </span>
             )}
             {hint && (
               <span className={styles.hint} style={{ left: hint.x, top: hint.y }}>
                 {hint.text}
-                {hint.snap && <span className={styles.snap}>Imán: {hint.snap}</span>}
+                {hint.snap && <span className={styles.snap}>{t('Imán: {snap}', { snap: hint.snap })}</span>}
               </span>
             )}
             <span className={styles.mobileOnly}>
@@ -428,14 +428,14 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             </span>
           </section>
 
-          <aside className={styles.panel} aria-label={selected ? 'Pieza seleccionada' : 'Piezas del proyecto'}>
+          <aside className={styles.panel} aria-label={selected ? t('Pieza seleccionada') : t('Piezas del proyecto')}>
             <span className={styles.grabber} aria-hidden="true" />
             <PartPanel />
           </aside>
         </main>
 
         <footer className={`${styles.footer} ${hasPush || tool === 'push' ? '' : styles.footerIdle}`}>
-          <span>{TIPS[tool]}</span>
+          <span>{t(TIPS[tool])}</span>
           <MeasureBox />
         </footer>
         </>

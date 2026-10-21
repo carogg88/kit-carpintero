@@ -1,4 +1,5 @@
 import type { Part, Project } from './project';
+import { t } from './i18n';
 
 /** Caja alineada a los ejes, en mm. X ancho, Y alto, Z fondo. */
 export type Vec3 = [number, number, number];
@@ -46,7 +47,7 @@ export function endContact(a: Box, b: Box, tol = 0.6): { axis: Axis; dir: 1 | -1
 
 /** Caja de una pieza sin rotar. */
 export function partBox(p: Part): Box {
-  if (p.base.kind !== 'box') throw new Error(`La pieza ${p.id} no es una caja`);
+  if (p.base.kind !== 'box') throw new Error(t('La pieza {id} no es una caja', { id: p.id }));
   const [x, y, z] = p.position;
   const [w, h, d] = p.base.size;
   return { min: [x, y, z], max: [x + w, y + h, z + d] };

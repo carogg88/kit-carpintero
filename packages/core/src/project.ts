@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { t } from './i18n';
 
 /**
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
@@ -166,15 +167,15 @@ export type LoadResult = { ok: true; project: Project } | { ok: false; error: st
 
 /** Abre un proyecto guardado: lo migra a la versión actual y lo valida. */
 export function loadProject(raw: unknown): LoadResult {
-  if (typeof raw !== 'object' || raw === null) return { ok: false, error: 'El archivo no es un proyecto.' };
+  if (typeof raw !== 'object' || raw === null) return { ok: false, error: t('El archivo no es un proyecto.') };
   let data = raw as Record<string, unknown>;
   let version = typeof data.schemaVersion === 'number' ? data.schemaVersion : 0;
   if (version > SCHEMA_VERSION) {
-    return { ok: false, error: 'El proyecto es de una versión más nueva de la app.' };
+    return { ok: false, error: t('El proyecto es de una versión más nueva de la app.') };
   }
   while (version < SCHEMA_VERSION) {
     const migrate = migrations[version];
-    if (!migrate) return { ok: false, error: `No se puede abrir un proyecto de la versión ${version}.` };
+    if (!migrate) return { ok: false, error: t('No se puede abrir un proyecto de la versión {version}.', { version }) };
     data = { ...migrate(data), schemaVersion: version + 1 };
     version += 1;
   }

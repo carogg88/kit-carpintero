@@ -38,7 +38,7 @@ export function formatLength(mm: number, units: Units): string {
 
 /** Lee lo que escribe el usuario ("72,5", "2 7/8", "3/4″") y devuelve mm, o null si no se entiende. */
 export function parseLength(input: string, units: Units): number | null {
-  const s = input.trim().replace(/["″]|pulgadas|in|cm/gi, '').trim();
+  const s = input.trim().replace(/["″]|pulgadas|inches|inch|in|cm/gi, '').trim();
   if (!s) return null;
   if (units === 'cm') {
     const v = Number(s.replace(',', '.'));

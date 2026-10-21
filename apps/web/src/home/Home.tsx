@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatNumber, getLang, loadProject, partBox, SCHEMA_VERSION, woodById, type Project } from '@kitc/core';
+import { formatNumber, getLang, loadProject, locale, partBox, SCHEMA_VERSION, t, tk, woodById, type Project } from '@kitc/core';
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
 import { IconLogo } from '../editor/icons';
@@ -12,7 +12,7 @@ const icon = { width: 28, height: 28, viewBox: '0 0 32 32', fill: 'none', stroke
 const TEMPLATES = [
   {
     id: 'mesa',
-    name: 'Mesa',
+    name: tk('Mesa'),
     icon: (
       <svg {...icon}>
         <rect x="3" y="9" width="26" height="4" rx="1" />
@@ -22,7 +22,7 @@ const TEMPLATES = [
   },
   {
     id: 'taburete',
-    name: 'Taburete',
+    name: tk('Taburete'),
     icon: (
       <svg {...icon}>
         <rect x="8" y="6" width="16" height="4" rx="1" />
@@ -32,7 +32,7 @@ const TEMPLATES = [
   },
   {
     id: 'estante',
-    name: 'Estante',
+    name: tk('Estante'),
     icon: (
       <svg {...icon}>
         <rect x="6" y="3" width="20" height="26" rx="1" />
@@ -42,7 +42,7 @@ const TEMPLATES = [
   },
   {
     id: 'caja',
-    name: 'Caja de té',
+    name: tk('Caja de té'),
     icon: (
       <svg {...icon}>
         <rect x="4" y="12" width="24" height="14" rx="1" />
@@ -52,7 +52,7 @@ const TEMPLATES = [
   },
   {
     id: 'blanco',
-    name: 'En blanco',
+    name: tk('En blanco'),
     icon: (
       <svg {...icon}>
         <rect x="5" y="5" width="22" height="22" rx="2" strokeDasharray="3 3" />
@@ -64,28 +64,30 @@ const TEMPLATES = [
 
 function emptyProject(): Project {
   const now = new Date().toISOString();
-  return { schemaVersion: SCHEMA_VERSION, id: `proyecto-${now}`, name: 'Proyecto nuevo', units: 'cm', createdAt: now, updatedAt: now, parts: [], joints: [], components: [] };
+  return { schemaVersion: SCHEMA_VERSION, id: `proyecto-${now}`, name: t('Proyecto nuevo'), units: 'cm', createdAt: now, updatedAt: now, parts: [], joints: [], components: [] };
 }
 
 /** "hoy", "ayer" o la fecha corta. */
 function when(iso: string): string {
   const d = new Date(iso);
   const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86_400_000);
-  if (days <= 0) return 'hoy';
-  if (days === 1) return 'ayer';
-  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+  if (days <= 0) return t('hoy');
+  if (days === 1) return t('ayer');
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 }
 
 function summary(p: Project): { size: string; meta: string } {
   const boxes = p.parts.filter((x) => x.base.kind === 'box').map(partBox);
   const unit = p.units === 'cm' ? ' cm' : '″';
-  let size = 'Sin piezas';
+  let size = t('Sin piezas');
   if (boxes.length) {
     const ext = [0, 1, 2].map((k) => Math.max(...boxes.map((b) => b.max[k]!)) - Math.min(...boxes.map((b) => b.min[k]!)));
     size = [ext[0]!, ext[2]!, ext[1]!].map((mm) => formatNumber(mm, p.units)).join(' × ') + unit;
   }
-  const wood = woodById(p.parts[0]?.wood ?? '')?.name;
-  const meta = [wood, `${p.parts.length} ${p.parts.length === 1 ? 'pieza' : 'piezas'}`, when(p.updatedAt)].filter(Boolean).join(' · ');
+  const woodName = woodById(p.parts[0]?.wood ?? '')?.name;
+  const wood = woodName && t(woodName);
+  const count = p.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: p.parts.length });
+  const meta = [wood, count, when(p.updatedAt)].filter(Boolean).join(' · ');
   return { size, meta };
 }
 
@@ -93,7 +95,7 @@ function download(p: Project) {
   const blob = new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${p.name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'proyecto'}.kitc.json`;
+  a.download = `${p.name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || t('proyecto')}.kitc.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -113,7 +115,7 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
           <span className={styles.muted}>{meta}</span>
         </span>
       </button>
-      <button type="button" className={styles.more} aria-label={`Más opciones de ${project.name}`} aria-expanded={menu} onClick={() => setMenu(!menu)}>
+      <button type="button" className={styles.more} aria-label={t('Más opciones de {name}', { name: project.name })} aria-expanded={menu} onClick={() => setMenu(!menu)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
           <circle cx="12" cy="12" r="2" />
@@ -130,7 +132,7 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
               setMenu(false);
             }}
           >
-            Exportar archivo
+            {t('Exportar archivo')}
           </button>
           <button
             type="button"
@@ -138,12 +140,12 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
             className={styles.dangerItem}
             onClick={async () => {
               setMenu(false);
-              if (!confirm(`¿Eliminar "${project.name}" de este dispositivo? No se puede deshacer.`)) return;
+              if (!confirm(t('¿Eliminar "{name}" de este dispositivo? No se puede deshacer.', { name: project.name }))) return;
               await deleteProject(project.id);
               onChanged();
             }}
           >
-            Eliminar
+            {t('Eliminar')}
           </button>
         </div>
       )}
@@ -161,8 +163,8 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   useEffect(() => {
     refresh();
     // El motor de cortes tarda un par de segundos en abrir: se prepara mientras se elige qué hacer.
-    const t = setTimeout(warmUpEngine, 1200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(warmUpEngine, 1200);
+    return () => clearTimeout(timer);
   }, []);
 
   const create = async (template: string) => {
@@ -184,7 +186,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
       await saveProject(p);
       onOpen(p.id);
     } catch {
-      setFileError('El archivo no es un proyecto de Kit Carpintero.');
+      setFileError(t('El archivo no es un proyecto de Kit Carpintero.'));
     }
   };
 
@@ -203,7 +205,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
               </svg>
-              Instalar la app
+              {t('Instalar la app')}
             </button>
           )}
           <span className={styles.lang} role="group" aria-label="Idioma · Language">
@@ -215,11 +217,11 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
           </span>
         </span>
       </header>
-      <p className={styles.lead}>Sin cuenta. Tus proyectos se guardan en este dispositivo.</p>
+      <p className={styles.lead}>{t('Sin cuenta. Tus proyectos se guardan en este dispositivo.')}</p>
 
       <section className={styles.section} aria-labelledby="nuevo">
         <h1 id="nuevo" className={styles.title}>
-          ¿Qué mueble vas a hacer?
+          {t('¿Qué mueble vas a hacer?')}
         </h1>
         <div className={styles.starts}>
           <a href="#plantillas" className={`${styles.start} ${styles.startPrimary}`}>
@@ -230,8 +232,8 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
               </svg>
             </span>
             <span className={styles.startText}>
-              <strong>Desde una plantilla</strong>
-              <span>Elegí un mueble y se arma con sus encastres; después ajustás cada medida</span>
+              <strong>{t('Desde una plantilla')}</strong>
+              <span>{t('Elegí un mueble y se arma con sus encastres; después ajustás cada medida')}</span>
             </span>
           </a>
           <a href="#/foto" className={styles.start}>
@@ -242,8 +244,8 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
               </svg>
             </span>
             <span className={styles.startText}>
-              <strong>Desde una foto</strong>
-              <span>Marcá una medida que conozcas y calcá las piezas</span>
+              <strong>{t('Desde una foto')}</strong>
+              <span>{t('Marcá una medida que conozcas y calcá las piezas')}</span>
             </span>
           </a>
         </div>
@@ -251,13 +253,13 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
 
       <section className={styles.section} aria-labelledby="plantillas" id="plantillas">
         <h2 id="plantillas-t" className={styles.h2}>
-          Plantillas
+          {t('Plantillas')}
         </h2>
         <div className={styles.templates}>
-          {TEMPLATES.map((t) => (
-            <button key={t.id} type="button" className={styles.template} onClick={() => void create(t.id)}>
-              {t.icon}
-              {t.name}
+          {TEMPLATES.map((tpl) => (
+            <button key={tpl.id} type="button" className={styles.template} onClick={() => void create(tpl.id)}>
+              {tpl.icon}
+              {t(tpl.name)}
             </button>
           ))}
         </div>
@@ -266,10 +268,10 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
       <section className={styles.section} aria-labelledby="mis">
         <div className={styles.sectionHead}>
           <h2 id="mis" className={styles.h2}>
-            Mis proyectos
+            {t('Mis proyectos')}
           </h2>
           <button type="button" className={styles.link} onClick={() => fileRef.current?.click()}>
-            Abrir archivo
+            {t('Abrir archivo')}
           </button>
           <input
             ref={fileRef}
@@ -288,16 +290,16 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
             {fileError}
           </p>
         )}
-        {projects && projects.length === 0 && <p className={styles.muted}>Todavía no hay proyectos. Empezá con una plantilla.</p>}
+        {projects && projects.length === 0 && <p className={styles.muted}>{t('Todavía no hay proyectos. Empezá con una plantilla.')}</p>}
         <ul className={styles.projects}>
           {projects?.map((p) => (
             <ProjectRow key={p.id} project={p} onOpen={onOpen} onChanged={refresh} />
           ))}
         </ul>
       </section>
-      <p className={styles.foot}>Para no perder un proyecto, exportalo como archivo desde el menú de cada uno.</p>
+      <p className={styles.foot}>{t('Para no perder un proyecto, exportalo como archivo desde el menú de cada uno.')}</p>
       <p className={styles.foot}>
-        <a href={`${import.meta.env.BASE_URL}geometria.html`}>Probar el motor de geometría en este dispositivo</a>
+        <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>
       </p>
     </div>
   );

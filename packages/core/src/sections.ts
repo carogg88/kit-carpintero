@@ -1,6 +1,7 @@
 import { boxSize, otherAxes, partBox, type Axis, type Box } from './geometry';
 import { MEASURED_FROM } from './pockets';
 import type { Part, Section } from './project';
+import { t } from './i18n';
 
 /** Primer id libre para un tramo de la pieza: S1, S2… */
 export function nextSectionId(part: Part): string {
@@ -51,5 +52,11 @@ export function sectionCutBox(part: Part, s: Section): Box {
 
 /** En palabras de taller: "tramo de 9 × 9 cm, de 0 a 15 cm desde abajo". */
 export function describeSection(s: Section, n: (mm: number) => string): string {
-  return `tramo de ${n(s.size[0])} × ${n(s.size[1])}, de ${n(s.from)} a ${n(s.to)} desde ${MEASURED_FROM[s.axis]}`;
+  return t('tramo de {w} × {h}, de {from} a {to} desde {side}', {
+    w: n(s.size[0]),
+    h: n(s.size[1]),
+    from: n(s.from),
+    to: n(s.to),
+    side: t(MEASURED_FROM[s.axis]),
+  });
 }

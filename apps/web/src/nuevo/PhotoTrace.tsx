@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { buildTemplate, formatLength, templateById, TEMPLATES, type TemplateDef, type Units } from '@kitc/core';
+import { buildTemplate, formatLength, t, templateById, tk, TEMPLATES, type TemplateDef, type Units } from '@kitc/core';
 import { LengthField } from '../editor/PartPanel';
 import { IconUndo } from '../editor/icons';
 import { navigate, sectionHref } from '../routes';
@@ -18,7 +18,7 @@ interface Photo {
   h: number;
 }
 
-const STEPS = ['Foto', 'Medida', 'Calcar piezas'] as const;
+const STEPS = [tk('Foto'), tk('Medida'), tk('Calcar piezas')] as const;
 const dist = ([a, b]: Seg) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 
 const IconZoom = ({ out }: { out: boolean }) => (
@@ -78,7 +78,7 @@ function Stage({
       <div ref={box} className={`${styles.stage} ${zoom ? styles.zoomed : ''}`}>
         {w > 0 && (
           <div className={styles.photoBox} style={{ width: w, height: h }}>
-            <img src={photo.url} alt="Tu foto" width={w} height={h} draggable={false} />
+            <img src={photo.url} alt={t('Tu foto')} width={w} height={h} draggable={false} />
             <svg viewBox={`0 0 ${photo.w} ${photo.h}`} width={w} height={h} onClick={tap} role="img" aria-label={description}>
               {segs.map(({ seg, kind }, i) => (
                 <g key={i} className={styles[`seg_${kind}`]}>
@@ -105,10 +105,10 @@ function Stage({
       </div>
       <span className={styles.stageHint}>{hint}</span>
       <div className={styles.stageTools}>
-        <button type="button" aria-label="Deshacer el último punto" onClick={onUndo} disabled={!canUndo}>
+        <button type="button" aria-label={t('Deshacer el último punto')} onClick={onUndo} disabled={!canUndo}>
           <IconUndo />
         </button>
-        <button type="button" aria-label={zoom ? 'Achicar la foto' : 'Ampliar la foto'} aria-pressed={zoom} onClick={() => setZoom(!zoom)}>
+        <button type="button" aria-label={zoom ? t('Achicar la foto') : t('Ampliar la foto')} aria-pressed={zoom} onClick={() => setZoom(!zoom)}>
           <IconZoom out={zoom} />
         </button>
       </div>
@@ -118,11 +118,11 @@ function Stage({
 
 function Steps({ step }: { step: number }) {
   return (
-    <ol className={styles.steps} aria-label="Pasos">
+    <ol className={styles.steps} aria-label={t('Pasos')}>
       {STEPS.map((s, i) => (
         <li key={s} aria-current={i === step ? 'step' : undefined} className={i <= step ? styles.stepOn : undefined}>
           <span aria-hidden="true" />
-          {i + 1} · {s}
+          {i + 1} · {t(s)}
         </li>
       ))}
     </ol>
@@ -165,7 +165,7 @@ export function PhotoTrace() {
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      setPhotoError('No pudimos abrir esa imagen. Probá con una foto JPG o PNG.');
+      setPhotoError(t('No pudimos abrir esa imagen. Probá con una foto JPG o PNG.'));
     };
     img.src = url;
   };
@@ -201,7 +201,7 @@ export function PhotoTrace() {
     if (pending) return setPending(null);
     const last = order[order.length - 1];
     if (!last) return;
-    setTraces((t) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== last)));
+    setTraces((tr) => Object.fromEntries(Object.entries(tr).filter(([k]) => k !== last)));
     setOrder(order.slice(0, -1));
     setCurrent(last);
   };
@@ -218,12 +218,16 @@ export function PhotoTrace() {
     navigate(sectionHref(p.id, 'modelo'));
   };
 
-  const fieldLabel = (k: string) => fields.find((f) => f.key === k)?.label ?? '';
-  const refLabel = refMm ? formatLength(refMm, units) : 'Medida conocida';
+  const fieldLabel = (k: string) => {
+    const label = fields.find((f) => f.key === k)?.label;
+    return label ? t(label) : '';
+  };
+  const refLabel = refMm ? formatLength(refMm, units) : t('Medida conocida');
+  const traced = Object.keys(traces).length;
 
   return (
     <div className={styles.screen}>
-      <BackHeader title="Nuevo desde foto" back="#/">
+      <BackHeader title={t('Nuevo desde foto')} back="#/">
         <UnitsToggle units={units} onChange={setUnits} />
       </BackHeader>
       <Steps step={step} />
@@ -232,17 +236,17 @@ export function PhotoTrace() {
         <div className={styles.body}>
           <section className={styles.block} aria-labelledby="que-mueble">
             <h2 id="que-mueble" className={styles.label}>
-              ¿Qué mueble es?
+              {t('¿Qué mueble es?')}
             </h2>
             <div className={styles.chips} role="group" aria-labelledby="que-mueble">
-              {TEMPLATES.map((t) => (
-                <button key={t.id} type="button" className={styles.chip} aria-pressed={t.id === templateId} onClick={() => {
-                    setTemplateId(t.id);
+              {TEMPLATES.map((tpl) => (
+                <button key={tpl.id} type="button" className={styles.chip} aria-pressed={tpl.id === templateId} onClick={() => {
+                    setTemplateId(tpl.id);
                     setRefField('');
                     setTraces({});
                     setOrder([]);
                   }}>
-                  {t.name}
+                  {t(tpl.name)}
                 </button>
               ))}
             </div>
@@ -252,8 +256,8 @@ export function PhotoTrace() {
               <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
               <circle cx="12" cy="13" r="4" />
             </svg>
-            <strong>Elegir o sacar una foto</strong>
-            <span>La foto queda en este dispositivo; no se sube a ningún lado.</span>
+            <strong>{t('Elegir o sacar una foto')}</strong>
+            <span>{t('La foto queda en este dispositivo; no se sube a ningún lado.')}</span>
           </button>
           <input
             ref={fileRef}
@@ -271,10 +275,10 @@ export function PhotoTrace() {
               {photoError}
             </p>
           )}
-          <p className={styles.note}>Sacala de frente y desde lo más lejos que puedas, con el mueble entero en la foto: así las medidas salen parejas.</p>
+          <p className={styles.note}>{t('Sacala de frente y desde lo más lejos que puedas, con el mueble entero en la foto: así las medidas salen parejas.')}</p>
           {photo && (
             <button type="button" className={styles.secondary} onClick={() => setStep(1)}>
-              Seguir con la foto que elegiste
+              {t('Seguir con la foto que elegiste')}
             </button>
           )}
         </div>
@@ -284,39 +288,41 @@ export function PhotoTrace() {
         <>
           <Stage
             photo={photo}
-            hint={ref.length < 2 ? 'Tocá los dos extremos de algo que sepas cuánto mide' : 'Escribí cuánto mide'}
+            hint={ref.length < 2 ? t('Tocá los dos extremos de algo que sepas cuánto mide') : t('Escribí cuánto mide')}
             segs={refSeg ? [{ seg: refSeg, label: refLabel, kind: 'ref' }] : []}
             pending={ref.length === 1 ? ref[0]! : null}
             onTap={(p) => setRef(ref.length >= 2 ? [p] : [...ref, p])}
             onUndo={() => setRef(ref.slice(0, -1))}
             canUndo={ref.length > 0}
-            description={refSeg ? 'Tu foto, con la medida conocida marcada' : 'Tu foto. Tocá dos puntos para marcar una medida conocida'}
+            description={refSeg ? t('Tu foto, con la medida conocida marcada') : t('Tu foto. Tocá dos puntos para marcar una medida conocida')}
           />
           <div className={styles.body}>
-            <p className={styles.note}>Puede ser el alto del mueble, el largo de la tapa o una cinta métrica apoyada al lado. Cuanto más larga, mejor sale el resto.</p>
+            <p className={styles.note}>
+              {t('Puede ser el alto del mueble, el largo de la tapa o una cinta métrica apoyada al lado. Cuanto más larga, mejor sale el resto.')}
+            </p>
             {refSeg && (
               <div className={styles.grid2}>
                 <label className={styles.field}>
-                  ¿Qué es?
+                  {t('¿Qué es?')}
                   <select value={refField} onChange={(e) => setRefField(e.target.value)}>
-                    <option value="">Otra cosa</option>
+                    <option value="">{t('Otra cosa')}</option>
                     {fields.map((f) => (
                       <option key={f.key} value={f.key}>
-                        {f.label}
+                        {t(f.label)}
                       </option>
                     ))}
                   </select>
                 </label>
-                <LengthField label="¿Cuánto mide?" mm={refMm ?? 0} units={units} min={10} onCommit={setRefMm} />
+                <LengthField label={t('¿Cuánto mide?')} mm={refMm ?? 0} units={units} min={10} onCommit={setRefMm} />
               </div>
             )}
           </div>
           <div className={styles.actions}>
             <button type="button" className={styles.secondary} onClick={() => setStep(0)}>
-              Cambiar foto
+              {t('Cambiar foto')}
             </button>
             <button type="button" className={styles.primary} disabled={!mmPerPx} onClick={startTracing}>
-              Seguir
+              {t('Seguir')}
             </button>
           </div>
         </>
@@ -326,7 +332,7 @@ export function PhotoTrace() {
         <>
           <Stage
             photo={photo}
-            hint={pending ? 'Ahora tocá el otro extremo' : `Tocá los dos extremos: ${fieldLabel(current).toLowerCase()}`}
+            hint={pending ? t('Ahora tocá el otro extremo') : t('Tocá los dos extremos: {field}', { field: fieldLabel(current).toLowerCase() })}
             segs={[
               ...(refSeg && !Object.values(traces).includes(refSeg) ? [{ seg: refSeg, label: refLabel, kind: 'ref' as const }] : []),
               ...Object.entries(traces).map(([k, seg]) => ({ seg, label: `${fieldLabel(k)} ${formatLength(measured(k) ?? 0, units)}`, kind: k === current ? ('current' as const) : ('trace' as const) })),
@@ -335,11 +341,11 @@ export function PhotoTrace() {
             onTap={tapTrace}
             onUndo={undoTrace}
             canUndo={!!pending || order.length > 0}
-            description={`Tu foto, con ${Object.keys(traces).length} medidas calcadas`}
+            description={traced === 1 ? t('Tu foto, con 1 medida calcada') : t('Tu foto, con {n} medidas calcadas', { n: traced })}
           />
           <section className={styles.body} aria-labelledby="calcando">
             <h2 id="calcando" className={styles.label}>
-              ¿Qué estás calcando?
+              {t('¿Qué estás calcando?')}
             </h2>
             <div className={styles.chips}>
               {fields.map((f) => (
@@ -353,24 +359,31 @@ export function PhotoTrace() {
                     setPending(null);
                   }}
                 >
-                  {f.label}
+                  {t(f.label)}
                   {traces[f.key] && <span className={styles.chipValue}>{formatLength(measured(f.key) ?? 0, units)} ✓</span>}
                 </button>
               ))}
             </div>
             {outOfRange.map((f) => (
               <p key={f.key} className={styles.errorText} role="alert">
-                {f.label} da {formatLength(values[f.key]!, units)}, fuera de lo que admite la plantilla ({formatLength(f.min, units)} a {formatLength(f.max, units)}). Volvé a calcarla.
+                {t('{field} da {value}, fuera de lo que admite la plantilla ({min} a {max}). Volvé a calcarla.', {
+                  field: t(f.label),
+                  value: formatLength(values[f.key]!, units),
+                  min: formatLength(f.min, units),
+                  max: formatLength(f.max, units),
+                })}
               </p>
             ))}
-            <p className={styles.note}>Lo que no se ve en la foto, como el fondo o las patas de atrás, se completa con medidas habituales. Lo revisás en el paso siguiente.</p>
+            <p className={styles.note}>
+              {t('Lo que no se ve en la foto, como el fondo o las patas de atrás, se completa con medidas habituales. Lo revisás en el paso siguiente.')}
+            </p>
           </section>
           <div className={styles.actions}>
             <button type="button" className={styles.secondary} onClick={review}>
-              Revisar medidas
+              {t('Revisar medidas')}
             </button>
             <button type="button" className={`${styles.primary} ${styles.grow}`} onClick={() => void build()}>
-              Armar el modelo
+              {t('Armar el modelo')}
             </button>
           </div>
         </>

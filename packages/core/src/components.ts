@@ -1,6 +1,7 @@
 import { nextPartId } from './edit';
 import { partWord } from './jointinfo';
 import type { Component, Part, Project } from './project';
+import { t } from './i18n';
 
 /**
  * Componentes: piezas iguales vinculadas, como en SketchUp. Cada copia guarda su propia forma
@@ -87,7 +88,7 @@ export function copyPart(parts: Part[], part: Part): Part {
   const prefix = part.id.replace(/\d+$/, '') || 'N';
   const copy = json(part);
   copy.id = nextPartId(parts, prefix);
-  if (!part.component) copy.name = `${part.name} (copia)`;
+  if (!part.component) copy.name = t('{name} (copia)', { name: part.name });
   return copy;
 }
 

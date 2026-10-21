@@ -18,6 +18,7 @@ import {
   formatNumber,
   JOINT_NAMES,
   jointOptions,
+  locale,
   makeComponent,
   makeUnique,
   MEASURED_FROM,
@@ -25,6 +26,8 @@ import {
   parseLength,
   partAxesBySize,
   partBox,
+  t,
+  tk,
   WOODS,
   type Axis,
   type Bevel,
@@ -40,7 +43,7 @@ import { IconLink, IconTrash, IconWarn } from './icons';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
 
-const HARDNESS = { dura: 'dura', semidura: 'semidura', blanda: 'blanda' } as const;
+const HARDNESS = { dura: tk('dura'), semidura: tk('semidura'), blanda: tk('blanda') } as const;
 
 interface LengthFieldProps {
   label: string;
@@ -68,9 +71,9 @@ export function LengthField({ label, mm, units, min = 1, max, onCommit, compact,
   }
   const commit = () => {
     const v = parseLength(text, units);
-    if (v === null) return setError(units === 'cm' ? 'Escribí un número, por ejemplo 72,5' : 'Escribí pulgadas, por ejemplo 2 7/8');
-    if (v < min) return setError(`Tiene que ser de ${formatNumber(min, units)} o más`);
-    if (max !== undefined && v > max) return setError(`Tiene que ser de ${formatNumber(max, units)} o menos`);
+    if (v === null) return setError(units === 'cm' ? t('Escribí un número, por ejemplo 72,5') : t('Escribí pulgadas, por ejemplo 2 7/8'));
+    if (v < min) return setError(t('Tiene que ser de {n} o más', { n: formatNumber(min, units) }));
+    if (max !== undefined && v > max) return setError(t('Tiene que ser de {n} o menos', { n: formatNumber(max, units) }));
     setError(null);
     if (Math.abs(v - mm) > 0.01) onCommit(v);
     else setText(formatNumber(mm, units));
@@ -99,7 +102,7 @@ export function LengthField({ label, mm, units, min = 1, max, onCommit, compact,
   );
 }
 
-const DIM_LABELS = ['Largo', 'Ancho', 'Espesor'] as const;
+const DIM_LABELS = [tk('Largo'), tk('Ancho'), tk('Espesor')] as const;
 
 /** Descripción corta de un encastre con sus medidas, como en el diseño: "mortaja 0,7 × 8 × 4,2 cm". */
 export function describeJoint(j: Joint, project: Project): string {
@@ -114,34 +117,40 @@ export function describeJoint(j: Joint, project: Project): string {
   const unit = u === 'cm' ? ' cm' : '″';
   switch (j.type) {
     case 'tope':
-      return 'apoyada, sin cortes';
+      return t('apoyada, sin cortes');
     case 'mortaja': {
       const e = endJoint(ba, bb);
       const wide = e ? e.section.max[e.wide] - e.section.min[e.wide] - 2 * (p.shoulder ?? 0) : 0;
-      if (wide <= 0) return 'mortaja y espiga';
-      return `mortaja ${n(p.thickness ?? 0)} × ${n(wide)} × ${n((p.length ?? 0) + 2)}${unit}`;
+      if (wide <= 0) return t('mortaja y espiga');
+      return t('mortaja {t} × {w} × {d}{unit}', { t: n(p.thickness ?? 0), w: n(wide), d: n((p.length ?? 0) + 2), unit });
     }
     case 'canal':
     case 'rebaje':
-      return `${j.type === 'canal' ? 'canal' : 'rebaje'} de ${n(p.depth ?? 0)}${unit} de profundidad`;
+      return j.type === 'canal'
+        ? t('canal de {d}{unit} de profundidad', { d: n(p.depth ?? 0), unit })
+        : t('rebaje de {d}{unit} de profundidad', { d: n(p.depth ?? 0), unit });
     case 'media-madera':
-      return 'cada pieza rebajada a la mitad';
+      return t('cada pieza rebajada a la mitad');
     case 'clavija':
-      return `${p.count ?? 0} tarugos de ${p.diameter ?? 0} mm`;
+      return t('{count} tarugos de {d} mm', { count: p.count ?? 0, d: p.diameter ?? 0 });
     case 'cola-milano':
-      return `${p.count ?? 0} ${p.count === 1 ? 'cola' : 'colas'} de milano 1:${p.slope ?? 8}`;
+      return p.count === 1
+        ? t('{count} cola de milano 1:{slope}', { count: 1, slope: p.slope ?? 8 })
+        : t('{count} colas de milano 1:{slope}', { count: p.count ?? 0, slope: p.slope ?? 8 });
     case 'dedos':
-      return `${p.count ?? 0} dedos de ${n(p.depth ?? 0)}${unit}`;
+      return t('{count} dedos de {d}{unit}', { count: p.count ?? 0, d: n(p.depth ?? 0), unit });
     case 'brida':
-      return `brida, lengüeta de ${n(p.thickness ?? 0)}${unit}`;
+      return t('brida, lengüeta de {t}{unit}', { t: n(p.thickness ?? 0), unit });
     case 'inglete':
-      return 'esquina en inglete';
+      return t('esquina en inglete');
     case 'galleta':
-      return `${p.count ?? 0} ${p.count === 1 ? 'galleta' : 'galletas'} del ${p.size ?? 20}`;
+      return p.count === 1
+        ? t('{count} galleta del {size}', { count: 1, size: p.size ?? 20 })
+        : t('{count} galletas del {size}', { count: p.count ?? 0, size: p.size ?? 20 });
     case 'machiembrado':
-      return `machimbre, lengüeta de ${n(p.thickness ?? 0)} × ${n(p.depth ?? 0)}${unit}`;
+      return t('machimbre, lengüeta de {t} × {d}{unit}', { t: n(p.thickness ?? 0), d: n(p.depth ?? 0), unit });
     case 'bolsillo':
-      return `${p.count ?? 0} ${p.count === 1 ? 'tornillo' : 'tornillos'} de bolsillo`;
+      return p.count === 1 ? t('{count} tornillo de bolsillo', { count: 1 }) : t('{count} tornillos de bolsillo', { count: p.count ?? 0 });
   }
 }
 
@@ -159,7 +168,7 @@ function JointCard({ joint, partId, project }: { joint: Joint; partId: string; p
       <span className={styles.jointDot} aria-hidden="true" />
       <span className={styles.jointText}>
         <label htmlFor={selectId} className={styles.srOnly}>
-          Encastre con {otherId}
+          {t('Encastre con {id}', { id: otherId })}
         </label>
         <select
           id={selectId}
@@ -175,14 +184,14 @@ function JointCard({ joint, partId, project }: { joint: Joint; partId: string; p
             })
           }
         >
-          {options.map((t) => (
-            <option key={t} value={t}>
-              {JOINT_NAMES[t]}
+          {options.map((type) => (
+            <option key={type} value={type}>
+              {t(JOINT_NAMES[type])}
             </option>
           ))}
         </select>
         <span className={styles.muted}>
-          con {otherId}
+          {t('con {id}', { id: otherId })}
           {other ? ` · ${other.name}` : ''} · {describeJoint(joint, project)}
         </span>
       </span>
@@ -190,7 +199,7 @@ function JointCard({ joint, partId, project }: { joint: Joint; partId: string; p
   );
 }
 
-const AXIS_LABELS = ['Ancho', 'Alto', 'Fondo'] as const;
+const AXIS_LABELS = [tk('Ancho'), tk('Alto'), tk('Fondo')] as const;
 
 /** Un vaciado o calado de la pieza, con sus medidas editables. */
 function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocket; part: Part; units: Units; onChange: (recipe: (p: Pocket) => void) => void; onRemove: () => void }) {
@@ -200,26 +209,27 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
   const thick = depthUnder(part, pocket.axis);
   const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
   const s = pocket.shape;
-  const from = (i: 0 | 1) => `${s.kind === 'circle' ? 'Centro desde' : 'Desde'} ${MEASURED_FROM[axes[i]]}`;
+  const side = (i: 0 | 1) => t(MEASURED_FROM[axes[i]]);
+  const from = (i: 0 | 1) => (s.kind === 'circle' ? t('Centro desde {side}', { side: side(i) }) : t('Desde {side}', { side: side(i) }));
   return (
     <div className={styles.pocketCard}>
       <div className={styles.pocketHead}>
         <span className={styles.pocketTitle}>
           <strong>{pocket.id}</strong> {describePocket(pocket, n).replace(/^./, (c) => c.toUpperCase())}
         </span>
-        <button type="button" className={styles.iconBtnSmall} aria-label={`Borrar ${pocket.id}`} title="Borrar" onClick={onRemove}>
+        <button type="button" className={styles.iconBtnSmall} aria-label={t('Borrar {id}', { id: pocket.id })} title={t('Borrar')} onClick={onRemove}>
           <IconTrash />
         </button>
       </div>
       <div className={styles.pocketFields}>
         {s.kind === 'arc' ? (
           <>
-            <LengthField label={`Inicio desde ${MEASURED_FROM[axes[0]]}`} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
-            <LengthField label={`Inicio desde ${MEASURED_FROM[axes[1]]}`} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
-            <LengthField label={`Fin desde ${MEASURED_FROM[axes[0]]}`} mm={s.u2} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.u2 = v))} />
-            <LengthField label={`Fin desde ${MEASURED_FROM[axes[1]]}`} mm={s.v2} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.v2 = v))} />
+            <LengthField label={t('Inicio desde {side}', { side: side(0) })} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
+            <LengthField label={t('Inicio desde {side}', { side: side(1) })} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
+            <LengthField label={t('Fin desde {side}', { side: side(0) })} mm={s.u2} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.u2 = v))} />
+            <LengthField label={t('Fin desde {side}', { side: side(1) })} mm={s.v2} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.v2 = v))} />
             <LengthField
-              label="Flecha"
+              label={t('Flecha')}
               mm={Math.abs(s.bulge)}
               units={units}
               min={0.5}
@@ -231,28 +241,28 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
           <>
             {s.kind === 'rect' ? (
               <>
-                <LengthField label={AXIS_LABELS[axes[0]]} mm={s.w} units={units} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.w = v))} />
-                <LengthField label={AXIS_LABELS[axes[1]]} mm={s.h} units={units} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.h = v))} />
+                <LengthField label={t(AXIS_LABELS[axes[0]])} mm={s.w} units={units} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.w = v))} />
+                <LengthField label={t(AXIS_LABELS[axes[1]])} mm={s.h} units={units} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'rect' && (p.shape.h = v))} />
               </>
             ) : (
-              <LengthField label="Diámetro" mm={s.d} units={units} max={Math.max(...size)} onCommit={(v) => onChange((p) => p.shape.kind === 'circle' && (p.shape.d = v))} />
+              <LengthField label={t('Diámetro')} mm={s.d} units={units} max={Math.max(...size)} onCommit={(v) => onChange((p) => p.shape.kind === 'circle' && (p.shape.d = v))} />
             )}
             <LengthField label={from(0)} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
             <LengthField label={from(1)} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
           </>
         )}
         {!pocket.through && (
-          <LengthField label="Profundidad" mm={pocket.depth} units={units} min={0.5} max={thick} onCommit={(v) => onChange((p) => void (p.depth = v))} />
+          <LengthField label={t('Profundidad')} mm={pocket.depth} units={units} min={0.5} max={thick} onCommit={(v) => onChange((p) => void (p.depth = v))} />
         )}
       </div>
       <label className={styles.check} htmlFor={throughId}>
         <input id={throughId} type="checkbox" checked={pocket.through} onChange={(e) => onChange((p) => void (p.through = e.target.checked))} />
-        Atraviesa la pieza
+        {t('Atraviesa la pieza')}
       </label>
       {s.kind === 'arc' && (
         <label className={styles.check} htmlFor={otherId}>
           <input id={otherId} type="checkbox" checked={s.outside} onChange={(e) => onChange((p) => p.shape.kind === 'arc' && (p.shape.outside = e.target.checked))} />
-          Sacar lo de afuera del arco (esquina redondeada)
+          {t('Sacar lo de afuera del arco (esquina redondeada)')}
         </label>
       )}
     </div>
@@ -262,7 +272,7 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
 /** Ángulo en grados, con coma o punto. */
 function AngleField({ label, deg, max, onCommit }: { label: string; deg: number; max: number; onCommit: (deg: number) => void }) {
   const id = useId();
-  const show = (d: number) => (Math.round(d * 10) / 10).toString().replace('.', ',');
+  const show = (d: number) => (Math.round(d * 10) / 10).toLocaleString(locale(), { maximumFractionDigits: 1, useGrouping: false });
   const [text, setText] = useState(() => show(deg));
   const [error, setError] = useState<string | null>(null);
   const [shown, setShown] = useState(deg);
@@ -273,8 +283,8 @@ function AngleField({ label, deg, max, onCommit }: { label: string; deg: number;
   }
   const commit = () => {
     const v = Number(text.replace(',', '.').replace('°', '').trim());
-    if (!Number.isFinite(v) || v <= 0 || v >= 90) return setError('Entre 1° y 89°');
-    if (v > max + 0.05) return setError(`Con este ancho, hasta ${show(max)}°`);
+    if (!Number.isFinite(v) || v <= 0 || v >= 90) return setError(t('Entre 1° y 89°'));
+    if (v > max + 0.05) return setError(t('Con este ancho, hasta {max}°', { max: show(max) }));
     setError(null);
     if (Math.abs(v - deg) > 0.05) onCommit(v);
     else setText(show(deg));
@@ -315,20 +325,20 @@ function BevelCard({ bevel, part, units, onChange, onRemove }: { bevel: Bevel; p
         <span className={styles.pocketTitle}>
           <strong>{bevel.id}</strong> {cap(describeBevel(part, bevel, n))}
         </span>
-        <button type="button" className={styles.iconBtnSmall} aria-label={`Borrar ${bevel.id}`} title="Borrar" onClick={onRemove}>
+        <button type="button" className={styles.iconBtnSmall} aria-label={t('Borrar {id}', { id: bevel.id })} title={t('Borrar')} onClick={onRemove}>
           <IconTrash />
         </button>
       </div>
       {bevel.round ? (
         <div className={styles.pocketFields}>
-          <LengthField label="Radio" mm={bevel.da} units={units} min={0.5} max={Math.min(maxA, maxB)} onCommit={(v) => onChange((b) => void (b.da = b.db = v))} />
+          <LengthField label={t('Radio')} mm={bevel.da} units={units} min={0.5} max={Math.min(maxA, maxB)} onCommit={(v) => onChange((b) => void (b.da = b.db = v))} />
         </div>
       ) : (
         <div className={styles.pocketFields}>
-          <LengthField label={cap(`en ${faceLabel(bevel.a)}`)} mm={bevel.da} units={units} min={0.5} max={maxA} onCommit={(v) => onChange((b) => void (b.da = v))} />
-          <LengthField label={cap(`en ${faceLabel(bevel.b)}`)} mm={bevel.db} units={units} min={0.5} max={maxB} onCommit={(v) => onChange((b) => void (b.db = v))} />
+          <LengthField label={cap(t('en {face}', { face: faceLabel(bevel.a) }))} mm={bevel.da} units={units} min={0.5} max={maxA} onCommit={(v) => onChange((b) => void (b.da = v))} />
+          <LengthField label={cap(t('en {face}', { face: faceLabel(bevel.b) }))} mm={bevel.db} units={units} min={0.5} max={maxB} onCommit={(v) => onChange((b) => void (b.db = v))} />
           <AngleField
-            label={`Ángulo con ${faceLabel(bevel.a)}`}
+            label={t('Ángulo con {face}', { face: faceLabel(bevel.a) })}
             deg={bevelAngle(bevel)}
             max={bevelAngle({ da: bevel.da, db: maxB })}
             onCommit={(deg) => onChange((b) => void (b.db = Math.round(b.da * Math.tan((deg * Math.PI) / 180) * 100) / 100))}
@@ -351,15 +361,15 @@ function SectionCard({ section, part, units, onChange, onRemove }: { section: Se
         <span className={styles.pocketTitle}>
           <strong>{section.id}</strong> {cap(describeSection(section, n))}
         </span>
-        <button type="button" className={styles.iconBtnSmall} aria-label={`Borrar ${section.id}`} title="Borrar" onClick={onRemove}>
+        <button type="button" className={styles.iconBtnSmall} aria-label={t('Borrar {id}', { id: section.id })} title={t('Borrar')} onClick={onRemove}>
           <IconTrash />
         </button>
       </div>
       <div className={styles.pocketFields}>
-        <LengthField label={`Desde ${MEASURED_FROM[section.axis]}`} mm={section.from} units={units} min={0} max={section.to - 1} onCommit={(x) => onChange((s) => void (s.from = x))} />
-        <LengthField label="Hasta" mm={section.to} units={units} min={section.from + 1} max={len} onCommit={(x) => onChange((s) => void (s.to = x))} />
-        <LengthField label={AXIS_LABELS[u]} mm={section.size[0]} units={units} min={1} onCommit={(x) => onChange((s) => void (s.size[0] = x))} />
-        <LengthField label={AXIS_LABELS[v]} mm={section.size[1]} units={units} min={1} onCommit={(x) => onChange((s) => void (s.size[1] = x))} />
+        <LengthField label={t('Desde {side}', { side: t(MEASURED_FROM[section.axis]) })} mm={section.from} units={units} min={0} max={section.to - 1} onCommit={(x) => onChange((s) => void (s.from = x))} />
+        <LengthField label={t('Hasta')} mm={section.to} units={units} min={section.from + 1} max={len} onCommit={(x) => onChange((s) => void (s.to = x))} />
+        <LengthField label={t(AXIS_LABELS[u])} mm={section.size[0]} units={units} min={1} onCommit={(x) => onChange((s) => void (s.size[0] = x))} />
+        <LengthField label={t(AXIS_LABELS[v])} mm={section.size[1]} units={units} min={1} onCommit={(x) => onChange((s) => void (s.size[1] = x))} />
       </div>
     </div>
   );
@@ -397,13 +407,13 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
     <>
       <div>
         <div className={styles.panelHead}>
-          <span className={styles.eyebrow}>{part.id} · pieza seleccionada</span>
+          <span className={styles.eyebrow}>{t('{id} · pieza seleccionada', { id: part.id })}</span>
           <button type="button" className={styles.link} onClick={() => select(null)}>
-            Ver todas las piezas
+            {t('Ver todas las piezas')}
           </button>
         </div>
         <label className={styles.field} htmlFor={nameId}>
-          Nombre
+          {t('Nombre')}
           <input
             id={nameId}
             key={`${part.id}-${part.name}`}
@@ -418,11 +428,11 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         </label>
       </div>
       <fieldset className={styles.dims}>
-        <legend className={styles.legend}>Medidas terminadas ({units === 'cm' ? 'cm' : 'pulgadas'})</legend>
+        <legend className={styles.legend}>{t('Medidas terminadas ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}</legend>
         {axes.map((axis, i) => (
           <LengthField
             key={axis}
-            label={DIM_LABELS[i]!}
+            label={t(DIM_LABELS[i]!)}
             mm={size[axis] ?? 0}
             units={units}
             min={3}
@@ -435,42 +445,46 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </fieldset>
       <label className={styles.field} htmlFor={woodId}>
-        Madera
+        {t('Madera')}
         <select id={woodId} value={part.wood} onChange={(e) => update((q) => void (q.wood = e.target.value))}>
           {WOODS.map((w) => (
             <option key={w.id} value={w.id}>
-              {w.name} · {HARDNESS[w.hardness]}
+              {t(w.name)} · {t(HARDNESS[w.hardness])}
             </option>
           ))}
         </select>
       </label>
       <ComponentBox project={project} part={part} />
       <fieldset className={styles.plainFieldset}>
-        <legend className={styles.legend}>Cantos</legend>
+        <legend className={styles.legend}>{t('Cantos')}</legend>
         <div className={styles.row}>
-          <div className={styles.seg} role="group" aria-label="Tipo de canto">
+          <div className={styles.seg} role="group" aria-label={t('Tipo de canto')}>
             {(
               [
-                ['rectos', 'Rectos'],
-                ['round', 'Redondeados'],
-                ['chamfer', 'Chaflán'],
+                ['rectos', tk('Rectos')],
+                ['round', tk('Redondeados')],
+                ['chamfer', tk('Chaflán')],
               ] as const
             ).map(([k, label]) => (
               <button key={k} type="button" aria-pressed={edge === k} onClick={() => setEdges(k)}>
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
           {edge !== 'rectos' && (
-            <LengthField compact label={edge === 'round' ? 'Radio' : 'Medida'} mm={edgeSize} units={units} min={0.5} onCommit={(v) => setEdges(edge, v)} />
+            <LengthField compact label={edge === 'round' ? t('Radio') : t('Medida')} mm={edgeSize} units={units} min={0.5} onCommit={(v) => setEdges(edge, v)} />
           )}
         </div>
       </fieldset>
       <div className={styles.stack}>
-        <span className={styles.legend}>Vaciados y calados ({part.pockets.length})</span>
+        <span className={styles.legend}>{t('Vaciados y calados ({n})', { n: part.pockets.length })}</span>
         {part.pockets.length === 0 && (
           <p className={styles.muted}>
-            Con <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('draw')}>Dibujar</button> marcás un rectángulo o un círculo en una cara y se saca de la pieza.
+            {t('Con')}{' '}
+            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('draw')}>
+              {t('Dibujar')}
+            </button>{' '}
+            {t('marcás un rectángulo o un círculo en una cara y se saca de la pieza.')}
           </p>
         )}
         {part.pockets.map((pk) => (
@@ -490,14 +504,14 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>Biseles, redondeos y cortes en ángulo ({part.bevels.length})</span>
+        <span className={styles.legend}>{t('Biseles, redondeos y cortes en ángulo ({n})', { n: part.bevels.length })}</span>
         {part.bevels.length === 0 && (
           <p className={styles.muted}>
-            Con{' '}
+            {t('Con')}{' '}
             <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('bevel')}>
-              Biselar
+              {t('Biselar')}
             </button>{' '}
-            tocás una cara cerca de una arista o una esquina y arrastrás hacia adentro. En la barra elegís bisel o redondeo; si un bisel cruza toda la cara, es un corte en ángulo.
+            {t('tocás una cara cerca de una arista o una esquina y arrastrás hacia adentro. En la barra elegís bisel o redondeo; si un bisel cruza toda la cara, es un corte en ángulo.')}
           </p>
         )}
         {part.bevels.map((bv) => (
@@ -517,14 +531,14 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>Tramos ({part.sections.length})</span>
+        <span className={styles.legend}>{t('Tramos ({n})', { n: part.sections.length })}</span>
         {part.sections.length === 0 && (
           <p className={styles.muted}>
-            Con{' '}
+            {t('Con')}{' '}
             <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('section')}>
-              Tramo
+              {t('Tramo')}
             </button>{' '}
-            arrastrás a lo largo de la pieza y ese tramo pasa a tener otra medida: el pie más grueso de una pata, un cuello más fino.
+            {t('arrastrás a lo largo de la pieza y ese tramo pasa a tener otra medida: el pie más grueso de una pata, un cuello más fino.')}
           </p>
         )}
         {part.sections.map((sec) => (
@@ -544,8 +558,8 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         ))}
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>Uniones de esta pieza ({joints.length})</span>
-        {joints.length === 0 && <p className={styles.muted}>Acercá esta pieza a otra hasta que se toquen y se propone un encastre.</p>}
+        <span className={styles.legend}>{t('Uniones de esta pieza ({n})', { n: joints.length })}</span>
+        {joints.length === 0 && <p className={styles.muted}>{t('Acercá esta pieza a otra hasta que se toquen y se propone un encastre.')}</p>}
         {joints.map((j) => (
           <JointCard key={j.id} joint={j} partId={part.id} project={project} />
         ))}
@@ -560,10 +574,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
             select(copy.id);
           }}
         >
-          Duplicar
+          {t('Duplicar')}
         </button>
         <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={() => commit((d) => void (d.parts = d.parts.filter((x) => x.id !== part.id)))}>
-          Eliminar
+          {t('Eliminar')}
         </button>
       </div>
     </>
@@ -578,9 +592,9 @@ function ComponentBox({ project, part }: { project: Project; part: Part }) {
   if (!component) {
     return (
       <div className={styles.componentBox}>
-        <p className={styles.muted}>Si hacés un componente, cada copia de esta pieza cambia junto con las demás.</p>
+        <p className={styles.muted}>{t('Si hacés un componente, cada copia de esta pieza cambia junto con las demás.')}</p>
         <button type="button" className={styles.btn} onClick={() => commit((d) => void makeComponent(d as Project, part.id))}>
-          Hacer componente
+          {t('Hacer componente')}
         </button>
       </div>
     );
@@ -590,15 +604,17 @@ function ComponentBox({ project, part }: { project: Project; part: Part }) {
     <div className={`${styles.componentBox} ${styles.componentOn}`}>
       <span className={styles.componentTitle}>
         <IconLink />
-        Componente {component.name} · {copies.length} {copies.length === 1 ? 'copia' : 'copias'}
+        {copies.length === 1
+          ? t('Componente {name} · {n} copia', { name: component.name, n: 1 })
+          : t('Componente {name} · {n} copias', { name: component.name, n: copies.length })}
       </span>
       <p className={styles.muted}>
         {others.length
-          ? `Las medidas, la madera y los cantos cambian también en ${others.join(', ')}. Mover una copia no mueve las otras.`
-          : 'Duplicala o copiala al mover y las copias quedan vinculadas.'}
+          ? t('Las medidas, la madera y los cantos cambian también en {ids}. Mover una copia no mueve las otras.', { ids: others.join(', ') })
+          : t('Duplicala o copiala al mover y las copias quedan vinculadas.')}
       </p>
       <button type="button" className={styles.btn} onClick={() => commit((d) => makeUnique(d as Project, part.id))}>
-        Hacer única
+        {t('Hacer única')}
       </button>
     </div>
   );
@@ -607,20 +623,21 @@ function ComponentBox({ project, part }: { project: Project; part: Part }) {
 export function UnitsToggle({ units }: { units: Units }) {
   const setUnits = useEditor((s) => s.setUnits);
   return (
-    <div className={styles.seg} role="group" aria-label="Unidades">
+    <div className={styles.seg} role="group" aria-label={t('Unidades')}>
       {(['cm', 'in'] as const).map((u) => (
         <button key={u} type="button" aria-pressed={units === u} onClick={() => setUnits(u)}>
-          {u === 'cm' ? 'cm' : 'pulgadas'}
+          {u === 'cm' ? 'cm' : t('pulgadas')}
         </button>
       ))}
     </div>
   );
 }
 
+/** Nombre y medida de cada pieza nueva, marcados con `tk`: se traducen al mostrarlos con `t(label)` y `t(size)`. */
 export const ADD_OPTIONS: [NewPartKind, string, string][] = [
-  ['tabla', 'Tabla', '60 × 14,6 × 2,2 cm'],
-  ['liston', 'Listón', '60 × 4,5 × 4,5 cm'],
-  ['tablero', 'Tablero', '60 × 40 × 1,8 cm'],
+  ['tabla', tk('Tabla'), tk('60 × 14,6 × 2,2 cm')],
+  ['liston', tk('Listón'), tk('60 × 4,5 × 4,5 cm')],
+  ['tablero', tk('Tablero'), tk('60 × 40 × 1,8 cm')],
 ];
 
 /** Agrega una pieza y la deja elegida. */
@@ -645,9 +662,11 @@ function ProjectOverview({ project }: { project: Project }) {
   return (
     <>
       <div>
-        <span className={styles.eyebrow}>{project.parts.length} piezas · {project.joints.filter((j) => j.type !== 'tope').length} encastres</span>
-        <h2 className={styles.panelTitle}>Piezas</h2>
-        <p className={styles.muted}>Tocá una pieza en el modelo o en la lista para editarla.</p>
+        <span className={styles.eyebrow}>
+          {t('{parts} piezas · {joints} encastres', { parts: project.parts.length, joints: project.joints.filter((j) => j.type !== 'tope').length })}
+        </span>
+        <h2 className={styles.panelTitle}>{t('Piezas')}</h2>
+        <p className={styles.muted}>{t('Tocá una pieza en el modelo o en la lista para editarla.')}</p>
       </div>
       <ul className={styles.partList}>
         {project.parts.map((p) => (
@@ -660,16 +679,16 @@ function ProjectOverview({ project }: { project: Project }) {
         ))}
       </ul>
       <div className={`${styles.stack} ${styles.mobileOnly}`}>
-        <span className={styles.legend}>Unidades</span>
+        <span className={styles.legend}>{t('Unidades')}</span>
         <UnitsToggle units={project.units} />
       </div>
       <div className={styles.stack}>
-        <span className={styles.legend}>Agregar pieza</span>
+        <span className={styles.legend}>{t('Agregar pieza')}</span>
         <div className={styles.addRow}>
           {ADD_OPTIONS.map(([k, label, size]) => (
             <button key={k} type="button" className={styles.addBtn} onClick={() => add(k)}>
-              <strong>{label}</strong>
-              <span>{size}</span>
+              <strong>{t(label)}</strong>
+              <span>{t(size)}</span>
             </button>
           ))}
         </div>

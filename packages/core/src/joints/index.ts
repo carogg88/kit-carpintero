@@ -1,6 +1,7 @@
 import { boxSize, overlapBox, partBox, type Box } from '../geometry';
 import { JOINT_TYPES, type Joint, type JointType, type Part } from '../project';
 import { endJoint, type JointGeometry } from './common';
+import { tk } from '../i18n';
 import {
   biscuitGeometry,
   bridleGeometry,
@@ -36,21 +37,21 @@ export * from './others';
 
 type Params = Record<string, number>;
 
-
+/** Nombre de cada encastre, en español: se traduce al mostrarlo, con `t(JOINT_NAMES[tipo])`. */
 export const JOINT_NAMES: Record<JointType, string> = {
-  tope: 'A tope',
-  mortaja: 'Mortaja y espiga',
-  'media-madera': 'Media madera',
-  canal: 'Canal',
-  rebaje: 'Rebaje',
-  clavija: 'Tarugos',
-  'cola-milano': 'Cola de milano',
-  dedos: 'Ensamble de dedos',
-  brida: 'Brida',
-  inglete: 'Inglete',
-  galleta: 'Galleta',
-  machiembrado: 'Machimbre',
-  bolsillo: 'Tornillo de bolsillo',
+  tope: tk('A tope'),
+  mortaja: tk('Mortaja y espiga'),
+  'media-madera': tk('Media madera'),
+  canal: tk('Canal'),
+  rebaje: tk('Rebaje'),
+  clavija: tk('Tarugos'),
+  'cola-milano': tk('Cola de milano'),
+  dedos: tk('Ensamble de dedos'),
+  brida: tk('Brida'),
+  inglete: tk('Inglete'),
+  galleta: tk('Galleta'),
+  machiembrado: tk('Machimbre'),
+  bolsillo: tk('Tornillo de bolsillo'),
 };
 
 /** Medidas iniciales del encastre según las piezas. null si no se puede hacer entre ellas. */

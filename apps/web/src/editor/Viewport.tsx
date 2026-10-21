@@ -26,6 +26,8 @@ import {
   snapCoord,
   snapMove,
   snapOnFace,
+  t,
+  tk,
   woodById,
   type Axis,
   type Bevel,
@@ -44,7 +46,8 @@ const VIEW_DIRS: Record<View, [number, number, number]> = {
   side: [1, 0.04, 0],
   top: [0, 1, 0.0001],
 };
-const AXIS_NAMES = ['ancho', 'alto', 'fondo'] as const;
+const AXIS_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
+const snapName = (to: 'borde' | 'centro' | null) => (to === 'borde' ? t('borde') : to === 'centro' ? t('centro') : null);
 
 function bounds(project: Project): THREE.Box3 {
   const b = new THREE.Box3();
@@ -468,9 +471,9 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       if (!p) return;
       const hintAt = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
       if (drag.kind === 'push') {
-        const t = closestT(drag.origin, drag.dir, raycaster.ray);
+        const pull = closestT(drag.origin, drag.dir, raycaster.ray);
         const face = drag.sign > 0 ? drag.start.max[drag.axis] : drag.start.min[drag.axis];
-        const snap = snapCoord(p.parts, face + drag.sign * t, drag.axis, part.id);
+        const snap = snapCoord(p.parts, face + drag.sign * pull, drag.axis, part.id);
         let min = drag.start.min[drag.axis];
         let max = drag.start.max[drag.axis];
         if (drag.sign > 0) max = Math.max(snap.value, min + 3);
@@ -483,8 +486,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         });
         setHint({
           ...hintAt,
-          text: `${part.id} · ${AXIS_NAMES[drag.axis]} ${formatLength(max - min, units)}`,
-          snap: snap.to === 'piso' ? 'piso' : snap.to ? `cara de ${snap.to}` : null,
+          text: `${part.id} · ${t(AXIS_NAMES[drag.axis])} ${formatLength(max - min, units)}`,
+          snap: snap.to === 'piso' ? t('piso') : snap.to ? t('cara de {id}', { id: snap.to }) : null,
         });
       } else {
         const pt = new THREE.Vector3();
@@ -504,8 +507,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         });
         setHint({
           ...hintAt,
-          text: `${copying ? `Copia ${part.id}` : part.id} · ${formatLength(Math.abs(shifts[0]!), units)} ↔ · ${formatLength(Math.abs(shifts[1]!), units)} ↕`,
-          snap: snaps.length ? `cara de ${[...new Set(snaps)].join(', ')}` : null,
+          text: `${copying ? t('Copia {id}', { id: part.id }) : part.id} · ${formatLength(Math.abs(shifts[0]!), units)} ↔ · ${formatLength(Math.abs(shifts[1]!), units)} ↕`,
+          snap: snaps.length ? t('cara de {id}', { id: [...new Set(snaps)].join(', ') }) : null,
         });
       }
       invalidate();
@@ -563,7 +566,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const local = (pt: THREE.Vector3) => {
       const u = snapOnFace(pt.getComponent(ua) - box.min[ua], size[0], tol);
       const v = snapOnFace(pt.getComponent(va) - box.min[va], size[1], tol);
-      return { u: u.value, v: v.value, snaps: [u.to, v.to] };
+      return { u: u.value, v: v.value, snaps: [snapName(u.to), snapName(v.to)] };
     };
     const start = local(e.point);
     const raycaster = new THREE.Raycaster();
@@ -591,15 +594,15 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         const max = len / 2;
         let bulge = Math.max(-max, Math.min(max, Math.round(raw)));
         snaps = [];
-        if (max - Math.abs(raw) <= tol) [bulge, snaps] = [Math.sign(raw) * max, ['semicírculo']];
+        if (max - Math.abs(raw) <= tol) [bulge, snaps] = [Math.sign(raw) * max, [t('semicírculo')]];
         const arc = { kind: 'arc', u: bending.u, v: bending.v, u2: bending.u2, v2: bending.v2, bulge, outside: false } as const;
         shape = bulge === 0 ? null : arc;
-        text = bulge === 0 ? 'Recta' : `Flecha ${formatLength(Math.abs(bulge), units)} · R ${formatLength(arcInfo(arc).radius, units)}`;
+        text = bulge === 0 ? t('Recta') : t('Flecha {f} · R {r}', { f: formatLength(Math.abs(bulge), units), r: formatLength(arcInfo(arc).radius, units) });
         if (!shape) useEditor.getState().setDraft({ ...face, shape: { ...arc, bulge: 0 } });
       } else if (drawShape === 'arc') {
         const len = Math.hypot(end.u - start.u, end.v - start.v);
         shape = { kind: 'arc', u: start.u, v: start.v, u2: end.u, v2: end.v, bulge: 0, outside: false };
-        text = `Cuerda ${formatLength(len, units)}`;
+        text = t('Cuerda {len}', { len: formatLength(len, units) });
         snaps = end.snaps;
       } else if (drawShape === 'circle') {
         const d = Math.max(1, Math.round(Math.hypot(pt.getComponent(ua) - box.min[ua] - start.u, pt.getComponent(va) - box.min[va] - start.v) * 2));
@@ -615,7 +618,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       }
       const named = [...new Set(snaps.filter(Boolean))];
       if (shape || !bending) useEditor.getState().setDraft(shape ? { ...face, shape } : null);
-      useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: named.length ? named.join(' y ') : null });
+      useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: named.length === 2 ? t('{a} y {b}', { a: named[0]!, b: named[1]! }) : (named[0] ?? null) });
       invalidate();
     };
     const onUp = () => {
@@ -692,25 +695,27 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         // Cada 5 mm, o igual que otra esquina de la pieza: así las cuatro puntas de una tapa salen iguales.
         let r = raw < 5 ? Math.round(raw) : Math.round(raw / 5) * 5;
         const twin = part.bevels.find((x) => x.round === round && Math.abs(x.da - raw) <= Math.max(3, raw * 0.08));
-        if (twin) [r, snap] = [twin.da, `igual que ${twin.id}`];
+        if (twin) [r, snap] = [twin.da, t('igual que {id}', { id: twin.id })];
         bevel = r >= 1 ? newBevel(part, corner.a, corner.b, r, round) : null;
       } else {
         const raw = Math.min(across, Math.abs(edgeAt - pt.getComponent(b.axis)));
         let da = Math.round(raw);
-        if (!round && across - raw <= tol) [da, snap] = [across, 'todo el ancho'];
-        else if (Math.abs(raw - across / 2) <= tol) [da, snap] = [across / 2, 'centro'];
+        if (!round && across - raw <= tol) [da, snap] = [across, t('todo el ancho')];
+        else if (Math.abs(raw - across / 2) <= tol) [da, snap] = [across / 2, t('centro')];
         bevel = da >= 1 ? newBevel(part, a, b, da, round) : null;
       }
       setBevelDraft(bevel ? { partId: part.id, bevel } : null);
       const units = useEditor.getState().project?.units ?? 'cm';
       const what = (bv: Bevel) =>
         bv.round
-          ? `Redondeo R ${formatLength(bv.da, units)}`
-          : `${isAngleCut(part, bv) ? 'Corte en ángulo' : 'Bisel'} ${formatLength(bv.da, units)} × ${formatLength(bv.db, units)}`;
+          ? t('Redondeo R {r}', { r: formatLength(bv.da, units) })
+          : isAngleCut(part, bv)
+            ? t('Corte en ángulo {a} × {b}', { a: formatLength(bv.da, units), b: formatLength(bv.db, units) })
+            : t('Bisel {a} × {b}', { a: formatLength(bv.da, units), b: formatLength(bv.db, units) });
       setHint({
         x: ev.clientX - rect.left,
         y: ev.clientY - rect.top,
-        text: bevel ? `${corner ? 'Esquina · ' : ''}${what(bevel)}` : 'Arrastrá hacia adentro',
+        text: bevel ? (corner ? t('Esquina · {what}', { what: what(bevel) }) : what(bevel)) : t('Arrastrá hacia adentro'),
         snap,
       });
       invalidate();
@@ -765,17 +770,17 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       raycaster.setFromCamera(ndc, camera);
       const pt = new THREE.Vector3();
       if (!raycaster.ray.intersectPlane(plane, pt)) return;
-      const t = snapTo(along(pt));
-      section = Math.abs(t - t0) >= 5 ? newSection(part, axis, t0, t) : null;
+      const at = snapTo(along(pt));
+      section = Math.abs(at - t0) >= 5 ? newSection(part, axis, t0, at) : null;
       setSectionDraft(section ? { partId: part.id, section } : null);
       const units = useEditor.getState().project?.units ?? 'cm';
       setHint({
         x: ev.clientX - rect.left,
         y: ev.clientY - rect.top,
         text: section
-          ? `Tramo de ${formatLength(section.from, units)} a ${formatLength(section.to, units)} desde ${MEASURED_FROM[axis]}`
-          : 'Arrastrá a lo largo de la pieza',
-        snap: t === 0 || t === len ? 'punta' : null,
+          ? t('Tramo de {from} a {to} desde {side}', { from: formatLength(section.from, units), to: formatLength(section.to, units), side: t(MEASURED_FROM[axis]) })
+          : t('Arrastrá a lo largo de la pieza'),
+        snap: at === 0 || at === len ? t('punta') : null,
       });
       invalidate();
     };

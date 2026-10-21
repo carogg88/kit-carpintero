@@ -1,6 +1,7 @@
 import { partBox } from '../geometry';
 import { defaultMortiseParams } from '../joints/mortise';
 import { SCHEMA_VERSION, type Joint, type Part, type Project } from '../project';
+import { tk } from '../i18n';
 
 export interface TableDims {
   width: number;
@@ -52,15 +53,15 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
   const z0 = inset;
   const z1 = D - inset - leg;
   const parts: Part[] = [
-    box('T1', 'Tapa', [0, tY, 0], [W, H, D]),
-    box('P1', 'Pata trasera izquierda', [x0, 0, z0], [x0 + leg, tY, z0 + leg]),
-    box('P2', 'Pata trasera derecha', [x1, 0, z0], [x1 + leg, tY, z0 + leg]),
-    box('P3', 'Pata delantera derecha', [x1, 0, z1], [x1 + leg, tY, z1 + leg]),
-    box('P4', 'Pata delantera izquierda', [x0, 0, z1], [x0 + leg, tY, z1 + leg]),
-    box('F1', 'Faldón delantero', [x0 + leg, aY, z1 + leg - setback - aT], [x1, tY, z1 + leg - setback]),
-    box('F2', 'Faldón trasero', [x0 + leg, aY, z0 + setback], [x1, tY, z0 + setback + aT]),
-    box('F3', 'Faldón izquierdo', [x0 + setback, aY, z0 + leg], [x0 + setback + aT, tY, z1]),
-    box('F4', 'Faldón derecho', [x1 + leg - setback - aT, aY, z0 + leg], [x1 + leg - setback, tY, z1]),
+    box('T1', tk('Tapa'), [0, tY, 0], [W, H, D]),
+    box('P1', tk('Pata trasera izquierda'), [x0, 0, z0], [x0 + leg, tY, z0 + leg]),
+    box('P2', tk('Pata trasera derecha'), [x1, 0, z0], [x1 + leg, tY, z0 + leg]),
+    box('P3', tk('Pata delantera derecha'), [x1, 0, z1], [x1 + leg, tY, z1 + leg]),
+    box('P4', tk('Pata delantera izquierda'), [x0, 0, z1], [x0 + leg, tY, z1 + leg]),
+    box('F1', tk('Faldón delantero'), [x0 + leg, aY, z1 + leg - setback - aT], [x1, tY, z1 + leg - setback]),
+    box('F2', tk('Faldón trasero'), [x0 + leg, aY, z0 + setback], [x1, tY, z0 + setback + aT]),
+    box('F3', tk('Faldón izquierdo'), [x0 + setback, aY, z0 + leg], [x0 + setback + aT, tY, z1]),
+    box('F4', tk('Faldón derecho'), [x1 + leg - setback - aT, aY, z0 + leg], [x1 + leg - setback, tY, z1]),
   ];
   const byId = new Map(parts.map((p) => [p.id, p]));
   const joints: Joint[] = [];
@@ -82,7 +83,7 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
   return {
     schemaVersion: SCHEMA_VERSION,
     id: `mesa-${now}`,
-    name: 'Mesa de comedor',
+    name: tk('Mesa de comedor'),
     units: 'cm',
     template: 'mesa',
     createdAt: now,

@@ -12,6 +12,8 @@ import {
   MEASURED_FROM,
   otherAxes,
   partBox,
+  t,
+  tk,
   type Drawing,
   type ArcMark,
   type EngineView,
@@ -34,11 +36,11 @@ const SCALES = [1, 2, 5, 10, 20, 25, 50];
 
 type Layer = 'contornos' | 'cotas' | 'ocultas' | 'encastres' | 'notas';
 const LAYERS: [Layer, string][] = [
-  ['contornos', 'Contornos'],
-  ['cotas', 'Cotas'],
-  ['ocultas', 'Líneas ocultas'],
-  ['encastres', 'Encastres resaltados'],
-  ['notas', 'Notas y nombres'],
+  ['contornos', tk('Contornos')],
+  ['cotas', tk('Cotas')],
+  ['ocultas', tk('Líneas ocultas')],
+  ['encastres', tk('Encastres resaltados')],
+  ['notas', tk('Notas y nombres')],
 ];
 
 /** Cambia las líneas de cajas por las de la forma exacta, si el motor ya las tiene. */
@@ -84,12 +86,12 @@ function Lines({ d, at }: { d: Drawing; at: Place }) {
 
 /** Cota con líneas de referencia y marcas oblicuas, como en un plano de taller. */
 function Dim({ from, to, at, offset, text, vertical }: { from: number; to: number; at: number; offset: number; text: string; vertical?: boolean }) {
-  const t = 1.2;
+  const tl = 1.2;
   const line = at + offset;
   const ext = (p: number) =>
     vertical ? <line x1={at} y1={p} x2={line + Math.sign(offset) * 1.5} y2={p} /> : <line x1={p} y1={at} x2={p} y2={line + Math.sign(offset) * 1.5} />;
   const tick = (p: number) =>
-    vertical ? <line x1={line - t} y1={p + t} x2={line + t} y2={p - t} /> : <line x1={p - t} y1={line + t} x2={p + t} y2={line - t} />;
+    vertical ? <line x1={line - tl} y1={p + tl} x2={line + tl} y2={p - tl} /> : <line x1={p - tl} y1={line + tl} x2={p + tl} y2={line - tl} />;
   // Si el texto no entra entre las marcas, va afuera, después de la segunda.
   const room = Math.abs(to - from) > text.length * 1.8 + 2;
   const mid = room ? (from + to) / 2 : Math.max(from, to) + text.length * 0.9 + 2;
@@ -159,11 +161,11 @@ function TitleBlock({ project, sheet, of, scale, units }: { project: Project; sh
   );
   return (
     <g className={styles.titleBlock}>
-      {cell(x, y, 80, 'Proyecto', project.name)}
-      {cell(x + 80, y, TITLE_W - 80, 'Hoja', `${sheet} de ${of}`, true)}
-      {cell(x, y + TITLE_H / 2, 30, 'Escala', scale ? `1:${scale}` : 'Indicada', true)}
-      {cell(x + 30, y + TITLE_H / 2, 30, 'Medidas', units === 'cm' ? 'cm' : 'pulgadas', true)}
-      {cell(x + 60, y + TITLE_H / 2, TITLE_W - 60, 'Madera', woods)}
+      {cell(x, y, 80, t('Proyecto'), project.name)}
+      {cell(x + 80, y, TITLE_W - 80, t('Hoja'), t('{n} de {total}', { n: sheet, total: of }), true)}
+      {cell(x, y + TITLE_H / 2, 30, t('Escala'), scale ? `1:${scale}` : t('Indicada'), true)}
+      {cell(x + 30, y + TITLE_H / 2, 30, t('Medidas'), units === 'cm' ? 'cm' : t('pulgadas'), true)}
+      {cell(x + 60, y + TITLE_H / 2, TITLE_W - 60, t('Madera'), woods)}
     </g>
   );
 }
@@ -180,7 +182,7 @@ interface SheetDef {
 function Sheet({ def, n, of, project, layers }: { def: SheetDef; n: number; of: number; project: Project; layers: Set<Layer> }) {
   const off = LAYERS.filter(([k]) => !layers.has(k)).map(([k]) => styles[`off-${k}`]);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className={`${styles.sheet} ${off.join(' ')}`} role="img" aria-label={`Hoja ${n} de ${of}: ${def.title}`}>
+    <svg viewBox={`0 0 ${W} ${H}`} className={`${styles.sheet} ${off.join(' ')}`} role="img" aria-label={t('Hoja {n} de {total}: {title}', { n, total: of, title: def.title })}>
       <rect x={0} y={0} width={W} height={H} className={styles.paper} />
       <rect x={M / 2} y={M / 2} width={W - M} height={H - M} className={styles.frame} />
       {def.body}
@@ -226,8 +228,8 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
     ));
   return {
     key: 'general',
-    title: 'Vistas generales',
-    hint: 'Frente, lateral y planta',
+    title: t('Vistas generales'),
+    hint: t('Frente, lateral y planta'),
     scale,
     body: (
       <>
@@ -235,9 +237,9 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
         <Lines d={side} at={sp} />
         <Lines d={top} at={tp} />
         <g className={styles.notes}>
-          {title(fp, front, 'Frente')}
-          {title(sp, side, 'Lateral')}
-          {title(tp, top, 'Planta')}
+          {title(fp, front, t('Frente'))}
+          {title(sp, side, t('Lateral'))}
+          {title(tp, top, t('Planta'))}
           {labels(fp, front)}
           {labels(sp, side)}
           {labels(tp, top)}
@@ -280,8 +282,8 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
     const scales = new Set(drawn.map(({ d }) => scaleFor(d)));
     sheets.push({
       key: `piezas-${i}`,
-      title: rows.length > PER ? `Despiece ${i / PER + 1}` : 'Despiece',
-      hint: 'Cada pieza acotada',
+      title: rows.length > PER ? t('Despiece {n}', { n: i / PER + 1 }) : t('Despiece'),
+      hint: t('Cada pieza acotada'),
       scale: scales.size === 1 ? [...scales][0]! : null,
       body: drawn.map(({ r, part, d }, k) => {
         const scale = scaleFor(d);
@@ -296,7 +298,7 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
               {r.name} · {r.ids.join(', ')}
             </text>
             <text x={cx + cellW - 6} y={cy + 6} textAnchor="end" className={styles.cellMeta}>
-              × {r.ids.length} · {woodName(r.wood)} · espesor {n(thick)} · 1:{scale}
+              × {r.ids.length} · {woodName(r.wood)} · {t('espesor {n}', { n: n(thick) })} · 1:{scale}
             </text>
             <Lines d={d} at={p} />
             <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={5} text={n(d.bounds.u1 - d.bounds.u0)} />
@@ -332,12 +334,12 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
     return [
       {
         key: 'encastres',
-        title: 'Encastres',
-        hint: 'Sin cortes',
+        title: t('Encastres'),
+        hint: t('Sin cortes'),
         scale: null,
         body: (
           <text x={W / 2} y={H / 2} textAnchor="middle" className={styles.cellTitle}>
-            Este mueble no tiene encastres con cortes: todas las uniones son a tope.
+            {t('Este mueble no tiene encastres con cortes: todas las uniones son a tope.')}
           </text>
         ),
       },
@@ -352,8 +354,11 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
     const scales = new Set(chunk.map(({ d }) => scaleFor(d)));
     sheets.push({
       key: `encastres-${i}`,
-      title: details.length > PER ? `Encastres ${i / PER + 1}` : 'Encastres',
-      hint: chunk.length === 1 ? `${JOINT_NAMES[chunk[0]!.j.type]} en detalle` : `${JOINT_NAMES[chunk[0]!.j.type]} y otros, en detalle`,
+      title: details.length > PER ? t('Encastres {n}', { n: i / PER + 1 }) : t('Encastres'),
+      hint:
+        chunk.length === 1
+          ? t('{joint} en detalle', { joint: t(JOINT_NAMES[chunk[0]!.j.type]) })
+          : t('{joint} y otros, en detalle', { joint: t(JOINT_NAMES[chunk[0]!.j.type]) }),
       scale: scales.size === 1 ? [...scales][0]! : null,
       body: chunk.map(({ g, j, d }, k) => {
         const cy = M + k * rowH;
@@ -361,7 +366,7 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
         return (
           <g key={g.key}>
             <text x={M + 6} y={cy + 6} className={styles.cellTitle}>
-              {g.label} · {JOINT_NAMES[j.type]} · {g.joints.length} {g.joints.length === 1 ? 'unión' : 'uniones'} · 1:{scale}
+              {g.label} · {t(JOINT_NAMES[j.type])} · {g.joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: g.joints.length })} · 1:{scale}
             </text>
             {d.views.map((v, vi) => {
               const p: Place = { x: M + vi * viewW + 18, y: cy + 11, s: scale, b: v.bounds };
@@ -420,11 +425,11 @@ function templateSheets(project: Project): SheetDef[] {
     for (const pk of part.pockets) {
       if (pk.shape.kind !== 'arc') continue;
       const sh = pk.shape;
-      const t = arcTemplate(sh);
-      const ys = t.points.map((q) => q[1]);
-      const xs = t.points.map((q) => q[0]);
+      const arc = arcTemplate(sh);
+      const ys = arc.points.map((q) => q[1]);
+      const xs = arc.points.map((q) => q[0]);
       // Lugar para la cota de la cuerda abajo y para la de la flecha a la derecha.
-      const b = { u0: Math.min(0, ...xs) - 8, u1: Math.max(t.chord, ...xs) + 22, v0: Math.min(0, ...ys) - 16, v1: Math.max(...ys) + 10 };
+      const b = { u0: Math.min(0, ...xs) - 8, u1: Math.max(arc.chord, ...xs) + 22, v0: Math.min(0, ...ys) - 16, v1: Math.max(...ys) + 10 };
       const rw = TPL.x1 - TPL.x0;
       const rh = TPL.y1 - TPL.y0;
       const cw = b.u1 - b.u0;
@@ -436,12 +441,13 @@ function templateSheets(project: Project): SheetDef[] {
       const left = cols === 1 ? b.u0 - (rw - cw) / 2 : b.u0;
       const top = rows === 1 ? b.v1 + (rh - ch) / 2 : b.v1;
       const [ua, va] = otherAxes(pk.axis);
-      const face = faceName(pk.axis, pk.side) === 'frente' ? 'el frente' : `la ${faceName(pk.axis, pk.side)}`;
-      const where = (u: number, v: number) => `${n(u)} desde ${MEASURED_FROM[ua]} y ${n(v)} desde ${MEASURED_FROM[va]}`;
-      const what = `${pk.through ? 'Corte' : 'Rebaje'} en arco R ${n(t.radius)}`;
+      const face = pk.axis === 2 && pk.side > 0 ? t('el frente') : t('la {face}', { face: t(faceName(pk.axis, pk.side)) });
+      const where = (u: number, v: number) =>
+        t('{u} desde {fromU} y {v} desde {fromV}', { u: n(u), fromU: t(MEASURED_FROM[ua]), v: n(v), fromV: t(MEASURED_FROM[va]) });
+      const what = pk.through ? t('Corte en arco R {r}', { r: n(arc.radius) }) : t('Rebaje en arco R {r}', { r: n(arc.radius) });
       const removed = sh.outside
-        ? { x: t.chord / 2 - 4, y: t.sagitta + 5, text: 'Se saca lo de afuera del arco' }
-        : { x: t.chord / 2 - 4, y: t.sagitta > 14 ? t.sagitta / 3 : -6, text: 'Se saca entre la cuerda y el arco' };
+        ? { x: arc.chord / 2 - 4, y: arc.sagitta + 5, text: t('Se saca lo de afuera del arco') }
+        : { x: arc.chord / 2 - 4, y: arc.sagitta > 14 ? arc.sagitta / 3 : -6, text: t('Se saca entre la cuerda y el arco') };
       const total = cols * rows;
       for (let j = 0; j < rows; j++) {
         for (let i = 0; i < cols; i++) {
@@ -465,22 +471,33 @@ function templateSheets(project: Project): SheetDef[] {
               <line x1={px(at, x)} y1={py(at, y) - 4} x2={px(at, x)} y2={py(at, y) + 4} />
             </g>
           );
-          const pts = t.points.map((q) => `${px(at, q[0])},${py(at, q[1])}`).join(' ');
+          const pts = arc.points.map((q) => `${px(at, q[0])},${py(at, q[1])}`).join(' ');
           sheets.push({
             key: `plantilla-${r.ids[0]}-${pk.id}-${k}`,
-            title: `Plantilla ${pk.id} · ${r.ids[0]}`,
-            hint: total > 1 ? `Arco R ${n(t.radius)}, hoja ${k} de ${total}` : `Arco R ${n(t.radius)} a tamaño real`,
+            title: t('Plantilla {id} · {part}', { id: pk.id, part: r.ids[0]! }),
+            hint: total > 1 ? t('Arco R {r}, hoja {k} de {total}', { r: n(arc.radius), k, total }) : t('Arco R {r} a tamaño real', { r: n(arc.radius) }),
             scale: 1,
             body: (
               <>
                 <text x={M + 6} y={M + 6} className={styles.cellTitle}>
-                  Plantilla 1:1 · {r.name} · {r.ids.join(', ')} · {pk.id}
+                  {t('Plantilla 1:1')} · {r.name} · {r.ids.join(', ')} · {pk.id}
                 </text>
                 <text x={W - M - 6} y={M + 6} textAnchor="end" className={styles.cellMeta}>
-                  {total > 1 ? `Hoja ${k} de ${total}${rows > 1 ? ` (fila ${j + 1}, columna ${i + 1})` : ''}` : 'Una sola hoja'}
+                  {total > 1
+                    ? rows > 1
+                      ? t('Hoja {k} de {total} (fila {row}, columna {col})', { k, total, row: j + 1, col: i + 1 })
+                      : t('Hoja {n} de {total}', { n: k, total })
+                    : t('Una sola hoja')}
                 </text>
                 <text x={M + 6} y={M + 11} className={`${styles.notes} ${styles.cellMeta}`}>
-                  {what}, cuerda {n(t.chord)}, flecha {n(t.sagitta)}, en {face}: la cuerda va de {where(sh.u, sh.v)} a {where(sh.u2, sh.v2)}.
+                  {t('{what}, cuerda {chord}, flecha {sagitta}, en {face}: la cuerda va de {from} a {to}.', {
+                    what,
+                    chord: n(arc.chord),
+                    sagitta: n(arc.sagitta),
+                    face,
+                    from: where(sh.u, sh.v),
+                    to: where(sh.u2, sh.v2),
+                  })}
                 </text>
                 <clipPath id={clip}>
                   <rect x={TPL.x0} y={TPL.y0} width={rw} height={rh} />
@@ -491,35 +508,35 @@ function templateSheets(project: Project): SheetDef[] {
                     <polyline points={pts} className={styles.templateArc} />
                   </g>
                   <g className={styles.guide}>
-                    <line x1={px(at, 0)} y1={py(at, 0)} x2={px(at, t.chord)} y2={py(at, 0)} />
+                    <line x1={px(at, 0)} y1={py(at, 0)} x2={px(at, arc.chord)} y2={py(at, 0)} />
                     <line x1={px(at, 0)} y1={py(at, -5)} x2={px(at, 0)} y2={py(at, 5)} />
-                    <line x1={px(at, t.chord)} y1={py(at, -5)} x2={px(at, t.chord)} y2={py(at, 5)} />
-                    <line x1={px(at, t.chord / 2)} y1={py(at, -5)} x2={px(at, t.chord / 2)} y2={py(at, t.sagitta + 5)} className={styles.axisLine} />
+                    <line x1={px(at, arc.chord)} y1={py(at, -5)} x2={px(at, arc.chord)} y2={py(at, 5)} />
+                    <line x1={px(at, arc.chord / 2)} y1={py(at, -5)} x2={px(at, arc.chord / 2)} y2={py(at, arc.sagitta + 5)} className={styles.axisLine} />
                   </g>
                   <g className={styles.notes}>
                     <text x={px(at, 0) + 1.5} y={py(at, 0) + 4} className={styles.cellMeta}>
-                      Inicio
+                      {t('Inicio')}
                     </text>
-                    <text x={px(at, t.chord) - 1.5} y={py(at, 0) + 4} textAnchor="end" className={styles.cellMeta}>
-                      Fin
+                    <text x={px(at, arc.chord) - 1.5} y={py(at, 0) + 4} textAnchor="end" className={styles.cellMeta}>
+                      {t('Fin')}
                     </text>
                     <text x={px(at, removed.x)} y={py(at, removed.y)} textAnchor="end" className={styles.cellMeta}>
                       {removed.text}
                     </text>
                   </g>
-                  <Dim from={px(at, 0)} to={px(at, t.chord)} at={py(at, 0)} offset={10} text={`cuerda ${n(t.chord)}`} />
-                  <Dim vertical from={py(at, t.sagitta)} to={py(at, 0)} at={px(at, t.chord / 2)} offset={8} text={`flecha ${n(t.sagitta)}`} />
+                  <Dim from={px(at, 0)} to={px(at, arc.chord)} at={py(at, 0)} offset={10} text={t('cuerda {n}', { n: n(arc.chord) })} />
+                  <Dim vertical from={py(at, arc.sagitta)} to={py(at, 0)} at={px(at, arc.chord / 2)} offset={8} text={t('flecha {n}', { n: n(arc.sagitta) })} />
                   <g className={styles.register}>{marks.map(([x, y], m) => cross(x, y, m))}</g>
                 </g>
                 {i > 0 && <line x1={TPL.x0 + OVERLAP / 2} y1={TPL.y0} x2={TPL.x0 + OVERLAP / 2} y2={TPL.y1} className={styles.cutLine} />}
                 {j > 0 && <line x1={TPL.x0} y1={TPL.y0 + OVERLAP / 2} x2={TPL.x1} y2={TPL.y0 + OVERLAP / 2} className={styles.cutLine} />}
                 <Ruler x={M + 4} y={H - M - 7} />
                 <text x={M + 4} y={H - M - TITLE_H + 3} className={styles.cellMeta}>
-                  Imprimí al 100 %, sin «ajustar a la página». La barra tiene que medir 10 cm justos.
+                  {t('Imprimí al 100 %, sin «ajustar a la página». La barra tiene que medir 10 cm justos.')}
                 </text>
                 {total > 1 && (
                   <text x={M + 4} y={H - M - TITLE_H + 7} className={styles.cellMeta}>
-                    Recortá por la línea de puntos y pegá sobre la hoja anterior haciendo coincidir las cruces.
+                    {t('Recortá por la línea de puntos y pegá sobre la hoja anterior haciendo coincidir las cruces.')}
                   </text>
                 )}
               </>
@@ -579,17 +596,17 @@ export function PlanView({ project }: { project: Project }) {
   if (!project.parts.length) {
     return (
       <main className={styles.empty}>
-        <h1>Todavía no hay piezas</h1>
-        <p>Agregá piezas en el modelo y acá aparece el plano.</p>
+        <h1>{t('Todavía no hay piezas')}</h1>
+        <p>{t('Agregá piezas en el modelo y acá aparece el plano.')}</p>
       </main>
     );
   }
 
   return (
     <main className={styles.plan}>
-      <aside className={styles.aside} aria-label="Hojas y capas">
-        <nav className={styles.card} aria-label="Hojas del plano">
-          <h2 className={styles.eyebrow}>Hojas</h2>
+      <aside className={styles.aside} aria-label={t('Hojas y capas')}>
+        <nav className={styles.card} aria-label={t('Hojas del plano')}>
+          <h2 className={styles.eyebrow}>{t('Hojas')}</h2>
           <div className={styles.sheetList}>
             {sheets.map((s, i) => (
               <button key={s.key} type="button" aria-current={i === index ? 'page' : undefined} onClick={() => setCurrent(i)}>
@@ -602,27 +619,27 @@ export function PlanView({ project }: { project: Project }) {
           </div>
         </nav>
         <details className={styles.card} open>
-          <summary className={styles.eyebrow}>Capas</summary>
+          <summary className={styles.eyebrow}>{t('Capas')}</summary>
           <fieldset className={styles.layers}>
-            <legend className={styles.srOnly}>Capas del plano</legend>
+            <legend className={styles.srOnly}>{t('Capas del plano')}</legend>
             {LAYERS.map(([k, label]) => (
               <label key={k}>
                 <input type="checkbox" checked={layers.has(k)} onChange={(e) => toggle(k, e.target.checked)} />
                 <span className={styles[`swatch-${k}`]} aria-hidden="true">
                   {k === 'notas' ? 'Aa' : ''}
                 </span>
-                {label}
+                {t(label)}
               </label>
             ))}
           </fieldset>
         </details>
         <button type="button" className={styles.pdf} onClick={() => window.print()}>
           <IconDownload />
-          Descargar PDF
+          {t('Descargar PDF')}
         </button>
-        <p className={styles.note}>Se abre la ventana de impresión: elegí «Guardar como PDF». Salen las {sheets.length} hojas en A4 apaisado.</p>
+        <p className={styles.note}>{t('Se abre la ventana de impresión: elegí «Guardar como PDF». Salen las {n} hojas en A4 apaisado.', { n: sheets.length })}</p>
       </aside>
-      <section className={styles.desk} aria-label={`Hoja ${index + 1}: ${sheets[index]?.title ?? ''}`}>
+      <section className={styles.desk} aria-label={t('Hoja {n}: {title}', { n: index + 1, title: sheets[index]?.title ?? '' })}>
         {sheets.map((s, i) => (
           <div key={s.key} className={styles.page} data-current={i === index || undefined}>
             <Sheet def={s} n={i + 1} of={sheets.length} project={project} layers={layers} />

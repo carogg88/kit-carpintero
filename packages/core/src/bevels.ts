@@ -1,6 +1,7 @@
 import { boxSize, partBox, type Axis, type Box } from './geometry';
 import type { Solid } from './joints';
-import { faceName } from './pockets';
+import { faceLabelOf } from './pockets';
+import { locale, t } from './i18n';
 import type { Bevel, Part } from './project';
 
 type Face = Bevel['a'];
@@ -120,16 +121,15 @@ export const isAngleCut = (part: Part, bv: Bevel) =>
   !bv.round && bv.da >= acrossFace(part, bv.b) - 0.01 || bv.db >= boxSize(partBox(part))[bv.a.axis] - 0.01;
 
 /** "la cara de arriba", "el frente". */
-export const faceLabel = (f: Face) => {
-  const name = faceName(f.axis, f.side);
-  return name === 'frente' ? 'el frente' : `la ${name}`;
-};
+export const faceLabel = (f: Face) => faceLabelOf(f.axis, f.side);
 
 /** En palabras de taller: "bisel de 12 × 12 mm a 45° entre la cara de arriba y el frente", "redondeo R 50 mm entre…". */
 export function describeBevel(part: Part, bv: Bevel, n: (mm: number) => string): string {
-  if (bv.round) return `redondeo R ${n(bv.da)} entre ${faceLabel(bv.a)} y ${faceLabel(bv.b)}`;
-  const what = isAngleCut(part, bv) ? 'corte en ángulo' : 'bisel';
-  return `${what} de ${n(bv.da)} × ${n(bv.db)} a ${formatAngle(bevelAngle(bv))} entre ${faceLabel(bv.a)} y ${faceLabel(bv.b)}`;
+  const a = faceLabel(bv.a);
+  const b = faceLabel(bv.b);
+  if (bv.round) return t('redondeo R {r} entre {a} y {b}', { r: n(bv.da), a, b });
+  const vars = { da: n(bv.da), db: n(bv.db), angle: formatAngle(bevelAngle(bv)), a, b };
+  return isAngleCut(part, bv) ? t('corte en ángulo de {da} × {db} a {angle} entre {a} y {b}', vars) : t('bisel de {da} × {db} a {angle} entre {a} y {b}', vars);
 }
 
-export const formatAngle = (deg: number) => `${(Math.round(deg * 10) / 10).toString().replace('.', ',')}°`;
+export const formatAngle = (deg: number) => `${(Math.round(deg * 10) / 10).toLocaleString(locale(), { maximumFractionDigits: 1, useGrouping: false })}°`;
