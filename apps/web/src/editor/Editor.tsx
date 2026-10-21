@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatLength, parseLength, t, tk } from '@kitc/core';
+import { formatLength, t, tk } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
 import { CutsView } from './CutsView';
@@ -28,6 +28,7 @@ import { ADD_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
 import { useEditor, useSelectedPart, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
+import { MeasureBubble } from './MeasureBubble';
 import { Viewport } from './Viewport';
 import styles from './Editor.module.css';
 
@@ -101,7 +102,7 @@ function useShortcuts(modelo: boolean) {
       else if ((k === 'delete' || k === 'backspace') && s.selectedId) {
         const id = s.selectedId;
         s.commit((d) => void (d.parts = d.parts.filter((p) => p.id !== id)), t('Borraste {id}', { id }));
-      } else if (/^[0-9]$/.test(k) && s.lastPush) {
+      } else if (/^[0-9]$/.test(k) && s.bubble) {
         document.getElementById('medida')?.focus();
       }
     };
@@ -134,60 +135,6 @@ function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
         </a>
       ))}
     </nav>
-  );
-}
-
-/** "Medida": escribe el largo exacto de la última cara empujada. */
-function MeasureBox() {
-  const lastPush = useEditor((s) => s.lastPush);
-  const units = useEditor((s) => s.project?.units ?? 'cm');
-  const commit = useEditor((s) => s.commit);
-  const pushed = useEditor((s) => (s.lastPush ? s.project?.parts.find((p) => p.id === s.lastPush!.id) : undefined));
-  const [text, setText] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const apply = () => {
-    if (!text.trim() || !lastPush) return;
-    const v = parseLength(text, units);
-    if (v === null || v < 3) return setError(t('Medida no válida'));
-    setError(null);
-    commit((d) => {
-      const q = d.parts.find((p) => p.id === lastPush.id);
-      if (!q || q.base.kind !== 'box') return;
-      const max = q.position[lastPush.axis] + q.base.size[lastPush.axis];
-      if (lastPush.sign < 0) q.position[lastPush.axis] = max - v;
-      q.base.size[lastPush.axis] = v;
-    });
-    setText('');
-  };
-  return (
-    <form
-      className={styles.measure}
-      onSubmit={(e) => {
-        e.preventDefault();
-        apply();
-      }}
-    >
-      <label htmlFor="medida">{t('Medida')}</label>
-      <input
-        id="medida"
-        className={styles.num}
-        inputMode="decimal"
-        placeholder={lastPush && pushed?.base.kind === 'box' ? formatLength(pushed.base.size[lastPush.axis], units) : '—'}
-        disabled={!lastPush}
-        value={text}
-        aria-invalid={!!error}
-        onChange={(e) => {
-          setText(e.target.value);
-          setError(null);
-        }}
-        onBlur={apply}
-      />
-      {error && (
-        <span className={styles.error} role="alert">
-          {error}
-        </span>
-      )}
-    </form>
   );
 }
 
@@ -232,7 +179,6 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const dragging = useEditor((s) => s.dragging);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
-  const hasPush = useEditor((s) => s.lastPush !== null);
   const { undo, redo, setTool, setXray, setView } = useEditor.getState();
   const selected = useSelectedPart();
   const saveState = useAutosave();
@@ -342,6 +288,9 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             </div>
             <ToolGuide />
             <ChangeNotice />
+            <div className={styles.desktopOnly}>
+              <MeasureBubble />
+            </div>
             {selected && selDims && (
               <span className={`${styles.chip} ${styles.desktopOnly}`}>
                 <strong>{selected.id}</strong> {selected.name}
@@ -372,11 +321,6 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
           </aside>
         </main>
 
-        {(hasPush || tool === 'push') && (
-          <footer className={styles.footer}>
-            <MeasureBox />
-          </footer>
-        )}
         </>
       )}
       <div className={styles.mobileOnly}>

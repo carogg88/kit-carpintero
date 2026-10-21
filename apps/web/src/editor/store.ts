@@ -19,6 +19,16 @@ export interface DrawFace {
   side: 1 | -1;
 }
 
+/** Lo que se acaba de estirar o biselar: la burbuja de medida junto a la pieza lo cambia. */
+export type MeasureTarget = ({ kind: 'push' } & LastPush) | { kind: 'bevel'; id: string; bevelId: string };
+
+/** Burbuja para escribir la medida exacta, donde se soltó el arrastre (en píxeles de la vista 3D). */
+export interface Bubble {
+  target: MeasureTarget;
+  x: number;
+  y: number;
+}
+
 export type DrawShape = 'rect' | 'circle' | 'arc';
 
 /** Cuerda de un arco ya marcada: falta decir cuánto se curva. */
@@ -44,6 +54,8 @@ interface EditorState {
   /** Cartel junto al dedo o al puntero mientras se arrastra. */
   hint: DragHint | null;
   drawFace: DrawFace | null;
+  /** La cámara se puso de frente a la cara (se eligió con un toque); si se dibujó de entrada, la vista no se movió. */
+  drawFramed: boolean;
   drawShape: DrawShape;
   /** La herramienta de biselar redondea en vez de cortar recto. */
   bevelRound: boolean;
@@ -56,6 +68,7 @@ interface EditorState {
   arcChord: ArcChord | null;
   /** Aviso de lo que acaba de cambiar, con la opción de deshacerlo. `key` cambia con cada aviso nuevo. */
   notice: Notice | null;
+  bubble: Bubble | null;
 
   open: (p: Project) => void;
   close: () => void;
@@ -76,7 +89,7 @@ interface EditorState {
   setView: (v: View) => void;
   setUnits: (u: Units) => void;
   setHint: (h: DragHint | null) => void;
-  setDrawFace: (f: DrawFace | null) => void;
+  setDrawFace: (f: DrawFace | null, frame?: boolean) => void;
   setDrawShape: (s: DrawShape) => void;
   setBevelRound: (round: boolean) => void;
   setDraft: (d: EditorState['draft']) => void;
@@ -84,6 +97,7 @@ interface EditorState {
   setSectionDraft: (d: EditorState['sectionDraft']) => void;
   setArcChord: (c: ArcChord | null) => void;
   dismissNotice: () => void;
+  setBubble: (b: Bubble | null) => void;
 }
 
 export interface Notice {
@@ -146,6 +160,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   lastPush: null,
   hint: null,
   drawFace: null,
+  drawFramed: false,
   drawShape: 'rect',
   bevelRound: false,
   draft: null,
@@ -153,10 +168,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
   sectionDraft: null,
   arcChord: null,
   notice: null,
+  bubble: null,
 
   open: (project) =>
-    set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null }),
-  close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null }),
+    set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+  close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
     const { project, past } = get();
@@ -169,7 +185,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   beginDrag: () => {
     const { project, past } = get();
     if (!project) return;
-    set({ dragging: true, past: [...past, project].slice(-HISTORY), future: [] });
+    set({ dragging: true, past: [...past, project].slice(-HISTORY), future: [], bubble: null });
   },
   dragUpdate: (recipe) => {
     const { project } = get();
@@ -195,24 +211,37 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { project, past, future } = get();
     const prev = past.at(-1);
     if (!project || !prev) return;
-    set({ project: prev, past: past.slice(0, -1), future: [project, ...future], notice: null });
+    set({ project: prev, past: past.slice(0, -1), future: [project, ...future], notice: null, bubble: null });
     if (get().selectedId && !prev.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
   redo: () => {
     const { project, past, future } = get();
     const next = future[0];
     if (!project || !next) return;
-    set({ project: next, past: [...past, project], future: future.slice(1), notice: null });
+    set({ project: next, past: [...past, project], future: future.slice(1), notice: null, bubble: null });
     if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
 
-  select: (selectedId) => set((s) => ({ selectedId, ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}) })),
-  setTool: (tool) => set(tool === 'draw' ? { tool, arcChord: null } : { tool, drawFace: null, draft: null, arcChord: null }),
+  select: (selectedId) =>
+    set((s) => ({
+      selectedId,
+      ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}),
+      ...(s.bubble && s.bubble.target.id !== selectedId ? { bubble: null } : {}),
+    })),
+  setTool: (tool) => set(tool === 'draw' ? { tool, arcChord: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, bubble: null }),
   setXray: (xray) => set({ xray }),
   setCopyMove: (copyMove) => set({ copyMove }),
-  setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null })),
+  setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null, bubble: null })),
   setHint: (hint) => set({ hint }),
-  setDrawFace: (drawFace) => set((s) => ({ drawFace, arcChord: null, draft: null, ...(drawFace ? {} : { viewNonce: s.viewNonce + 1 }) })),
+  setDrawFace: (drawFace, frame = true) =>
+    set((s) => ({
+      drawFace,
+      drawFramed: !!drawFace && frame,
+      arcChord: null,
+      draft: null,
+      // Al terminar, la vista vuelve a como estaba si se había puesto de frente.
+      ...(!drawFace && s.drawFramed ? { viewNonce: s.viewNonce + 1 } : {}),
+    })),
   setDrawShape: (drawShape) => set({ drawShape, arcChord: null, draft: null }),
   setBevelRound: (bevelRound) => set({ bevelRound }),
   setDraft: (draft) => set({ draft }),
@@ -220,6 +249,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setSectionDraft: (sectionDraft) => set({ sectionDraft }),
   setArcChord: (arcChord) => set({ arcChord }),
   dismissNotice: () => set({ notice: null }),
+  setBubble: (bubble) => set({ bubble }),
   setUnits: (units) => {
     const { project } = get();
     if (project) set({ project: produce(project, (d) => void (d.units = units)) });
