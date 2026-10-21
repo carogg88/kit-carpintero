@@ -9,3 +9,4 @@ export * from './edit';
 export * from './cutlist';
 export * from './jointinfo';
 export * from './drawing';
+export * from './templates';

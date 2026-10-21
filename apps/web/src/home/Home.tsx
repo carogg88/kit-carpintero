@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { createTable, formatNumber, loadProject, partBox, SCHEMA_VERSION, woodById, type Project } from '@kitc/core';
+import { formatNumber, loadProject, partBox, SCHEMA_VERSION, woodById, type Project } from '@kitc/core';
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
 import { IconLogo } from '../editor/icons';
+import { navigate } from '../routes';
 import styles from './Home.module.css';
 
 const icon = { width: 28, height: 28, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true } as const;
@@ -10,7 +11,6 @@ const TEMPLATES = [
   {
     id: 'mesa',
     name: 'Mesa',
-    ready: true,
     icon: (
       <svg {...icon}>
         <rect x="3" y="9" width="26" height="4" rx="1" />
@@ -21,7 +21,6 @@ const TEMPLATES = [
   {
     id: 'taburete',
     name: 'Taburete',
-    ready: false,
     icon: (
       <svg {...icon}>
         <rect x="8" y="6" width="16" height="4" rx="1" />
@@ -32,7 +31,6 @@ const TEMPLATES = [
   {
     id: 'estante',
     name: 'Estante',
-    ready: false,
     icon: (
       <svg {...icon}>
         <rect x="6" y="3" width="20" height="26" rx="1" />
@@ -43,7 +41,6 @@ const TEMPLATES = [
   {
     id: 'caja',
     name: 'Caja de té',
-    ready: false,
     icon: (
       <svg {...icon}>
         <rect x="4" y="12" width="24" height="14" rx="1" />
@@ -54,7 +51,6 @@ const TEMPLATES = [
   {
     id: 'blanco',
     name: 'En blanco',
-    ready: true,
     icon: (
       <svg {...icon}>
         <rect x="5" y="5" width="22" height="22" rx="2" strokeDasharray="3 3" />
@@ -167,7 +163,11 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   }, []);
 
   const create = async (template: string) => {
-    const p = template === 'mesa' ? createTable() : emptyProject();
+    if (template !== 'blanco') {
+      navigate(`#/nuevo/${template}`);
+      return;
+    }
+    const p = emptyProject();
     await saveProject(p);
     onOpen(p.id);
   };
@@ -212,7 +212,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
               <span>Elegí un mueble y se arma con sus encastres; después ajustás cada medida</span>
             </span>
           </a>
-          <span className={styles.start} aria-disabled="true">
+          <a href="#/foto" className={styles.start}>
             <span className={`${styles.startIcon} ${styles.startIconSoft}`} aria-hidden="true">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
@@ -221,9 +221,9 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
             </span>
             <span className={styles.startText}>
               <strong>Desde una foto</strong>
-              <span>Marcá una medida que conozcas y calcá las piezas. Llega pronto.</span>
+              <span>Marcá una medida que conozcas y calcá las piezas</span>
             </span>
-          </span>
+          </a>
         </div>
       </section>
 
@@ -233,10 +233,9 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
         </h2>
         <div className={styles.templates}>
           {TEMPLATES.map((t) => (
-            <button key={t.id} type="button" className={styles.template} disabled={!t.ready} onClick={() => void create(t.id)}>
+            <button key={t.id} type="button" className={styles.template} onClick={() => void create(t.id)}>
               {t.icon}
               {t.name}
-              {!t.ready && <span className={styles.soon}>Pronto</span>}
             </button>
           ))}
         </div>
