@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -75,6 +75,19 @@ export const Bevel = z.object({
 });
 export type Bevel = z.infer<typeof Bevel>;
 
+/**
+ * Tramo de una pieza con otra sección: entre `from` y `to` mm sobre el eje `axis` (desde la punta mínima),
+ * la pieza pasa a medir `size` sobre los otros dos ejes (en orden), centrada. Un pie más grueso, un cuello más fino.
+ */
+export const Section = z.object({
+  id: z.string(),
+  axis: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  from: z.number().min(0),
+  to: z.number().positive(),
+  size: z.tuple([z.number().positive(), z.number().positive()]),
+});
+export type Section = z.infer<typeof Section>;
+
 export const Part = z.object({
   id: z.string(),
   name: z.string(),
@@ -89,6 +102,8 @@ export const Part = z.object({
   pockets: z.array(Pocket).default([]),
   /** Biseles y cortes en ángulo sobre las aristas. */
   bevels: z.array(Bevel).default([]),
+  /** Tramos con otra sección (más gruesos o más finos que la pieza). */
+  sections: z.array(Section).default([]),
   /** Componente al que pertenece: todas sus copias comparten forma, madera y operaciones. */
   component: z.string().optional(),
 });
@@ -143,6 +158,8 @@ const migrations: Record<number, Migration> = {
   4: (d) => d,
   // v6 suma los redondeos de arista: los biseles viejos quedan rectos.
   5: (d) => d,
+  // v7 suma los tramos con otra sección; el esquema los completa vacíos.
+  6: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

@@ -86,7 +86,7 @@ export function newPart(parts: Part[], kind: NewPartKind, wood: string): Part {
     position: [parts.length ? right + 150 : 0, 0, 0],
     rotation: [0, 0, 0],
     ops: [],
-    pockets: [], bevels: [],
+    pockets: [], bevels: [], sections: [],
   };
 }
 

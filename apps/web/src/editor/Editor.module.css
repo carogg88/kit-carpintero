@@ -59,7 +59,7 @@
 .toolbar button:hover { background: var(--surface-2); }
 .toolbar button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
 .toolSep { width: 1px; background: var(--line); margin: 6px 2px; }
-.stage[data-tool='draw'] canvas, .stage[data-tool='bevel'] canvas { cursor: crosshair; }
+.stage[data-tool='draw'] canvas, .stage[data-tool='bevel'] canvas, .stage[data-tool='section'] canvas { cursor: crosshair; }
 
 /* Dibujar: figura, cara elegida y salida. */
 .drawBar {

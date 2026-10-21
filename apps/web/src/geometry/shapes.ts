@@ -1,5 +1,5 @@
 import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
-import { bevelSolid, engineCamera, jointGeometry, partBox, pocketSolid, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
+import { bevelSolid, engineCamera, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -61,6 +61,15 @@ function toShape(s: Solid): Shape3D {
 export function partShape(part: Part, project: Project): { shape: Shape3D; warning?: string } {
   let shape = solid(partBox(part));
   let warning: string | undefined;
+
+  // Tramos primero: sacan la pieza a lo largo del tramo y ponen la sección nueva, y lo demás se hace sobre eso.
+  for (const s of part.sections) {
+    try {
+      shape = shape.cut(solid(sectionCutBox(part, s))).fuse(solid(sectionBox(part, s)));
+    } catch {
+      warning = `No se pudo hacer el tramo ${s.id}`;
+    }
+  }
 
   for (const op of part.ops) {
     try {

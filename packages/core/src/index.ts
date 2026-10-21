@@ -13,3 +13,4 @@ export * from './templates';
 export * from './components';
 export * from './pockets';
 export * from './bevels';
+export * from './sections';
