@@ -84,3 +84,15 @@ export const IconLogo = () => (
     <path d="M6 11v13M22 11v13" stroke="currentColor" strokeWidth="2" />
   </svg>
 );
+export const IconInfo = () => (
+  <svg {...base} width={18} height={18}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v6M12 7.5h.01" />
+  </svg>
+);
+export const IconDownload = () => (
+  <svg {...base}>
+    <path d="M12 3v12M7 10l5 5 5-5" />
+    <path d="M5 21h14" />
+  </svg>
+);

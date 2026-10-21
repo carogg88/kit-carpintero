@@ -203,3 +203,12 @@
 @media (prefers-reduced-motion: reduce) {
   .seg button, .toolbar button { transition: none; }
 }
+
+/* ---------- Cabecera de Uniones y Cortes ---------- */
+.overline { font-size: 12px; }
+.sectionTitle { font-size: 18px; line-height: 1.2; font-weight: 600; }
+.desktopTitle { display: none; }
+@media (min-width: 900px) {
+  .overline, .sectionTitle { display: none; }
+  .desktopTitle { display: inline; font-weight: 600; }
+}

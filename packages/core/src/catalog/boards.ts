@@ -6,7 +6,7 @@ import { MM_PER_INCH } from '../units';
  */
 export const THICKNESSES_IN = [0.5, 0.75, 1, 1.5, 2, 3, 4] as const;
 export const WIDTHS_IN = [2, 3, 4, 5, 6, 8, 10, 12] as const;
-export const LENGTHS_M = [2.44, 2.74, 3.05, 3.35, 3.66] as const;
+export const LENGTHS_M = [1.83, 2.44, 2.74, 3.05, 3.35, 3.66] as const;
 
 /** Ancho de tabla que se usa para encolar tapas más anchas que la tabla más ancha. */
 export const PANEL_BOARD_IN = 6;

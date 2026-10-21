@@ -80,7 +80,7 @@ export function LengthField({ label, mm, units, min = 1, onCommit, compact }: Le
 const DIM_LABELS = ['Largo', 'Ancho', 'Espesor'] as const;
 
 /** Descripción corta de un encastre con sus medidas, como en el diseño: "mortaja 0,7 × 8 × 4,2 cm". */
-function describeJoint(j: Joint, project: Project): string {
+export function describeJoint(j: Joint, project: Project): string {
   const a = project.parts.find((p) => p.id === j.partA);
   const b = project.parts.find((p) => p.id === j.partB);
   if (!a || !b) return '';

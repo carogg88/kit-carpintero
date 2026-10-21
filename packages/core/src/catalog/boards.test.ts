@@ -13,7 +13,7 @@ describe('catálogo de madereras', () => {
   });
 
   it('pata de 7 × 7 cm: tirante de 3″ × 3″', () => {
-    expect(stockFor([70, 695, 70])).toEqual({ kind: 'tirante', thicknessIn: 3, widthIn: 3, boards: 1, lengthM: 2.44 });
+    expect(stockFor([70, 695, 70])).toEqual({ kind: 'tirante', thicknessIn: 3, widthIn: 3, boards: 1, lengthM: 1.83 });
   });
 
   it('faldón de 22 × 95 mm: tabla de 1″ × 4″', () => {
@@ -21,7 +21,7 @@ describe('catálogo de madereras', () => {
   });
 
   it('tapa de 90 cm: tablas de 1″ × 6″ encoladas', () => {
-    expect(stockFor([1800, 22, 900])).toMatchObject({ thicknessIn: 1, widthIn: 6, boards: 7, lengthM: 2.44 });
+    expect(stockFor([1800, 22, 900])).toMatchObject({ thicknessIn: 1, widthIn: 6, boards: 7, lengthM: 1.83 });
   });
 
   it('pieza más larga que cualquier tabla: sin largo comercial', () => {

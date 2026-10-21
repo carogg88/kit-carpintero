@@ -2,16 +2,20 @@ import { useEffect, useState } from 'react';
 import { Editor } from './editor/Editor';
 import { useEditor } from './editor/store';
 import { Home } from './home/Home';
+import { sectionHref, type Section } from './routes';
 import { readProject } from './storage/db';
 
-/** Rutas por hash, para que funcione en GitHub Pages: #/ inicio, #/proyecto/<id> editor. */
-function route(): { projectId: string | null } {
-  const m = location.hash.match(/^#\/proyecto\/(.+)$/);
-  return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null };
+/**
+ * Rutas por hash, para que funcione en GitHub Pages: #/ inicio, #/proyecto/<id> modelo,
+ * #/proyecto/<id>/uniones y #/proyecto/<id>/cortes.
+ */
+function route(): { projectId: string | null; section: Section } {
+  const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes))?$/);
+  return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null, section: (m?.[2] as Section | undefined) ?? 'modelo' };
 }
 
 export function App() {
-  const [{ projectId }, setRoute] = useState(route);
+  const [{ projectId, section }, setRoute] = useState(route);
   const [missing, setMissing] = useState(false);
   const loaded = useEditor((s) => s.project?.id);
 
@@ -38,7 +42,7 @@ export function App() {
   }, [projectId]);
 
   const go = (id: string | null) => {
-    location.hash = id ? `#/proyecto/${encodeURIComponent(id)}` : '#/';
+    location.hash = id ? sectionHref(id, 'modelo') : '#/';
   };
 
   if (projectId && missing) {
@@ -51,6 +55,6 @@ export function App() {
       </main>
     );
   }
-  if (projectId) return loaded === projectId ? <Editor onExit={() => go(null)} /> : null;
+  if (projectId) return loaded === projectId ? <Editor section={section} onExit={() => go(null)} /> : null;
   return <Home onOpen={go} />;
 }

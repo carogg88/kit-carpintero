@@ -25,7 +25,7 @@ function bounds(project: Project): THREE.Box3 {
   return b;
 }
 
-function cssColor(name: string, fallback: string): string {
+export function cssColor(name: string, fallback: string): string {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
 }

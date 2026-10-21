@@ -6,3 +6,5 @@ export * from './joints';
 export * from './catalog/boards';
 export * from './templates/table';
 export * from './edit';
+export * from './cutlist';
+export * from './jointinfo';
