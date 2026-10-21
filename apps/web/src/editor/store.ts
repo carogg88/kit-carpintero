@@ -19,7 +19,10 @@ export interface DrawFace {
   side: 1 | -1;
 }
 
-export type DrawShape = 'rect' | 'circle';
+export type DrawShape = 'rect' | 'circle' | 'arc';
+
+/** Cuerda de un arco ya marcada: falta decir cuánto se curva. */
+export type ArcChord = DrawFace & { u: number; v: number; u2: number; v2: number };
 
 const HISTORY = 80;
 
@@ -46,6 +49,7 @@ interface EditorState {
   draft: (DrawFace & { shape: PocketShape }) | null;
   /** Bisel que se está marcando, para verlo antes de soltar. */
   bevelDraft: { partId: string; bevel: Bevel } | null;
+  arcChord: ArcChord | null;
 
   open: (p: Project) => void;
   close: () => void;
@@ -70,6 +74,7 @@ interface EditorState {
   setDrawShape: (s: DrawShape) => void;
   setDraft: (d: EditorState['draft']) => void;
   setBevelDraft: (d: EditorState['bevelDraft']) => void;
+  setArcChord: (c: ArcChord | null) => void;
 }
 
 export interface DragHint {
@@ -109,8 +114,9 @@ export const useEditor = create<EditorState>()((set, get) => ({
   drawShape: 'rect',
   draft: null,
   bevelDraft: null,
+  arcChord: null,
 
-  open: (project) => set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null }),
+  open: (project) => set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null }),
 
   commit: (recipe) => {
@@ -160,15 +166,16 @@ export const useEditor = create<EditorState>()((set, get) => ({
   },
 
   select: (selectedId) => set((s) => ({ selectedId, ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}) })),
-  setTool: (tool) => set(tool === 'draw' ? { tool } : { tool, drawFace: null, draft: null }),
+  setTool: (tool) => set(tool === 'draw' ? { tool, arcChord: null } : { tool, drawFace: null, draft: null, arcChord: null }),
   setXray: (xray) => set({ xray }),
   setCopyMove: (copyMove) => set({ copyMove }),
   setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null })),
   setHint: (hint) => set({ hint }),
-  setDrawFace: (drawFace) => set((s) => (drawFace ? { drawFace } : { drawFace, viewNonce: s.viewNonce + 1 })),
-  setDrawShape: (drawShape) => set({ drawShape }),
+  setDrawFace: (drawFace) => set((s) => ({ drawFace, arcChord: null, draft: null, ...(drawFace ? {} : { viewNonce: s.viewNonce + 1 }) })),
+  setDrawShape: (drawShape) => set({ drawShape, arcChord: null, draft: null }),
   setDraft: (draft) => set({ draft }),
   setBevelDraft: (bevelDraft) => set({ bevelDraft }),
+  setArcChord: (arcChord) => set({ arcChord }),
   setUnits: (units) => {
     const { project } = get();
     if (project) set({ project: produce(project, (d) => void (d.units = units)) });

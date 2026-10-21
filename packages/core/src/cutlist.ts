@@ -1,6 +1,7 @@
 import { boardFeet, LENGTHS_M, planedMm, stockFor, stockKind, type StockKind } from './catalog/boards';
 import { boxSize, partBox, type Box } from './geometry';
 import { isAngleCut } from './bevels';
+import { arcInfo } from './pockets';
 import { jointGeometry, solidBox } from './joints';
 import type { Joint, Part, Project } from './project';
 
@@ -129,10 +130,14 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     else if (BY_END.has(k)) work.push(n === 1 ? k : `${k} en ${n} puntas`);
     else work.push(plural(n, one, many));
   }
-  const through = part.pockets.filter((p) => p.through).length;
-  const blind = part.pockets.length - through;
+  const plain = part.pockets.filter((p) => p.shape.kind !== 'arc');
+  const through = plain.filter((p) => p.through).length;
   if (through) work.push(plural(through, 'calado', 'calados'));
-  if (blind) work.push(plural(blind, 'vaciado', 'vaciados'));
+  if (plain.length - through) work.push(plural(plain.length - through, 'vaciado', 'vaciados'));
+  // Cada arco con su radio: es lo que se traza con el compás o la plantilla.
+  for (const p of part.pockets) {
+    if (p.shape.kind === 'arc') work.push(`${p.through ? 'corte' : 'rebaje'} en arco R ${Math.round(arcInfo(p.shape).radius)} mm`);
+  }
   const angled = part.bevels.filter((b) => isAngleCut(part, b)).length;
   if (angled) work.push(plural(angled, 'corte en ángulo', 'cortes en ángulo'));
   if (part.bevels.length - angled) work.push(plural(part.bevels.length - angled, 'bisel', 'biseles'));

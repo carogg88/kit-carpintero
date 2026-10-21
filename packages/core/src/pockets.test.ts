@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
-import { describePocket, newPocket, pocketSolid, snapOnFace } from './pockets';
+import { arcInfo, describePocket, newPocket, pocketSolid, snapOnFace } from './pockets';
 import { loadProject, SCHEMA_VERSION, type Part } from './project';
 import { createTable } from './templates/table';
 
@@ -49,5 +49,39 @@ describe('vaciados', () => {
     const r = loadProject(raw);
     expect(r.ok && r.project.schemaVersion).toBe(SCHEMA_VERSION);
     expect(r.ok && r.project.parts.every((p) => p.pockets.length === 0)).toBe(true);
+  });
+});
+
+describe('arcos', () => {
+  const board: Part = { ...top, position: [0, 0, 0], base: { kind: 'box', size: [400, 20, 300] }, ops: [], pockets: [], bevels: [] };
+  const arch = { kind: 'arc', u: 100, v: 0, u2: 300, v2: 0, bulge: 50, outside: false } as const;
+  const corner = { kind: 'arc', u: 300, v: 300, u2: 400, v2: 200, bulge: 100 - 100 * Math.SQRT1_2, outside: false } as const;
+
+  it('mide el radio desde la cuerda y la flecha', () => {
+    expect(arcInfo(arch)).toMatchObject({ chord: 200, radius: 125, mid: [200, 50] });
+    expect(arcInfo(arch).center[1]).toBeCloseTo(-75);
+    expect(arcInfo(corner).radius).toBeCloseTo(100);
+  });
+
+  it('un faldón arqueado saca el segmento; una esquina, lo de afuera', () => {
+    expect(newPocket(board, 1, 1, arch)).toMatchObject({ through: true, shape: { outside: false } });
+    expect(newPocket(board, 1, 1, corner).shape).toMatchObject({ outside: true });
+  });
+
+  it('el sólido sigue el arco y, si es esquina, se cierra lejos del lado de la flecha', () => {
+    const seg = pocketSolid(board, newPocket(board, 1, 1, arch));
+    expect(seg).toMatchObject({ kind: 'arc', axis: 1, u: 0, v: 2, a: [100, 0], mid: [200, 50], b: [300, 0], rest: [] });
+    const out = pocketSolid(board, newPocket(board, 1, 1, corner));
+    if (out.kind !== 'arc') throw new Error('arco');
+    expect(out.rest).toHaveLength(2);
+    expect(out.rest[0]![0]).toBeGreaterThan(400);
+    expect(out.rest[0]![1]).toBeGreaterThan(200);
+  });
+
+  it('se describe con el radio y la lista de cortes lo anota', () => {
+    const p = newPocket(board, 2, 1, arch);
+    expect(describePocket(p, mm)).toBe('corte en arco R 125 mm, flecha 50 mm en el frente');
+    const part = { ...board, pockets: [p] };
+    expect(cutPiece(part, { ...table, parts: [part], joints: [] }).work).toContain('corte en arco R 125 mm');
   });
 });

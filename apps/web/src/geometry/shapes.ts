@@ -1,4 +1,4 @@
-import { basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
+import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, Vector, type Shape3D } from 'replicad';
 import { bevelSolid, engineCamera, jointGeometry, partBox, pocketSolid, type Box, type EngineView, type Part, type Project, type Solid } from '@kitc/core';
 
 /**
@@ -19,6 +19,26 @@ function toShape(s: Solid): Shape3D {
     }
     case 'bore':
       return makeCylinder(s.radius, s.length, s.start, s.dir) as Shape3D;
+    case 'arc': {
+      const at = (p: [number, number]): [number, number, number] => {
+        const q: [number, number, number] = [0, 0, 0];
+        q[s.u] = p[0];
+        q[s.v] = p[1];
+        q[s.axis] = s.from;
+        return q;
+      };
+      const corners = [s.b, ...s.rest, s.a];
+      const edges = [makeThreePointArc(at(s.a), at(s.mid), at(s.b)), ...corners.slice(1).map((p, i) => makeLine(at(corners[i]!), at(p)))];
+      const wire = assembleWire(edges);
+      const face = makeFace(wire);
+      const along: [number, number, number] = [0, 0, 0];
+      along[s.axis] = s.to - s.from;
+      const shape = basicFaceExtrusion(face, new Vector(along)) as Shape3D;
+      edges.forEach((e) => e.delete());
+      wire.delete();
+      face.delete();
+      return shape;
+    }
     case 'prism': {
       const at = (u: number, v: number): [number, number, number] => {
         const p: [number, number, number] = [0, 0, 0];
