@@ -1,6 +1,6 @@
 import { partAxesBySize } from './edit';
 import { endJoint, jointGeometry, type Solid } from './joints';
-import { partBox, type Axis, type Box } from './geometry';
+import { partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
 import type { Part, Project } from './project';
 
 /**
@@ -64,6 +64,15 @@ export interface Drawing {
   /** Rectángulo de cada pieza (no de los encastres), para acotar. */
   rects: { id: string; rect: Rect2 }[];
   bounds: Rect2;
+  /** Qué tiene que proyectar el motor para cambiar estas líneas por las de la forma exacta. */
+  engine?: EngineView;
+}
+
+/** Pedido al motor: proyectar estas piezas exactas, con líneas ocultas, y quedarse con lo que cae en la ventana. */
+export interface EngineView {
+  parts: string[];
+  projection: Projection;
+  window?: Rect2;
 }
 
 interface Projected {
@@ -214,7 +223,7 @@ export function drawView(project: Project, view: ViewName): Drawing {
   const boxes = project.parts.filter((p) => p.base.kind === 'box');
   const items: DrawItem[] = boxes.map((p) => ({ id: p.id, box: partBox(p) }));
   for (const p of boxes) for (const it of partJointItems(project, p)) if (!it.hole) items.push(it);
-  return drawItems(items, VIEWS[view]);
+  return { ...drawItems(items, VIEWS[view]), engine: { parts: boxes.map((p) => p.id), projection: VIEWS[view] } };
 }
 
 /** Proyección de una pieza sola: largo a la derecha, ancho hacia arriba. */
@@ -225,7 +234,8 @@ export function partProjection(part: Part): Projection {
 
 /** Despiece: la pieza con sus espigas y, ocultas, sus mortajas y agujeros. */
 export function drawPart(project: Project, part: Part): Drawing {
-  return drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part)], partProjection(part));
+  const projection = partProjection(part);
+  return { ...drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part)], projection), engine: { parts: [part.id], projection } };
 }
 
 /** Dos vistas de detalle de un encastre, encuadradas donde se tocan las piezas. */
@@ -265,9 +275,82 @@ export function drawJointDetail(project: Project, jointId: string): { views: Dra
     const f = project0(focus, p);
     const pad = Math.max(40, 0.6 * Math.max(f.u1 - f.u0, f.v1 - f.v0));
     const win = { u0: f.u0 - pad, v0: f.v0 - pad, u1: f.u1 + pad, v1: f.v1 + pad };
-    return drawItems(items, p, win);
+    return { ...drawItems(items, p, win), engine: { parts: [a.id, b.id], projection: p, window: win } };
   });
   return { views, projections };
+}
+
+/**
+ * Cámara del motor para una proyección: hacia dónde mira (desde el objeto hacia quien mira) y qué va a
+ * la derecha. El motor pone "arriba" a la izquierda de esos dos; si no coincide con `v`, hay que dar vuelta v.
+ */
+export function engineCamera(p: Projection): { dir: Vec3; xAxis: Vec3; flipV: boolean } {
+  const unit = (axis: Axis, sign: number): Vec3 => {
+    const v: Vec3 = [0, 0, 0];
+    v[axis] = sign;
+    return v;
+  };
+  const dir = unit(p.depth, p.depthSign);
+  const xAxis = unit(p.u, p.uSign);
+  const up: Vec3 = [dir[1] * xAxis[2] - dir[2] * xAxis[1], dir[2] * xAxis[0] - dir[0] * xAxis[2], dir[0] * xAxis[1] - dir[1] * xAxis[0]];
+  return { dir, xAxis, flipV: up[p.v] * p.vSign < 0 };
+}
+
+/** Identifica un pedido al motor: cambia solo si cambia alguna de sus piezas o cómo se las mira. */
+export function engineViewKey(project: Project, view: EngineView): string {
+  return JSON.stringify([view.parts.map((id) => partKey(project, id)), view.projection, view.window ?? null]);
+}
+
+/**
+ * Cambia las líneas de un dibujo de cajas por las que proyectó el motor (cuatro números por tramo).
+ * Los nombres, los rectángulos para acotar y los encastres resaltados quedan como estaban.
+ */
+export function withEngineLines(d: Drawing, segments: ArrayLike<number>, hidden: ArrayLike<number>): Drawing {
+  const win = d.engine?.window;
+  const lines: Line2[] = [];
+  // El motor trabaja en float: un milésimo de mm alcanza y saca ruido como -0,0000000001.
+  const at = (k: number) => Math.round(segments[k]! * 1000) / 1000 + 0;
+  for (let i = 0; i < hidden.length; i++) {
+    const l: Line2 = { a: [at(4 * i), at(4 * i + 1)], b: [at(4 * i + 2), at(4 * i + 3)], hidden: hidden[i] === 1, joint: false };
+    const kept = win ? clipSegment(l, win) : l;
+    if (kept) lines.push(kept);
+  }
+  if (win || !lines.length) return { ...d, lines };
+  const pts = lines.flatMap((l) => [l.a, l.b]);
+  const bounds = {
+    u0: Math.min(...pts.map((q) => q[0])),
+    v0: Math.min(...pts.map((q) => q[1])),
+    u1: Math.max(...pts.map((q) => q[0])),
+    v1: Math.max(...pts.map((q) => q[1])),
+  };
+  return { ...d, lines, bounds };
+}
+
+/** Recorta un tramo en cualquier dirección a una ventana (Liang-Barsky). */
+export function clipSegment(l: Line2, w: Rect2): Line2 | null {
+  const [x0, y0] = l.a;
+  const dx = l.b[0] - x0;
+  const dy = l.b[1] - y0;
+  let t0 = 0;
+  let t1 = 1;
+  const edges: [number, number][] = [
+    [-dx, x0 - w.u0],
+    [dx, w.u1 - x0],
+    [-dy, y0 - w.v0],
+    [dy, w.v1 - y0],
+  ];
+  for (const [p, q] of edges) {
+    if (Math.abs(p) < 1e-12) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+    if (t0 > t1) return null;
+  }
+  if ((t1 - t0) * Math.hypot(dx, dy) <= EPS) return null;
+  return { ...l, a: [x0 + t0 * dx, y0 + t0 * dy], b: [x0 + t1 * dx, y0 + t1 * dy] };
 }
 
 const project0 = (box: Box, p: Projection) => project({ id: '', box }, p).rect;

@@ -181,7 +181,7 @@ worker.onmessage = (e: MessageEvent<FromWorker>) => {
     msg.parts.forEach((p) => p.warning && warnings.add(`${p.id}: ${p.warning}`));
     render();
     setBusy(false);
-  } else {
+  } else if (msg.type === 'error') {
     loading.hidden = false;
     loading.textContent = `No se pudo calcular: ${msg.message}`;
     setBusy(false);

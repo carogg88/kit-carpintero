@@ -2,9 +2,9 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { copyPart, formatLength, partBox, snapCoord, snapMove, woodById, type Axis, type Box, type Part, type Project } from '@kitc/core';
+import { copyPart, formatLength, partBox, partKey, snapCoord, snapMove, woodById, type Axis, type Box, type Part, type Project } from '@kitc/core';
 import { useEditor, type View } from './store';
-import { partKey, type ExactMesh } from './useGeometry';
+import type { ExactMesh } from './useGeometry';
 
 const VIEW_DIRS: Record<View, [number, number, number]> = {
   iso: [1, 0.72, 1.15],
