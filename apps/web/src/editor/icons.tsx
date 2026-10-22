@@ -39,6 +39,13 @@ export const IconXray = () => (
     <rect x="4" y="4" width="16" height="16" rx="2" />
   </svg>
 );
+export const IconMore = () => (
+  <svg {...base}>
+    <circle cx="5" cy="12" r="1.4" />
+    <circle cx="12" cy="12" r="1.4" />
+    <circle cx="19" cy="12" r="1.4" />
+  </svg>
+);
 export const IconCopy = () => (
   <svg {...base}>
     <rect x="8" y="8" width="12" height="12" rx="2" />

@@ -27,6 +27,9 @@ export default {
   'Elegí un mueble y se arma con sus encastres; después ajustás cada medida':
     'Pick a piece and it comes ready with its joints; then adjust every dimension',
   'Desde una foto': 'From a photo',
+  'Elegí una plantilla: se arma con sus encastres y después ajustás cada medida.': 'Pick a template: it comes with its joints, then you adjust every dimension.',
+  'Otras formas de empezar': 'Other ways to start',
+  'Armalo pieza por pieza, para un mueble que no está en las plantillas': 'Build it part by part, for a piece that isn\'t in the templates',
   'Marcá una medida que conozcas y calcá las piezas': 'Mark a size you know and trace the parts',
   Plantillas: 'Templates',
   'Mis proyectos': 'Your projects',

@@ -14,6 +14,7 @@ import {
   IconJoints,
   IconLogo,
   IconModel,
+  IconMore,
   IconMove,
   IconPlan,
   IconAssembly,
@@ -35,7 +36,10 @@ import { NextSteps, useVisitSection } from './NextSteps';
 import { Viewport } from './Viewport';
 import styles from './Editor.module.css';
 
-/** Herramientas: id, nombre completo (para lectores de pantalla y el cartel), nombre corto bajo el ícono, atajo e ícono. */
+/**
+ * Herramientas: id, nombre completo (para lectores de pantalla y el cartel), nombre corto bajo el ícono, atajo e ícono.
+ * Las últimas tres son de terminación: en el celular van en "Más", para que las de todos los días entren grandes.
+ */
 const TOOLS: [Tool, string, string, string, () => React.JSX.Element][] = [
   ['select', tk('Seleccionar'), tk('Elegir'), 'V', IconSelect],
   ['push', tk('Empujar o tirar una cara'), tk('Estirar'), 'P', IconPush],
@@ -45,6 +49,77 @@ const TOOLS: [Tool, string, string, string, () => React.JSX.Element][] = [
   ['section', tk('Agrandar o achicar un tramo'), tk('Tramo'), 'T', IconSection],
   ['turn', tk('Tornear'), tk('Tornear'), 'R', IconTurn],
 ];
+const ADVANCED = new Set<Tool>(['bevel', 'section', 'turn']);
+/** Qué hace cada herramienta de "Más", en una línea, para elegir sin probar. */
+const ADVANCED_USES: Partial<Record<Tool, string>> = {
+  bevel: tk('Bisel o canto redondeado en una arista'),
+  section: tk('Una parte más gruesa o más fina, como en una pata'),
+  turn: tk('Pata o barrote torneado, con modelos'),
+};
+
+/** En el celular: las herramientas de terminación y Rayos X, en un menú. Si una está en uso, el botón la muestra. */
+function MoreTools({ disabled }: { disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+  const tool = useEditor((s) => s.tool);
+  const xray = useEditor((s) => s.xray);
+  const { setTool, setXray } = useEditor.getState();
+  const current = TOOLS.find(([id]) => id === tool && ADVANCED.has(id));
+  const Icon = current?.[4] ?? IconMore;
+  return (
+    <span className={styles.moreWrap}>
+      <button
+        type="button"
+        className={styles.moreBtn}
+        aria-expanded={open}
+        aria-pressed={!!current || xray}
+        aria-label={t('Más herramientas')}
+        disabled={disabled}
+        onClick={() => setOpen(!open)}
+      >
+        <Icon />
+        <span aria-hidden="true">{current ? t(current[2]) : t('Más')}</span>
+      </button>
+      {open && (
+        <div className={styles.moreMenu} role="menu" aria-label={t('Más herramientas')}>
+          {TOOLS.filter(([id]) => ADVANCED.has(id)).map(([id, label, , , ToolIcon]) => (
+            <button
+              key={id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={tool === id}
+              onClick={() => {
+                setTool(id);
+                setOpen(false);
+              }}
+            >
+              <ToolIcon />
+              <span>
+                <strong>{t(label)}</strong>
+                <span>{t(ADVANCED_USES[id] ?? '')}</span>
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={xray}
+            onClick={() => {
+              setXray(!xray);
+              setOpen(false);
+            }}
+          >
+            <IconXray />
+            <span>
+              <strong>{t('Rayos X')}</strong>
+              <span>{t('Ver a través de las piezas, para ver los encastres')}</span>
+            </span>
+          </button>
+        </div>
+      )}
+    </span>
+  );
+}
+
 const VIEWS: [View, string, string][] = [
   ['iso', tk('3D'), tk('3D')],
   ['front', tk('Frente'), tk('Frente')],
@@ -107,7 +182,10 @@ function useShortcuts(modelo: boolean) {
         return;
       }
       if (!modelo || typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      // Sin piezas, las herramientas no tienen sobre qué trabajar: solo queda Elegir.
+      const none = !s.project?.parts.length;
       if (k === 'v') s.setTool('select');
+      else if (none && 'pmdbtr'.includes(k)) return;
       else if (k === 'p') s.setTool('push');
       else if (k === 'm') s.setTool('move');
       else if (k === 'd') s.setTool('draw');
@@ -190,6 +268,39 @@ function AddPartButton() {
   );
 }
 
+/** Qué es cada pieza nueva, en una línea: para elegir la primera sin saber de medidas. */
+const ADD_USES: Record<string, string> = {
+  tabla: tk('Para tapas, laterales, estantes y faldones'),
+  liston: tk('Para patas, travesaños y marcos'),
+  tablero: tk('Para fondos, cajones y tapas grandes'),
+};
+
+/**
+ * Proyecto en blanco: en lugar de una cuadrícula vacía, cómo empezar. Se elige la primera pieza (después se estira a
+ * la medida y se suman las demás), o se vuelve a las plantillas.
+ */
+function EmptyStart() {
+  const add = useAddPart();
+  return (
+    <div className={styles.emptyStart} role="region" aria-labelledby="empezar">
+      <h2 id="empezar">{t('Empezá con una pieza')}</h2>
+      <p>{t('Elegí la primera. Después la estirás a la medida con Estirar y le sumás las demás: se pegan solas cuando se tocan.')}</p>
+      <div className={styles.emptyOptions}>
+        {ADD_OPTIONS.map(([k, label, size]) => (
+          <button key={k} type="button" onClick={() => add(k)}>
+            <strong>{t(label)}</strong>
+            <span className={styles.emptyUse}>{t(ADD_USES[k] ?? '')}</span>
+            <span className={styles.emptySize}>{t(size)}</span>
+          </button>
+        ))}
+      </div>
+      <a href="#/" className={styles.emptyLink}>
+        {t('¿Es una mesa, un taburete, un estante o una caja? Empezá desde una plantilla')}
+      </a>
+    </div>
+  );
+}
+
 const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Lista de compras'), plano: tk('Plano'), armado: tk('Cómo armarlo') };
 
 export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
@@ -209,6 +320,11 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
   useShortcuts(section === 'modelo');
   useVisitSection(project?.id, section);
+  const noParts = !!project && project.parts.length === 0;
+  // Si se borra la última pieza con otra herramienta en la mano, se vuelve a Elegir.
+  useEffect(() => {
+    if (noParts && tool !== 'select') setTool('select');
+  }, [noParts, tool, setTool]);
   if (!project) return null;
   const modelo = section === 'modelo';
   const back = modelo ? onExit : () => (location.hash = sectionHref(project.id, 'modelo'));
@@ -217,6 +333,8 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const saveText = saveState === 'error' ? t('No se pudo guardar') : saveState === 'saving' ? t('Guardando…') : t('Guardado en este dispositivo');
   const engineText = engineStatus === 'loading' ? t('Preparando los cortes exactos…') : engineStatus === 'error' ? t('No se pudieron calcular los cortes') : null;
   const jointCount = project.joints.length;
+  // Sin piezas no hay nada que estirar ni dibujar: solo se puede agregar la primera.
+  const empty = noParts;
   const selDims = selected?.base.kind === 'box' ? [...selected.base.size].sort((a, b) => b - a) : null;
 
   return (
@@ -288,19 +406,30 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
       {section === 'armado' && <AssemblyView project={project} />}
       {modelo && (
         <>
-        <NextSteps key={project.id} projectId={project.id} busy={tool !== 'select'} />
+        {/* Uniones, cortes y plano tienen sentido cuando ya hay piezas que se tocan. */}
+        {jointCount > 0 && <NextSteps key={project.id} projectId={project.id} busy={tool !== 'select'} />}
         <main className={styles.main}>
           <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool} data-framed={framed || undefined}>
             <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: project.name, part: selected.name }) : t('Modelo 3D de {name}', { name: project.name })} />
             <div className={styles.toolbar} role="toolbar" aria-label={t('Herramientas')}>
               {TOOLS.map(([id, label, short, key, Icon]) => (
-                <button key={id} type="button" aria-pressed={tool === id} aria-label={`${t(label)} (${key})`} title={`${t(label)} (${key})`} onClick={() => setTool(id)}>
+                <button
+                  key={id}
+                  type="button"
+                  data-advanced={ADVANCED.has(id) || undefined}
+                  aria-pressed={tool === id}
+                  aria-label={`${t(label)} (${key})`}
+                  title={empty && id !== 'select' ? t('Primero agregá una pieza') : `${t(label)} (${key})`}
+                  disabled={empty && id !== 'select'}
+                  onClick={() => setTool(id)}
+                >
                   <Icon />
                   <span aria-hidden="true">{t(short)}</span>
                 </button>
               ))}
-              <span className={styles.toolSep} aria-hidden="true" />
-              <button type="button" aria-pressed={xray} aria-label={t('Rayos X (X)')} title={t('Rayos X (X)')} onClick={() => setXray(!xray)}>
+              <span className={styles.toolSep} aria-hidden="true" data-advanced />
+              <MoreTools disabled={empty} />
+              <button type="button" data-advanced aria-pressed={xray} aria-label={t('Rayos X (X)')} title={t('Rayos X (X)')} onClick={() => setXray(!xray)}>
                 <IconXray />
                 <span aria-hidden="true">{t('Rayos X')}</span>
               </button>
@@ -313,7 +442,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 </button>
               ))}
             </div>
-            <ToolGuide />
+            {empty ? <EmptyStart /> : <ToolGuide />}
             <ChangeNotice />
             <div className={styles.desktopOnly}>
               <MeasureBubble />
@@ -330,7 +459,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
               </span>
             )}
             {hint && <HintLabel hint={hint} />}
-            {tool === 'select' && (
+            {tool === 'select' && !empty && (
               <span className={styles.mobileOnly}>
                 <AddPartButton />
               </span>

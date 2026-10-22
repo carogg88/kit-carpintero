@@ -92,9 +92,32 @@
 }
 .toolbar button span { font: 500 10px/1 var(--font-ui); letter-spacing: -0.15px; white-space: nowrap; }
 .toolbar button:hover { background: var(--surface-2); }
+.toolbar button:disabled { opacity: 0.38; cursor: not-allowed; background: transparent; }
 .toolbar button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
 .toolbar button[aria-pressed='true'] span { font-weight: 600; }
 .toolSep { flex: none; width: 1px; background: var(--line); margin: 8px 0; }
+/* En el celular, las herramientas de terminación van en "Más"; en la compu entran todas en la barra. */
+.moreWrap { flex: 1 1 0; min-width: 0; display: flex; }
+.moreWrap > .moreBtn { flex: 1 1 0; }
+.moreMenu {
+  position: absolute; right: 0; bottom: calc(100% + var(--space-2)); z-index: 3; width: min(320px, calc(100vw - 2 * var(--space-3)));
+  display: flex; flex-direction: column; padding: var(--space-1); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 16px; box-shadow: 0 8px 24px rgb(43 54 40 / 0.16);
+}
+.toolbar .moreMenu button {
+  flex: none; width: 100%; height: auto; min-height: 56px; padding: var(--space-2) var(--space-3); flex-direction: row; justify-content: flex-start;
+  gap: var(--space-3); text-align: left;
+}
+.toolbar .moreMenu button > span { display: flex; flex-direction: column; gap: 2px; white-space: normal; font: 400 12px/1.35 var(--font-ui); color: var(--muted); }
+.toolbar .moreMenu button strong { font: 600 14px var(--font-ui); color: var(--ink); }
+.toolbar .moreMenu button[aria-checked='true'] { background: var(--accent-soft); }
+@media (max-width: 899px) {
+  .toolbar { overflow: visible; }
+  .toolbar [data-advanced] { display: none; }
+}
+@media (min-width: 900px) {
+  .moreWrap { display: none; }
+}
 .stage[data-tool='draw'] canvas, .stage[data-tool='bevel'] canvas, .stage[data-tool='section'] canvas { cursor: crosshair; }
 .stage[data-tool='turn'] canvas { cursor: pointer; }
 
@@ -264,6 +287,36 @@
   padding: 0 var(--space-3); border: 0; border-radius: 12px; background: transparent; color: var(--ink); cursor: pointer; text-align: left;
 }
 .addMenu span, .addBtn span { font-family: var(--font-num); font-size: 12px; color: var(--muted); }
+
+/* Proyecto en blanco: cómo empezar, en el medio de la vista. */
+.emptyStart {
+  position: absolute; z-index: 1; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 2 * var(--space-3)));
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-m); box-shadow: var(--shadow-card);
+}
+.emptyStart h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+.emptyStart p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.emptyOptions { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-top: var(--space-1); }
+.emptyOptions button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 112px; padding: var(--space-3);
+  border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); text-align: left; cursor: pointer;
+  font: 400 13px var(--font-ui); transition: border-color 150ms ease, background-color 150ms ease;
+}
+.emptyOptions button:hover { border-color: var(--forest); background: var(--surface); }
+.emptyOptions button:focus-visible, .emptyLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.emptyOptions strong { font-size: 16px; font-weight: 600; }
+.emptyUse { color: var(--muted); line-height: 1.4; }
+.emptySize { margin-top: auto; font-family: var(--font-num); font-size: 12px; color: var(--muted); }
+.emptyLink { display: inline-flex; align-items: center; min-height: var(--tap); font-size: 14px; font-weight: 500; color: var(--accent); }
+@media (max-width: 559px) {
+  /* En el celular la vista es baja: título, las tres piezas en una línea cada una y el enlace. */
+  .emptyStart { top: var(--space-2); transform: translateX(-50%); padding: var(--space-3); gap: var(--space-1); }
+  .emptyStart h2 { font-size: 18px; }
+  .emptyStart p, .emptyUse { display: none; }
+  .emptyOptions { grid-template-columns: 1fr; }
+  .emptyOptions button { min-height: 48px; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 var(--space-3); }
+  .emptySize { margin-top: 0; }
+}
 
 /* ---------- Panel (hoja inferior en el celular) ---------- */
 .panel {
