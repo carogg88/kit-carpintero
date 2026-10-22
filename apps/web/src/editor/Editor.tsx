@@ -279,7 +279,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
 
       {section === 'uniones' && <JointsView project={project} meshes={meshes} />}
       {section === 'cortes' && <CutsView project={project} />}
-      {section === 'plano' && <PlanView project={project} />}
+      {section === 'plano' && <PlanView project={project} meshes={meshes} />}
       {modelo && (
         <>
         <main className={styles.main}>
