@@ -27,6 +27,8 @@ export interface Bubble {
   target: MeasureTarget;
   x: number;
   y: number;
+  /** Lo que la burbuja no tiene que tapar, en los mismos píxeles: la figura recién dibujada. */
+  avoid?: { x0: number; y0: number; x1: number; y1: number };
 }
 
 export type DrawShape = 'rect' | 'circle' | 'arc';

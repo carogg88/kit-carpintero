@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { depthUnder, formatLength, formatNumber, newBevel, parseLength, partAxesBySize, t, tk, type Part } from '@kitc/core';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { depthUnder, faceSize, formatLength, formatNumber, MEASURED_FROM, newBevel, parseLength, partAxesBySize, t, tk, type Part } from '@kitc/core';
 import { IconClose } from './icons';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
@@ -16,15 +16,25 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   const bubble = useEditor((s) => s.bubble);
   const project = useEditor((s) => s.project);
   const { commit, setBubble } = useEditor.getState();
-  // null: sin tocar, el campo muestra la medida que quedó.
-  const [text, setText] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Lo que se escribió en cada campo; sin tocar, el campo muestra la medida que quedó.
+  const [texts, setTexts] = useState<Record<string, string>>({});
+  const [error, setError] = useState<{ field: string; text: string } | null>(null);
   const [shownFor, setShownFor] = useState(bubble);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [placed, setPlaced] = useState<{ left: number; top: number } | null>(null);
   if (shownFor !== bubble) {
     setShownFor(bubble);
-    setText(null);
+    setTexts({});
     setError(null);
+    setPlaced(null);
   }
+  // Al lado de lo que se acaba de dibujar, no encima: se mide la burbuja y se busca un costado libre.
+  useLayoutEffect(() => {
+    const el = formRef.current;
+    const stage = el?.offsetParent as HTMLElement | null;
+    if (docked || !el || !stage || !bubble?.avoid) return;
+    setPlaced(placeBeside(bubble.avoid, { w: el.offsetWidth, h: el.offsetHeight }, { w: stage.clientWidth, h: stage.clientHeight }));
+  }, [bubble, docked]);
   if (!bubble || !project) return null;
   const { target } = bubble;
   const part = project.parts.find((p) => p.id === target.id);
@@ -37,6 +47,22 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   const current = target.kind === 'push' ? part.base.size[target.axis] : bevel ? bevel.da : pocket!.depth;
   const label =
     target.kind === 'push' ? t(DIM_LABELS[partAxesBySize(part).indexOf(target.axis)]!) : bevel ? (bevel.round ? t('Radio') : t('Bisel')) : t('Profundidad');
+  // Rectángulos y círculos: la distancia a dos bordes de la cara, para ubicarlos justo (o centrarlos).
+  const shape = pocket?.shape.kind === 'arc' ? undefined : pocket?.shape;
+  const face = pocket ? faceSize(part, pocket.axis) : undefined;
+  const extent = (i: 0 | 1) => (!shape ? 0 : shape.kind === 'rect' ? (i === 0 ? shape.w : shape.h) : 0);
+  const at = (i: 0 | 1) => (!shape ? 0 : i === 0 ? shape.u : shape.v);
+  const centered = (i: 0 | 1) => (face!.size[i] - extent(i)) / 2;
+  const isCentered = !!shape && [0, 1].every((i) => Math.abs(at(i as 0 | 1) - centered(i as 0 | 1)) < 0.5);
+  const fromLabel = (i: 0 | 1) => (shape?.kind === 'circle' ? t('Centro desde {side}', { side: t(MEASURED_FROM[face!.axes[i]]) }) : t('Desde {side}', { side: t(MEASURED_FROM[face!.axes[i]]) }));
+
+  const shown = (key: string, mm: number) => texts[key] ?? formatNumber(mm, units);
+  const edited = (key: string, mm: number) => texts[key] !== undefined && texts[key].trim() !== formatNumber(mm, units);
+  const dirty = edited('main', current) || (!!shape && (edited('u', at(0)) || edited('v', at(1))));
+  const type = (key: string, value: string) => {
+    setTexts((x) => ({ ...x, [key]: value }));
+    setError(null);
+  };
 
   const setThrough = (through: boolean) =>
     commit((d) => {
@@ -44,12 +70,26 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
       if (q) q.through = through;
     });
 
+  const center = () => {
+    setTexts((x) => ({ ...x, u: formatNumber(centered(0), units), v: formatNumber(centered(1), units) }));
+    setError(null);
+  };
+
   const apply = () => {
     // Sin cambios, el botón dice Listo y solo cierra.
-    if (text === null || text.trim() === formatNumber(current, units)) return setBubble(null);
-    const v = parseLength(text, units);
-    const min = target.kind === 'push' ? 3 : target.kind === 'bevel' ? 1 : 0.5;
-    if (v === null || v < min) return setError(t('Medida no válida'));
+    if (!dirty) return setBubble(null);
+    const read = (key: string, mm: number, min: number, max: number) => {
+      if (!edited(key, mm)) return mm;
+      const v = parseLength(texts[key]!, units);
+      if (v === null || v < min || v > max + 0.01) {
+        setError({ field: key, text: v !== null && v > max ? t('Tiene que ser de {n} o menos', { n: formatNumber(max, units) }) : t('Medida no válida') });
+        return null;
+      }
+      return v;
+    };
+    const minMain = target.kind === 'push' ? 3 : target.kind === 'bevel' ? 1 : 0.5;
+    const v = read('main', current, minMain, Infinity);
+    if (v === null) return;
     if (target.kind === 'push') {
       const dim = t(DIM_LABELS[partAxesBySize(part).indexOf(target.axis)]!).toLowerCase();
       commit((d) => {
@@ -68,20 +108,64 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
         q.bevels[i] = { ...newBevel(q as Part, old.a, old.b, v, old.round), id: old.id };
       });
     } else {
-      if (v >= thick) return setError(t('Tiene que ser menos que el espesor ({size})', { size: formatLength(thick, units) }));
+      if (!pocket!.through && v >= thick) return setError({ field: 'main', text: t('Tiene que ser menos que el espesor ({size})', { size: formatLength(thick, units) }) });
+      const u = shape ? read('u', at(0), 0, face!.size[0] - extent(0)) : 0;
+      if (u === null) return;
+      const w = shape ? read('v', at(1), 0, face!.size[1] - extent(1)) : 0;
+      if (w === null) return;
       commit((d) => {
         const q = d.parts.find((p) => p.id === target.id)?.pockets.find((p) => p.id === target.pocketId);
-        if (q) q.depth = v;
+        if (!q) return;
+        q.depth = v;
+        if (shape && q.shape.kind !== 'arc') [q.shape.u, q.shape.v] = [u, w];
       });
     }
     setBubble(null);
   };
 
   const id = docked ? 'medida-celu' : 'medida';
+  const unit = <span className={styles.bubbleId}>{units === 'cm' ? 'cm' : t('pulg.')}</span>;
+  const field = (key: string, mm: number, inputId: string, extra?: { className?: string; label?: string }) => (
+    <input
+      id={inputId}
+      className={extra?.className}
+      inputMode="decimal"
+      autoComplete="off"
+      value={shown(key, mm)}
+      onFocus={(e) => e.currentTarget.select()}
+      aria-label={extra?.label}
+      aria-invalid={error?.field === key}
+      aria-describedby={error?.field === key ? `${id}-error` : undefined}
+      onChange={(e) => type(key, e.target.value)}
+    />
+  );
+  const errorLine = error && (
+    <span id={`${id}-error`} className={styles.error} role="alert">
+      {error.text}
+    </span>
+  );
+  const okButton = (
+    <button type="submit" className={styles.bubbleOk}>
+      {dirty ? t('Aplicar') : t('Listo')}
+    </button>
+  );
+  const closeButton = (
+    <button type="button" className={styles.bubbleClose} aria-label={t('Cerrar')} onClick={() => setBubble(null)}>
+      <IconClose />
+    </button>
+  );
+  const centerButton = (
+    <button type="button" className={styles.bubbleCenter} aria-pressed={isCentered && !texts.u && !texts.v} onClick={center}>
+      {t('Centrar')}
+    </button>
+  );
+  const fallback = { left: `clamp(8px, ${bubble.x - 110}px, calc(100% - 228px))`, top: `clamp(56px, ${bubble.y - 76}px, calc(100% - 136px))` };
   return (
     <form
+      ref={formRef}
       className={docked ? styles.bubbleDocked : styles.bubble}
-      style={docked ? undefined : { left: `clamp(8px, ${bubble.x - 110}px, calc(100% - 228px))`, top: `clamp(56px, ${bubble.y - 76}px, calc(100% - 136px))` }}
+      data-wide={(!docked && !!shape) || undefined}
+      style={docked ? undefined : placed ? { left: placed.left, top: placed.top } : bubble.avoid ? { ...fallback, visibility: 'hidden' } : fallback}
       onSubmit={(e) => {
         e.preventDefault();
         apply();
@@ -99,51 +183,104 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
             </button>
           </div>
           <span className={styles.bubbleId}>{pocket.id}</span>
-          {pocket.through && (
-            <button type="button" className={styles.bubbleClose} aria-label={t('Cerrar')} onClick={() => setBubble(null)}>
-              <IconClose />
-            </button>
-          )}
+          {(pocket.through || shape) && closeButton}
         </div>
       )}
-      {pocket?.through ? (
-        <span className={styles.bubbleHint}>
-          {t('Atraviesa los {size} de la pieza', { size: formatLength(thick, units) })}
-        </span>
+      {docked && shape ? (
+        // En el celular, todo junto en poco alto: la profundidad y las dos distancias en una fila, y abajo Centrar y Listo.
+        <>
+          {pocket?.through && <span className={styles.bubbleHint}>{t('Atraviesa los {size} de la pieza', { size: formatLength(thick, units) })}</span>}
+          <div className={styles.bubbleFields} data-count={pocket?.through ? 2 : 3}>
+            {!pocket?.through && (
+              <label className={styles.bubbleSmall}>
+                <span>
+                  {label} {unit}
+                </span>
+                {field('main', current, id)}
+              </label>
+            )}
+            {([0, 1] as const).map((i) => (
+              <label key={i} className={styles.bubbleSmall}>
+                <span>{fromLabel(i)}</span>
+                {field(i === 0 ? 'u' : 'v', at(i), `${id}-${i ? 'v' : 'u'}`)}
+              </label>
+            ))}
+          </div>
+          {errorLine}
+          <div className={styles.bubbleFoot}>
+            {centerButton}
+            {/* Sin cambios no hace falta: la tarjeta ya tiene Listo para terminar de dibujar. */}
+            {dirty && okButton}
+          </div>
+        </>
       ) : (
         <>
-          <label htmlFor={id}>
-            {label} {!pocket && <span className={styles.bubbleId}>{part.id}</span>}{' '}
-            <span className={styles.bubbleId}>{units === 'cm' ? 'cm' : t('pulg.')}</span>
-          </label>
-          <div className={styles.bubbleRow}>
-            <input
-              id={id}
-              inputMode="decimal"
-              autoComplete="off"
-              value={text ?? formatNumber(current, units)}
-              onFocus={(e) => e.currentTarget.select()}
-              aria-invalid={!!error}
-              aria-describedby={error ? `${id}-error` : undefined}
-              onChange={(e) => {
-                setText(e.target.value);
-                setError(null);
-              }}
-            />
-            <button type="submit" className={styles.bubbleOk}>
-              {text === null || text.trim() === formatNumber(current, units) ? t('Listo') : t('Aplicar')}
-            </button>
-            <button type="button" className={styles.bubbleClose} aria-label={t('Cerrar')} onClick={() => setBubble(null)}>
-              <IconClose />
-            </button>
-          </div>
-          {error && (
-            <span id={`${id}-error`} className={styles.error} role="alert">
-              {error}
-            </span>
+          {pocket?.through ? (
+            <span className={styles.bubbleHint}>{t('Atraviesa los {size} de la pieza', { size: formatLength(thick, units) })}</span>
+          ) : (
+            <>
+              <label htmlFor={id}>
+                {label} {!pocket && <span className={styles.bubbleId}>{part.id}</span>} {unit}
+              </label>
+              <div className={styles.bubbleRow}>
+                {field('main', current, id)}
+                {!shape && okButton}
+                {!shape && closeButton}
+              </div>
+            </>
           )}
+          {shape && (
+            <div className={styles.bubblePlace} role="group" aria-labelledby={`${id}-place`}>
+              <span id={`${id}-place`} className={styles.bubblePlaceTitle}>
+                {t('Distancia a los bordes')}
+              </span>
+              {centerButton}
+              {([0, 1] as const).map((i) => (
+                <label key={i} className={styles.bubbleSmall}>
+                  <span>{fromLabel(i)}</span>
+                  {field(i === 0 ? 'u' : 'v', at(i), `${id}-${i ? 'v' : 'u'}`)}
+                </label>
+              ))}
+            </div>
+          )}
+          {errorLine}
+          {shape && dirty && <div className={styles.bubbleFoot}>{okButton}</div>}
         </>
       )}
     </form>
   );
+}
+
+/** Lugar para una caja de `size` junto a `box` sin taparla: a la derecha, a la izquierda, abajo o arriba. */
+export function placeBeside(
+  box: { x0: number; y0: number; x1: number; y1: number },
+  size: { w: number; h: number },
+  stage: { w: number; h: number },
+): { left: number; top: number } {
+  const gap = 16;
+  // Lo que ocupan las herramientas a la izquierda, las vistas arriba y la tarjeta de pasos abajo.
+  const [minX, minY, maxX, maxY] = [88, 64, stage.w - 8, stage.h - 72];
+  const fitX = (x: number) => Math.min(Math.max(x, minX), Math.max(minX, maxX - size.w));
+  const fitY = (y: number) => Math.min(Math.max(y, minY), Math.max(minY, maxY - size.h));
+  const midY = (box.y0 + box.y1) / 2 - size.h / 2;
+  const midX = (box.x0 + box.x1) / 2 - size.w / 2;
+  const candidates = [
+    { left: box.x1 + gap, top: fitY(midY) },
+    { left: box.x0 - gap - size.w, top: fitY(midY) },
+    { left: fitX(midX), top: box.y1 + gap },
+    { left: fitX(midX), top: box.y0 - gap - size.h },
+  ];
+  const inside = (c: { left: number; top: number }) => c.left >= minX && c.top >= minY && c.left + size.w <= maxX && c.top + size.h <= maxY;
+  const found = candidates.find(inside);
+  if (found) return found;
+  // Si la figura ocupa casi todo, la esquina que menos la tapa.
+  const corners = [
+    { left: minX, top: minY },
+    { left: maxX - size.w, top: minY },
+    { left: minX, top: maxY - size.h },
+    { left: maxX - size.w, top: maxY - size.h },
+  ];
+  const overlap = (c: { left: number; top: number }) =>
+    Math.max(0, Math.min(c.left + size.w, box.x1) - Math.max(c.left, box.x0)) * Math.max(0, Math.min(c.top + size.h, box.y1) - Math.max(c.top, box.y0));
+  return corners.reduce((a, b) => (overlap(b) < overlap(a) ? b : a));
 }

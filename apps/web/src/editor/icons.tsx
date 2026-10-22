@@ -102,6 +102,12 @@ export const IconPlan = () => (
     <path d="M7 16h10M7 8v8M17 8v8" />
   </svg>
 );
+export const IconAssembly = () => (
+  <svg {...base} width={22} height={22}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M8 8l1.5 1.5L12 7M8 14l1.5 1.5L12 13M14 8.5h2.5M14 14.5h2.5" />
+  </svg>
+);
 export const IconLogo = () => (
   <svg width="24" height="24" viewBox="0 0 28 28" aria-hidden="true">
     <rect x="3" y="6" width="22" height="5" rx="1" fill="none" stroke="currentColor" strokeWidth="2" />

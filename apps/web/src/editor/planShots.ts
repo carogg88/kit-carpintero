@@ -39,6 +39,10 @@ interface Request {
   height: number;
   /** Si hay que buscar dónde va el código de cada pieza. */
   labels?: boolean;
+  /** Desde dónde se mira: sin esto, adelante a la derecha y arriba, como en el editor. */
+  dir?: [number, number, number];
+  /** Piezas que se ven como un velo, para que las otras se vean a través: no tapan ni llevan código. */
+  ghosts?: ReadonlySet<string>;
 }
 
 let renderer: THREE.WebGLRenderer | null = null;
@@ -66,6 +70,8 @@ export function shoot(req: Request): Shot | null {
     req.width,
     req.height,
     !!req.labels,
+    [...(req.ghosts ?? [])],
+    req.dir ?? null,
   ]);
   if (cache.has(key)) return cache.get(key)!;
   const shot = render(req, ids);
@@ -77,7 +83,7 @@ export function shoot(req: Request): Shot | null {
   return shot;
 }
 
-function render({ project, meshes, colors, width, height, labels }: Request, ids: string[]): Shot | null {
+function render({ project, meshes, colors, width, height, labels, ghosts, dir }: Request, ids: string[]): Shot | null {
   const gl = getRenderer();
   if (!gl) return null;
   const parts = ids.map((id) => project.parts.find((p) => p.id === id)).filter((p) => p !== undefined);
@@ -96,11 +102,23 @@ function render({ project, meshes, colors, width, height, labels }: Request, ids
     const edges = exact?.edges ?? own(new THREE.EdgesGeometry(geometry));
     geometry.computeBoundingBox();
     bounds.union(geometry.boundingBox!);
-    const fill = own(new THREE.MeshStandardMaterial({ color: colors.get(part.id) ?? '#d9bc8c', roughness: 0.9, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+    const ghost = !!ghosts?.has(part.id);
+    const fill = own(
+      new THREE.MeshStandardMaterial({
+        color: colors.get(part.id) ?? '#d9bc8c',
+        roughness: 0.9,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
+        ...(ghost ? { transparent: true, opacity: 0.28, depthWrite: false } : {}),
+      }),
+    );
     const mesh = new THREE.Mesh(geometry, fill);
-    const line = new THREE.LineSegments(edges, own(new THREE.LineBasicMaterial({ color: INK, transparent: true, opacity: 0.85 })));
+    const line = new THREE.LineSegments(edges, own(new THREE.LineBasicMaterial({ color: INK, transparent: true, opacity: ghost ? 0.3 : 0.85, depthWrite: !ghost })));
+    // Los velos se dibujan después de lo macizo, para que se vea a través.
+    if (ghost) mesh.renderOrder = line.renderOrder = 1;
     scene.add(mesh, line);
-    return { id: part.id, geometry, mesh };
+    return { id: part.id, geometry, mesh, ghost };
   });
   scene.add(new THREE.HemisphereLight('#ffffff', '#a89c88', 1.9));
   const sun = new THREE.DirectionalLight('#ffffff', 1.5);
@@ -111,7 +129,7 @@ function render({ project, meshes, colors, width, height, labels }: Request, ids
   const center = bounds.getCenter(new THREE.Vector3());
   const radius = bounds.getSize(new THREE.Vector3()).length();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, radius * 4 + 10);
-  camera.position.copy(center).addScaledVector(DIR, radius * 2 + 5);
+  camera.position.copy(center).addScaledVector(dir ? new THREE.Vector3(...dir).normalize() : DIR, radius * 2 + 5);
   camera.lookAt(center);
   camera.updateMatrixWorld();
   const inv = camera.matrixWorldInverse;
@@ -141,6 +159,8 @@ function render({ project, meshes, colors, width, height, labels }: Request, ids
   let shotLabels: ShotLabel[] = [];
   let hidden: string[] = [];
   if (labels) ({ labels: shotLabels, hidden } = findLabels(gl, scene, camera, pieces, width, height));
+  // Los velos no tienen código.
+  shotLabels = shotLabels.filter((l) => !ghosts?.has(l.id));
 
   for (const x of owned) x.dispose();
   return { url, labels: shotLabels, hidden };
@@ -154,7 +174,7 @@ function findLabels(
   gl: THREE.WebGLRenderer,
   scene: THREE.Scene,
   camera: THREE.Camera,
-  pieces: { id: string; mesh: THREE.Mesh }[],
+  pieces: { id: string; mesh: THREE.Mesh; ghost?: boolean }[],
   width: number,
   height: number,
 ): { labels: ShotLabel[]; hidden: string[] } {
@@ -164,7 +184,8 @@ function findLabels(
   const saved = pieces.map((p) => p.mesh.material);
   const flat = pieces.map((_, i) => new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB((i + 1) / 255, 0, 0, THREE.LinearSRGBColorSpace), toneMapped: false }));
   pieces.forEach((p, i) => (p.mesh.material = flat[i]!));
-  const hiddenObjects = scene.children.filter((o) => !(o instanceof THREE.Mesh));
+  const ghostMeshes = new Set(pieces.filter((p) => p.ghost).map((p) => p.mesh));
+  const hiddenObjects = scene.children.filter((o) => !(o instanceof THREE.Mesh) || ghostMeshes.has(o));
   for (const o of hiddenObjects) o.visible = false;
   gl.setRenderTarget(target);
   gl.setClearColor(0x000000, 0);

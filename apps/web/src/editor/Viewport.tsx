@@ -396,17 +396,27 @@ function SectionDraft({ accent }: { accent: string }) {
 }
 
 /**
+ * Una raya en vez de un rectángulo: sin ancho, o, con la vista en diagonal, tan finita que seguro fue sin querer
+ * (el arrastre siguió un solo borde de la cara).
+ */
+function isSliver(w: number, h: number, framed: boolean): boolean {
+  return Math.max(w, h) >= 10 && Math.min(w, h) < (framed ? 3 : Math.max(3, 0.03 * Math.max(w, h)));
+}
+
+/**
  * Figura que se está dibujando: su borde y, sombreado, lo que se va a sacar de la pieza. Un arco que no toca
  * ningún borde de la cara se ve en rojo: así no vale.
  */
 function Draft({ part, accent, danger }: { part: Part; accent: string; danger: string }) {
   const draft = useEditor((s) => s.draft);
   const points = useMemo(() => (draft ? outline(partBox(part), draft, draft.shape) : null), [draft, part]);
-  const invalid = draft?.shape.kind === 'arc' && !arcTouchesEdge(part, draft.axis, draft.shape, 1);
+  const framed = useEditor((s) => s.drawFramed);
+  const invalid =
+    (draft?.shape.kind === 'arc' && !arcTouchesEdge(part, draft.axis, draft.shape, 1)) || (draft?.shape.kind === 'rect' && isSliver(draft.shape.w, draft.shape.h, framed));
   const fill = useMemo(() => {
     if (!draft) return null;
     const region = pocketRegion(part, draft.axis, draft.shape);
-    if (region.length < 3) return null;
+    if (region.length < 3 || (draft.shape.kind === 'rect' && (draft.shape.w < 1 || draft.shape.h < 1))) return null;
     const box = partBox(part);
     const tris = THREE.ShapeUtils.triangulateShape(region.map(([u, v]) => new THREE.Vector2(u, v)), []);
     const geo = new THREE.BufferGeometry().setFromPoints(region.map(([u, v]) => facePoint(box, draft, u, v, 0.5)));
@@ -414,8 +424,33 @@ function Draft({ part, accent, danger }: { part: Part; accent: string; danger: s
     return geo;
   }, [draft, part]);
   useEffect(() => () => fill?.dispose(), [fill]);
+  // Rectángulo: líneas guía de borde a borde por sus lados, para ver hacia dónde corre cada borde de la cara
+  // aunque la vista esté en diagonal.
+  const guides = useMemo(() => {
+    if (draft?.shape.kind !== 'rect') return null;
+    const box = partBox(part);
+    const [ua, va] = otherAxes(draft.axis);
+    const [W, H] = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]];
+    const { u, v, w, h } = draft.shape;
+    const pts = [u, u + w].flatMap((x) => [facePoint(box, draft, x, 0, 0.5), facePoint(box, draft, x, H, 0.5)]);
+    pts.push(...[v, v + h].flatMap((y) => [facePoint(box, draft, 0, y, 0.5), facePoint(box, draft, W, y, 0.5)]));
+    const lines = new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineDashedMaterial({ color: accent, dashSize: Math.max(W, H) / 60, gapSize: Math.max(W, H) / 90, transparent: true, opacity: 0.7, depthTest: false }),
+    );
+    lines.computeLineDistances();
+    return lines;
+  }, [draft, part, accent]);
+  useEffect(
+    () => () => {
+      guides?.geometry.dispose();
+      (guides?.material as THREE.Material | undefined)?.dispose();
+    },
+    [guides],
+  );
   return (
     <>
+      {guides && <primitive object={guides} renderOrder={2} />}
       {fill && !invalid && (
         <mesh geometry={fill} renderOrder={2}>
           <meshBasicMaterial color={accent} transparent opacity={0.38} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
@@ -666,6 +701,10 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     let shape: PocketShape | null = null;
+    // Rectángulo al que todavía le falta un lado.
+    let flat: PocketShape | null = null;
+    const framed = useEditor.getState().drawFramed;
+    const sliver = (w: number, h: number) => isSliver(w, h, framed);
     // Arco, segundo paso: la cuerda ya está; ahora el dedo dice cuánto se curva.
     const chord = useEditor.getState().arcChord;
     const bending = drawShape === 'arc' && chord && chord.partId === face.partId && chord.axis === face.axis && chord.side === face.side ? chord : null;
@@ -708,12 +747,15 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       } else {
         const w = Math.abs(end.u - start.u);
         const h = Math.abs(end.v - start.v);
-        shape = w > 0 && h > 0 ? { kind: 'rect', u: Math.min(start.u, end.u), v: Math.min(start.v, end.v), w, h } : null;
+        // Aunque le falte un lado se muestra, como una raya, con las guías de los bordes: así se ve hacia dónde seguir.
+        flat = { kind: 'rect', u: Math.min(start.u, end.u), v: Math.min(start.v, end.v), w, h };
+        shape = w > 0 && h > 0 ? flat : null;
         text = `${formatLength(w, units)} × ${formatLength(h, units)}`;
         snaps = end.snaps;
+        if (sliver(w, h)) warning = t('Le falta ancho: seguí la otra línea guía');
       }
       const named = [...new Set(snaps.filter(Boolean))];
-      if (shape || !bending) useEditor.getState().setDraft(shape ? { ...face, shape } : null);
+      if (shape || !bending) useEditor.getState().setDraft(shape || flat ? { ...face, shape: (shape ?? flat)! } : null);
       useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: named.length === 2 ? t('{a} y {b}', { a: named[0]!, b: named[1]! }) : (named[0] ?? null), warn: warning });
       invalidate();
     };
@@ -738,6 +780,14 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       if (bending && !s) return;
       setDraft(null);
       setArcChord(null);
+      // Rectángulo sin ancho: pasa cuando la vista está en diagonal y el arrastre sigue un solo borde. Se avisa y la
+      // cara se pone de frente para probar de nuevo.
+      const f = (flat ?? s) as PocketShape | null;
+      if (f?.kind === 'rect' && sliver(f.w, f.h)) {
+        const { drawFramed, setDrawFace } = useEditor.getState();
+        if (!drawFramed) setDrawFace(face);
+        return warn(drawFramed ? t('Al rectángulo le faltó ancho: arrastrá en diagonal, de esquina a esquina') : t('Al rectángulo le faltó ancho. Puse la cara de frente: arrastrá de nuevo, de esquina a esquina'));
+      }
       // Un toque sin arrastrar, o una figura de menos de 3 mm, no deja nada.
       if (!s || (s.kind === 'circle' ? s.d < 3 : s.kind === 'rect' ? s.w < 3 || s.h < 3 : false)) return;
       const pocketId = nextPocketId(part);
@@ -745,9 +795,23 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
       }, s.kind === 'arc' ? t('Hiciste un corte en arco en {id}', { id: part.id }) : t('Hiciste un vaciado en {id}', { id: part.id }));
-      // Al soltar: vaciado o calado, y cuánto de hondo, ahí mismo.
+      // Al soltar: vaciado o calado, y cuánto de hondo, ahí mismo. Al costado de la figura, para no taparla.
       const rect = gl.domElement.getBoundingClientRect();
-      setBubble({ target: { kind: 'pocket', id: part.id, pocketId }, x: ev.clientX - rect.left, y: ev.clientY - rect.top });
+      const around = outline(box, face, s).map((p) => {
+        const q = p.clone().project(camera);
+        return { x: ((q.x + 1) / 2) * rect.width, y: ((1 - q.y) / 2) * rect.height };
+      });
+      setBubble({
+        target: { kind: 'pocket', id: part.id, pocketId },
+        x: ev.clientX - rect.left,
+        y: ev.clientY - rect.top,
+        avoid: {
+          x0: Math.min(...around.map((p) => p.x)),
+          y0: Math.min(...around.map((p) => p.y)),
+          x1: Math.max(...around.map((p) => p.x)),
+          y1: Math.max(...around.map((p) => p.y)),
+        },
+      });
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

@@ -25,6 +25,8 @@
   --piece: #ebcfa6;
   --piece-line: #6b4a2b;
   --waste: #c3c5b9;
+  /* Las piezas que no importan en el mueble chico de Uniones. */
+  --locator-rest: #e7e3d9;
   --dark-card: #343f31;
   --dark-card-ink: #ffffff;
   --dark-card-muted: #d6dbd2;
@@ -85,6 +87,7 @@
     --piece: #8a6a45;
     --piece-line: #d2a978;
     --waste: #4b5347;
+    --locator-rest: #8a9184;
     --dark-card: #2b3628;
     --dark-card-field: #1f251d;
     --dark-card-line: #4a5546;
@@ -116,6 +119,7 @@
   --piece: #8a6a45;
   --piece-line: #d2a978;
   --waste: #4b5347;
+  --locator-rest: #8a9184;
   --dark-card: #2b3628;
   --dark-card-field: #1f251d;
   --dark-card-line: #4a5546;

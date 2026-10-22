@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatLength, t, tk } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { saveProject } from '../storage/db';
+import { AssemblyView } from './AssemblyView';
 import { CutsView } from './CutsView';
 import {
   IconBack,
@@ -15,6 +16,7 @@ import {
   IconModel,
   IconMove,
   IconPlan,
+  IconAssembly,
   IconPlus,
   IconPush,
   IconRedo,
@@ -29,6 +31,7 @@ import { useEditor, useSelectedPart, type DragHint, type Tool, type View } from 
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
 import { MeasureBubble } from './MeasureBubble';
+import { NextSteps, useVisitSection } from './NextSteps';
 import { Viewport } from './Viewport';
 import styles from './Editor.module.css';
 
@@ -141,6 +144,7 @@ function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
     ['uniones', t('Uniones'), IconJoints],
     ['cortes', t('Cortes'), IconCuts],
     ['plano', t('Plano'), IconPlan],
+    ['armado', t('Armado'), IconAssembly],
   ];
   return (
     <nav aria-label={t('Secciones del proyecto')} className={variant === 'tabs' ? styles.tabs : styles.bottomNav}>
@@ -186,7 +190,7 @@ function AddPartButton() {
   );
 }
 
-const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Lista de compras'), plano: tk('Plano') };
+const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Lista de compras'), plano: tk('Plano'), armado: tk('Cómo armarlo') };
 
 export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
   const project = useEditor((s) => s.project);
@@ -204,6 +208,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const saveState = useAutosave();
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
   useShortcuts(section === 'modelo');
+  useVisitSection(project?.id, section);
   if (!project) return null;
   const modelo = section === 'modelo';
   const back = modelo ? onExit : () => (location.hash = sectionHref(project.id, 'modelo'));
@@ -280,8 +285,10 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
       {section === 'uniones' && <JointsView project={project} meshes={meshes} />}
       {section === 'cortes' && <CutsView project={project} />}
       {section === 'plano' && <PlanView project={project} meshes={meshes} />}
+      {section === 'armado' && <AssemblyView project={project} />}
       {modelo && (
         <>
+        <NextSteps key={project.id} projectId={project.id} busy={tool !== 'select'} />
         <main className={styles.main}>
           <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool} data-framed={framed || undefined}>
             <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: project.name, part: selected.name }) : t('Modelo 3D de {name}', { name: project.name })} />
