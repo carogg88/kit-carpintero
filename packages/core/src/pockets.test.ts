@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
 import { drawPart } from './drawing';
-import { arcInfo, arcTemplate, arcTouchesEdge, describePocket, newPocket, pocketRegion, pocketSolid, snapOnFace } from './pockets';
+import { arcInfo, arcTemplate, arcTouchesEdge, describePocket, newPocket, pocketRegion, pocketSolid, pocketTakesWholePart, snapOnFace } from './pockets';
 import { loadProject, SCHEMA_VERSION, type Part } from './project';
 import { createTable } from './templates/table';
 
@@ -136,5 +136,22 @@ describe('arcos', () => {
     expect(t.points.at(-1)![0]).toBeCloseTo(t.chord);
     expect(t.points.at(-1)![1]).toBeCloseTo(0);
     expect(Math.max(...t.points.map((q) => q[1]))).toBeCloseTo(t.sagitta);
+  });
+});
+
+describe('calados que se llevan toda la pieza', () => {
+  const slat: Part = { ...top, id: 'L1', base: { kind: 'box', size: [25, 25, 340] }, position: [0, 0, 0], pockets: [] };
+  it('un círculo más grande que la punta de un listón redondo lo atraviesa entero', () => {
+    const round: Part = { ...slat, ops: [{ kind: 'round', edges: 'all', radius: 12 }] };
+    const p = newPocket(round, 2, 1, { kind: 'circle', u: 12.5, v: 12.5, d: 27 });
+    expect(pocketTakesWholePart(round, p)).toBe(true);
+    // Con las esquinas vivas, al mismo círculo le quedan afuera las cuatro puntas.
+    expect(pocketTakesWholePart(slat, p)).toBe(false);
+    expect(pocketTakesWholePart(slat, { ...p, shape: { kind: 'circle', u: 12.5, v: 12.5, d: 36 } })).toBe(true);
+    expect(pocketTakesWholePart(slat, { ...p, through: false })).toBe(false);
+  });
+  it('una muesca en el borde no se lleva la pieza', () => {
+    const apron: Part = { ...slat, base: { kind: 'box', size: [360, 80, 20] } };
+    expect(pocketTakesWholePart(apron, newPocket(apron, 2, 1, { kind: 'circle', u: 104.5, v: 80, d: 25 }))).toBe(false);
   });
 });

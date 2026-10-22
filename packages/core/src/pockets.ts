@@ -38,6 +38,30 @@ export function faceSize(part: Part, axis: Axis): { axes: [Axis, Axis]; size: [n
 /** Espesor de la pieza bajo la cara. */
 export const depthUnder = (part: Part, axis: Axis) => boxSize(partBox(part))[axis];
 
+/** Un calado que tapa toda la cara atraviesa la pieza entera: no queda nada de ella. */
+export function pocketTakesWholePart(part: Part, pocket: Pocket): boolean {
+  if (!pocket.through) return false;
+  const [w, h] = faceSize(part, pocket.axis).size;
+  const s = pocket.shape;
+  if (s.kind === 'rect') return s.u <= 0 && s.v <= 0 && s.u + s.w >= w && s.v + s.h >= h;
+  if (s.kind === 'circle') {
+    // Con cantos redondeados o con chaflán, las esquinas de la cara quedan adentro: un listón redondo cabe en su círculo.
+    const op = part.ops[0];
+    const r = op?.kind === 'round' ? Math.min(op.radius, w / 2, h / 2) : 0;
+    const c = op?.kind === 'chamfer' ? Math.min(op.size, w / 2, h / 2) : 0;
+    const far = ([x, y]: [number, number]) => {
+      const sx = x === 0 ? 1 : -1;
+      const sy = y === 0 ? 1 : -1;
+      if (r) return Math.hypot(x + sx * r - s.u, y + sy * r - s.v) + r;
+      if (c) return Math.max(Math.hypot(x + sx * c - s.u, y - s.v), Math.hypot(x - s.u, y + sy * c - s.v));
+      return Math.hypot(x - s.u, y - s.v);
+    };
+    const corners: [number, number][] = [[0, 0], [w, 0], [0, h], [w, h]];
+    return corners.every((p) => far(p) <= s.d / 2 + 0.01);
+  }
+  return false;
+}
+
 /** Primer id libre para un vaciado de la pieza: V1, V2… */
 export function nextPocketId(part: Part): string {
   const used = new Set(part.pockets.map((p) => p.id));

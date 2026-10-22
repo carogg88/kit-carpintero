@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duplicatePart, newPart, nextPartId, partAxesBySize, snapCoord, snapMove, syncJoints } from './edit';
+import { duplicatePart, namePrefix, newPart, nextPartId, partAxesBySize, renamePart, snapCoord, snapMove, syncJoints } from './edit';
 import { partBox } from './geometry';
 import { createTable } from './templates/table';
 
@@ -69,5 +69,31 @@ describe('syncJoints', () => {
   it('respeta el tipo que eligió la persona', () => {
     const joints = table.joints.map((j) => (j.id === 'P4-F1' ? { ...j, type: 'clavija' as const, params: {} } : j));
     expect(syncJoints(table.parts, joints).find((j) => j.id === 'P4-F1')?.type).toBe('clavija');
+  });
+});
+
+describe('renombrar una pieza', () => {
+  it('reconoce el tipo por la primera palabra, con o sin acento', () => {
+    expect(namePrefix('Travesaño de abajo')).toBe('R');
+    expect(namePrefix('Listón')).toBe('L');
+    expect(namePrefix('Slat 2')).toBe('L');
+    expect(namePrefix('Patas')).toBeNull();
+    expect(namePrefix('Cosa')).toBeNull();
+  });
+
+  it('el código sigue al nombre y las uniones siguen a la pieza', () => {
+    const p = structuredClone(table);
+    const before = p.joints.filter((j) => j.partA === 'F1' || j.partB === 'F1').length;
+    expect(renamePart(p, 'F1', 'Travesaño largo')).toBe('R1');
+    expect(p.parts.find((x) => x.id === 'R1')?.name).toBe('Travesaño largo');
+    expect(p.joints.some((j) => j.partA === 'F1' || j.partB === 'F1')).toBe(false);
+    expect(p.joints.filter((j) => j.partA === 'R1' || j.partB === 'R1')).toHaveLength(before);
+    expect(p.joints.every((j) => j.id === `${j.partA}-${j.partB}` || !j.id.includes('F1'))).toBe(true);
+  });
+
+  it('si el tipo no cambia, el código se queda', () => {
+    const p = structuredClone(table);
+    expect(renamePart(p, 'F1', 'Faldón de adelante')).toBe('F1');
+    expect(renamePart(p, 'F2', 'Cosa rara')).toBe('F2');
   });
 });

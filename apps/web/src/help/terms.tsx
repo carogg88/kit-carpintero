@@ -114,6 +114,40 @@ export const JOINT_DRAWING: Partial<Record<JointType, ReactNode>> = {
       <path className={M} d="M102 14 V66 H84 V32 Z" />
     </Svg>
   ),
+  'media-madera': (
+    <Svg>
+      <path className={P} d="M8 30 H50 V38 H70 V30 H112 V50 H8 Z" />
+      <rect className={M} x="50" y="10" width="20" height="28" />
+      <rect className={H} x="50" y="30" width="20" height="8" />
+    </Svg>
+  ),
+  brida: (
+    <Svg>
+      <path className={P} d="M8 22 H64 V30 H50 V42 H64 V50 H8 Z" />
+      <rect className={M} x="66" y="6" width="22" height="60" />
+      <rect className={H} x="50" y="30" width="16" height="12" />
+    </Svg>
+  ),
+  galleta: (
+    <Svg>
+      <rect className={P} x="8" y="20" width="50" height="32" />
+      <rect className={P} x="62" y="20" width="50" height="32" />
+      <ellipse className={M} cx="60" cy="36" rx="16" ry="5" />
+    </Svg>
+  ),
+  machiembrado: (
+    <Svg>
+      <path className={P} d="M8 20 H56 V32 H64 V40 H56 V52 H8 Z" />
+      <path className={M} d="M58 20 H112 V52 H58 V40 H66 V32 H58 Z" />
+    </Svg>
+  ),
+  bolsillo: (
+    <Svg>
+      <rect className={P} x="8" y="36" width="104" height="18" />
+      <rect className={M} x="70" y="8" width="18" height="28" />
+      <path className={H} d="M40 50 L76 24" />
+    </Svg>
+  ),
 };
 
 export interface Term {

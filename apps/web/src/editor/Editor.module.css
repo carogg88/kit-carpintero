@@ -226,8 +226,9 @@
 }
 .bubbleCenter[aria-pressed='true'] { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
 .bubbleCenter:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.bubbleSmall { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; color: var(--muted); }
-.bubbleSmall span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bubbleSmall { display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; font-size: 12px; color: var(--muted); }
+/* Los títulos largos ("Centro desde la izquierda") bajan de línea en lugar de cortarse. */
+.bubbleSmall span { line-height: 1.25; overflow-wrap: anywhere; }
 .bubbleSmall input, .bubbleRow input { box-sizing: border-box; }
 .bubbleSmall input {
   width: 100%; height: 40px; padding: 0 10px; border: 1.5px solid var(--line-strong); border-radius: 10px;

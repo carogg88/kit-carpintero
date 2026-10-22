@@ -104,6 +104,49 @@ export function duplicatePart(parts: Part[], part: Part): Part {
   };
 }
 
+/**
+ * Letra del código según la primera palabra del nombre, en castellano o en inglés: lo que se renombra como
+ * "Listón del asiento" pasa a ser L. Las palabras que no están acá dejan el código como estaba.
+ */
+const NAME_PREFIXES: [RegExp, string][] = [
+  [/^(pata|leg)(?=\s|$)/, 'P'],
+  [/^(fald[oó]n|apron)(?=\s|$)/, 'F'],
+  [/^(travesa[ñn]o|rail|stretcher|rung)(?=\s|$)/, 'R'],
+  [/^(list[oó]n|slat|batten)(?=\s|$)/, 'L'],
+  [/^(asiento|seat)(?=\s|$)/, 'S'],
+  [/^(tablero|panel)(?=\s|$)/, 'B'],
+  [/^(tabla|board|plank)(?=\s|$)/, 'N'],
+  [/^(estante|shelf)(?=\s|$)/, 'E'],
+  [/^(tapa|top|lid)(?=\s|$)/, 'T'],
+  [/^(z[oó]calo|plinth|kickboard)(?=\s|$)/, 'Z'],
+];
+
+export function namePrefix(name: string): string | null {
+  const n = name.trim().toLowerCase();
+  return NAME_PREFIXES.find(([re]) => re.test(n))?.[1] ?? null;
+}
+
+/**
+ * Cambia el nombre de una pieza. Si el nombre nuevo corresponde a otra letra de código (una copia de faldón que pasa
+ * a ser "Listón del asiento"), la pieza recibe un código nuevo y sus uniones lo siguen. Devuelve el código final.
+ */
+export function renamePart(project: { parts: Part[]; joints: Joint[] }, id: string, name: string): string {
+  const part = project.parts.find((p) => p.id === id);
+  if (!part) return id;
+  part.name = name;
+  const prefix = namePrefix(name);
+  if (!prefix || id.replace(/\d+$/, '') === prefix) return id;
+  const next = nextPartId(project.parts, prefix);
+  part.id = next;
+  for (const j of project.joints) {
+    const old = `${j.partA}-${j.partB}`;
+    if (j.partA === id) j.partA = next;
+    if (j.partB === id) j.partB = next;
+    if (j.id === old) j.id = `${j.partA}-${j.partB}`;
+  }
+  return next;
+}
+
 function touches(a: Box, b: Box): boolean {
   return !!endContact(a, b) || !!overlapBox(a, b);
 }

@@ -45,6 +45,24 @@ describe('componentes', () => {
     expect(next.parts.find((x) => x.id === 'P2')!.position).toEqual(prev.parts.find((x) => x.id === 'P2')!.position);
   });
 
+  it('si se borran las otras copias, la que queda vuelve a ser una pieza suelta', () => {
+    const prev = buildTemplate(templateById('mesa')!, {}, 'guatambu');
+    const next = structuredClone(prev);
+    const id = next.parts.find((x) => x.id === 'P1')!.component;
+    next.parts = next.parts.filter((x) => x.component !== id || x.id === 'P1');
+    syncComponents(prev, next);
+    expect(next.parts.find((x) => x.id === 'P1')!.component).toBeUndefined();
+    expect(next.components.some((c) => c.id === id)).toBe(false);
+  });
+
+  it('un componente nuevo de una sola pieza sigue siendo componente', () => {
+    const p = createTable();
+    makeComponent(p, 'T1');
+    const prev = structuredClone(p);
+    syncComponents(prev, p);
+    expect(p.parts.find((x) => x.id === 'T1')!.component).toBeDefined();
+  });
+
   it('una copia de un componente queda vinculada; hacerla única la separa', () => {
     const p = createTable();
     autoComponents(p);

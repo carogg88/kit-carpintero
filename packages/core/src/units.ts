@@ -7,10 +7,13 @@ export const MM_PER_INCH = 25.4;
 /** Paso de redondeo en pulgadas: 1/16″. */
 export const INCH_STEP_MM = MM_PER_INCH / 16;
 
-/** Número sin unidad: "72,5" en cm o "2 7/8" en pulgadas (fracciones de 1/16). */
+/**
+ * Número sin unidad: "72,5" en cm o "2 7/8" en pulgadas (fracciones de 1/16). En cm se muestra al medio milímetro:
+ * lo que se escribió como 9,25 se ve 9,25 y no 9,3.
+ */
 export function formatNumber(mm: number, units: Units): string {
   if (units === 'cm') {
-    return (Math.round(mm) / 10).toLocaleString(locale(), { maximumFractionDigits: 1 });
+    return (Math.round(mm * 2) / 20).toLocaleString(locale(), { maximumFractionDigits: 2 });
   }
   const inch = mm / MM_PER_INCH;
   let whole = Math.floor(inch + 1e-9);

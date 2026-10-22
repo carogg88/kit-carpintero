@@ -174,7 +174,10 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   return { part, cut, extraLength: Math.round(cut[0] - (finished[0] ?? 0)), tongues, work };
 }
 
-/** Nombre común de un grupo: las palabras con que empiezan todos ("Pata", "Faldón"), o el primero. */
+/**
+ * Nombre común de un grupo: las palabras con que empiezan todos ("Pata", "Faldón"). Si no comparten ninguna,
+ * las primeras palabras de cada uno ("Faldón y travesaño"): nombrar solo a uno confunde.
+ */
 function commonName(names: string[]): string {
   const words = names.map((n) => n.split(' '));
   const first = words[0] ?? [];
@@ -183,7 +186,10 @@ function commonName(names: string[]): string {
     if (words.every((w) => w[i] === first[i])) common.push(first[i]!);
     else break;
   }
-  return common.length ? common.join(' ') : (names[0] ?? '');
+  if (common.length) return common.join(' ');
+  const kinds = [...new Set(words.map((w) => (w[0] ?? '').toLocaleLowerCase()))];
+  const joined = kinds.length > 1 ? t('{a} y {b}', { a: kinds.slice(0, -1).join(', '), b: kinds[kinds.length - 1]! }) : (kinds[0] ?? '');
+  return joined.charAt(0).toLocaleUpperCase() + joined.slice(1);
 }
 
 /** Lista de cortes: piezas iguales (mismas medidas, madera y trabajo) en una fila. */
