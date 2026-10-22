@@ -200,6 +200,9 @@ interface DetailProps {
 function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onBack }: DetailProps) {
   const commit = useEditor((s) => s.commit);
   const typeName = useId();
+  const typeListId = useId();
+  // La lista de tipos se abre a pedido: lo que más se toca son las medidas.
+  const [choosing, setChoosing] = useState(false);
   const a = project.parts.find((p) => p.id === joint.partA);
   const b = project.parts.find((p) => p.id === joint.partB);
   if (!a || !b) return null;
@@ -359,19 +362,6 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
       </div>
 
       <div className={styles.detailSide}>
-        <fieldset className={styles.fieldset}>
-          <legend className={styles.eyebrow}>{t('Tipo de encastre')}</legend>
-          {options.map((type) => (
-            <label key={type} className={styles.radio}>
-              <input type="radio" name={typeName} checked={joint.type === type} onChange={() => setType(type)} />
-              <span className={styles.radioText}>
-                {t(JOINT_NAMES[type])}
-                <JointMeta type={type} recommended={type === recommended} short />
-              </span>
-            </label>
-          ))}
-        </fieldset>
-
         {fields.length > 0 && (
           <fieldset className={styles.params} data-count={fields.length}>
             <legend className={styles.eyebrow}>
@@ -395,6 +385,38 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
               <span>{note.text}</span>
             </p>
           ))}
+
+        <div className={styles.typeBlock}>
+          <div className={styles.typeRow}>
+            <span className={styles.typeCurrent}>
+              <span className={styles.eyebrow}>{t('Tipo de encastre')}</span>
+              <strong>{t(JOINT_NAMES[joint.type])}</strong>
+            </span>
+            <button type="button" className={styles.changeBtn} aria-expanded={choosing} aria-controls={typeListId} onClick={() => setChoosing(!choosing)}>
+              {choosing ? t('Listo') : t('Cambiar')}
+            </button>
+          </div>
+          <fieldset id={typeListId} className={styles.typeGrid} hidden={!choosing}>
+            <legend className={styles.srOnly}>{t('Tipo de encastre')}</legend>
+            {options.map((type) => (
+              <label key={type} className={styles.radio}>
+                <input
+                  type="radio"
+                  name={typeName}
+                  checked={joint.type === type}
+                  onChange={() => {
+                    setType(type);
+                    setChoosing(false);
+                  }}
+                />
+                <span className={styles.radioText}>
+                  {t(JOINT_NAMES[type])}
+                  <JointMeta type={type} recommended={type === recommended} short />
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        </div>
 
         <div className={styles.changes}>
           <span className={styles.eyebrow}>{t('Qué cambia en los cortes')}</span>

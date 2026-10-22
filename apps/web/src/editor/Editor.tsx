@@ -355,13 +355,14 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
           <a
             href="#/"
             className={styles.brand}
+            aria-label="Kit Carpintero"
             onClick={(e) => {
               e.preventDefault();
               onExit();
             }}
           >
             <IconLogo />
-            <span>
+            <span className={styles.brandText}>
               Kit <span className={styles.brandWood}>Carpintero</span>
             </span>
           </a>
@@ -385,6 +386,11 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             </>
           )}
         </div>
+        {modelo && jointCount > 0 && (
+          <span className={styles.desktopOnly}>
+            <NextSteps key={project.id} projectId={project.id} variant="chip" />
+          </span>
+        )}
         <div className={styles.desktopOnly}>
           <SectionNav projectId={project.id} section={section} jointCount={jointCount} variant="tabs" />
         </div>
@@ -408,7 +414,11 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
       {modelo && (
         <>
         {/* Uniones, cortes y plano tienen sentido cuando ya hay piezas que se tocan. */}
-        {jointCount > 0 && <NextSteps key={project.id} projectId={project.id} busy={tool !== 'select'} />}
+        {jointCount > 0 && (
+          <span className={styles.mobileOnly}>
+            <NextSteps key={project.id} projectId={project.id} busy={tool !== 'select'} />
+          </span>
+        )}
         <main className={styles.main}>
           <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool} data-framed={framed || undefined}>
             <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: projectName(project.name), part: selected.name }) : t('Modelo 3D de {name}', { name: projectName(project.name) })} />

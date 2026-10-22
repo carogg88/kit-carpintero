@@ -48,7 +48,7 @@ export function useVisitSection(projectId: string | undefined, section: Section)
  * tachados. En el celular se ve solo el que sigue, y se esconde mientras se usa una herramienta: ahí hace falta
  * todo el lugar para la pieza. Se cierra con la X, o sola cuando se pasó por todos.
  */
-export function NextSteps({ projectId, busy = false }: { projectId: string; busy?: boolean }) {
+export function NextSteps({ projectId, busy = false, variant = 'bar' }: { projectId: string; busy?: boolean; variant?: 'bar' | 'chip' }) {
   const [seen, setSeen] = useState(() => read(projectId));
   const next = STEPS.find(([s]) => !seen.visited.includes(s));
   if (seen.closed || !next) return null;
@@ -58,6 +58,25 @@ export function NextSteps({ projectId, busy = false }: { projectId: string; busy
     write(projectId, closed);
   };
   const index = STEPS.indexOf(next);
+  // En la compu va en el encabezado, solo el paso que sigue: así no le quita alto al modelo.
+  if (variant === 'chip')
+    return (
+      <nav className={styles.nextChip} aria-label={t('Qué sigue')}>
+        <a href={sectionHref(projectId, next[0])}>
+          <span className={styles.nextNum} aria-hidden="true">
+            {index + 1}
+          </span>
+          <span className={styles.nextChipText}>
+            <span className={styles.nextChipStep}>{t('Paso {n} de {total}', { n: index + 1, total: STEPS.length })}</span>
+            {t(next[1])}
+          </span>
+          <IconChevron />
+        </a>
+        <button type="button" className={styles.nextClose} aria-label={t('Cerrar qué sigue')} onClick={close}>
+          <IconClose />
+        </button>
+      </nav>
+    );
   return (
     <nav className={styles.nextSteps} aria-label={t('Qué sigue')} data-busy={busy || undefined}>
       <span className={styles.nextTitle}>{t('¿Qué sigue?')}</span>
