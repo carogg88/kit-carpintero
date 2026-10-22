@@ -1,4 +1,4 @@
-# Kit Carpintero
+# Calibre Studio (Kit Carpintero)
 
 Web app gratuita para diseñar muebles de carpintería fina: piezas editables en 3D, encastres, lista de cortes, tablas de madereras de Buenos Aires y planos técnicos. Corre entera en el navegador, sin cuenta.
 
