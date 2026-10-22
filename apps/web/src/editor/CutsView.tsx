@@ -2,10 +2,9 @@ import { useId, useMemo, useState } from 'react';
 import {
   cutList,
   cutPlan,
-  dowelsNeeded,
   END_TRIM_MM,
   formatNumber,
-  getLang,
+  hardwareList,
   isSheet,
   KERF_MM,
   locale,
@@ -23,6 +22,7 @@ import {
   type StockBoard,
 } from '@kitc/core';
 import { HelpTip } from '../help/Help';
+import { BudgetPanel, budgetGroups, budgetTotal, money, usePrices } from './Budget';
 import { IconDownload } from './icons';
 import {
   alternativesText,
@@ -31,6 +31,7 @@ import {
   decimal,
   formatIds,
   lowerName,
+  qtyLabel,
   sheetKey,
   sheetLabel,
   sheetCountLabel,
@@ -326,13 +327,13 @@ function wasteNote(waste: number, sheetsOnly: boolean): string {
 }
 
 export function CutsView({ project }: { project: Project }) {
-  const { rows, plan, shop, sheets, dowels } = useMemo(() => {
+  const { rows, plan, shop, sheets, hardware } = useMemo(() => {
     const plan = cutPlan(project);
-    return { rows: cutList(project), plan, shop: shoppingList(plan), sheets: sheetShopping(plan), dowels: dowelsNeeded(project) };
+    return { rows: cutList(project), plan, shop: shoppingList(plan), sheets: sheetShopping(plan), hardware: hardwareList(project, plan) };
   }, [project]);
-  const [price, setPrice] = useState(() => readStored<string>('kitc.precioPie', ''));
+  const [prices, setPrice] = usePrices();
   // La lista y el despiece de cada tabla van en pestañas: cada uno entra en una pantalla.
-  const [tab, setTab] = useState<'lista' | 'tablas'>('lista');
+  const [tab, setTab] = useState<'lista' | 'tablas' | 'presupuesto'>('lista');
   const units = project.units;
   const unit = units === 'cm' ? ' cm' : '″';
   const n = (mm: number) => formatNumber(mm, units);
@@ -350,39 +351,25 @@ export function CutsView({ project }: { project: Project }) {
   const woods = Object.keys(plan.feet);
   const feet = Object.values(plan.feet).reduce((s, v) => s + v, 0);
   const feetLabel = woods.length === 1 ? t('pies de {wood}', { wood: woodName(woods[0]!).toLocaleLowerCase(locale()) }) : t('pies de madera');
-  // En español el punto separa miles y la coma los decimales; en inglés, al revés.
-  const priceValue = Number(getLang() === 'en' ? price.replace(/,/g, '') : price.replace(/\./g, '').replace(',', '.'));
-  const total = priceValue > 0 ? Math.round(priceValue * feet) : null;
+  const groups = budgetGroups(plan, sheets, hardware);
+  const budget = budgetTotal(groups, prices);
   const boardCount = shop.reduce((s, r) => s + r.count, 0);
-  const glued = project.joints.some((j) => j.type !== 'tope') || rows.some((r) => r.boards > 1);
   const sheetCount = sheets.reduce((s, r) => s + r.count, 0);
   const tooLong = plan.tooLong;
-  const exportCsv = () => download(`${fileSlug(project.name)}-${t('cortes')}.csv`, cutsCsv(project, rows, shop, plan));
+  const exportCsv = () => download(`${fileSlug(project.name)}-${t('cortes')}.csv`, cutsCsv(project, rows, shop, plan, hardware));
   const plansTab = shop.length === 0 ? t('Cómo cortar cada placa') : sheets.length ? t('Cómo cortar tablas y placas') : t('Cómo cortar cada tabla');
 
-  const hardware = (
+  const hardwareBlock = (
     <>
       <h2 className={styles.h3}>{t('Herrajes y otros')}</h2>
       <ul className={styles.plainList}>
-        {dowels.map((d) => (
-          <li key={`${d.diameter}-${d.length}`}>
-            <span>{t('Tarugos de {d} mm × {len}{unit}', { d: d.diameter, len: formatNumber(d.length, units), unit })}</span>
-            <strong>× {d.count}</strong>
+        {hardware.map((h) => (
+          <li key={h.id}>
+            <span>{h.name}</span>
+            <strong>{qtyLabel(h)}</strong>
           </li>
         ))}
-        {plan.banding.map((b) => (
-          <li key={`${b.material}-${b.width}`}>
-            <span>{t('Tapacanto de {sheet} de {w} mm', { sheet: woodName(b.material).toLocaleLowerCase(locale()), w: b.width })}</span>
-            <strong>{b.meters} m</strong>
-          </li>
-        ))}
-        {glued && (
-          <li>
-            <span>{t('Cola vinílica para madera')}</span>
-            <strong>{pieces > 20 ? '500 g' : '250 g'}</strong>
-          </li>
-        )}
-        {!glued && dowels.length === 0 && plan.banding.length === 0 && <li className={styles.muted}>{t('Nada más por ahora.')}</li>}
+        {hardware.length === 0 && <li className={styles.muted}>{t('Nada más por ahora.')}</li>}
       </ul>
     </>
   );
@@ -403,11 +390,14 @@ export function CutsView({ project }: { project: Project }) {
           </div>
           <div className={styles.cutTabs} role="tablist" aria-label={t('Qué ver')}>
             <button type="button" role="tab" id="tab-lista" aria-selected={tab === 'lista'} aria-controls="panel-lista" onClick={() => setTab('lista')}>
-              {t('Lista de piezas')}
+              {t('Piezas')}
             </button>
             <button type="button" role="tab" id="tab-tablas" aria-selected={tab === 'tablas'} aria-controls="panel-tablas" onClick={() => setTab('tablas')}>
-              {plansTab}
+              {t('Cómo cortar')}
               <span className={styles.tabCount}>{plan.boards.length + plan.sheets.length}</span>
+            </button>
+            <button type="button" role="tab" id="tab-presupuesto" aria-selected={tab === 'presupuesto'} aria-controls="panel-presupuesto" onClick={() => setTab('presupuesto')}>
+              {t('Presupuesto')}
             </button>
           </div>
           <div id="panel-lista" role="tabpanel" aria-labelledby="tab-lista" className={styles.cutPanel} hidden={tab !== 'lista'}>
@@ -425,6 +415,11 @@ export function CutsView({ project }: { project: Project }) {
                 {t('{ids}: no sale de una placa entera, o es más gruesa que las placas que se consiguen. Pasala a madera maciza o achicala.', { ids: plan.tooBig.join(', ') })}
               </p>
             )}
+          </div>
+
+          <div id="panel-presupuesto" role="tabpanel" aria-labelledby="tab-presupuesto" className={styles.cutPanel} hidden={tab !== 'presupuesto'}>
+            <h2 className={styles.srOnly}>{t('Presupuesto')}</h2>
+            <BudgetPanel groups={groups} prices={prices} setPrice={setPrice} feet={feet} projectWoods={woods} />
           </div>
 
           <div id="panel-tablas" role="tabpanel" aria-labelledby="tab-tablas" className={styles.cutPanel} hidden={tab !== 'tablas'}>
@@ -480,25 +475,12 @@ export function CutsView({ project }: { project: Project }) {
                 <span>{t('de desperdicio')}</span>
               </div>
             </div>
-            {shop.length > 0 && (
-            <label className={styles.darkField}>
-              {t('Precio por pie (opcional)')}
-              <input
-                inputMode="decimal"
-                placeholder={t('$ precio de tu maderera')}
-                value={price}
-                onChange={(e) => {
-                  setPrice(e.target.value);
-                  store('kitc.precioPie', e.target.value);
-                }}
-              />
-            </label>
-            )}
-            {total !== null && (
-              <p className={styles.total}>
-                {t('Total aproximado')} <strong>$ {total.toLocaleString(locale())}</strong>
-              </p>
-            )}
+            <p className={styles.total}>
+              {t('Total aproximado')} <strong>{budget.total > 0 ? money(budget.total) : '—'}</strong>
+            </p>
+            <button type="button" className={styles.darkLink} onClick={() => setTab('presupuesto')}>
+              {budget.total > 0 && budget.missing === 0 ? t('Ver presupuesto') : t('Cargar precios')}
+            </button>
           </div>
 
           <div className={`${styles.tiles} ${styles.mobileOnly}`}>
@@ -561,12 +543,12 @@ export function CutsView({ project }: { project: Project }) {
                 </ul>
               </>
             )}
-            {hardware}
+            {hardwareBlock}
           </div>
 
           <div className={`${styles.checklist} ${styles.mobileOnly}`}>
             <ShopChecklist shop={shop} sheets={sheets} plan={plan} rows={rows} project={project} />
-            {hardware}
+            {hardwareBlock}
             <p className={styles.muted}>{t('Medidas comerciales de madereras de Buenos Aires. Cada tabla ya suma {kerf} mm por corte de sierra.', { kerf: KERF_MM })}</p>
             {sheets.length > 0 && <p className={styles.muted}>{t('Las casas de placas cortan a medida y pegan el tapacanto: llevá la planilla exportada, que trae el despiece.')}</p>}
           </div>

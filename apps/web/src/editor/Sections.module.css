@@ -420,3 +420,41 @@
 .sheetPiece { fill: var(--piece); stroke: var(--piece-line); stroke-width: 5; }
 .sheetLabel { fill: var(--ink); font-family: var(--font-num); font-weight: 500; text-anchor: middle; dominant-baseline: central; }
 @media print { .sheet { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+
+/* Presupuesto: una fila por cosa, con su precio y lo que suma. */
+.darkLink {
+  align-self: flex-start; min-height: var(--tap); padding: 0 18px; border: 1px solid var(--dark-card-line); border-radius: var(--radius-pill);
+  background: var(--dark-card-field); color: var(--dark-card-ink); font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+}
+.darkLink:focus-visible { outline: 2px solid var(--dark-card-ink); outline-offset: 2px; }
+.budget { display: flex; flex-direction: column; gap: var(--space-4); }
+.budgetGroup { display: flex; flex-direction: column; gap: var(--space-2); }
+.budgetGroup ul { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.budgetRow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(88px, auto); align-items: center; gap: var(--space-3);
+  padding: 10px var(--space-4);
+}
+.budgetRow + .budgetRow { border-top: 1px solid var(--line); }
+.budgetMine { background: var(--surface-2); }
+.budgetItem { display: flex; flex-direction: column; min-width: 0; font-size: var(--text-s); }
+.budgetItem strong { font-weight: 500; }
+.budgetPrice { display: flex; align-items: center; gap: var(--space-2); }
+.budgetPrice .muted { min-width: 64px; font-size: var(--text-xs); white-space: nowrap; }
+.priceField {
+  display: flex; align-items: center; gap: 4px; height: 40px; width: 120px; padding: 0 10px;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-s); background: var(--surface); color: var(--muted); font: 400 var(--text-s) var(--font-num);
+}
+.priceField:focus-within { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.priceField input { min-width: 0; width: 100%; border: 0; background: none; color: var(--ink); font: 500 var(--text-m) var(--font-num); outline: none; }
+.budgetAmount { text-align: right; font: 500 var(--text-m) var(--font-num); white-space: nowrap; }
+.budgetTotal {
+  display: flex; justify-content: space-between; align-items: baseline; margin: 0; padding: var(--space-4);
+  border-radius: 12px; background: var(--dark-card); color: var(--dark-card-ink);
+}
+.budgetTotal span { font: 500 var(--text-m) var(--font-display); }
+.budgetTotal strong { font: 500 var(--text-xl) var(--font-num); }
+@media (max-width: 640px) {
+  .budgetRow { grid-template-columns: minmax(0, 1fr) auto; }
+  .budgetPrice { grid-column: 1; }
+  .budgetAmount { grid-row: 1 / span 2; grid-column: 2; }
+}

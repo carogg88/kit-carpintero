@@ -16,6 +16,8 @@ import {
   type CutPlan,
   type CutRow,
   type Hardness,
+  type HardwareRow,
+  type HardwareUnit,
   type Project,
   type StockKind,
   type Wood,
@@ -103,7 +105,7 @@ const cell = (v: string | number, sep: string) => {
  * Planilla para abrir en Excel o Google Sheets: en español, separador ; y coma decimal, como en Argentina;
  * en inglés, separador , y punto decimal.
  */
-export function cutsCsv(project: Project, rows: CutRow[], shop: ShopRow[], plan: CutPlan): string {
+export function cutsCsv(project: Project, rows: CutRow[], shop: ShopRow[], plan: CutPlan, hardware: HardwareRow[]): string {
   const sep = getLang() === 'en' ? ',' : ';';
   const u = project.units === 'cm' ? 'cm' : t('pulgadas');
   const n = (mm: number) => formatNumber(mm, project.units);
@@ -126,8 +128,8 @@ export function cutsCsv(project: Project, rows: CutRow[], shop: ShopRow[], plan:
     [t('Madera'), t('Tipo'), t('Espesor'), t('Ancho'), t('Largo (m)'), t('Cantidad')],
     ...shop.map((s) => [woodName(s.wood), kindName(s.kind), formatInches(s.thicknessIn), formatInches(s.widthIn), decimal(s.lengthM, 2), s.count]),
     ...sheetShopping(plan).map((s) => [woodName(s.material), t('placa'), `${decimal(s.thickness)} mm`, `${decimal(s.size[1] / 10)} cm`, decimal(s.size[0] / 1000, 2), s.count]),
-    ...plan.banding.map((b) => [woodName(b.material), t('tapacanto'), '', `${b.width} mm`, b.meters, 1]),
   ];
+  if (hardware.length) lines.push([], [t('Herrajes y consumibles')], [t('Qué'), t('Cantidad')], ...hardware.map((h) => [h.name, qtyLabel(h)]));
   // El despiece para la casa de placas: en mm, con los cantos que llevan tapacanto, como lo piden para cortar.
   const sheetRows = rows.filter((r) => isSheet(r.wood));
   if (sheetRows.length) {
@@ -170,3 +172,17 @@ export function sheetPieces(r: SheetRow, plan: CutPlan): string {
   const pct = Math.round((area / (r.size[0] * r.size[1] * boards.length)) * 100);
   return t('{ids} · se aprovecha el {pct}%', { ids: ids.join(', '), pct });
 }
+
+const UNIT_LABELS: Record<HardwareUnit, [string, string]> = {
+  u: [tk('{n} u.'), tk('{n} u.')],
+  par: [tk('{n} par'), tk('{n} pares')],
+  m: [tk('{n} m'), tk('{n} m')],
+  hoja: [tk('{n} hoja'), tk('{n} hojas')],
+  l: [tk('{n} l'), tk('{n} l')],
+};
+
+/** "4 pares", "34 m", "1,25 l". */
+export const qtyLabel = (r: Pick<HardwareRow, 'qty' | 'unit'>) => {
+  const [one, many] = UNIT_LABELS[r.unit];
+  return t(r.qty === 1 ? one : many, { n: decimal(r.qty, 2) });
+};
