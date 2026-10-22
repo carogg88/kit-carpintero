@@ -18,7 +18,7 @@ import { warmUpEngine } from '../editor/useGeometry';
 import { IconLogo } from '../editor/icons';
 import { navigate } from '../routes';
 import { useInstall } from '../pwa';
-import { switchLang } from '../i18n';
+import { projectName, switchLang } from '../i18n';
 import { JointMeta } from '../help/Help';
 import styles from './Home.module.css';
 
@@ -111,6 +111,16 @@ function summary(p: Project): { size: string; meta: string } {
   return { size, meta };
 }
 
+/** Cuándo se exportó cada proyecto por última vez, en este navegador. */
+const exportKey = (id: string) => `kitc:exportado:${id}`;
+function readExported(id: string): string | null {
+  try {
+    return localStorage.getItem(exportKey(id));
+  } catch {
+    return null;
+  }
+}
+
 function download(p: Project) {
   const blob = new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -118,11 +128,20 @@ function download(p: Project) {
   a.download = `${p.name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || t('proyecto')}.kitc.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  const at = new Date().toISOString();
+  try {
+    localStorage.setItem(exportKey(p.id), at);
+  } catch {
+    // Sin almacenamiento: el recordatorio vuelve a aparecer.
+  }
+  return at;
 }
 
 function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: (id: string) => void; onChanged: () => void }) {
   const [menu, setMenu] = useState(false);
   const { size, meta } = summary(project);
+  const [exportedAt, setExportedAt] = useState(() => readExported(project.id));
+  const backup = project.parts.length > 0 && (!exportedAt || exportedAt < project.updatedAt);
   return (
     <li className={styles.project}>
       <button type="button" className={styles.projectMain} onClick={() => onOpen(project.id)}>
@@ -130,25 +149,33 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
           <IconLogo />
         </span>
         <span className={styles.projectText}>
-          <span className={styles.projectName}>{project.name}</span>
+          <span className={styles.projectName}>{projectName(project.name)}</span>
           <span className={styles.projectSize}>{size}</span>
           <span className={styles.muted}>{meta}</span>
         </span>
       </button>
-      <button type="button" className={styles.more} aria-label={t('Más opciones de {name}', { name: project.name })} aria-expanded={menu} onClick={() => setMenu(!menu)}>
+      <button type="button" className={styles.more} aria-label={t('Más opciones de {name}', { name: projectName(project.name) })} aria-expanded={menu} onClick={() => setMenu(!menu)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
           <circle cx="12" cy="12" r="2" />
           <circle cx="12" cy="19" r="2" />
         </svg>
       </button>
+      {backup && (
+        <div className={styles.backup}>
+          <span>{exportedAt ? t('Cambió desde la última copia en archivo.') : t('Todavía no tiene copia en archivo.')}</span>
+          <button type="button" className={styles.link} onClick={() => setExportedAt(download(project))}>
+            {t('Guardar copia')}
+          </button>
+        </div>
+      )}
       {menu && (
         <div className={styles.menu} role="menu">
           <button
             type="button"
             role="menuitem"
             onClick={() => {
-              download(project);
+              setExportedAt(download(project));
               setMenu(false);
             }}
           >
@@ -160,7 +187,7 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
             className={styles.dangerItem}
             onClick={async () => {
               setMenu(false);
-              if (!confirm(t('¿Eliminar "{name}" de este dispositivo? No se puede deshacer.', { name: project.name }))) return;
+              if (!confirm(t('¿Eliminar "{name}" de este dispositivo? No se puede deshacer.', { name: projectName(project.name) }))) return;
               await deleteProject(project.id);
               onChanged();
             }}
@@ -318,7 +345,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
           ))}
         </ul>
       </section>
-      <p className={styles.foot}>{t('Para no perder un proyecto, exportalo como archivo desde el menú de cada uno.')}</p>
+      <p className={styles.foot}>{t('Los proyectos se guardan solo en este navegador. Si borrás los datos de navegación, se pierden: guardá una copia en archivo de vez en cuando.')}</p>
       {import.meta.env.DEV && (
         <p className={styles.foot}>
           <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>

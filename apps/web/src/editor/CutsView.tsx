@@ -229,6 +229,13 @@ function ShopChecklist({ shop, plan, rows, project }: { shop: ShopRow[]; plan: R
   );
 }
 
+/** Qué quiere decir el desperdicio: un número solo asusta al que nunca compró madera. */
+function wasteNote(waste: number): string {
+  return waste <= 0.35
+    ? t('Es normal: las tablas vienen en largos fijos y siempre sobra algo. Guardá los retazos para probar los encastres.')
+    : t('Es alto: las piezas no aprovechan bien los largos de la maderera. Podés pedir que te corten las tablas a medida, o usar lo que sobra para probar los encastres.');
+}
+
 export function CutsView({ project }: { project: Project }) {
   const { rows, plan, shop, dowels } = useMemo(() => {
     const plan = cutPlan(project);
@@ -376,6 +383,8 @@ export function CutsView({ project }: { project: Project }) {
               <span>{t('desperdicio')}</span>
             </div>
           </div>
+
+          <p className={styles.wasteNote}>{wasteNote(plan.waste)}</p>
 
           <div className={`${styles.card} ${styles.desktopOnly}`}>
             <h2 className={styles.h3}>{t('Tablas')}</h2>

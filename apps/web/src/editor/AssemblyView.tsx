@@ -42,15 +42,20 @@ export function AssemblyView({ project }: { project: Project }) {
   };
   const steps = assemblySteps(project, dims);
   const [done, setDone] = useState(() => new Set(readDone(project.id)));
+  // Un paso abierto a la vez: el que falta hacer, o el que la persona tocó (null: ninguno).
+  const [open, setOpen] = useState<string | null | undefined>(undefined);
   const toggle = (key: string) => {
     const next = new Set(done);
     if (next.has(key)) next.delete(key);
     else next.add(key);
     setDone(next);
     writeDone(project.id, [...next]);
+    // Al terminar un paso se abre el siguiente que falta.
+    if (next.has(key)) setOpen(undefined);
   };
   const count = steps.filter((s) => done.has(s.key)).length;
   const current = steps.find((s) => !done.has(s.key))?.key;
+  const shown = open === undefined ? current : open;
 
   return (
     <main className={styles.assembly}>
@@ -68,21 +73,28 @@ export function AssemblyView({ project }: { project: Project }) {
         {steps.map((s, i) => {
           const isDone = done.has(s.key);
           const link = LINKS[s.kind];
+          const isOpen = s.key === shown;
+          const bodyId = `paso-${i}`;
           return (
             <li key={s.key} className={styles.stepCard} data-done={isDone || undefined} aria-current={s.key === current ? 'step' : undefined}>
-              <div className={styles.stepHead}>
-                <span className={styles.stepBadge} aria-hidden="true">
-                  {isDone ? (
-                    <svg viewBox="0 0 16 16">
-                      <path d="M3.5 8.5l3 3 6-7" />
-                    </svg>
-                  ) : (
-                    i + 1
-                  )}
-                </span>
-                <h2 className={styles.h3}>{s.title}</h2>
-              </div>
-              <div className={styles.stepBody}>
+              <h2 className={styles.h3}>
+                <button type="button" className={styles.stepHead} aria-expanded={isOpen} aria-controls={bodyId} onClick={() => setOpen(isOpen ? null : s.key)}>
+                  <span className={styles.stepBadge} aria-hidden="true">
+                    {isDone ? (
+                      <svg viewBox="0 0 16 16">
+                        <path d="M3.5 8.5l3 3 6-7" />
+                      </svg>
+                    ) : (
+                      i + 1
+                    )}
+                  </span>
+                  <span className={styles.stepTitle}>{s.title}</span>
+                  <svg className={styles.stepChevron} viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M4 6l4 4 4-4" />
+                  </svg>
+                </button>
+              </h2>
+              <div className={styles.stepBody} id={bodyId} hidden={!isOpen}>
                 <p className={styles.stepText}>{s.text}</p>
                 {s.joint && <JointMeta type={s.joint} />}
                 {s.items.length > 0 && (

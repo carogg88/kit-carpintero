@@ -23,7 +23,7 @@ import {
   type Project,
 } from '@kitc/core';
 import { JointMeta } from '../help/Help';
-import { JOINT_ABOUT } from '../help/terms';
+import { JOINT_ABOUT, JOINT_DRAWING } from '../help/terms';
 import { sectionHref } from '../routes';
 import { IconBack, IconInfo, IconWarn } from './icons';
 import { JointDetail3D } from './JointDetail3D';
@@ -45,13 +45,22 @@ const minDim = (p: Part) => {
   return Math.min(...b.max.map((v, i) => v - b.min[i]!));
 };
 
+/** "Pata trasera izquierda con faldón trasero": las dos piezas por su nombre, para no tener que abrir la unión. */
+function pairNames(parts: readonly Part[], j: Joint): string {
+  const a = parts.find((p) => p.id === j.partA)?.name ?? j.partA;
+  const b = parts.find((p) => p.id === j.partB)?.name ?? j.partB;
+  return t('{a} con {b}', { a, b: b.toLocaleLowerCase(locale()) });
+}
+
 function JointList({
   groups,
+  parts,
   current,
   warned,
   onPick,
 }: {
   groups: JointGroup[];
+  parts: readonly Part[];
   current: Joint;
   /** Uniones con un aviso de taller: cortes que chocan, espigas muy angostas. */
   warned: ReadonlySet<string>;
@@ -77,16 +86,23 @@ function JointList({
               {shown.map((j) => (
                 <li key={j.id}>
                   <button type="button" aria-current={j.id === current.id ? 'true' : undefined} onClick={() => onPick(j)}>
-                    <span className={styles.dot} data-plain={j.type === 'tope' || undefined} aria-hidden="true" />
-                    <span className={styles.pair}>
-                      {j.partA} ↔ {j.partB}
+                    <span className={styles.thumb} data-plain={j.type === 'tope' || undefined} aria-hidden="true">
+                      {JOINT_DRAWING[j.type]}
                     </span>
-                    {warned.has(j.id) && (
-                      <span className={styles.rowWarn} role="img" aria-label={t('Tiene un aviso')}>
-                        <IconWarn />
+                    <span className={styles.pair}>
+                      <span className={styles.pairTop}>
+                        <span className={styles.pairCodes}>
+                          {j.partA} ↔ {j.partB}
+                        </span>
+                        {warned.has(j.id) && (
+                          <span className={styles.rowWarn} role="img" aria-label={t('Tiene un aviso')}>
+                            <IconWarn />
+                          </span>
+                        )}
+                        <span className={styles.typeName}>{t(JOINT_NAMES[j.type])}</span>
                       </span>
-                    )}
-                    <span className={styles.typeName}>{t(JOINT_NAMES[j.type])}</span>
+                      <span className={styles.pairNames}>{pairNames(parts, j)}</span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -421,6 +437,7 @@ export function JointsView({ project, meshes }: { project: Project; meshes: Read
     <main className={styles.joints} data-detail={detailOpen || undefined}>
       <JointList
         groups={groups}
+        parts={project.parts}
         current={joint}
         warned={warned}
         onPick={(j) => {

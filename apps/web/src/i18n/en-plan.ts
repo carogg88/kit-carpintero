@@ -115,4 +115,5 @@ export default {
   'Ajustar la hoja al ancho': 'Fit sheet to width',
   Acercar: 'Zoom in',
   'Pellizcá para agrandar': 'Pinch to zoom',
+  'Pellizcá o tocá dos veces para agrandar': 'Pinch or double-tap to zoom',
 } satisfies Record<string, string>;

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatLength, t, tk } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
+import { projectName } from '../i18n';
 import { saveProject } from '../storage/db';
 import { AssemblyView } from './AssemblyView';
 import { CutsView } from './CutsView';
@@ -301,7 +302,7 @@ function EmptyStart() {
   );
 }
 
-const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Lista de compras'), plano: tk('Plano'), armado: tk('Cómo armarlo') };
+const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Cortes y compras'), plano: tk('Plano'), armado: tk('Cómo armarlo') };
 
 export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
   const project = useEditor((s) => s.project);
@@ -368,16 +369,16 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
         <div className={styles.titleBlock}>
           {modelo ? (
             <>
-              <h1>{project.name}</h1>
+              <h1>{projectName(project.name)}</h1>
               <span className={saveState === 'error' ? styles.errorText : styles.muted} role="status">
                 {saveText}
               </span>
             </>
           ) : (
             <>
-              <span className={`${styles.muted} ${styles.overline}`}>{project.name}</span>
+              <span className={`${styles.muted} ${styles.overline}`}>{projectName(project.name)}</span>
               <span className={styles.sectionTitle}>{SECTION_TITLES[section] && t(SECTION_TITLES[section])}</span>
-              <span className={styles.desktopTitle}>{project.name}</span>
+              <span className={styles.desktopTitle}>{projectName(project.name)}</span>
               <span className={styles.srOnly} role="status">
                 {saveState === 'saved' ? '' : saveText}
               </span>
@@ -410,7 +411,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
         {jointCount > 0 && <NextSteps key={project.id} projectId={project.id} busy={tool !== 'select'} />}
         <main className={styles.main}>
           <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool} data-framed={framed || undefined}>
-            <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: project.name, part: selected.name }) : t('Modelo 3D de {name}', { name: project.name })} />
+            <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: projectName(project.name), part: selected.name }) : t('Modelo 3D de {name}', { name: projectName(project.name) })} />
             <div className={styles.toolbar} role="toolbar" aria-label={t('Herramientas')}>
               {TOOLS.map(([id, label, short, key, Icon]) => (
                 <button
