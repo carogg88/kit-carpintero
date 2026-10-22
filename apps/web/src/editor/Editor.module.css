@@ -503,6 +503,10 @@
   /* Con el "qué sigue" en el encabezado, en pantallas medianas la marca queda solo con el logo para que todo entre en una fila. */
   .header { column-gap: var(--space-4); }
   .header:has(.nextChip) .brandText { display: none; }
+  /* Entre la marca y el nombre, una línea y la flecha para volver a mis proyectos, pegada al nombre. */
+  .headerDivider { align-self: stretch; width: 1px; margin: 6px 0; background: var(--line); }
+  .homeBack { margin-right: calc(var(--space-2) - var(--space-4)); border-color: transparent; background: transparent; }
+  .homeBack:hover:not(:disabled) { background: var(--surface-2); }
   .header .tabs { margin: 0 auto; }
   .headerActions { margin-left: 0; gap: var(--space-2); }
   .main { flex-direction: row; gap: var(--space-4); padding: var(--space-4) var(--space-5); }

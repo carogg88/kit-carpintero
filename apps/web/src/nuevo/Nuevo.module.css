@@ -47,7 +47,7 @@
   .footer { position: static !important; margin: 0 !important; padding: var(--space-2) 0 0 !important; border: 0 !important; background: none !important; }
 }
 
-.form { display: flex; flex-direction: column; gap: 14px; padding: 0 var(--gutter); flex: 1; }
+.form { display: flex; flex-direction: column; gap: 10px; padding: 0 var(--gutter); flex: 1; }
 .grid { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
 .grid legend { grid-column: 1 / -1; }
 .grid .wide { grid-column: 1 / -1; }

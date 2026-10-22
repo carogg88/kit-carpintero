@@ -29,18 +29,23 @@ function Shape({ shape }: { shape: NonNullable<GoldenCheck['shape']> }) {
   );
 }
 
-export function GoldenList({ checks, onFix }: { checks: GoldenCheck[]; onFix: (fix: GoldenFix) => void }) {
+/** Cuántas de las proporciones del mueble ya son áureas: "1 de 2". */
+export const goldenCount = (checks: GoldenCheck[]) => t('{n} de {total}', { n: checks.filter((c) => c.status === 'aurea').length, total: checks.length });
+
+/** La lista de proporciones. Sin `heading`, va adentro de una sección que ya dice el título y la cuenta. */
+export function GoldenList({ checks, onFix, heading = true }: { checks: GoldenCheck[]; onFix: (fix: GoldenFix) => void; heading?: boolean }) {
   const titleId = useId();
   if (!checks.length) return null;
-  const ok = checks.filter((c) => c.status === 'aurea').length;
   return (
-    <section className={styles.golden} aria-labelledby={titleId}>
-      <div className={styles.reviewHead}>
-        <span id={titleId} className={styles.legend}>
-          {t('Proporción áurea')}
-        </span>
-        <span className={styles.goldenCount}>{t('{n} de {total}', { n: ok, total: checks.length })}</span>
-      </div>
+    <section className={styles.golden} aria-labelledby={heading ? titleId : undefined} aria-label={heading ? undefined : t('Proporción áurea')}>
+      {heading && (
+        <div className={styles.reviewHead}>
+          <span id={titleId} className={styles.legend}>
+            {t('Proporción áurea')}
+          </span>
+          <span className={styles.goldenCount}>{goldenCount(checks)}</span>
+        </div>
+      )}
       <p className={styles.goldenAbout}>{t('φ ≈ 1,618: la relación entre dos medidas que el ojo encuentra equilibrada. Es una guía, no una regla.')}</p>
       <ul className={styles.goldenList}>
         {checks.map((c) => (

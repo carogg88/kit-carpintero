@@ -383,6 +383,10 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             <BrandMark height={34} />
             <BrandWordmark className={styles.brandText} height={24} />
           </a>
+          <span className={styles.headerDivider} aria-hidden="true" />
+          <button type="button" className={`${styles.iconBtn} ${styles.homeBack}`} aria-label={t('Volver a mis proyectos')} title={t('Volver a mis proyectos')} onClick={onExit}>
+            <IconBack />
+          </button>
         </span>
         <div className={styles.titleBlock}>
           {modelo ? (
