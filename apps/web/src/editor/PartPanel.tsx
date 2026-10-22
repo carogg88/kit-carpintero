@@ -706,7 +706,9 @@ function ProjectOverview({ project }: { project: Project }) {
           {t('{parts} piezas · {joints} uniones', { parts: project.parts.length, joints: project.joints.length })}
         </span>
         <h2 className={styles.panelTitle}>{t('Piezas')}</h2>
-        <p className={styles.muted}>{t('Tocá una pieza en el modelo o en la lista para editarla.')}</p>
+        <p className={styles.muted}>
+          {project.parts.length ? t('Tocá una pieza en el modelo o en la lista para editarla.') : t('Todavía no hay piezas. Agregá la primera acá abajo o en el medio de la vista.')}
+        </p>
       </div>
       <ul className={styles.partList}>
         {project.parts.map((p) => (

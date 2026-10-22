@@ -1,14 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatNumber, getLang, loadProject, locale, partBox, SCHEMA_VERSION, t, tk, woodById, type Project } from '@kitc/core';
+import {
+  formatNumber,
+  getLang,
+  loadProject,
+  locale,
+  partBox,
+  SCHEMA_VERSION,
+  t,
+  templateById,
+  templateDefaults,
+  tk,
+  woodById,
+  type Project,
+} from '@kitc/core';
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
 import { IconLogo } from '../editor/icons';
 import { navigate } from '../routes';
 import { useInstall } from '../pwa';
 import { switchLang } from '../i18n';
+import { JointMeta } from '../help/Help';
 import styles from './Home.module.css';
 
-const icon = { width: 28, height: 28, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true } as const;
+const icon = { width: 40, height: 40, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true } as const;
 const TEMPLATES = [
   {
     id: 'mesa',
@@ -50,17 +64,23 @@ const TEMPLATES = [
       </svg>
     ),
   },
-  {
-    id: 'blanco',
-    name: tk('En blanco'),
-    icon: (
-      <svg {...icon}>
-        <rect x="5" y="5" width="22" height="22" rx="2" strokeDasharray="3 3" />
-        <path d="M16 11v10M11 16h10" />
-      </svg>
-    ),
-  },
 ] as const;
+
+const blankIcon = (
+  <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+    <rect x="5" y="5" width="22" height="22" rx="2" strokeDasharray="3 3" />
+    <path d="M16 11v10M11 16h10" />
+  </svg>
+);
+
+/** Medidas de siempre de la plantilla, por fuera: "180 × 90 × 75 cm". */
+function templateSize(id: string): string {
+  const def = templateById(id);
+  if (!def) return '';
+  const v = templateDefaults(def);
+  const dims = [v.width, v.depth ?? v.width, v.height].filter((x): x is number => x !== undefined);
+  return `${dims.map((mm) => formatNumber(mm, 'cm')).join(' × ')} cm`;
+}
 
 function emptyProject(): Project {
   const now = new Date().toISOString();
@@ -157,7 +177,6 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [pulse, setPulse] = useState(false);
   const refresh = () => void listProjects().then(setProjects, () => setProjects([]));
   const install = useInstall();
 
@@ -224,33 +243,29 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
         <h1 id="nuevo" className={styles.title}>
           {t('¿Qué mueble vas a hacer?')}
         </h1>
+        <p className={styles.sub}>{t('Elegí una plantilla: se arma con sus encastres y después ajustás cada medida.')}</p>
+        <div className={styles.templates} id="plantillas">
+          {TEMPLATES.map((tpl) => {
+            const joint = templateById(tpl.id)?.joints?.default;
+            return (
+              <button key={tpl.id} type="button" className={styles.template} onClick={() => void create(tpl.id)}>
+                <span className={styles.templateArt}>{tpl.icon}</span>
+                <span className={styles.templateName}>{t(tpl.name)}</span>
+                <span className={styles.templateSize}>{templateSize(tpl.id)}</span>
+                {joint && <JointMeta type={joint} short />}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className={styles.section} aria-labelledby="otras">
+        <h2 id="otras" className={styles.h2}>
+          {t('Otras formas de empezar')}
+        </h2>
         <div className={styles.starts}>
-          <a
-            href="#plantillas"
-            className={`${styles.start} ${styles.startPrimary}`}
-            onClick={(e) => {
-              // Las plantillas pueden estar ya a la vista: se marcan y la primera queda lista para elegir.
-              e.preventDefault();
-              const first = document.querySelector<HTMLButtonElement>('#plantillas button');
-              first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              first?.focus({ preventScroll: true });
-              setPulse(true);
-              window.setTimeout(() => setPulse(false), 1200);
-            }}
-          >
-            <span className={styles.startIcon} aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M3 9h18M9 21V9" />
-              </svg>
-            </span>
-            <span className={styles.startText}>
-              <strong>{t('Desde una plantilla')}</strong>
-              <span>{t('Elegí un mueble y se arma con sus encastres; después ajustás cada medida')}</span>
-            </span>
-          </a>
           <a href="#/foto" className={styles.start}>
-            <span className={`${styles.startIcon} ${styles.startIconSoft}`} aria-hidden="true">
+            <span className={styles.startIcon} aria-hidden="true">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
                 <circle cx="12" cy="13" r="4" />
@@ -261,20 +276,13 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
               <span>{t('Marcá una medida que conozcas y calcá las piezas')}</span>
             </span>
           </a>
-        </div>
-      </section>
-
-      <section className={styles.section} aria-labelledby="plantillas-t" id="plantillas">
-        <h2 id="plantillas-t" className={styles.h2}>
-          {t('Plantillas')}
-        </h2>
-        <div className={pulse ? `${styles.templates} ${styles.pulse}` : styles.templates}>
-          {TEMPLATES.map((tpl) => (
-            <button key={tpl.id} type="button" className={styles.template} onClick={() => void create(tpl.id)}>
-              {tpl.icon}
-              {t(tpl.name)}
-            </button>
-          ))}
+          <button type="button" className={styles.start} onClick={() => void create('blanco')}>
+            <span className={styles.startIcon}>{blankIcon}</span>
+            <span className={styles.startText}>
+              <strong>{t('En blanco')}</strong>
+              <span>{t('Armalo pieza por pieza, para un mueble que no está en las plantillas')}</span>
+            </span>
+          </button>
         </div>
       </section>
 

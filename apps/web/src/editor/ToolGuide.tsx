@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { faceLabel, t, tk } from '@kitc/core';
 import { IconArc, IconChamfer, IconCircle, IconCopy, IconRect, IconRound } from './icons';
 import { MeasureBubble } from './MeasureBubble';
@@ -13,6 +13,35 @@ interface Step {
 }
 
 const STEP2_DRAW = { rect: tk('Arrastrá de esquina a esquina'), circle: tk('Arrastrá desde el centro hacia afuera'), arc: tk('Arrastrá de punta a punta del arco') };
+
+const HINT_KEY = 'kitc:ayuda-elegir';
+const hintSeen = () => {
+  try {
+    return localStorage.getItem(HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * La ayuda de Elegir ("tocá una pieza…") tapa la parte de arriba del mueble en el celular: se muestra hasta que se
+ * elige una pieza por primera vez o se toca Entendido, y no vuelve.
+ */
+function useSelectHint(selected: boolean): [boolean, () => void] {
+  const [seen, setSeen] = useState(hintSeen);
+  // Elegir una pieza ya es haber entendido: se ajusta durante el render, sin esperar otro.
+  if (selected && !seen) setSeen(true);
+  useEffect(() => {
+    if (!seen) return;
+    try {
+      localStorage.setItem(HINT_KEY, '1');
+    } catch {
+      // Sin almacenamiento: vuelve la próxima vez.
+    }
+  }, [seen]);
+  const dismiss = () => setSeen(true);
+  return [!seen, dismiss];
+}
 
 /**
  * Tarjeta de pasos de la herramienta elegida: qué hacer ahora y qué viene después, con los botones propios de la
@@ -29,9 +58,10 @@ export function ToolGuide() {
   const bubble = useEditor((s) => s.bubble);
   const { setDrawFace, setDrawShape, setBevelRound, setCopyMove } = useEditor.getState();
   const selected = useSelectedPart();
+  const [showHint, dismissHint] = useSelectHint(!!selected);
 
   // Con una pieza elegida, el panel ya dice qué hacer: la ayuda de Elegir no hace falta.
-  if (tool === 'select' && selected) return null;
+  if (tool === 'select' && (selected || !showHint)) return null;
   let steps: Step[];
   let active = 0;
   let controls: React.ReactNode = null;
@@ -39,6 +69,11 @@ export function ToolGuide() {
   switch (tool) {
     case 'select':
       steps = [{ text: t('Tocá una pieza para editarla. Arrastrá el fondo para girar la vista.') }];
+      action = (
+        <button type="button" className={styles.done} onClick={dismissHint}>
+          {t('Entendido')}
+        </button>
+      );
       break;
     case 'push':
       steps = [{ text: t('Arrastrá una cara para estirar o acortar') }, { text: t('Si querés, escribí la medida exacta') }];

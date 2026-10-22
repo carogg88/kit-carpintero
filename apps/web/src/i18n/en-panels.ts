@@ -167,6 +167,7 @@ export default {
   'Hondo en {id}': 'Depth in {id}',
   Espiga: 'Tenon',
   'Todas las uniones': 'All joints',
+  'Todavía no hay piezas. Agregá la primera acá abajo o en el medio de la vista.': 'No parts yet. Add the first one below or in the middle of the view.',
   'Tiene un aviso': 'Has a warning',
   'Detalle en rayos X: {b} entra en {a} con {joint}': 'X-ray detail: {b} goes into {a} with a {joint} joint',
   '{part} en rayos X': '{part} in X-ray',
