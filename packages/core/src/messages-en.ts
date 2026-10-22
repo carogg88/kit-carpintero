@@ -187,6 +187,9 @@ export const MESSAGES_EN: Record<string, string> = {
   "Fondo sellador para MDF": "MDF sealer primer",
   "Pintura o laca": "Paint or lacquer",
 
+  // Compartir (share.ts)
+  'El enlace está incompleto o roto. Pedí que te lo vuelvan a mandar.': 'The link is incomplete or broken. Ask for it to be sent again.',
+
   // Plantillas (templates/index.ts): nombres, campos y avisos
   Mesa: 'Table',
   'Mesa de comedor': 'Dining table',
