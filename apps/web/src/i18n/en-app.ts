@@ -113,5 +113,7 @@ export default {
   '¿Qué sigue?': 'What\'s next?',
   '(ya lo viste)': '(already seen)',
   '{n} de {total}': '{n} of {total}',
+  'Paso {n} de {total}': 'Step {n} of {total}',
+  Cambiar: 'Change',
   'Cerrar qué sigue': 'Close what\'s next',
 } satisfies Record<string, string>;

@@ -77,7 +77,7 @@
   padding: 0 6px; border: 0; background: none; color: var(--accent); font: 500 14px var(--font-ui); cursor: pointer;
 }
 .detailFigure {
-  position: relative; margin: 0; height: clamp(260px, 42dvh, 420px); background: var(--surface-2);
+  position: relative; margin: 0; height: clamp(220px, 34dvh, 420px); background: var(--surface-2);
   border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
 }
 .detailFigure canvas { display: block; }
@@ -119,6 +119,22 @@
 .radio:has(input:checked) { border: 2px solid var(--forest); padding: 0 11px; background: var(--accent-soft); font-weight: 600; }
 .radio:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .note { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Tipo de encastre: el elegido en una fila; la lista se abre con "Cambiar", en dos columnas. */
+.typeBlock { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--line); padding-top: 14px; }
+.typeRow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.typeCurrent { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.typeCurrent strong { font-size: 16px; font-weight: 600; }
+.changeBtn {
+  flex: none; min-height: var(--tap); padding: 0 18px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--ink); font: 500 14px var(--font-ui); cursor: pointer; transition: background-color 150ms ease;
+}
+.changeBtn:hover { background: var(--surface-2); }
+.changeBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.typeGrid { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-2); }
+.typeGrid[hidden] { display: none; }
+.typeGrid .radio { min-height: 44px; font-size: 14px; }
 
 .params {
   border: 0; margin: 0; padding: 0 0 var(--space-3); min-width: 0; display: grid; gap: 10px;
@@ -321,9 +337,10 @@
   .h1 { font-size: 22px; }
   .h2 { font-size: 22px; }
 
-  .joints { flex-direction: row; align-items: flex-start; gap: var(--space-4); padding: var(--space-4) var(--space-5) var(--space-5); }
-  .jointList { flex: 1 1 300px; max-width: 360px; position: sticky; top: 0; max-height: 100%; overflow-y: auto; }
-  .jointDetail, .joints[data-detail] .jointDetail { display: block; flex: 999 1 560px; min-width: 0; padding: 20px; }
+  /* Lista y detalle lado a lado, cada uno con su propio scroll: nada se desplaza adentro de otra cosa que también se desplaza. */
+  .joints { flex-direction: row; align-items: stretch; gap: var(--space-4); padding: var(--space-4) var(--space-5) var(--space-5); overflow: hidden; }
+  .jointList { flex: 1 1 300px; max-width: 360px; overflow-y: auto; }
+  .jointDetail, .joints[data-detail] .jointDetail { display: block; flex: 999 1 560px; min-width: 0; padding: 20px; overflow-y: auto; }
   .joints[data-detail] .jointList { display: flex; }
 
   .cuts { flex-direction: row; align-items: flex-start; padding: var(--space-4) var(--space-5) var(--space-5); }
@@ -336,7 +353,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .primary, .secondary, .radio, .jointItems button { transition: none; }
+  .primary, .secondary, .radio, .jointItems button, .changeBtn { transition: none; }
 }
 
 @media print {
