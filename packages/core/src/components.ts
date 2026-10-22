@@ -32,6 +32,8 @@ export function syncComponents(prev: Project | null, next: Project): void {
   }
 
   for (const copies of groups.values()) {
+    // Si todas las copias cambiaron igual (se estiró el mueble entero), ya están iguales: no hay nada que pasar.
+    if (copies.every((p) => same(shape(p), shape(copies[0]!)))) continue;
     const source = copies.find((p) => {
       const old = before.get(p.id);
       return old && old.component === p.component && !same(shape(old), shape(p));

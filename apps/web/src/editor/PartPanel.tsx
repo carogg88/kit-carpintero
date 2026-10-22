@@ -15,7 +15,10 @@ import {
   faceSize,
   duplicatePart,
   endJoint,
+  formatLength,
   formatNumber,
+  furnitureBox,
+  resizeFurniture,
   JOINT_NAMES,
   jointName,
   jointOptions,
@@ -817,6 +820,42 @@ export const FITTING_OPTIONS: [FittingKind, string, string][] = [
   ['puerta', tk('Puerta'), tk('De una tabla o de marco y tablero')],
 ];
 
+const SIZE_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
+
+/**
+ * Ancho, alto y fondo de todo el mueble. Al cambiarlos se estiran las piezas largas sobre ese eje y las demás se
+ * corren o se reparten, sin cambiar espesores.
+ */
+function FurnitureSize({ project }: { project: Project }) {
+  const commit = useEditor((s) => s.commit);
+  const box = furnitureBox(project.parts);
+  if (!box) return null;
+  const size = boxSize(box);
+  const resize = (axis: Axis, mm: number) => {
+    // Se prueba antes en una copia: si no entra, no se toca el proyecto.
+    const r = resizeFurniture(structuredClone(project.parts), axis, mm);
+    if (!r) {
+      useEditor.getState().warn(t('No se puede achicar tanto: no queda lugar libre entre las piezas. Achicá antes alguna pieza.'));
+      return;
+    }
+    const label = t('El mueble ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}', {
+      mm: formatLength(mm, project.units),
+      axis: t(SIZE_NAMES[axis]),
+      s: r.stretched.length,
+      m: r.moved.length,
+    });
+    commit((d) => void resizeFurniture(d.parts as Part[], axis, mm), label);
+  };
+  return (
+    <fieldset className={styles.dims}>
+      <legend className={styles.legend}>{t('Medidas del mueble')}</legend>
+      {AXIS_LABELS.map((label, k) => (
+        <LengthField key={label} label={t(label)} mm={size[k]!} units={project.units} min={30} max={6000} onCommit={(mm) => resize(k as Axis, mm)} />
+      ))}
+    </fieldset>
+  );
+}
+
 function ProjectOverview({ project }: { project: Project }) {
   const select = useEditor((s) => s.select);
   const setFitting = useEditor((s) => s.setFitting);
@@ -832,6 +871,7 @@ function ProjectOverview({ project }: { project: Project }) {
           {project.parts.length ? t('Tocá una pieza en el modelo o en la lista para editarla.') : t('Todavía no hay piezas. Agregá la primera acá abajo o en el medio de la vista.')}
         </p>
       </div>
+      {project.parts.length > 1 && <FurnitureSize project={project} />}
       <ul className={styles.partList}>
         {project.parts.map((p) => (
           <li key={p.id}>
