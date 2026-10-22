@@ -211,10 +211,11 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
                   <label key={o} className={styles.chip}>
                     <input type="radio" name="union" value={o} checked={joint === o} onChange={() => setJoint(o)} />
                     {t(JOINT_NAMES[o])}
+                    {o === def.joints!.default && <span className={styles.chipValue}>· {t('recomendado')}</span>}
                   </label>
                 ))}
               </div>
-              {joint && <JointExplainer type={joint} />}
+              {joint && <JointExplainer type={joint} recommended={joint === def.joints.default} />}
             </fieldset>
           )}
           <div className={styles.footer}>

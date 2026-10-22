@@ -36,6 +36,27 @@ export const JOINT_ABOUT: Partial<Record<JointType, string>> = {
   bolsillo: tk('Tornillos que entran inclinados desde la cara de adentro. Rápido y sin prensas; se hace con una plantilla de bolsillo y mecha escalonada.'),
 };
 
+export type JointLevel = 'facil' | 'media' | 'dificil';
+
+/** Qué tan difícil es cada encastre para alguien que empieza, y con qué se hace. */
+export const JOINT_LEVEL: Record<JointType, { level: JointLevel; tools: string }> = {
+  tope: { level: 'facil', tools: tk('Atornillador y prensas') },
+  clavija: { level: 'facil', tools: tk('Taladro y plantilla para tarugos') },
+  bolsillo: { level: 'facil', tools: tk('Taladro y plantilla de bolsillo') },
+  galleta: { level: 'facil', tools: tk('Galletera') },
+  rebaje: { level: 'facil', tools: tk('Fresadora o sierra de mesa') },
+  canal: { level: 'facil', tools: tk('Fresadora o sierra de mesa') },
+  'media-madera': { level: 'media', tools: tk('Serrucho y formón, o fresadora') },
+  machiembrado: { level: 'media', tools: tk('Fresas de machimbre o sierra de mesa') },
+  brida: { level: 'media', tools: tk('Sierra de cinta o de mesa, y formón') },
+  mortaja: { level: 'media', tools: tk('Escoplo o fresadora, y serrucho para la espiga') },
+  dedos: { level: 'media', tools: tk('Sierra de mesa con patrón de dedos') },
+  inglete: { level: 'media', tools: tk('Ingletadora o sierra de mesa inclinada') },
+  'cola-milano': { level: 'dificil', tools: tk('Serrucho de costilla, formón y falsa escuadra') },
+};
+
+export const LEVEL_NAMES: Record<JointLevel, string> = { facil: tk('Fácil'), media: tk('Media'), dificil: tk('Difícil') };
+
 /** Dibujo de cada encastre que se puede elegir en una plantilla, separado para ver qué entra dónde. */
 export const JOINT_DRAWING: Partial<Record<JointType, ReactNode>> = {
   tope: (

@@ -203,4 +203,9 @@ export default {
   'Elegí vaciado o calado y qué tan hondo': 'Choose pocket or through cut, and how deep',
   'Empezá o terminá en un borde': 'Start or end on an edge',
   'El arco tiene que empezar o terminar en un borde de la cara': 'The arc has to start or end on an edge of the face',
+  'Le falta ancho: seguí la otra línea guía': 'No width yet: follow the other guide line',
+  'Al rectángulo le faltó ancho: arrastrá en diagonal, de esquina a esquina': 'The rectangle had no width: drag diagonally, corner to corner',
+  'Al rectángulo le faltó ancho. Puse la cara de frente: arrastrá de nuevo, de esquina a esquina': 'The rectangle had no width. The face is now square to you: drag again, corner to corner',
+  'Distancia a los bordes': 'Distance to the edges',
+  'Centrar': 'Center',
 } satisfies Record<string, string>;

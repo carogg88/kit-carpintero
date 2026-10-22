@@ -10,10 +10,10 @@ import { readProject } from './storage/db';
 
 /**
  * Rutas por hash, para que funcione en GitHub Pages: #/ inicio, #/proyecto/<id> modelo,
- * #/proyecto/<id>/uniones, /cortes y /plano; #/nuevo/<plantilla> y #/foto para empezar un mueble.
+ * #/proyecto/<id>/uniones, /cortes, /plano y /armado; #/nuevo/<plantilla> y #/foto para empezar un mueble.
  */
 function route(): { projectId: string | null; section: Section; start: string | null } {
-  const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes|plano))?$/);
+  const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes|plano|armado))?$/);
   const n = location.hash.match(/^#\/(foto|nuevo\/[a-z]+)$/);
   return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null, section: (m?.[2] as Section | undefined) ?? 'modelo', start: n?.[1] ?? null };
 }

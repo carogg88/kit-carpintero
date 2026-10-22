@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { t, type JointType } from '@kitc/core';
-import { JOINT_ABOUT, JOINT_DRAWING, TERMS, type TermId } from './terms';
+import { JOINT_ABOUT, JOINT_DRAWING, JOINT_LEVEL, LEVEL_NAMES, TERMS, type TermId } from './terms';
 import styles from './Help.module.css';
 
 /** Ancho de la tarjeta y margen con el borde de la pantalla, en píxeles. */
@@ -90,14 +90,47 @@ export function HelpTip({ term }: { term: TermId }) {
   );
 }
 
+/**
+ * Lo que hay que saber antes de elegir un encastre: si es el recomendado para ese lugar, qué tan difícil es
+ * (con tres puntos, además de la palabra) y, salvo en `short`, con qué herramienta se hace.
+ */
+export function JointMeta({ type, recommended = false, short = false }: { type: JointType; recommended?: boolean; short?: boolean }) {
+  const { level, tools } = JOINT_LEVEL[type];
+  const filled = level === 'facil' ? 1 : level === 'media' ? 2 : 3;
+  return (
+    <span className={styles.jointMeta}>
+      {recommended && (
+        <span className={styles.recommended}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3.5 8.5l3 3 6-7" />
+          </svg>
+          {t('Recomendado')}
+        </span>
+      )}
+      <span className={styles.level} data-level={level}>
+        <span className={styles.levelDots} aria-hidden="true">
+          {[1, 2, 3].map((i) => (
+            <span key={i} data-on={i <= filled || undefined} />
+          ))}
+        </span>
+        {t('Dificultad: {level}', { level: t(LEVEL_NAMES[level]).toLowerCase() })}
+      </span>
+      {!short && <span className={styles.tools}>{t(tools)}</span>}
+    </span>
+  );
+}
+
 /** Dibujo y explicación del encastre elegido, siempre a la vista: para elegir sin saber los nombres. */
-export function JointExplainer({ type }: { type: JointType }) {
+export function JointExplainer({ type, recommended = false }: { type: JointType; recommended?: boolean }) {
   const about = JOINT_ABOUT[type];
   if (!about) return null;
   return (
     <div className={styles.explainer} aria-live="polite">
       {JOINT_DRAWING[type]}
-      <p>{t(about)}</p>
+      <div className={styles.explainerText}>
+        <JointMeta type={type} recommended={recommended} />
+        <p>{t(about)}</p>
+      </div>
     </div>
   );
 }

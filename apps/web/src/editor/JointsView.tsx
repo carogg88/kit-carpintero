@@ -10,6 +10,7 @@ import {
   jointGrowth,
   jointOptions,
   locale,
+  recommendedJoint,
   partBox,
   partWord,
   t,
@@ -19,10 +20,12 @@ import {
   type Part,
   type Project,
 } from '@kitc/core';
+import { JointMeta } from '../help/Help';
 import { JOINT_ABOUT } from '../help/terms';
 import { sectionHref } from '../routes';
 import { IconBack, IconInfo, IconWarn } from './icons';
 import { JointDetail3D } from './JointDetail3D';
+import { JointLocator } from './JointLocator';
 import { describeJoint, LengthField } from './PartPanel';
 import { useEditor } from './store';
 import type { ExactMesh } from './useGeometry';
@@ -173,6 +176,9 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   const bb = partBox(b);
   const options = jointOptions(ba, bb);
   if (!options.includes(joint.type)) options.unshift(joint.type);
+  // El recomendado va primero, con su marca.
+  const recommended = recommendedJoint(ba, bb);
+  if (recommended) options.sort((x, y) => Number(y === recommended) - Number(x === recommended));
   const params = { ...defaultJointParams(joint.type, ba, bb), ...joint.params };
   const targets = applyAll ? group.joints : [joint];
   const warning = meshes.get(a.id)?.warning ?? meshes.get(b.id)?.warning;
@@ -290,8 +296,10 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             <span className={styles.swatchXray} aria-hidden="true" />
             {t('{part} en rayos X', { part: partWord(a) })}
           </span>
+          <JointLocator project={project} joint={joint} meshes={meshes} />
           <figcaption>{t('Arrastrá para girar el detalle')}</figcaption>
         </figure>
+        <JointMeta type={joint.type} recommended={joint.type === recommended} />
         <p className={styles.muted}>{t(JOINT_ABOUT[joint.type] ?? 'Este encastre todavía no tiene cortes en el modelo.')}</p>
         {warning && (
           <p className={styles.warn} role="alert">
@@ -307,7 +315,10 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           {options.map((type) => (
             <label key={type} className={styles.radio}>
               <input type="radio" name={typeName} checked={joint.type === type} onChange={() => setType(type)} />
-              {t(JOINT_NAMES[type])}
+              <span className={styles.radioText}>
+                {t(JOINT_NAMES[type])}
+                <JointMeta type={type} recommended={type === recommended} short />
+              </span>
             </label>
           ))}
         </fieldset>

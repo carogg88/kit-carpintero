@@ -143,6 +143,12 @@ export function jointOptions(a: Box, b: Box): JointType[] {
   return JOINT_TYPES.filter((t) => defaultJointParams(t, a, b) !== null);
 }
 
+/** El encastre que se recomienda entre los posibles para estas dos piezas: el que propondría un carpintero. */
+export function recommendedJoint(a: Box, b: Box): JointType | null {
+  const type = suggestType(a, b);
+  return type && defaultJointParams(type, a, b) !== null ? type : null;
+}
+
 /** Encastre que propondría un carpintero para estas dos piezas. */
 function suggestType(a: Box, b: Box): JointType | null {
   if (overlapBox(a, b)) return 'media-madera';
