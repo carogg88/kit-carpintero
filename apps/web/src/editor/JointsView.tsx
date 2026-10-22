@@ -6,12 +6,13 @@ import {
   fitJointDepths,
   formatNumber,
   groupJoints,
-  JOINT_NAMES,
   jointContact,
   jointGrowth,
+  jointName,
   jointNotes,
   jointOptions,
   locale,
+  overlapBox,
   recommendedJoint,
   partBox,
   partWord,
@@ -32,6 +33,9 @@ import { describeJoint, LengthField } from './PartPanel';
 import { useEditor } from './store';
 import type { ExactMesh } from './useGeometry';
 import styles from './Sections.module.css';
+
+/** Nombre del encastre entre dos piezas: a tope entre piezas que se cruzan es apoyar en una muesca. */
+const nameOf = (type: JointType, x?: Part, y?: Part) => t(jointName(type, !!x && !!y && !!overlapBox(partBox(x), partBox(y))));
 
 
 const SLOPES = [6, 8];
@@ -99,7 +103,7 @@ function JointList({
                             <IconWarn />
                           </span>
                         )}
-                        <span className={styles.typeName}>{t(JOINT_NAMES[j.type])}</span>
+                        <span className={styles.typeName}>{nameOf(j.type, parts.find((x) => x.id === j.partA), parts.find((x) => x.id === j.partB))}</span>
                       </span>
                       <span className={styles.pairNames}>{pairNames(parts, j)}</span>
                     </span>
@@ -313,7 +317,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             {a.id} {a.name} ↔ {b.id} {b.name} · {jointContact(a, b)}
           </span>
           <h2 id="detalle" className={styles.h2}>
-            {t(JOINT_NAMES[joint.type])}
+            {nameOf(joint.type, a, b)}
           </h2>
         </div>
         <figure className={styles.detailFigure}>
@@ -324,7 +328,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             label={t('Detalle en rayos X: {b} entra en {a} con {joint}', {
               b: `${b.id} ${b.name}`,
               a: `${a.id} ${a.name}`,
-              joint: t(JOINT_NAMES[joint.type]).toLocaleLowerCase(locale()),
+              joint: nameOf(joint.type, a, b).toLocaleLowerCase(locale()),
             })}
           />
           <span className={styles.legend} style={{ top: 12 }}>
@@ -390,7 +394,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           <div className={styles.typeRow}>
             <span className={styles.typeCurrent}>
               <span className={styles.eyebrow}>{t('Tipo de encastre')}</span>
-              <strong>{t(JOINT_NAMES[joint.type])}</strong>
+              <strong>{nameOf(joint.type, a, b)}</strong>
             </span>
             <button type="button" className={styles.changeBtn} aria-expanded={choosing} aria-controls={typeListId} onClick={() => setChoosing(!choosing)}>
               {choosing ? t('Listo') : t('Cambiar')}
@@ -410,7 +414,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
                   }}
                 />
                 <span className={styles.radioText}>
-                  {t(JOINT_NAMES[type])}
+                  {nameOf(type, a, b)}
                   <JointMeta type={type} recommended={type === recommended} short />
                 </span>
               </label>

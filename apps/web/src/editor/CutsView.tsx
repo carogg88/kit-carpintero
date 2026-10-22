@@ -168,24 +168,34 @@ function BoardDiagram({ board, n, showWood }: { board: StockBoard; n: (mm: numbe
   const pct = (mm: number) => `${(mm / total) * 100}%`;
   const rest = Math.max(0, total - board.used);
   const description = t('{pieces}; sobran {rest}', {
-    pieces: board.slots.map((s) => t('{id} de {len}', { id: s.id, len: n(s.length) })).join(', '),
+    pieces: board.slots
+      .map((s) => [s, ...(s.beside ?? [])].map((x) => t('{id} de {len}', { id: x.id, len: n(x.length) })).join(t(' al lado de ')))
+      .join(', '),
     rest: n(rest),
   });
+  // Con trozos uno al lado del otro, la tabla se dibuja más alta para que se lean.
+  const rows = Math.max(1, ...board.slots.map((s) => 1 + (s.beside?.length ?? 0)));
   return (
     <figure className={styles.board}>
       <figcaption>
         <strong>{stockLabel(board)}</strong>
         {showWood && <span> · {woodName(board.wood)}</span>}
       </figcaption>
-      <div className={styles.boardBar} style={{ height: Math.min(40, Math.max(24, board.widthIn * 6)) }} role="img" aria-label={description}>
+      <div className={styles.boardBar} style={{ height: Math.max(rows * 22, Math.min(40, Math.max(24, board.widthIn * 6))) }} role="img" aria-label={description}>
         <span className={styles.waste} style={{ flexBasis: pct(END_TRIM_MM) }} />
         {board.slots.map((s, i) => (
-          <span key={`${s.id}-${i}`} className={styles.slot} style={{ flexBasis: pct(s.length), marginRight: pct(KERF_MM) }} title={`${s.id} · ${n(s.length)}`}>
-            <span className={styles.piece} style={{ height: `${Math.min(100, (s.width / width) * 100)}%` }}>
-              <span className={styles.pieceLabel}>
-                {s.id} <span>{n(s.length)}</span>
+          <span key={`${s.id}-${i}`} className={styles.slot} style={{ flexBasis: pct(s.length), marginRight: pct(KERF_MM) }} title={[s, ...(s.beside ?? [])].map((x) => `${x.id} · ${n(x.length)}`).join('\n')}>
+            {[s, ...(s.beside ?? [])].map((x) => (
+              // Un trozo más corto que el tramo deja sobrante a su lado.
+              <span key={x.id} className={styles.pieceRow} style={{ height: `${Math.min(100, (x.width / width) * 100)}%` }}>
+                <span className={styles.piece} style={{ flexBasis: `${(x.length / s.length) * 100}%` }}>
+                  <span className={styles.pieceLabel}>
+                    {x.id} <span>{n(x.length)}</span>
+                  </span>
+                </span>
+                {x.length < s.length && <span className={styles.waste} />}
               </span>
-            </span>
+            ))}
             <span className={styles.waste} />
           </span>
         ))}

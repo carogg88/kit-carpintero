@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { cutList, cutPlan, dowelsNeeded, shoppingList } from './cutlist';
+import { boardPieces, cutList, cutPlan, dowelsNeeded, shoppingList } from './cutlist';
+import { buildTemplate, templateById } from './templates';
 import { createTable } from './templates/table';
 
 const table = createTable(undefined, 'guatambu', '2026-10-21T00:00:00Z');
@@ -59,6 +60,16 @@ describe('plan de corte', () => {
     expect(plan.waste).toBeGreaterThan(0);
     expect(plan.waste).toBeLessThan(0.4);
     expect(plan.tooLong).toEqual([]);
+  });
+
+  it('en el taburete, los travesaños angostos salen a lo largo de la tabla de los faldones: una tabla menos', () => {
+    const stool = buildTemplate(templateById('taburete')!, {}, 'guatambu', 'mortaja', '2026-10-22T00:00:00Z');
+    const p = cutPlan(stool);
+    expect(p.boards).toHaveLength(3);
+    const ripped = p.boards.flatMap((b) => b.slots).filter((s) => s.beside?.length);
+    expect(ripped.length).toBeGreaterThan(0);
+    // Todas las piezas siguen en el plan (el asiento, en tiras para encolar).
+    expect([...new Set(p.boards.flatMap(boardPieces).map((s) => s.id.split('·')[0]))].sort()).toEqual(stool.parts.map((x) => x.id).sort());
   });
 
   it('tarugos: cuántos y de qué medida', () => {

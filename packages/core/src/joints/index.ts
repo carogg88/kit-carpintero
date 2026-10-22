@@ -54,11 +54,17 @@ export const JOINT_NAMES: Record<JointType, string> = {
   bolsillo: tk('Tornillo de bolsillo'),
 };
 
+/** Nombre del encastre para mostrar (en español, se traduce con `t`): a tope entre piezas que se cruzan es apoyar en una muesca. */
+export function jointName(type: JointType, crossing = false): string {
+  return type === 'tope' && crossing ? tk('Apoyado en muesca') : JOINT_NAMES[type];
+}
+
 /** Medidas iniciales del encastre según las piezas. null si no se puede hacer entre ellas. */
 export function defaultJointParams(type: JointType, a: Box, b: Box): Params | null {
   switch (type) {
     case 'tope':
-      return endJoint(a, b) ? {} : null;
+      // Si se cruzan, es una pieza apoyada en una muesca: no se corta nada.
+      return endJoint(a, b) || overlapBox(a, b) ? {} : null;
     case 'mortaja': {
       const p = defaultMortiseParams(a, b);
       return p && { ...p };

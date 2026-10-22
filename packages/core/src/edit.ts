@@ -3,6 +3,7 @@ import { defaultJointParams, suggestJoints } from './joints';
 import type { Joint, Part } from './project';
 import { t, tk } from './i18n';
 import { fitJointDepths } from './jointfit';
+import { crossingInNotch } from './pockets';
 
 /**
  * Herramientas de edición que no dependen de la pantalla: imán a caras cercanas, piezas nuevas
@@ -16,6 +17,8 @@ export interface Snap {
   value: number;
   /** Qué atrajo la medida: el id de la pieza, 'piso', o null si solo se redondeó. */
   to: string | null;
+  /** Quedó con el mismo retiro que `to`, del otro costado del mueble. */
+  mirror?: boolean;
 }
 
 /** Pega una coordenada a la cara más cercana de otra pieza, o al piso; si no hay ninguna, redondea al mm. */
@@ -40,13 +43,27 @@ export function snapCoord(parts: Part[], value: number, axis: Axis, exceptId: st
 /**
  * Corrimiento final de una caja que se arrastra `delta` mm sobre `axis`: si una de sus caras queda cerca
  * de una cara de otra pieza, se pega; si no, el corrimiento se redondea al mm.
+ * También se pega al espejo de una gemela del mismo grueso: con el mismo retiro desde el otro costado del mueble,
+ * así el faldón derecho queda igual que el izquierdo. Ese imán manda sobre el de las caras.
  */
 export function snapMove(parts: Part[], start: Box, axis: Axis, delta: number, exceptId: string, tol = SNAP_MM): Snap {
+  const others = parts.filter((q) => q.id !== exceptId && q.base.kind === 'box').map((q) => [q, partBox(q)] as const);
+  // Gemelas: las que empiezan con la misma palabra (Faldón, Travesaño). Con cualquier pieza del mismo grueso
+  // el espejo tiraría de todos lados.
+  const word = (q?: Part) => q?.name.split(' ')[0]?.toLocaleLowerCase();
+  const kind = word(parts.find((q) => q.id === exceptId));
+  const mirror = mirrorSnap(
+    others.filter(([q]) => word(q) === kind),
+    start,
+    axis,
+    delta,
+    tol,
+    others.map(([, b]) => b),
+  );
+  if (mirror) return mirror;
   let best: Snap = { value: Math.round(delta), to: null };
   let bestD = tol;
-  for (const q of parts) {
-    if (q.id === exceptId || q.base.kind !== 'box') continue;
-    const b = partBox(q);
+  for (const [q, b] of others) {
     for (const c of [b.min[axis], b.max[axis]]) {
       for (const edge of [start.min[axis], start.max[axis]]) {
         const d = Math.abs(c - (edge + delta));
@@ -55,6 +72,28 @@ export function snapMove(parts: Part[], start: Box, axis: Axis, delta: number, e
           best = { value: c - edge, to: q.id };
         }
       }
+    }
+  }
+  return best;
+}
+
+/** El reflejo más cercano de una gemela del mismo grueso, por el medio del mueble (`all`), si está dentro del imán. */
+function mirrorSnap(twins: (readonly [Part, Box])[], start: Box, axis: Axis, delta: number, tol: number, all: Box[]): Snap | null {
+  if (!twins.length) return null;
+  const lo = Math.min(...all.map((b) => b.min[axis]));
+  const hi = Math.max(...all.map((b) => b.max[axis]));
+  const size = start.max[axis] - start.min[axis];
+  let best: Snap | null = null;
+  let bestD = tol;
+  for (const [q, b] of twins) {
+    if (Math.abs(b.max[axis] - b.min[axis] - size) > 0.5) continue;
+    const at = lo + hi - b.max[axis];
+    // Una pieza en el medio es su propio reflejo: no dice nada.
+    if (Math.abs(at - b.min[axis]) < 0.5) continue;
+    const d = Math.abs(at - (start.min[axis] + delta));
+    if (d < bestD) {
+      bestD = d;
+      best = { value: at - start.min[axis], to: q.id, mirror: true };
     }
   }
   return best;
@@ -195,8 +234,12 @@ export function syncJoints(parts: Part[], joints: Joint[]): Joint[] {
     result.push(k ?? s);
     kept.delete(key(s.partA, s.partB));
   }
-  // Contactos que la propuesta no ve pero la persona eligió.
-  const all = [...result, ...kept.values()];
+  // Contactos que la propuesta no ve pero la persona eligió. Un cruce donde ya hay una muesca dibujada
+  // apoya en ella: no se rebaja a media madera.
+  const byId = new Map(parts.map((p) => [p.id, p]));
+  const all = [...result, ...kept.values()].map((j) =>
+    j.type === 'media-madera' && crossingInNotch(byId.get(j.partA)!, byId.get(j.partB)!) ? { ...j, type: 'tope' as const, params: {} } : j,
+  );
   // Las uniones nuevas no se pueden cruzar adentro de una pieza con las que ya están.
   if (added.size) fitJointDepths({ parts, joints: all }, added);
   return all;

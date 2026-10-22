@@ -192,3 +192,9 @@ export const IconClose = () => (
     <path d="M6 6l12 12M18 6 6 18" />
   </svg>
 );
+export const IconRotate = () => (
+  <svg {...base}>
+    <path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.9 1 6.7 2.7L21 8" />
+    <path d="M21 3v5h-5" />
+  </svg>
+);

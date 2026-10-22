@@ -95,6 +95,7 @@ export const MESSAGES_EN: Record<string, string> = {
   'punta contra cara': 'end to face',
   'cara contra cara': 'face to face',
   'A tope': 'Butt joint',
+  'Apoyado en muesca': 'Resting in a notch',
   'Mortaja y espiga': 'Mortise and tenon',
   'Media madera': 'Half-lap',
   Canal: 'Dado',

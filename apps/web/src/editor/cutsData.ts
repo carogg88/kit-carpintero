@@ -1,5 +1,6 @@
 import {
   boardFeet,
+  boardPieces,
   formatInches,
   formatNumber,
   getLang,
@@ -58,7 +59,7 @@ export const shopKey = (r: Pick<ShopRow, 'wood' | 'thicknessIn' | 'widthIn' | 'l
 
 /** Para qué es cada compra: "Tapa: 7 tiras de 180 cm, encoladas · 18 pies". */
 export function shopUse(r: ShopRow, plan: CutPlan, rows: CutRow[], project: Project): string {
-  const slots = plan.boards.filter((b) => shopKey(b) === shopKey(r)).flatMap((b) => b.slots);
+  const slots = plan.boards.filter((b) => shopKey(b) === shopKey(r)).flatMap(boardPieces);
   const uses = new Map<CutRow, number>();
   for (const s of slots) {
     const row = rows.find((x) => x.ids.includes(s.id.split('·')[0] ?? ''));

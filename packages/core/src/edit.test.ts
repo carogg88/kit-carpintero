@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { duplicatePart, namePrefix, newPart, nextPartId, partAxesBySize, partPlace, renamePart, setPlace, snapCoord, snapMove, syncJoints } from './edit';
 import { partBox } from './geometry';
+import type { Part } from './project';
 import { createTable } from './templates/table';
 
 const table = createTable(undefined, 'guatambu', '2026-10-21T00:00:00Z');
@@ -110,5 +111,41 @@ describe('posición de una pieza', () => {
     // Medida sin contar la pieza: correrla no cambia desde dónde se mide.
     setPlace(p.parts, 'P1', 0, 80);
     expect(partPlace(p.parts, leg)[0]).toBe(80);
+  });
+});
+
+describe('imán en espejo', () => {
+  it('el faldón derecho se pega con el mismo retiro que el izquierdo, no al ras de las patas', () => {
+    // Los faldones de costado van unos mm adentro de la cara de afuera de las patas.
+    const p = structuredClone(table);
+    const right = p.parts.find((x) => x.id === 'F4')!;
+    const goal = right.position[0];
+    // Corrido al ras de las patas y arrastrado apenas: el imán lo lleva al reflejo de F3.
+    const flush = Math.max(...p.parts.filter((x) => x.id.startsWith('P')).map((x) => partBox(x).max[0])) - 20;
+    right.position[0] = flush;
+    const s = snapMove(p.parts, partBox(right), 0, -2, 'F4');
+    expect(s).toMatchObject({ to: 'F3', mirror: true });
+    expect(flush + s.value).toBe(goal);
+  });
+});
+
+describe('cruce apoyado en una muesca', () => {
+  const box = (id: string, name: string, position: [number, number, number], size: [number, number, number]) =>
+    ({ id, name, wood: 'guatambu', base: { kind: 'box', size }, position, rotation: [0, 0, 0], ops: [], pockets: [], bevels: [], sections: [] }) as Part;
+  // Faldón de 36 × 8 × 2 y un listón de 2,5 que lo cruza de adelante hacia atrás, metido 12 mm en su canto.
+  const apron = () => box('F1', 'Faldón', [0, 300, 0], [360, 80, 20]);
+  const slat = box('L1', 'Listón', [100, 368, -50], [25, 25, 340]);
+
+  it('sin muesca se propone media madera', () => {
+    const joints = syncJoints([apron(), slat], []);
+    expect(joints.map((j) => j.type)).toEqual(['media-madera']);
+  });
+
+  it('con la muesca dibujada, el listón apoya en ella y no se rebaja nada', () => {
+    const a = apron();
+    a.pockets.push({ id: 'V1', axis: 2, side: 1, shape: { kind: 'circle', u: 112.5, v: 80, d: 27 }, depth: 20, through: true });
+    const before = syncJoints([apron(), slat], []);
+    const joints = syncJoints([a, slat], before);
+    expect(joints.map((j) => [j.type, j.params])).toEqual([['tope', {}]]);
   });
 });
