@@ -20,6 +20,7 @@ import {
   type Project,
   type Slides,
   type ShelfMode,
+  isSheet,
   type DoorStyle,
   type Units,
   type Vec3,
@@ -115,7 +116,7 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
   const [count, setCount] = useState(kind === 'puerta' ? (openingWide(openings[0]) ? 2 : 1) : kind === 'estantes' ? 2 : 1);
   const [front, setFront] = useState<FrontStyle>('embutido');
   const [slides, setSlides] = useState<Slides>('madera');
-  const [doorStyle, setDoorStyle] = useState<DoorStyle>('marco');
+  const [doorStyle, setDoorStyle] = useState<DoorStyle>(isSheet(wood) ? 'tablero' : 'marco');
   const [shelfMode, setShelfMode] = useState<ShelfMode>('fijo');
   const problemId = useId();
 
@@ -124,12 +125,12 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
   // Los estantes van entre dos laterales: sin un hueco del mueble no hay dónde ponerlos.
   const problem =
     kind === 'cajon'
-      ? drawerProblem(opening, { count, slides, front })
+      ? drawerProblem(opening, { count, slides, front, wood })
       : kind === 'puerta'
         ? doorProblem(opening, { count: count as 1 | 2 })
         : isLoose
           ? t('Los estantes van en un hueco entre dos laterales, y este mueble no tiene ninguno.')
-          : shelfProblem(opening, { count });
+          : shelfProblem(opening, { count, wood });
   const fitting = useMemo(() => {
     if (problem) return null;
     if (kind === 'cajon') return buildDrawers(project, opening, { count, front, slides, wood });

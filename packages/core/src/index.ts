@@ -22,3 +22,4 @@ export * from './jointfit';
 export * from './rotate';
 export * from './fittings';
 export * from './resize';
+export * from './sheets';

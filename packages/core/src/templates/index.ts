@@ -59,6 +59,8 @@ export interface TemplateDef {
   fields: TemplateField[];
   joints: JointChoice | null;
   build: (v: Record<string, number>, wood: string, now: string) => Project;
+  /** Se puede hacer de placa (MDF, melamina, terciado): muebles de cajón, sin patas ni piezas gruesas. */
+  sheets?: boolean;
 }
 
 /**
@@ -262,6 +264,7 @@ export const TEMPLATES: TemplateDef[] = [
     ],
     joints: { groups: ['Lateral|Estante', 'Lateral|Zócalo'], label: tk('Estantes con laterales'), options: ['canal', 'clavija'], default: 'canal' },
     build: createShelf,
+    sheets: true,
   },
   {
     id: 'caja',
@@ -298,6 +301,7 @@ TEMPLATES.push(
     fields: cabinetFields({ width: 450, height: 600, depth: 380 }, { typical: [500, 700], typicalNote: tk('una mesa de luz suele quedar a la altura del colchón, entre 50 y 70 cm') }),
     joints: cabinetJoints,
     build: createNightstand,
+    sheets: true,
   },
   {
     id: 'cajonera',
@@ -310,6 +314,7 @@ TEMPLATES.push(
     ],
     joints: cabinetJoints,
     build: createDresser,
+    sheets: true,
   },
   {
     id: 'biblioteca',
@@ -333,6 +338,7 @@ TEMPLATES.push(
     ],
     joints: cabinetJoints,
     build: createBookcase,
+    sheets: true,
   },
   {
     id: 'alacena',
@@ -342,6 +348,7 @@ TEMPLATES.push(
     fields: cabinetFields({ width: 800, height: 700, depth: 320 }),
     joints: cabinetJoints,
     build: createWallCabinet,
+    sheets: true,
   },
   {
     id: 'mesa-ratona',

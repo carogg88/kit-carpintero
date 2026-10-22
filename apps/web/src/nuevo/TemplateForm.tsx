@@ -5,7 +5,8 @@ import {
   t,
   templateDefaults,
   templateWarnings,
-  WOODS,
+  nearestSheetThickness,
+  sheetById,
   type JointType,
   type Project,
   type TemplateDef,
@@ -13,6 +14,7 @@ import {
   type Units,
 } from '@kitc/core';
 import { LengthField } from '../editor/PartPanel';
+import { MaterialOptions, sheetNote } from '../editor/MaterialOptions';
 import { IconWarn } from '../editor/icons';
 import { JointExplainer } from '../help/Help';
 import { navigate, sectionHref } from '../routes';
@@ -169,6 +171,16 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
   const general = def.fields.filter((f) => f.group === 'general');
   const pieces = def.fields.filter((f) => f.group === 'piezas');
   const change = (k: string, v: number) => setValues((s) => ({ ...s, [k]: v }));
+  // Una placa viene en espesores fijos: el de las tablas pasa al más cercano.
+  const pickWood = (id: string) => {
+    setWood(id);
+    const sheet = sheetById(id);
+    if (sheet && values.board !== undefined) change('board', nearestSheetThickness(sheet, values.board));
+    setJoint(recommendedJoint(id));
+  };
+  // La melamina se arma con tarugos: la cara plástica no se encastra.
+  const recommendedJoint = (id: string) => (sheetById(id)?.banding && def.joints?.options.includes('clavija') ? 'clavija' : def.joints?.default);
+  const recommended = recommendedJoint(wood);
   // El mouse encima manda sobre el foco, así se puede recorrer el formulario con la vista.
   const [pointed, setPointed] = useState<{ focus: string | null; hover: string | null }>({ focus: null, hover: null });
   const point = (k: string | null, how: 'focus' | 'hover') => setPointed((p) => ({ ...p, [how]: k }));
@@ -215,13 +227,10 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
           <Warnings fields={pieces} warnings={warnings} />
           <label className={styles.field}>
             {t('Madera')}
-            <select value={wood} onChange={(e) => setWood(e.target.value)}>
-              {WOODS.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {t(w.name)} · {t(w.hardness)}
-                </option>
-              ))}
+            <select value={wood} onChange={(e) => pickWood(e.target.value)}>
+              <MaterialOptions sheets={!!def.sheets} />
             </select>
+            {sheetNote(wood) && <span className={styles.note}>{sheetNote(wood)}</span>}
           </label>
           {def.joints && (
             <fieldset className={styles.plain}>
@@ -231,11 +240,11 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
                   <label key={o} className={styles.chip}>
                     <input type="radio" name="union" value={o} checked={joint === o} onChange={() => setJoint(o)} />
                     {t(JOINT_NAMES[o])}
-                    {o === def.joints!.default && <span className={styles.chipValue}>· {t('recomendado')}</span>}
+                    {o === recommended && <span className={styles.chipValue}>· {t('recomendado')}</span>}
                   </label>
                 ))}
               </div>
-              {joint && <JointExplainer type={joint} recommended={joint === def.joints.default} />}
+              {joint && <JointExplainer type={joint} recommended={joint === recommended} />}
             </fieldset>
           )}
           <div className={styles.footer}>

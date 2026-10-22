@@ -37,7 +37,8 @@ import {
   setPlace,
   t,
   tk,
-  WOODS,
+  nearestSheetThickness,
+  sheetById,
   type Axis,
   type Bevel,
   type Joint,
@@ -53,10 +54,10 @@ import { sectionHref } from '../routes';
 import { IconLink, IconRotate, IconTrash, IconWarn } from './icons';
 import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
+import { MaterialOptions, sheetNote } from './MaterialOptions';
 import { useEditor, type FittingKind } from './store';
 import styles from './Editor.module.css';
 
-const HARDNESS = { dura: tk('dura'), semidura: tk('semidura'), blanda: tk('blanda') } as const;
 
 interface LengthFieldProps {
   label: string;
@@ -556,13 +557,25 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       </div>
       <label className={styles.field} htmlFor={woodId}>
         {t('Madera')}
-        <select id={woodId} value={part.wood} onChange={(e) => update((q) => void (q.wood = e.target.value))}>
-          {WOODS.map((w) => (
-            <option key={w.id} value={w.id}>
-              {t(w.name)} · {t(HARDNESS[w.hardness])}
-            </option>
-          ))}
+        <select
+          id={woodId}
+          value={part.wood}
+          onChange={(e) => {
+            const id = e.target.value;
+            update((q) => {
+              q.wood = id;
+              // Una placa viene en espesores fijos: la pieza pasa al más cercano.
+              const sheet = sheetById(id);
+              if (sheet && q.base.kind === 'box') {
+                const thin = q.base.size.indexOf(Math.min(...q.base.size));
+                q.base.size[thin] = nearestSheetThickness(sheet, q.base.size[thin]!);
+              }
+            });
+          }}
+        >
+          <MaterialOptions />
         </select>
+        {sheetNote(part.wood) && <span className={styles.fieldNote}>{sheetNote(part.wood)}</span>}
       </label>
       {component && <ComponentNote project={project} part={part} name={component.name} />}
       <div className={styles.folds}>

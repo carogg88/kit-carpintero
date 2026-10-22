@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import {
   cutList,
   cutPlan,
@@ -6,14 +6,20 @@ import {
   END_TRIM_MM,
   formatNumber,
   getLang,
+  isSheet,
   KERF_MM,
   locale,
   planedMm,
+  SHEET_KERF_MM,
+  SHEET_TRIM_MM,
+  sheetShopping,
+  sheetUse,
   shoppingList,
   t,
   woodById,
   type CutRow,
   type Project,
+  type SheetBoard,
   type StockBoard,
 } from '@kitc/core';
 import { HelpTip } from '../help/Help';
@@ -24,8 +30,14 @@ import {
   cutsCsv,
   decimal,
   formatIds,
+  lowerName,
+  sheetKey,
+  sheetLabel,
+  sheetCountLabel,
+  sheetPieces,
   shopKey,
   shopUse,
+  type SheetRow,
   stockCountLabel,
   stockLabel,
   woodName,
@@ -205,7 +217,56 @@ function BoardDiagram({ board, n, showWood }: { board: StockBoard; n: (mm: numbe
   );
 }
 
-function ShopChecklist({ shop, plan, rows, project }: { shop: ShopRow[]; plan: ReturnType<typeof cutPlan>; rows: CutRow[]; project: Project }) {
+/** Una placa vista de frente, a escala, con cada pieza en su lugar. */
+function SheetDiagram({ board, n }: { board: SheetBoard; n: (mm: number) => string }) {
+  const [L, W] = board.size;
+  const pattern = useId();
+  const used = Math.round(sheetUse(board) * 100);
+  const description = t('{pieces}; se aprovecha el {pct}%', {
+    pieces: board.placements.map((p) => t('{id} de {l} × {w}', { id: p.id, l: n(p.rotated ? p.width : p.length), w: n(p.rotated ? p.length : p.width) })).join(', '),
+    pct: used,
+  });
+  return (
+    <figure className={styles.board}>
+      <figcaption>
+        <strong>{sheetLabel(board)}</strong>
+        <span> · {t('se aprovecha el {pct}%', { pct: used })}</span>
+      </figcaption>
+      <svg className={styles.sheet} viewBox={`0 0 ${L} ${W}`} role="img" aria-label={description} preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <pattern id={pattern} width="60" height="60" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="60" height="60" className={styles.sheetBg} />
+            <rect width="18" height="60" className={styles.sheetHatch} />
+          </pattern>
+        </defs>
+        <rect width={L} height={W} fill={`url(#${pattern})`} className={styles.sheetEdge} />
+        {board.placements.map((p) => {
+          // El largo y el ancho de la pieza, sin importar cómo va en la placa.
+          const [pl, pw] = p.rotated ? [p.width, p.length] : [p.length, p.width];
+          const label = `${p.id}  ${n(pl)} × ${n(pw)}`;
+          const size = Math.min(80, p.width * 0.42, (p.length * 1.6) / Math.max(label.length, 4));
+          const short = size < 45;
+          return (
+            <g key={p.id}>
+              <rect x={p.x} y={p.y} width={p.length} height={p.width} className={styles.sheetPiece} />
+              <text
+                x={p.x + p.length / 2}
+                y={p.y + p.width / 2}
+                className={styles.sheetLabel}
+                style={{ fontSize: short ? Math.min(80, p.width * 0.6, p.length * 0.5) : size }}
+              >
+                {short ? p.id : label}
+              </text>
+              <title>{`${p.id} · ${n(pl)} × ${n(pw)}`}</title>
+            </g>
+          );
+        })}
+      </svg>
+    </figure>
+  );
+}
+
+function ShopChecklist({ shop, sheets, plan, rows, project }: { shop: ShopRow[]; sheets: SheetRow[]; plan: ReturnType<typeof cutPlan>; rows: CutRow[]; project: Project }) {
   const key = `kitc.compras.${project.id}`;
   const [done, setDone] = useState<string[]>(() => readStored<string[]>(key, []));
   const toggle = (k: string, on: boolean) => {
@@ -235,21 +296,39 @@ function ShopChecklist({ shop, plan, rows, project }: { shop: ShopRow[]; plan: R
             })}
         </section>
       ))}
+      {sheets.length > 0 && (
+        <section className={styles.checkGroup} aria-label={t('Placas')}>
+          <h2 className={styles.eyebrow}>{t('Placas')}</h2>
+          {sheets.map((s) => {
+            const k = sheetKey(s);
+            return (
+              <label key={k} className={styles.checkCard}>
+                <input type="checkbox" checked={done.includes(k)} onChange={(e) => toggle(k, e.target.checked)} />
+                <span>
+                  <strong>{sheetCountLabel(s)}</strong>
+                  <span className={styles.muted}>{sheetPieces(s, plan)}</span>
+                </span>
+              </label>
+            );
+          })}
+        </section>
+      )}
     </>
   );
 }
 
 /** Qué quiere decir el desperdicio: un número solo asusta al que nunca compró madera. */
-function wasteNote(waste: number): string {
+function wasteNote(waste: number, sheetsOnly: boolean): string {
+  if (sheetsOnly) return t('Las placas se compran enteras y siempre sobra: guardá los recortes, sirven para cajones, plantillas y pruebas. Algunas casas venden media placa.');
   return waste <= 0.35
     ? t('Es normal: las tablas vienen en largos fijos y siempre sobra algo. Guardá los retazos para probar los encastres.')
     : t('Es alto: las piezas no aprovechan bien los largos de la maderera. Podés pedir que te corten las tablas a medida, o usar lo que sobra para probar los encastres.');
 }
 
 export function CutsView({ project }: { project: Project }) {
-  const { rows, plan, shop, dowels } = useMemo(() => {
+  const { rows, plan, shop, sheets, dowels } = useMemo(() => {
     const plan = cutPlan(project);
-    return { rows: cutList(project), plan, shop: shoppingList(plan), dowels: dowelsNeeded(project) };
+    return { rows: cutList(project), plan, shop: shoppingList(plan), sheets: sheetShopping(plan), dowels: dowelsNeeded(project) };
   }, [project]);
   const [price, setPrice] = useState(() => readStored<string>('kitc.precioPie', ''));
   // La lista y el despiece de cada tabla van en pestañas: cada uno entra en una pantalla.
@@ -276,8 +355,10 @@ export function CutsView({ project }: { project: Project }) {
   const total = priceValue > 0 ? Math.round(priceValue * feet) : null;
   const boardCount = shop.reduce((s, r) => s + r.count, 0);
   const glued = project.joints.some((j) => j.type !== 'tope') || rows.some((r) => r.boards > 1);
+  const sheetCount = sheets.reduce((s, r) => s + r.count, 0);
   const tooLong = plan.tooLong;
-  const exportCsv = () => download(`${fileSlug(project.name)}-${t('cortes')}.csv`, cutsCsv(project, rows, shop));
+  const exportCsv = () => download(`${fileSlug(project.name)}-${t('cortes')}.csv`, cutsCsv(project, rows, shop, plan));
+  const plansTab = shop.length === 0 ? t('Cómo cortar cada placa') : sheets.length ? t('Cómo cortar tablas y placas') : t('Cómo cortar cada tabla');
 
   const hardware = (
     <>
@@ -289,13 +370,19 @@ export function CutsView({ project }: { project: Project }) {
             <strong>× {d.count}</strong>
           </li>
         ))}
+        {plan.banding.map((b) => (
+          <li key={`${b.material}-${b.width}`}>
+            <span>{t('Tapacanto de {sheet} de {w} mm', { sheet: woodName(b.material).toLocaleLowerCase(locale()), w: b.width })}</span>
+            <strong>{b.meters} m</strong>
+          </li>
+        ))}
         {glued && (
           <li>
             <span>{t('Cola vinílica para madera')}</span>
             <strong>{pieces > 20 ? '500 g' : '250 g'}</strong>
           </li>
         )}
-        {!glued && dowels.length === 0 && <li className={styles.muted}>{t('Nada más por ahora.')}</li>}
+        {!glued && dowels.length === 0 && plan.banding.length === 0 && <li className={styles.muted}>{t('Nada más por ahora.')}</li>}
       </ul>
     </>
   );
@@ -319,8 +406,8 @@ export function CutsView({ project }: { project: Project }) {
               {t('Lista de piezas')}
             </button>
             <button type="button" role="tab" id="tab-tablas" aria-selected={tab === 'tablas'} aria-controls="panel-tablas" onClick={() => setTab('tablas')}>
-              {t('Cómo cortar cada tabla')}
-              <span className={styles.tabCount}>{plan.boards.length}</span>
+              {plansTab}
+              <span className={styles.tabCount}>{plan.boards.length + plan.sheets.length}</span>
             </button>
           </div>
           <div id="panel-lista" role="tabpanel" aria-labelledby="tab-lista" className={styles.cutPanel} hidden={tab !== 'lista'}>
@@ -333,14 +420,26 @@ export function CutsView({ project }: { project: Project }) {
                   : t('{ids} son más largas que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.', { ids: tooLong.join(', ') })}
               </p>
             )}
+            {plan.tooBig.length > 0 && (
+              <p className={styles.warn} role="alert">
+                {t('{ids}: no sale de una placa entera, o es más gruesa que las placas que se consiguen. Pasala a madera maciza o achicala.', { ids: plan.tooBig.join(', ') })}
+              </p>
+            )}
           </div>
 
           <div id="panel-tablas" role="tabpanel" aria-labelledby="tab-tablas" className={styles.cutPanel} hidden={tab !== 'tablas'}>
-            <h2 className={styles.srOnly}>{t('Cómo cortar cada tabla')}</h2>
+            <h2 className={styles.srOnly}>{plansTab}</h2>
             <div className={styles.diagrams}>
               {plan.boards.map((b, i) => (
                 <BoardDiagram key={i} board={b} n={n} showWood={woods.length > 1} />
               ))}
+              {plan.sheets.length > 0 && (
+                <div className={styles.sheets}>
+                  {plan.sheets.map((b, i) => (
+                    <SheetDiagram key={i} board={b} n={n} />
+                  ))}
+                </div>
+              )}
               <div className={styles.diagramLegend}>
                 <span>
                   <span className={styles.swatchPiece} aria-hidden="true" />
@@ -351,6 +450,7 @@ export function CutsView({ project }: { project: Project }) {
                   {t('Sobrante')}
                 </span>
                 <span>{t('Corte de sierra: {kerf} mm', { kerf: KERF_MM })}</span>
+                {plan.sheets.length > 0 && <span>{t('Placas: corte de {kerf} mm y {trim} mm de recorte en cada borde', { kerf: SHEET_KERF_MM, trim: SHEET_TRIM_MM })}</span>}
               </div>
             </div>
           </div>
@@ -358,20 +458,29 @@ export function CutsView({ project }: { project: Project }) {
 
         <aside className={styles.cutsAside} aria-label={t('Resumen de compra')}>
           <div className={`${styles.buyCard} ${styles.desktopOnly}`}>
-            <h2 className={styles.h3}>{t('Para comprar en la maderera')}</h2>
+            <h2 className={styles.h3}>{shop.length ? t('Para comprar en la maderera') : t('Para comprar en el corralón')}</h2>
             <div className={styles.stats}>
-              <div>
-                <span className={styles.bigNum}>{decimal(feet)}</span>
-                <span>
-                {feetLabel}
-                <HelpTip term="pie" />
-              </span>
-              </div>
+              {shop.length > 0 && (
+                <div>
+                  <span className={styles.bigNum}>{decimal(feet)}</span>
+                  <span>
+                    {feetLabel}
+                    <HelpTip term="pie" />
+                  </span>
+                </div>
+              )}
+              {sheetCount > 0 && (
+                <div>
+                  <span className={styles.bigNum}>{sheetCount}</span>
+                  <span>{sheetCount === 1 ? t('placa') : t('placas')}</span>
+                </div>
+              )}
               <div>
                 <span className={styles.bigNum}>{Math.round(plan.waste * 100)}%</span>
                 <span>{t('de desperdicio')}</span>
               </div>
             </div>
+            {shop.length > 0 && (
             <label className={styles.darkField}>
               {t('Precio por pie (opcional)')}
               <input
@@ -384,6 +493,7 @@ export function CutsView({ project }: { project: Project }) {
                 }}
               />
             </label>
+            )}
             {total !== null && (
               <p className={styles.total}>
                 {t('Total aproximado')} <strong>$ {total.toLocaleString(locale())}</strong>
@@ -392,50 +502,80 @@ export function CutsView({ project }: { project: Project }) {
           </div>
 
           <div className={`${styles.tiles} ${styles.mobileOnly}`}>
-            <div className={styles.tileDark}>
-              <span className={styles.tileNum}>{boardCount}</span>
-              <span>{t('tablas y tirantes')}</span>
-            </div>
-            <div className={styles.tile}>
-              <span className={styles.tileNum}>{decimal(feet)}</span>
-              <span>
-                {feetLabel}
-                <HelpTip term="pie" />
-              </span>
-            </div>
+            {shop.length > 0 && (
+              <div className={styles.tileDark}>
+                <span className={styles.tileNum}>{boardCount}</span>
+                <span>{t('tablas y tirantes')}</span>
+              </div>
+            )}
+            {sheetCount > 0 && (
+              <div className={styles.tileDark}>
+                <span className={styles.tileNum}>{sheetCount}</span>
+                <span>{sheetCount === 1 ? t('placa') : t('placas')}</span>
+              </div>
+            )}
+            {shop.length > 0 && (
+              <div className={styles.tile}>
+                <span className={styles.tileNum}>{decimal(feet)}</span>
+                <span>
+                  {feetLabel}
+                  <HelpTip term="pie" />
+                </span>
+              </div>
+            )}
             <div className={styles.tile}>
               <span className={styles.tileNum}>{Math.round(plan.waste * 100)}%</span>
               <span>{t('desperdicio')}</span>
             </div>
           </div>
 
-          <p className={styles.wasteNote}>{wasteNote(plan.waste)}</p>
+          <p className={styles.wasteNote}>{wasteNote(plan.waste, shop.length === 0)}</p>
 
           <div className={`${styles.card} ${styles.desktopOnly}`}>
-            <h2 className={styles.h3}>{t('Tablas')}</h2>
-            <ul className={styles.plainList}>
-              {shop.map((s) => (
-                <li key={shopKey(s)}>
-                  <span>
-                    {stockLabel(s)}
-                    {woods.length > 1 && ` · ${woodName(s.wood)}`}
-                  </span>
-                  <strong>× {s.count}</strong>
-                </li>
-              ))}
-            </ul>
+            {shop.length > 0 && (
+              <>
+                <h2 className={styles.h3}>{t('Tablas')}</h2>
+                <ul className={styles.plainList}>
+                  {shop.map((s) => (
+                    <li key={shopKey(s)}>
+                      <span>
+                        {stockLabel(s)}
+                        {woods.length > 1 && ` · ${woodName(s.wood)}`}
+                      </span>
+                      <strong>× {s.count}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {sheets.length > 0 && (
+              <>
+                <h2 className={styles.h3}>{t('Placas')}</h2>
+                <ul className={styles.plainList}>
+                  {sheets.map((s) => (
+                    <li key={sheetKey(s)}>
+                      <span>{sheetLabel(s)}</span>
+                      <strong>× {s.count}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             {hardware}
           </div>
 
           <div className={`${styles.checklist} ${styles.mobileOnly}`}>
-            <ShopChecklist shop={shop} plan={plan} rows={rows} project={project} />
+            <ShopChecklist shop={shop} sheets={sheets} plan={plan} rows={rows} project={project} />
             {hardware}
             <p className={styles.muted}>{t('Medidas comerciales de madereras de Buenos Aires. Cada tabla ya suma {kerf} mm por corte de sierra.', { kerf: KERF_MM })}</p>
+            {sheets.length > 0 && <p className={styles.muted}>{t('Las casas de placas cortan a medida y pegan el tapacanto: llevá la planilla exportada, que trae el despiece.')}</p>}
           </div>
 
-          {woods.map((w) => (
+          {[...woods, ...new Set(sheets.map((s) => s.material))].map((w) => (
             <div key={w} className={styles.card}>
-              <h2 className={styles.h3}>{t('Sobre el {wood}', { wood: woodName(w).toLocaleLowerCase(locale()) })}</h2>
+              <h2 className={styles.h3}>
+                {isSheet(w) ? t('Sobre las placas de {wood}', { wood: lowerName(w) }) : t('Sobre el {wood}', { wood: lowerName(w) })}
+              </h2>
               <p className={styles.muted}>
                 {t(woodById(w)?.about ?? '')} {t('Otras opciones: {list}.', { list: alternativesText(w) })}
               </p>
