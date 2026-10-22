@@ -39,4 +39,12 @@ describe('cómo armarlo', () => {
     expect(listIds(['F1', 'F3'])).toBe('F1 y F3');
     expect(listIds(['E1', 'E2', 'E5'])).toBe('E1, E2 y E5');
   });
+
+  it('en el taburete avisa qué espigas son más cortas', () => {
+    const def = TEMPLATES.find((d) => d.id === 'taburete')!;
+    const p = buildTemplate(def, templateDefaults(def), 'guatambu', 'mortaja', '2026-10-22T00:00:00Z');
+    const aprons = assemblySteps(p, n).find((s) => s.key.includes('Faldón') && s.joint === 'mortaja')!;
+    expect(aprons.items).toEqual(['8 uniones', 'Ojo: las espigas de F1 y F2 que van en P1 a P4 son más cortas, para no chocar adentro con las otras.']);
+  });
 });
+

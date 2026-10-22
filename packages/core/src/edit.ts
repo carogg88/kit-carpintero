@@ -2,6 +2,7 @@ import { boxSize, endContact, overlapBox, partBox, type Axis, type Box, type Vec
 import { defaultJointParams, suggestJoints } from './joints';
 import type { Joint, Part } from './project';
 import { t, tk } from './i18n';
+import { fitJointDepths } from './jointfit';
 
 /**
  * Herramientas de edición que no dependen de la pantalla: imán a caras cercanas, piezas nuevas
@@ -122,12 +123,18 @@ export function syncJoints(parts: Part[], joints: Joint[]): Joint[] {
     if (defaultJointParams(j.type, a, b) !== null) kept.set(key(j.partA, j.partB), j);
   }
   const result: Joint[] = [];
+  const added = new Set<string>();
   for (const s of suggestJoints(parts)) {
-    result.push(kept.get(key(s.partA, s.partB)) ?? s);
+    const k = kept.get(key(s.partA, s.partB));
+    if (!k) added.add(s.id);
+    result.push(k ?? s);
     kept.delete(key(s.partA, s.partB));
   }
   // Contactos que la propuesta no ve pero la persona eligió.
-  return [...result, ...kept.values()];
+  const all = [...result, ...kept.values()];
+  // Las uniones nuevas no se pueden cruzar adentro de una pieza con las que ya están.
+  if (added.size) fitJointDepths({ parts, joints: all }, added);
+  return all;
 }
 
 /** Medidas de la caja ordenadas de mayor a menor, con su eje: largo, ancho y espesor. */

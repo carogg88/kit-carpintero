@@ -68,4 +68,24 @@ describe('dónde marcar cada encastre', () => {
     const p = buildTemplate(def, templateDefaults(def), 'guatambu', 'tope', '2026-10-21T00:00:00Z');
     expect(p.parts.flatMap((x) => partJointMarks(p, x))).toEqual([]);
   });
+
+  it('el estante de arriba va en un rebaje y el zócalo en un canal, marcados desde la cara de adentro', () => {
+    const def = TEMPLATES.find((d) => d.id === 'estante')!;
+    const p = buildTemplate(def, templateDefaults(def), 'guatambu', 'canal', '2026-10-21T00:00:00Z');
+    const text = describePartJoints(p, p.parts.find((x) => x.id === 'L1')!, n);
+    expect(text).toContain('Rebaje para E5 en la cara de adentro: al ras de la punta de arriba y de borde a borde. Mide 2 × 30 y 0,7 de hondo.');
+    expect(text).toContain('Canal para Z1 en la cara de adentro: al ras de la punta de abajo y a 2 del borde de adelante. Mide 7 × 2 y 0,7 de hondo.');
+    expect(describePartJoints(p, p.parts.find((x) => x.id === 'E1')!, n)).toContain(
+      'Canal para Z1 en la cara de abajo: de punta a punta y a 2 del borde de adelante. Mide 76 × 2 y 0,7 de hondo.',
+    );
+  });
+
+  it('en la caja, los dos costados en espejo se describen igual y los rebajes dicen "cada punta"', () => {
+    const def = TEMPLATES.find((d) => d.id === 'caja')!;
+    const p = buildTemplate(def, templateDefaults(def), 'guatambu', 'rebaje', '2026-10-21T00:00:00Z');
+    const text = (id: string) => describePartJoints(p, p.parts.find((x) => x.id === id)!, n);
+    expect(text('C3').map((s) => s.replace(/C\d y C\d/, 'C'))).toEqual(text('C4').map((s) => s.replace(/C\d y C\d/, 'C')));
+    expect(text('C1')[0]).toBe('2 rebajes para C3 y C4 en la cara de adentro: al ras de cada punta y de borde a borde. Mide 1 × 9 y 0,4 de hondo.');
+    expect(text('C3')).toContain('2 lengüetas para C1 y C2 en cada punta: no se rebaja, la pieza entra entera 0,4 en la otra. La medida de corte ya lo incluye.');
+  });
 });
