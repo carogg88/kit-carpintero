@@ -158,7 +158,7 @@ export const sheetLabel = (r: Pick<SheetRow, 'material' | 'thickness' | 'size'>)
 export const sheetCountLabel = (r: SheetRow) =>
   t(r.count === 1 ? tk('{n} placa de {sheet} de {t} mm ({l} × {w} cm)') : tk('{n} placas de {sheet} de {t} mm ({l} × {w} cm)'), {
     n: r.count,
-    sheet: woodName(r.material),
+    sheet: lowerName(r.material),
     t: decimal(r.thickness),
     l: decimal(r.size[0] / 10),
     w: decimal(r.size[1] / 10),
@@ -186,3 +186,34 @@ export const qtyLabel = (r: Pick<HardwareRow, 'qty' | 'unit'>) => {
   const [one, many] = UNIT_LABELS[r.unit];
   return t(r.qty === 1 ? one : many, { n: decimal(r.qty, 2) });
 };
+
+/**
+ * La lista de compras como texto, para mandar por WhatsApp a la maderera o al corralón: tablas, placas con su
+ * despiece en mm (lo que piden para cortar a medida) y herrajes.
+ */
+export function shopText(project: Project, plan: CutPlan, rows: CutRow[], shop: ShopRow[], hardware: HardwareRow[]): string {
+  const lines: string[] = [t('{name} · lista de compras', { name: project.name }), ''];
+  if (shop.length) {
+    lines.push(t('Madera maciza:'));
+    for (const s of shop) lines.push(`- ${stockCountLabel(s)}, ${lowerName(s.wood)}`);
+    lines.push('');
+  }
+  const sheets = sheetShopping(plan);
+  if (sheets.length) {
+    lines.push(t('Placas:'));
+    for (const s of sheets) lines.push(`- ${sheetCountLabel(s)}`);
+    const cut = rows.filter((r) => isSheet(r.wood));
+    lines.push('', t('Despiece para cortar (largo × ancho en mm):'));
+    for (const r of cut) {
+      const th = sheetThicknessFor(sheetById(r.wood)!, r.cut[2]) ?? r.cut[2];
+      const band = r.band && r.band[0] + r.band[1] ? ` · ${t('tapacanto: {l} largos, {s} cortos', { l: r.band[0], s: r.band[1] })}` : '';
+      lines.push(`- ${r.ids.length} × ${Math.round(r.cut[0])} × ${Math.round(r.cut[1])} · ${woodName(r.wood)} ${decimal(th)} mm${band} (${r.name})`);
+    }
+    lines.push('');
+  }
+  if (hardware.length) {
+    lines.push(t('Herrajes y consumibles:'));
+    for (const h of hardware) lines.push(`- ${qtyLabel(h)} · ${h.name}`);
+  }
+  return lines.join('\n').trim();
+}

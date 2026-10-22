@@ -3,23 +3,26 @@ import { Editor } from './editor/Editor';
 import { useEditor } from './editor/store';
 import { Home } from './home/Home';
 import { PhotoTrace } from './nuevo/PhotoTrace';
+import { Shared } from './nuevo/Shared';
 import { TemplateForm } from './nuevo/TemplateForm';
-import { t, templateById } from '@kitc/core';
+import { SHARE_ROUTE, t, templateById } from '@kitc/core';
 import { sectionHref, type Section } from './routes';
 import { readProject } from './storage/db';
 
 /**
  * Rutas por hash, para que funcione en GitHub Pages: #/ inicio, #/proyecto/<id> modelo,
- * #/proyecto/<id>/uniones, /cortes, /plano y /armado; #/nuevo/<plantilla> y #/foto para empezar un mueble.
+ * #/proyecto/<id>/uniones, /cortes, /plano y /armado; #/nuevo/<plantilla> y #/foto para empezar un mueble;
+ * #/compartido/<datos> para un proyecto que llegó por enlace.
  */
-function route(): { projectId: string | null; section: Section; start: string | null } {
+function route(): { projectId: string | null; section: Section; start: string | null; shared: string | null } {
   const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes|plano|armado))?$/);
   const n = location.hash.match(/^#\/(foto|nuevo\/[a-z-]+)$/);
-  return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null, section: (m?.[2] as Section | undefined) ?? 'modelo', start: n?.[1] ?? null };
+  const s = location.hash.startsWith(SHARE_ROUTE) ? location.hash.slice(SHARE_ROUTE.length) : null;
+  return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null, section: (m?.[2] as Section | undefined) ?? 'modelo', start: n?.[1] ?? null, shared: s };
 }
 
 export function App() {
-  const [{ projectId, section, start }, setRoute] = useState(route);
+  const [{ projectId, section, start, shared }, setRoute] = useState(route);
   const [missing, setMissing] = useState(false);
   const loaded = useEditor((s) => s.project?.id);
 
@@ -60,6 +63,7 @@ export function App() {
     );
   }
   if (projectId) return loaded === projectId ? <Editor section={section} onExit={() => go(null)} /> : null;
+  if (shared) return <Shared key={shared} data={shared} />;
   if (start === 'foto') return <PhotoTrace />;
   const def = start ? templateById(start.slice('nuevo/'.length)) : undefined;
   if (def) return <TemplateForm key={def.id} def={def} />;

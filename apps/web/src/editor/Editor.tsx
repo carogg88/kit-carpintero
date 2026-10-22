@@ -6,6 +6,7 @@ import { saveProject } from '../storage/db';
 import { BrandMark, BrandWordmark } from '../brand/Brand';
 import { AssemblyView } from './AssemblyView';
 import { CutsView } from './CutsView';
+import { ShareButton } from './Share';
 import {
   IconBack,
   IconBevel,
@@ -407,6 +408,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
           <SectionNav projectId={project.id} section={section} jointCount={jointCount} variant="tabs" />
         </div>
         <div className={styles.headerActions}>
+          <ShareButton project={project} />
           <button type="button" className={styles.iconBtn} aria-label={t('Deshacer (Ctrl+Z)')} disabled={!canUndo} onClick={undo}>
             <IconUndo />
           </button>
