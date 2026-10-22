@@ -36,6 +36,7 @@ import { ToolGuide, ChangeNotice } from './ToolGuide';
 import { MeasureBubble } from './MeasureBubble';
 import { NextSteps, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
+import { Workshop, workshopFrom } from './Workshop';
 import { Viewport } from './Viewport';
 import styles from './Editor.module.css';
 
@@ -318,7 +319,7 @@ function EmptyStart() {
   );
 }
 
-const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Cortes y compras'), plano: tk('Plano'), armado: tk('Cómo armarlo') };
+const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Cortes y compras'), plano: tk('Plano'), armado: tk('Cómo armarlo'), taller: tk('Modo taller') };
 
 export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
   const project = useEditor((s) => s.project);
@@ -345,6 +346,8 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   if (!project) return null;
   const modelo = section === 'modelo';
   const back = modelo ? onExit : () => (location.hash = sectionHref(project.id, 'modelo'));
+  // El modo taller ocupa toda la pantalla: sin encabezado ni barra de secciones.
+  if (section === 'taller') return <Workshop project={project} onExit={() => (location.hash = sectionHref(project.id, workshopFrom()))} />;
 
   const warnings = [...meshes.values()].filter((m) => m.warning).length;
   const saveText = saveState === 'error' ? t('No se pudo guardar') : saveState === 'saving' ? t('Guardando…') : t('Guardado en este dispositivo');

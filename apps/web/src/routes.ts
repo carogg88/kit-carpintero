@@ -1,5 +1,5 @@
 /** Secciones de un proyecto. */
-export type Section = 'modelo' | 'uniones' | 'cortes' | 'plano' | 'armado';
+export type Section = 'modelo' | 'uniones' | 'cortes' | 'plano' | 'armado' | 'taller';
 
 export const sectionHref = (id: string, section: Section) =>
   `#/proyecto/${encodeURIComponent(id)}${section === 'modelo' ? '' : `/${section}`}`;

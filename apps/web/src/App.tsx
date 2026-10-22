@@ -15,7 +15,7 @@ import { readProject } from './storage/db';
  * #/compartido/<datos> para un proyecto que llegó por enlace.
  */
 function route(): { projectId: string | null; section: Section; start: string | null; shared: string | null } {
-  const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes|plano|armado))?$/);
+  const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes|plano|armado|taller))?$/);
   const n = location.hash.match(/^#\/(foto|nuevo\/[a-z-]+)$/);
   const s = location.hash.startsWith(SHARE_ROUTE) ? location.hash.slice(SHARE_ROUTE.length) : null;
   return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null, section: (m?.[2] as Section | undefined) ?? 'modelo', start: n?.[1] ?? null, shared: s };

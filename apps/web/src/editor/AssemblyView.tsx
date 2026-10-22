@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { assemblySteps, formatNumber, t, tk, type AssemblyKind, type Project } from '@kitc/core';
 import { JointMeta } from '../help/Help';
 import { sectionHref, type Section } from '../routes';
+import { WorkshopLink } from './Workshop';
 import styles from './Sections.module.css';
 
 /** Pasos hechos de cada proyecto, en este navegador. Si no se puede guardar, viven mientras la página esté abierta. */
@@ -116,6 +117,7 @@ export function AssemblyView({ project }: { project: Project }) {
     <div className={styles.assemblyHead}>
       <h1 className={styles.h1}>{t('Cómo armarlo')}</h1>
       <p className={styles.muted}>{t('El orden de trabajo para este mueble, de la madera cortada al mueble terminado. Marcá cada paso cuando lo termines.')}</p>
+      <WorkshopLink projectId={project.id} from="armado" />
       <div className={styles.progress}>
         <span className={styles.progressBar} aria-hidden="true">
           <span style={{ width: `${(count / steps.length) * 100}%` }} />

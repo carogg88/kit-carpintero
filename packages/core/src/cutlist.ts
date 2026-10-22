@@ -25,6 +25,8 @@ export interface CutPiece {
   /** Cuántas espigas o lengüetas lleva. */
   tongues: number;
   work: string[];
+  /** Las notas de `work` que solo cuentan encastres ("2 mortajas"): donde se detalla cada encastre, sobran. */
+  jointWork: string[];
   /** Cantos con tapacanto, de los largos y de los cortos (solo piezas de placa que lo llevan). */
   band?: [number, number];
 }
@@ -38,6 +40,8 @@ export interface CutRow {
   extraLength: number;
   tongues: number;
   work: string[];
+  /** Las notas de `work` que solo cuentan encastres. */
+  jointWork: string[];
   /** Tablas a encolar de canto para llegar al ancho (1 si sale de una). */
   boards: number;
   /** Cantos con tapacanto, de los largos y de los cortos. */
@@ -151,6 +155,7 @@ export function cutPiece(part: Part, project: Project): CutPiece {
       work.push(names ? plural(n, names[0], names[1]) : `${n} ${k}`);
     }
   }
+  const jointWork = [...work];
   const plain = part.pockets.filter((p) => p.shape.kind !== 'arc');
   const through = plain.filter((p) => p.through).length;
   if (through) work.push(plural(through, tk('{n} calado'), tk('{n} calados')));
@@ -189,7 +194,7 @@ export function cutPiece(part: Part, project: Project): CutPiece {
       if (n) work.push(plural(n, tk('tapacanto en {n} canto'), tk('tapacanto en {n} cantos')));
     }
   }
-  return { part, cut, extraLength: Math.round(cut[0] - (finished[0] ?? 0)), tongues, work, ...(band ? { band } : {}) };
+  return { part, cut, extraLength: Math.round(cut[0] - (finished[0] ?? 0)), tongues, work, jointWork, ...(band ? { band } : {}) };
 }
 
 /**
@@ -230,6 +235,7 @@ export function cutList(project: Project): CutRow[] {
       extraLength: c.extraLength,
       tongues: c.tongues,
       work,
+      jointWork: c.jointWork,
       boards: stock?.boards ?? 1,
       ...(c.band ? { band: c.band } : {}),
     };

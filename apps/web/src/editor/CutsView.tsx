@@ -44,6 +44,7 @@ import {
   woodName,
   type ShopRow,
 } from './cutsData';
+import { WorkshopLink } from './Workshop';
 import styles from './Sections.module.css';
 
 /** Lectura y escritura del navegador que nunca rompe la página (modo privado, datos borrados). */
@@ -388,6 +389,9 @@ export function CutsView({ project }: { project: Project }) {
               {t('Exportar planilla')}
             </button>
           </div>
+          <div className={styles.desktopOnly}>
+            <WorkshopLink projectId={project.id} from="cortes" />
+          </div>
           <div className={styles.cutTabs} role="tablist" aria-label={t('Qué ver')}>
             <button type="button" role="tab" id="tab-lista" aria-selected={tab === 'lista'} aria-controls="panel-lista" onClick={() => setTab('lista')}>
               {t('Piezas')}
@@ -452,6 +456,9 @@ export function CutsView({ project }: { project: Project }) {
         </section>
 
         <aside className={styles.cutsAside} aria-label={t('Resumen de compra')}>
+          <div className={styles.mobileOnly}>
+            <WorkshopLink projectId={project.id} from="cortes" />
+          </div>
           <div className={`${styles.buyCard} ${styles.desktopOnly}`}>
             <h2 className={styles.h3}>{shop.length ? t('Para comprar en la maderera') : t('Para comprar en el corralón')}</h2>
             <div className={styles.stats}>
