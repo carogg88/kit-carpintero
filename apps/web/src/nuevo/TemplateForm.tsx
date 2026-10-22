@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
 import {
   buildTemplate,
+  furnitureBox,
+  goldenChecks,
   JOINT_NAMES,
   t,
   templateDefaults,
   templateWarnings,
   nearestSheetThickness,
   sheetById,
+  type GoldenFix,
   type JointType,
   type Project,
   type TemplateDef,
@@ -15,6 +18,7 @@ import {
 } from '@kitc/core';
 import { LengthField } from '../editor/PartPanel';
 import { MaterialOptions, sheetNote } from '../editor/MaterialOptions';
+import { GoldenList } from '../editor/Golden';
 import { IconWarn } from '../editor/icons';
 import { JointExplainer } from '../help/Help';
 import { navigate, sectionHref } from '../routes';
@@ -171,6 +175,17 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
   const general = def.fields.filter((f) => f.group === 'general');
   const pieces = def.fields.filter((f) => f.group === 'piezas');
   const change = (k: string, v: number) => setValues((s) => ({ ...s, [k]: v }));
+  // Proporción áurea de las medidas que se están pensando: el mueble armado, medido como en el editor.
+  const golden = useMemo(() => goldenChecks({ ...preview, units }), [preview, units]);
+  const fixGolden = (fix: GoldenFix) => {
+    if (fix.kind === 'drawers') return change('graded', 1);
+    // El campo de ese eje sube o baja lo mismo que tiene que cambiar el mueble entero.
+    const field = def.fields.find((f) => f.key === (['width', 'height', 'depth'] as const)[fix.axis]);
+    const box = furnitureBox(preview.parts);
+    if (!field || !box) return;
+    const now = box.max[fix.axis] - box.min[fix.axis];
+    change(field.key, Math.min(field.max, Math.max(field.min, Math.round((values[field.key]! + fix.mm - now) * 10) / 10)));
+  };
   // Una placa viene en espesores fijos: el de las tablas pasa al más cercano.
   const pickWood = (id: string) => {
     setWood(id);
@@ -220,6 +235,7 @@ export function TemplateForm({ def }: { def: TemplateDef }) {
             <Fields fields={general} values={values} units={units} warnings={warnings} onChange={change} onPoint={point} />
           </fieldset>
           <Warnings fields={general} warnings={warnings} />
+          <GoldenList checks={golden} onFix={fixGolden} />
           <fieldset className={styles.grid}>
             <legend className={styles.legend}>{t('Piezas')}</legend>
             <Fields fields={pieces} values={values} units={units} warnings={warnings} onChange={change} onPoint={point} />

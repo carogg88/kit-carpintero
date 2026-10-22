@@ -116,6 +116,7 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
   const [count, setCount] = useState(kind === 'puerta' ? (openingWide(openings[0]) ? 2 : 1) : kind === 'estantes' ? 2 : 1);
   const [front, setFront] = useState<FrontStyle>('embutido');
   const [slides, setSlides] = useState<Slides>('madera');
+  const [graded, setGraded] = useState(false);
   const [doorStyle, setDoorStyle] = useState<DoorStyle>(isSheet(wood) ? 'tablero' : 'marco');
   const [shelfMode, setShelfMode] = useState<ShelfMode>('fijo');
   const problemId = useId();
@@ -125,7 +126,7 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
   // Los estantes van entre dos laterales: sin un hueco del mueble no hay dónde ponerlos.
   const problem =
     kind === 'cajon'
-      ? drawerProblem(opening, { count, slides, front, wood })
+      ? drawerProblem(opening, { count, slides, front, wood, graded })
       : kind === 'puerta'
         ? doorProblem(opening, { count: count as 1 | 2 })
         : isLoose
@@ -133,10 +134,10 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
           : shelfProblem(opening, { count, wood });
   const fitting = useMemo(() => {
     if (problem) return null;
-    if (kind === 'cajon') return buildDrawers(project, opening, { count, front, slides, wood });
+    if (kind === 'cajon') return buildDrawers(project, opening, { count, front, slides, wood, graded });
     if (kind === 'puerta') return buildDoors(project, opening, { count: count as 1 | 2, front, style: doorStyle, wood });
     return buildShelves(project, opening, { count, mode: shelfMode, wood });
-  }, [problem, kind, project, opening, count, front, slides, doorStyle, shelfMode, wood]);
+  }, [problem, kind, project, opening, count, front, slides, doorStyle, shelfMode, wood, graded]);
 
   useEffect(() => {
     setPreview(isLoose ? null : { opening: opening.box, parts: fitting?.parts.map(partBox) ?? [] });
@@ -275,6 +276,14 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
           <>
             <Seg label={t('Correderas')} value={slides} options={SLIDES.map(([v, l]) => [v, t(l)])} onChange={setSlides} />
             <p className={`${styles.muted} ${own.text}`}>{t(SLIDES.find(([v]) => v === slides)![2])}</p>
+            {count > 1 && (
+              <>
+                <Seg label={t('Alto de los cajones')} value={graded ? 1 : 0} options={[[0, t('Iguales')], [1, t('Graduados')]]} onChange={(v) => setGraded(v === 1)} />
+                <p className={`${styles.muted} ${own.text}`}>
+                  {graded ? t('Cada uno un poco más bajo que el de abajo; el de abajo es 1,618 veces el de arriba (proporción áurea).') : t('Todos del mismo alto.')}
+                </p>
+              </>
+            )}
           </>
         ) : (
           <>
