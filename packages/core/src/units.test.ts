@@ -5,6 +5,10 @@ describe('formatNumber', () => {
   it('muestra cm con coma decimal', () => {
     expect(formatNumber(725, 'cm')).toBe('72,5');
     expect(formatNumber(1800, 'cm')).toBe('180');
+    expect(formatNumber(92.5, 'cm')).toBe('9,25');
+    expect(formatNumber(254.5, 'cm')).toBe('25,45');
+    expect(formatNumber(92.49, 'cm')).toBe('9,25');
+    expect(formatNumber(92.2, 'cm')).toBe('9,2');
   });
   it('muestra pulgadas en fracciones simplificadas de 1/16', () => {
     expect(formatNumber(25.4, 'in')).toBe('1');

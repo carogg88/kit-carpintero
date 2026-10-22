@@ -52,8 +52,6 @@ const VIEW_DIRS: Record<View, [number, number, number]> = {
   top: [0, 1, 0.0001],
 };
 const AXIS_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
-/** Las medidas como las nombra el panel: de la más larga a la más corta. */
-const DIM_WORDS = [tk('largo'), tk('ancho'), tk('espesor')] as const;
 const snapName = (to: 'borde' | 'centro' | null) => (to === 'borde' ? t('borde') : to === 'centro' ? t('centro') : null);
 
 function bounds(project: Project): THREE.Box3 {
@@ -137,11 +135,24 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
     const p = useEditor.getState().project;
     if (!p || !(camera instanceof THREE.PerspectiveCamera)) return;
     const b = bounds(p);
-    const r = b.getSize(new THREE.Vector3()).length() / 2;
-    const vHalf = (camera.fov * Math.PI) / 360;
-    const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-    const dist = (r / Math.sin(Math.min(hHalf, vHalf))) * 0.98;
-    flyTo(b.getCenter(new THREE.Vector3()), new THREE.Vector3(...VIEW_DIRS[useEditor.getState().view]), dist, instant);
+    const center = b.getCenter(new THREE.Vector3());
+    const dir = new THREE.Vector3(...VIEW_DIRS[useEditor.getState().view]).normalize();
+    // Prueba con una cámara igual: acerca o aleja hasta que las 8 esquinas entran con un margen (las patas
+    // de abajo quedaban cortadas con la esfera que envuelve al mueble en pantallas apaisadas).
+    const probe = camera.clone();
+    const corners = [0, 1, 2, 3, 4, 5, 6, 7].map(
+      (i) => new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z),
+    );
+    let dist = b.getSize(new THREE.Vector3()).length();
+    for (let i = 0; i < 6; i++) {
+      probe.position.copy(center).addScaledVector(dir, dist);
+      probe.lookAt(center);
+      probe.updateMatrixWorld();
+      const ndc = corners.map((c) => c.clone().project(probe));
+      const reach = Math.max(...ndc.map((q) => Math.max(Math.abs(q.x), Math.abs(q.y))));
+      dist *= reach / 0.86;
+    }
+    flyTo(center, dir, dist, instant);
   });
 
   // Mira de frente la cara elegida para dibujar, con un margen alrededor.
@@ -483,6 +494,20 @@ function closestT(origin: THREE.Vector3, dir: THREE.Vector3, ray: THREE.Ray): nu
   return Math.abs(den) < 1e-9 ? 0 : (b * e - c * d) / den;
 }
 
+/** Dónde el rayo toca la cara elegida para dibujar, si cae adentro de ella. */
+function pointOnDrawFace(ray: THREE.Ray, part: Part, face: DrawFace): THREE.Vector3 | null {
+  // Solo si se la mira desde afuera: de atrás, la cara no se ve.
+  if (ray.direction.getComponent(face.axis) * face.side >= 0) return null;
+  const box = partBox(part);
+  const normal = new THREE.Vector3();
+  normal.setComponent(face.axis, 1);
+  const plane = new THREE.Plane(normal, -(face.side > 0 ? box.max[face.axis] : box.min[face.axis]));
+  const pt = ray.intersectPlane(plane, new THREE.Vector3());
+  if (!pt) return null;
+  const inside = otherAxes(face.axis).every((a) => pt.getComponent(a) >= box.min[a] && pt.getComponent(a) <= box.max[a]);
+  return inside ? pt : null;
+}
+
 function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
@@ -502,7 +527,12 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const { tool, select, beginDrag, copyMove, commit, project: current } = useEditor.getState();
     if (tool === 'select' || !e.face || !current) return;
     e.stopPropagation();
-    if (tool === 'draw') return pickFace(e, original);
+    if (tool === 'draw') {
+      // Con una cara ya elegida, el trazo va a esa cara aunque otra pieza la tape (un listón que pasa por delante).
+      const chosen = current.parts.find((q) => q.id === useEditor.getState().drawFace?.partId);
+      const onFace = chosen && chosen.id !== original.id ? pointOnDrawFace(e.ray, chosen, useEditor.getState().drawFace!) : null;
+      return onFace ? beginSketch(onFace, e.nativeEvent) : pickFace(e, original);
+    }
     if (tool === 'bevel') return startBevel(e, original);
     if (tool === 'section') return startSection(e, original);
     if (tool === 'turn') {
@@ -618,7 +648,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         const q = useEditor.getState().project?.parts.find((x) => x.id === part.id);
         const size = q?.base.kind === 'box' ? q.base.size[drag.axis] : 0;
         const changed = Math.abs(size - (drag.start.max[drag.axis] - drag.start.min[drag.axis])) > 0.05;
-        const label = t('{id} ahora mide {size} de {dim}', { id: part.id, size: formatLength(size, units), dim: t(DIM_WORDS[partAxesBySize(part).indexOf(drag.axis)]!) });
+        const label = t('{id} ahora mide {size} de {dim}', { id: part.id, size: formatLength(size, units), dim: t(AXIS_NAMES[drag.axis]) });
         const pushed = { id: part.id, axis: drag.axis, sign: drag.sign };
         endDrag(pushed, changed ? label : undefined);
         // Al soltar, la medida exacta se escribe ahí mismo.

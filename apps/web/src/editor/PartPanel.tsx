@@ -24,12 +24,12 @@ import {
   MEASURED_FROM,
   newPart,
   parseLength,
-  partAxesBySize,
   partBox,
+  pocketTakesWholePart,
+  renamePart,
   t,
   tk,
   WOODS,
-  type Axis,
   type Bevel,
   type Joint,
   type NewPartKind,
@@ -105,7 +105,6 @@ export function LengthField({ label, mm, units, min = 1, max, onCommit, compact,
   );
 }
 
-const DIM_LABELS = [tk('Largo'), tk('Ancho'), tk('Espesor')] as const;
 
 /** Descripción corta de un encastre con sus medidas, como en el diseño: "mortaja 0,7 × 8 × 4,2 cm". */
 export function describeJoint(j: Joint, project: Project): string {
@@ -242,6 +241,12 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
           <IconTrash />
         </button>
       </div>
+      {pocketTakesWholePart(part, pocket) && (
+        <span className={styles.error} role="alert">
+          <IconWarn />
+          {t('Este calado se lleva toda la pieza: achicalo o cambialo a vaciado.')}
+        </span>
+      )}
       <div className={styles.pocketFields}>
         {s.kind === 'arc' ? (
           <>
@@ -405,9 +410,6 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
   const units = project.units;
   const nameId = useId();
   const woodId = useId();
-  // El orden largo/ancho/espesor se fija al elegir la pieza (el panel se monta de nuevo con cada pieza),
-  // para que los campos no cambien de lugar mientras se edita.
-  const [axes] = useState<[Axis, Axis, Axis]>(() => partAxesBySize(part));
   const size = part.base.kind === 'box' ? part.base.size : [0, 0, 0];
   const op = part.ops[0];
   const edge: EdgeKind = !op ? 'rectos' : op.kind;
@@ -480,7 +482,15 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           title={t('Tocá para cambiar el nombre')}
           onBlur={(e) => {
             const v = e.target.value.trim();
-            if (v && v !== part.name) update((q) => void (q.name = v));
+            if (v && v !== part.name) {
+              // El código sigue al nombre: una copia de faldón que pasa a llamarse "Listón…" queda como L.
+              let id = part.id;
+              commit((d) => void (id = renamePart(d, part.id, v)));
+              if (id !== part.id) {
+                select(id);
+                useEditor.getState().warn(t('{old} ahora es {id}: el código va con el nombre nuevo.', { old: part.id, id }));
+              }
+            }
             else e.target.value = part.name;
           }}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -488,10 +498,11 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       </div>
       <fieldset className={styles.dims}>
         <legend className={styles.legend}>{t('Medidas terminadas ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}</legend>
-        {axes.map((axis, i) => (
+        {/* Siempre en el mismo orden y con el nombre de la dirección: no cambian al girar la pieza con las medidas. */}
+        {([0, 1, 2] as const).map((axis) => (
           <LengthField
             key={axis}
-            label={t(DIM_LABELS[i]!)}
+            label={t(AXIS_LABELS[axis])}
             mm={size[axis] ?? 0}
             units={units}
             min={3}

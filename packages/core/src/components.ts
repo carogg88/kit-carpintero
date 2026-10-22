@@ -15,13 +15,21 @@ const shape = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, beve
 /**
  * Después de un cambio, pasa la forma, las operaciones y la madera de la copia que cambió a las demás
  * copias de su componente. Si la copia creció hacia el lado negativo de un eje, las demás también:
- * se corren lo mismo sobre ese eje. Saca los componentes que se quedaron sin copias.
+ * se corren lo mismo sobre ese eje. Saca los componentes que se quedaron sin copias, y desvincula la
+ * última que queda cuando se borraron las demás: un "componente de 1 copia" no le dice nada a nadie.
  * Trabaja sobre `next` en el lugar (sirve también con un borrador de Immer).
  */
 export function syncComponents(prev: Project | null, next: Project): void {
   const before = new Map(prev?.parts.map((p) => [p.id, p]));
   const groups = new Map<string, Part[]>();
   for (const p of next.parts) if (p.component) groups.set(p.component, [...(groups.get(p.component) ?? []), p]);
+  for (const [id, copies] of groups) {
+    const had = prev?.parts.filter((p) => p.component === id).length ?? 0;
+    if (copies.length === 1 && had > 1) {
+      delete copies[0]!.component;
+      groups.delete(id);
+    }
+  }
 
   for (const copies of groups.values()) {
     const source = copies.find((p) => {

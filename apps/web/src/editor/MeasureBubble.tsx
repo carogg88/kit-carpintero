@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { depthUnder, faceSize, formatLength, formatNumber, MEASURED_FROM, newBevel, parseLength, partAxesBySize, t, tk, type Part } from '@kitc/core';
-import { IconClose } from './icons';
+import { depthUnder, faceSize, formatLength, formatNumber, MEASURED_FROM, newBevel, parseLength, pocketTakesWholePart, t, tk, type Part } from '@kitc/core';
+import { IconClose, IconWarn } from './icons';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
 
-const DIM_LABELS = [tk('Largo'), tk('Ancho'), tk('Espesor')] as const;
+/** Igual que en el panel: la medida se nombra por su dirección. */
+const AXIS_LABELS = [tk('Ancho'), tk('Alto'), tk('Fondo')] as const;
 
 /**
  * Burbuja junto a la pieza, donde se soltó el arrastre: muestra la medida que quedó y deja escribir la exacta.
@@ -46,7 +47,7 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   const thick = pocket ? depthUnder(part, pocket.axis) : 0;
   const current = target.kind === 'push' ? part.base.size[target.axis] : bevel ? bevel.da : pocket!.depth;
   const label =
-    target.kind === 'push' ? t(DIM_LABELS[partAxesBySize(part).indexOf(target.axis)]!) : bevel ? (bevel.round ? t('Radio') : t('Bisel')) : t('Profundidad');
+    target.kind === 'push' ? t(AXIS_LABELS[target.axis]) : bevel ? (bevel.round ? t('Radio') : t('Bisel')) : t('Profundidad');
   // Rectángulos y círculos: la distancia a dos bordes de la cara, para ubicarlos justo (o centrarlos).
   const shape = pocket?.shape.kind === 'arc' ? undefined : pocket?.shape;
   const face = pocket ? faceSize(part, pocket.axis) : undefined;
@@ -91,7 +92,7 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
     const v = read('main', current, minMain, Infinity);
     if (v === null) return;
     if (target.kind === 'push') {
-      const dim = t(DIM_LABELS[partAxesBySize(part).indexOf(target.axis)]!).toLowerCase();
+      const dim = t(AXIS_LABELS[target.axis]).toLowerCase();
       commit((d) => {
         const q = d.parts.find((p) => p.id === target.id);
         if (!q || q.base.kind !== 'box') return;
@@ -185,6 +186,12 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
           <span className={styles.bubbleId}>{pocket.id}</span>
           {(pocket.through || shape) && closeButton}
         </div>
+      )}
+      {pocket && pocketTakesWholePart(part, pocket) && (
+        <span className={styles.error} role="alert">
+          <IconWarn />
+          {t('Este calado se lleva toda la pieza: achicalo o cambialo a vaciado.')}
+        </span>
       )}
       {docked && shape ? (
         // En el celular, todo junto en poco alto: la profundidad y las dos distancias en una fila, y abajo Centrar y Listo.

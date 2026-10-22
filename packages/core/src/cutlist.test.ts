@@ -28,6 +28,12 @@ describe('lista de cortes de la mesa', () => {
     expect(row('Pata')?.work[0]).toBe('2 mortajas');
     expect(row('Tapa')?.work[0]).toBe('encolar 7 tiras');
   });
+
+  it('si las piezas iguales no comparten nombre, la fila nombra los dos tipos', () => {
+    const mixed = structuredClone(table);
+    mixed.parts.find((p) => p.id === 'F2')!.name = 'Travesaño largo';
+    expect(cutList(mixed).find((r) => r.ids.includes('F2'))?.name).toBe('Faldón y travesaño');
+  });
 });
 
 describe('plan de corte', () => {

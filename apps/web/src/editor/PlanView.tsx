@@ -29,7 +29,7 @@ import {
   type Units,
 } from '@kitc/core';
 import { IconDownload, IconZoomIn, IconZoomOut } from './icons';
-import { capitalize, woodName } from './cutsData';
+import { capitalize, formatIds, woodName } from './cutsData';
 import { shoot, type Shot } from './planShots';
 import { useEngineLines, type ExactMesh } from './useGeometry';
 import styles from './Plan.module.css';
@@ -67,8 +67,8 @@ const SHOT_PX = 8;
  */
 const PIECE_COLORS = ['#d8b07e', '#93b38a', '#86a9c9', '#e0a35f', '#c48a7a', '#a99bc4', '#7fb8ae', '#c9b45c', '#b5a48f', '#d79bb0'];
 
-/** Lista de códigos corta: "P1 a P4" si son más de dos. */
-const codes = (ids: string[]) => (ids.length > 2 ? t('{a} a {b}', { a: ids[0]!, b: ids[ids.length - 1]! }) : ids.join(', '));
+/** Lista de códigos corta: "P1 a P4" si son correlativas, "F3, F4, R3" si no. */
+const codes = formatIds;
 
 /** Corta un texto en renglones de hasta `max` letras, sin partir palabras. */
 function wrap(text: string, max: number): string[] {
