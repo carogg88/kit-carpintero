@@ -107,10 +107,10 @@ export function createNightstand(v: V, wood: string, now: string): Project {
 }
 
 export function createDresser(v: V, wood: string, now: string): Project {
-  const { width: W, height: H, depth: D, board: t, drawers } = v as Record<'width' | 'height' | 'depth' | 'board' | 'drawers', number>;
+  const { width: W, height: H, depth: D, board: t, drawers, graded } = v as Record<'width' | 'height' | 'depth' | 'board' | 'drawers' | 'graded', number>;
   const p = carcassProject('cajonera', 'Cajonera', now, carcass({ width: W, height: H, depth: D, board: t, plinth: PLINTH, shelves: [] }, wood));
   const o = opening(p);
-  if (o) fit(p, buildDrawers(p, o, { count: Math.max(1, Math.round(drawers)), front: 'embutido', slides: 'metalicas', wood }));
+  if (o) fit(p, buildDrawers(p, o, { count: Math.max(1, Math.round(drawers)), front: 'embutido', slides: 'metalicas', wood, graded: graded === 1 }));
   return p;
 }
 

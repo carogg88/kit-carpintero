@@ -119,6 +119,20 @@ export interface DrawerOptions {
   front: FrontStyle;
   slides: Slides;
   wood: string;
+  /** Graduados: cada cajón más bajo que el de abajo, y el de abajo 1,618 veces el de arriba (proporción áurea). */
+  graded?: boolean;
+}
+
+/** La proporción áurea. */
+export const PHI = (1 + Math.sqrt(5)) / 2;
+
+/**
+ * Peso de cada cajón en la pila, de abajo hacia arriba: iguales, o en escalera pareja (cada uno la misma
+ * proporción del de abajo) con el de abajo φ veces el de arriba, como en las cómodas clásicas.
+ */
+export function drawerWeights(n: number, graded = false): number[] {
+  if (!graded || n < 2) return range(0, n - 1).map(() => 1);
+  return range(0, n - 1).map((i) => PHI ** (-i / (n - 1)));
 }
 
 export interface DoorOptions {
@@ -240,10 +254,18 @@ class Builder {
   }
 }
 
-/** Frentes repartidos a lo alto (cajones) o a lo ancho (puertas): [desde, hasta] de cada uno. */
-function split(lo: number, hi: number, n: number, gap: number): [number, number][] {
-  const each = (hi - lo - gap * (n - 1)) / n;
-  return range(0, n - 1).map((i) => [lo + i * (each + gap), lo + i * (each + gap) + each]);
+/** Frentes repartidos a lo alto (cajones) o a lo ancho (puertas): [desde, hasta] de cada uno, en proporción a los pesos. */
+function split(lo: number, hi: number, n: number, gap: number, weights = drawerWeights(n)): [number, number][] {
+  const free = hi - lo - gap * (n - 1);
+  const total = weights.reduce((a, w) => a + w, 0);
+  const out: [number, number][] = [];
+  let at = lo;
+  for (const w of weights) {
+    const each = (free * w) / total;
+    out.push([at, at + each]);
+    at += each + gap;
+  }
+  return out;
 }
 
 /** Lo que tapa el frente: el hueco menos la luz si es embutido, o más el canto si es superpuesto. */
@@ -261,11 +283,13 @@ function frontRect(o: Opening, style: FrontStyle, thick = FRONT_T): { x: [number
 }
 
 /** Lugar que necesita cada cajón, para avisar antes de armarlo. */
-export function drawerProblem(o: Opening, opts: Pick<DrawerOptions, 'count' | 'slides' | 'front'> & { wood?: string }): string | null {
+export function drawerProblem(o: Opening, opts: Pick<DrawerOptions, 'count' | 'slides' | 'front' | 'graded'> & { wood?: string }): string | null {
   const box = boxT(opts.wood ?? '');
   const front = frontT(opts.wood ?? '');
   const s = boxSize(o.box);
-  const slot = s[1] / opts.count;
+  // El cajón más bajo es el de arriba.
+  const weights = drawerWeights(opts.count, opts.graded);
+  const slot = (s[1] * weights.at(-1)!) / weights.reduce((a, w) => a + w, 0);
   if (slot - 2 - 15 < 40) return t('No entran {n} cajones: cada uno quedaría de menos de 6 cm de alto.', { n: opts.count });
   const gap = opts.slides === 'metalicas' ? 12.5 : REVEAL;
   if (s[0] - 2 * gap - 2 * box < 60) return t('El hueco es muy angosto para un cajón.');
@@ -280,8 +304,9 @@ export function buildDrawers(existing: { parts: Part[]; components: Component[] 
   const box = boxT(opts.wood);
   const f = frontRect(o, opts.front, frontT(opts.wood));
   const { min, max } = o.box;
-  const fronts = split(f.y[0], f.y[1], opts.count, opts.front === 'embutido' ? REVEAL : PAIR_GAP);
-  const slots = split(min[1], max[1], opts.count, 0);
+  const weights = drawerWeights(opts.count, opts.graded);
+  const fronts = split(f.y[0], f.y[1], opts.count, opts.front === 'embutido' ? REVEAL : PAIR_GAP, weights);
+  const slots = split(min[1], max[1], opts.count, 0, weights);
   const gap = opts.slides === 'metalicas' ? 12.5 : REVEAL;
   const zf = f.z[0];
   const avail = zf - min[2] - 10;

@@ -50,6 +50,7 @@ import {
   type Units,
 } from '@kitc/core';
 import { PartNotes, ReviewCard } from './Review';
+import { GoldenCard } from './Golden';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
 import { IconLink, IconRotate, IconTrash, IconWarn } from './icons';
@@ -889,6 +890,7 @@ function ProjectOverview({ project }: { project: Project }) {
       </div>
       {project.parts.length > 1 && <FurnitureSize project={project} />}
       <ReviewCard project={project} />
+      {project.parts.length > 1 && <GoldenCard project={project} />}
       <ul className={styles.partList}>
         {project.parts.map((p) => (
           <li key={p.id}>
