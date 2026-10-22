@@ -3,12 +3,14 @@ import {
   boxSize,
   buildDoors,
   buildDrawers,
+  buildShelves,
   doorProblem,
   drawerProblem,
   findOpenings,
   formatNumber,
   JOINT_NAMES,
   looseOpening,
+  shelfProblem,
   partBox,
   t,
   tk,
@@ -17,6 +19,7 @@ import {
   type Opening,
   type Project,
   type Slides,
+  type ShelfMode,
   type DoorStyle,
   type Units,
   type Vec3,
@@ -40,8 +43,13 @@ const DOOR_STYLES: [DoorStyle, string, string][] = [
   ['marco', tk('Marco y tablero'), tk('Largueros y peinazos con mortaja, y un tablero de 12 mm que flota en un canal: no se tuerce con la humedad.')],
 ];
 
+const SHELF_MODES: [ShelfMode, string, string][] = [
+  ['fijo', tk('Fijos'), tk('De lateral a lateral, encastrados en un canal. Le dan firmeza al mueble.')],
+  ['regulable', tk('Regulables'), tk('Apoyan en soportes de 5 mm, con 1 mm de juego a cada lado. Marcá los agujeros en los laterales cada 32 mm.')],
+];
+
 /** Medida de un hueco suelto cuando el mueble no tiene ninguno cerrado. */
-const LOOSE: Record<FittingKind, Vec3> = { cajon: [500, 150, 450], puerta: [400, 600, 350] };
+const LOOSE: Record<FittingKind, Vec3> = { cajon: [500, 150, 450], puerta: [400, 600, 350], estantes: [600, 600, 300] };
 
 function Seg<T extends string | number>({ label, value, options, onChange }: { label: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
   return (
@@ -104,21 +112,30 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
   const openings = useMemo(() => findOpenings(project.parts), [project.parts]);
   const [chosen, setChosen] = useState(0);
   const [loose, setLoose] = useState<Vec3>(LOOSE[kind]);
-  const [count, setCount] = useState(kind === 'cajon' ? 1 : openingWide(openings[0]) ? 2 : 1);
+  const [count, setCount] = useState(kind === 'puerta' ? (openingWide(openings[0]) ? 2 : 1) : kind === 'estantes' ? 2 : 1);
   const [front, setFront] = useState<FrontStyle>('embutido');
   const [slides, setSlides] = useState<Slides>('madera');
   const [doorStyle, setDoorStyle] = useState<DoorStyle>('marco');
+  const [shelfMode, setShelfMode] = useState<ShelfMode>('fijo');
   const problemId = useId();
 
   const opening = openings[Math.min(chosen, openings.length - 1)] ?? looseOpening(project.parts, loose);
   const isLoose = !openings.length;
-  const problem = kind === 'cajon' ? drawerProblem(opening, { count, slides, front }) : doorProblem(opening, { count: count as 1 | 2 });
+  // Los estantes van entre dos laterales: sin un hueco del mueble no hay dónde ponerlos.
+  const problem =
+    kind === 'cajon'
+      ? drawerProblem(opening, { count, slides, front })
+      : kind === 'puerta'
+        ? doorProblem(opening, { count: count as 1 | 2 })
+        : isLoose
+          ? t('Los estantes van en un hueco entre dos laterales, y este mueble no tiene ninguno.')
+          : shelfProblem(opening, { count });
   const fitting = useMemo(() => {
     if (problem) return null;
-    return kind === 'cajon'
-      ? buildDrawers(project, opening, { count, front, slides, wood })
-      : buildDoors(project, opening, { count: count as 1 | 2, front, style: doorStyle, wood });
-  }, [problem, kind, project, opening, count, front, slides, doorStyle, wood]);
+    if (kind === 'cajon') return buildDrawers(project, opening, { count, front, slides, wood });
+    if (kind === 'puerta') return buildDoors(project, opening, { count: count as 1 | 2, front, style: doorStyle, wood });
+    return buildShelves(project, opening, { count, mode: shelfMode, wood });
+  }, [problem, kind, project, opening, count, front, slides, doorStyle, shelfMode, wood]);
 
   useEffect(() => {
     setPreview(isLoose ? null : { opening: opening.box, parts: fitting?.parts.map(partBox) ?? [] });
@@ -141,7 +158,9 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
     const what =
       kind === 'cajon'
         ? count === 1 ? t('un cajón') : t('{n} cajones', { n: count })
-        : count === 1 ? t('una puerta') : t('dos puertas');
+        : kind === 'puerta'
+          ? count === 1 ? t('una puerta') : t('dos puertas')
+          : count === 1 ? t('un estante') : t('{n} estantes', { n: count });
     commit((d) => {
       d.parts.push(...fitting.parts);
       d.joints.push(...fitting.joints);
@@ -151,15 +170,23 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
     if (fitting.parts[0]) select(fitting.parts[0].id);
   };
 
-  const title = kind === 'cajon' ? t('Agregar cajón') : t('Agregar puerta');
+  const title = kind === 'cajon' ? t('Agregar cajón') : kind === 'puerta' ? t('Agregar puerta') : t('Agregar estantes');
   const addLabel =
-    kind === 'cajon' ? (count === 1 ? t('Agregar cajón') : t('Agregar {n} cajones', { n: count })) : count === 1 ? t('Agregar puerta') : t('Agregar dos puertas');
+    kind === 'cajon'
+      ? count === 1 ? t('Agregar cajón') : t('Agregar {n} cajones', { n: count })
+      : kind === 'puerta'
+        ? count === 1 ? t('Agregar puerta') : t('Agregar dos puertas')
+        : count === 1 ? t('Agregar estante') : t('Agregar {n} estantes', { n: count });
+  const eyebrow =
+    kind === 'cajon' ? t('Frente, costados, trasera y fondo, con sus uniones') : kind === 'puerta' ? t('Una hoja o dos, con sus uniones') : t('Repartidos parejo en el hueco');
+  // Lo que queda libre entre estantes.
+  const shelfGap = kind === 'estantes' && fitting?.parts[0] ? (size[1] - count * boxSize(partBox(fitting.parts[0]))[1]) / (count + 1) : 0;
 
   return (
     <>
       <div>
         <div className={styles.panelHead}>
-          <span className={styles.eyebrow}>{kind === 'cajon' ? t('Frente, costados, trasera y fondo, con sus uniones') : t('Una hoja o dos, con sus uniones')}</span>
+          <span className={styles.eyebrow}>{eyebrow}</span>
           <button type="button" className={styles.link} onClick={() => setFitting(null)}>
             {t('Cancelar')}
           </button>
@@ -167,7 +194,7 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
         <h2 className={styles.panelTitle}>{title}</h2>
       </div>
 
-      {isLoose ? (
+      {isLoose && kind === 'estantes' ? null : isLoose ? (
         <div className={styles.stack}>
           <span className={styles.legend}>{t('Medida del hueco')}</span>
           <p className={`${styles.muted} ${own.text}`}>
@@ -212,7 +239,7 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
       )}
 
       <div className={own.options}>
-        {kind === 'cajon' ? (
+        {kind !== 'puerta' ? (
           <div className={own.option}>
             <span className={styles.legend} id={`${problemId}-n`}>
               {t('Cantidad')}
@@ -221,7 +248,9 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
               <button type="button" aria-label={t('Uno menos')} disabled={count <= 1} onClick={() => setCount(count - 1)}>
                 −
               </button>
-              <output aria-live="polite">{count === 1 ? t('1 cajón') : t('{n} cajones', { n: count })}</output>
+              <output aria-live="polite">
+                {kind === 'cajon' ? (count === 1 ? t('1 cajón') : t('{n} cajones', { n: count })) : count === 1 ? t('1 estante') : t('{n} estantes', { n: count })}
+              </output>
               <button type="button" aria-label={t('Uno más')} disabled={count >= 8} onClick={() => setCount(count + 1)}>
                 +
               </button>
@@ -230,9 +259,18 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
         ) : (
           <Seg label={t('Cantidad')} value={count} options={[[1, t('Una')], [2, t('Dos')]]} onChange={setCount} />
         )}
-        <Seg label={t('Frente')} value={front} options={FRONTS.map(([v, l]) => [v, t(l)])} onChange={setFront} />
-        <p className={`${styles.muted} ${own.text}`}>{t(FRONTS.find(([v]) => v === front)![2])}</p>
-        {kind === 'cajon' ? (
+        {kind !== 'estantes' && (
+          <>
+            <Seg label={t('Frente')} value={front} options={FRONTS.map(([v, l]) => [v, t(l)])} onChange={setFront} />
+            <p className={`${styles.muted} ${own.text}`}>{t(FRONTS.find(([v]) => v === front)![2])}</p>
+          </>
+        )}
+        {kind === 'estantes' ? (
+          <>
+            <Seg label={t('Tipo')} value={shelfMode} options={SHELF_MODES.map(([v, l]) => [v, t(l)])} onChange={setShelfMode} />
+            <p className={`${styles.muted} ${own.text}`}>{t(SHELF_MODES.find(([v]) => v === shelfMode)![2])}</p>
+          </>
+        ) : kind === 'cajon' ? (
           <>
             <Seg label={t('Correderas')} value={slides} options={SLIDES.map(([v, l]) => [v, t(l)])} onChange={setSlides} />
             <p className={`${styles.muted} ${own.text}`}>{t(SLIDES.find(([v]) => v === slides)![2])}</p>
@@ -259,7 +297,9 @@ export function FittingPanel({ project, kind }: { project: Project; kind: Fittin
             <span>
               {kind === 'cajon'
                 ? t('Cada frente mide {w} × {h}; el cajón tiene {d} de hondo.', { w: n(frontSize[0]), h: n(frontSize[1]), d: n(drawerDepth ?? 0) })
-                : t('Cada hoja mide {w} × {h}.', { w: n(leaf[0]), h: n(leaf[1]) })}
+                : kind === 'puerta'
+                  ? t('Cada hoja mide {w} × {h}.', { w: n(leaf[0]), h: n(leaf[1]) })
+                  : t('Cada estante mide {w} × {d}, con {gap} libres entre uno y otro.', { w: n(frontSize[0]), d: n(frontSize[2]), gap: n(shelfGap) })}
               {jointTypes.length > 0 && ` ${t('Uniones: {list}.', { list: jointTypes.join(', ') })}`}
             </span>
           </>

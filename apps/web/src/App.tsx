@@ -14,7 +14,7 @@ import { readProject } from './storage/db';
  */
 function route(): { projectId: string | null; section: Section; start: string | null } {
   const m = location.hash.match(/^#\/proyecto\/([^/]+)(?:\/(uniones|cortes|plano|armado))?$/);
-  const n = location.hash.match(/^#\/(foto|nuevo\/[a-z]+)$/);
+  const n = location.hash.match(/^#\/(foto|nuevo\/[a-z-]+)$/);
   return { projectId: m?.[1] ? decodeURIComponent(m[1]) : null, section: (m?.[2] as Section | undefined) ?? 'modelo', start: n?.[1] ?? null };
 }
 

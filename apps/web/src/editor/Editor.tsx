@@ -310,7 +310,7 @@ function EmptyStart() {
         ))}
       </div>
       <a href="#/" className={styles.emptyLink}>
-        {t('¿Es una mesa, un taburete, un estante o una caja? Empezá desde una plantilla')}
+        {t('¿Es una mesa, una cajonera, una biblioteca o un banco? Empezá desde una de las diez plantillas')}
       </a>
     </div>
   );

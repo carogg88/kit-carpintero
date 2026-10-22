@@ -371,4 +371,21 @@ export default {
   'Medidas del mueble': 'Overall size',
   'No se puede achicar tanto: no queda lugar libre entre las piezas. Achicá antes alguna pieza.': 'It can’t shrink that much: there’s no free space left between the pieces. Shrink a piece first.',
   'El mueble ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}': 'The piece is now {mm} in {axis}: {s} pieces stretched and {m} moved',
+
+  // Estantes repartidos (FittingPanel.tsx) y plantillas nuevas
+  '¿Es una mesa, una cajonera, una biblioteca o un banco? Empezá desde una de las diez plantillas': 'Is it a table, a chest of drawers, a bookcase or a bench? Start from one of the ten templates',
+  Fijos: 'Fixed',
+  'De lateral a lateral, encastrados en un canal. Le dan firmeza al mueble.': 'Side to side, set in a groove. They make the piece sturdier.',
+  Regulables: 'Adjustable',
+  'Apoyan en soportes de 5 mm, con 1 mm de juego a cada lado. Marcá los agujeros en los laterales cada 32 mm.': 'They rest on 5 mm pins, with 1 mm of play on each side. Mark the holes in the sides every 32 mm.',
+  'Los estantes van en un hueco entre dos laterales, y este mueble no tiene ninguno.': 'Shelves go in an opening between two sides, and this piece has none.',
+  'un estante': 'a shelf',
+  '{n} estantes': '{n} shelves',
+  'Agregar estantes': 'Add shelves',
+  'Agregar estante': 'Add shelf',
+  'Agregar {n} estantes': 'Add {n} shelves',
+  'Repartidos parejo en el hueco': 'Spaced evenly in the opening',
+  'Repartidos parejo en un hueco': 'Spaced evenly in an opening',
+  '1 estante': '1 shelf',
+  'Cada estante mide {w} × {d}, con {gap} libres entre uno y otro.': 'Each shelf is {w} × {d}, with {gap} of space between them.',
 } satisfies Record<string, string>;
