@@ -532,4 +532,15 @@ export default {
   "Detalle a tamaño real": "Full-size detail",
   "Imprimir solo la plantilla 1:1": "Print only the 1:1 template",
   "Imprimir solo las {n} hojas de plantillas 1:1": "Print only the {n} 1:1 template sheets",
+  // Inicio y plantilla en acordeones (tanda 27)
+  "Crear un proyecto nuevo": "Create a new project",
+  "Mesa, taburete, cajonera y {n} más, ya con sus encastres": "Table, stool, chest of drawers and {n} more, joints included",
+  "Todavía no hay proyectos. Empezá con una plantilla: en un minuto tenés el mueble armado.": "No projects yet. Start from a template: your piece of furniture is built in a minute.",
+  "Ir al plano": "Go to the plans",
+  "Elegí una plantilla": "Choose a template",
+  "Se arma con sus encastres y después ajustás cada medida.": "It comes with its joints, then you adjust each measurement.",
+  "Cerrar": "Close",
+  "completa": "complete",
+  "Guía para medidas equilibradas": "A guide to balanced measurements",
+  "Madera y uniones": "Wood and joints",
 } satisfies Record<string, string>;

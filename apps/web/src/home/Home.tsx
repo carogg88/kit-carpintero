@@ -16,7 +16,7 @@ import {
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
 import { BrandMark, BrandWordmark } from '../brand/Brand';
-import { navigate } from '../routes';
+import { navigate, sectionHref } from '../routes';
 import { useInstall } from '../pwa';
 import { projectName, switchLang } from '../i18n';
 import { JointMeta } from '../help/Help';
@@ -126,6 +126,27 @@ const TEMPLATES = [
   },
 ] as const;
 
+const IconSave = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </svg>
+);
+
+const IconOpen = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </svg>
+);
+
+const templateIcon = (
+  <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+    <rect x="4" y="4" width="10" height="10" rx="1.5" />
+    <rect x="18" y="4" width="10" height="10" rx="1.5" />
+    <rect x="4" y="18" width="10" height="10" rx="1.5" />
+    <rect x="18" y="18" width="10" height="10" rx="1.5" />
+  </svg>
+);
+
 const blankIcon = (
   <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
     <rect x="5" y="5" width="22" height="22" rx="2" strokeDasharray="3 3" />
@@ -224,13 +245,17 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
       {backup && (
         <div className={styles.backup}>
           <span>{exportedAt ? t('Cambió desde la última copia en archivo.') : t('Todavía no tiene copia en archivo.')}</span>
-          <button type="button" className={styles.link} onClick={() => setExportedAt(download(project))}>
+          <button type="button" className={styles.smallBtn} onClick={() => setExportedAt(download(project))}>
+            <IconSave />
             {t('Guardar copia')}
           </button>
         </div>
       )}
       {menu && (
         <div className={styles.menu} role="menu">
+          <button type="button" role="menuitem" onClick={() => navigate(sectionHref(project.id, 'plano'))}>
+            {t('Ir al plano')}
+          </button>
           <button
             type="button"
             role="menuitem"
@@ -266,6 +291,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const refresh = () => void listProjects().then(setProjects, () => setProjects([]));
   const install = useInstall();
+  const [picking, setPicking] = useState(false);
 
   useEffect(() => {
     refresh();
@@ -300,40 +326,174 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <span className={styles.brand}>
-          <BrandMark height={52} />
-          <BrandWordmark height={36} />
-        </span>
-        <span className={styles.headerActions}>
-          {install && (
-            <button type="button" className={styles.install} onClick={install}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
-              </svg>
-              {t('Instalar la app')}
-            </button>
-          )}
-          <span className={styles.lang} role="group" aria-label="Idioma · Language">
-            {(['es', 'en'] as const).map((l) => (
-              <button key={l} type="button" lang={l} aria-pressed={getLang() === l} onClick={() => getLang() !== l && switchLang(l)}>
-                {l === 'es' ? 'Español' : 'English'}
-              </button>
-            ))}
+        <div className={styles.headerInner}>
+          <span className={styles.brand}>
+            <BrandMark height={44} />
+            <BrandWordmark height={30} />
           </span>
-        </span>
+          <span className={styles.headerActions}>
+            {install && (
+              <button type="button" className={styles.install} onClick={install}>
+                <IconSave />
+                {t('Instalar la app')}
+              </button>
+            )}
+            <span className={styles.lang} role="group" aria-label="Idioma · Language">
+              {(['es', 'en'] as const).map((l) => (
+                <button key={l} type="button" lang={l} aria-pressed={getLang() === l} onClick={() => getLang() !== l && switchLang(l)}>
+                  {l === 'es' ? 'Español' : 'English'}
+                </button>
+              ))}
+            </span>
+          </span>
+        </div>
       </header>
-      <p className={styles.lead}>{t('Sin cuenta. Tus proyectos se guardan en este dispositivo.')}</p>
 
-      <section className={styles.section} aria-labelledby="nuevo">
-        <h1 id="nuevo" className={styles.title}>
-          {t('¿Qué mueble vas a hacer?')}
-        </h1>
-        <p className={styles.sub}>{t('Elegí una plantilla: se arma con sus encastres y después ajustás cada medida.')}</p>
-        <div className={styles.templates} id="plantillas">
+      <main className={styles.main}>
+        <section className={styles.create} aria-labelledby="nuevo">
+          <h1 className={styles.title}>{t('¿Qué mueble vas a hacer?')}</h1>
+          <div className={styles.createCard}>
+            <h2 id="nuevo" className={styles.h2}>
+              {t('Crear un proyecto nuevo')}
+            </h2>
+            <div className={styles.starts}>
+              <button type="button" className={`${styles.start} ${styles.startMain}`} onClick={() => setPicking(true)} aria-haspopup="dialog">
+                <span className={styles.startIcon}>{templateIcon}</span>
+                <span className={styles.startText}>
+                  <strong>{t('Desde una plantilla')}</strong>
+                  <span>{t('Mesa, taburete, cajonera y {n} más, ya con sus encastres', { n: TEMPLATES.length - 3 })}</span>
+                </span>
+                <span className={styles.startArrow} aria-hidden="true">
+                  <IconArrow />
+                </span>
+              </button>
+              <a href="#/foto" className={styles.start}>
+                <span className={styles.startIcon} aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                </span>
+                <span className={styles.startText}>
+                  <strong>{t('Desde una foto')}</strong>
+                  <span>{t('Marcá una medida que conozcas y calcá las piezas')}</span>
+                </span>
+                <span className={styles.startArrow} aria-hidden="true">
+                  <IconArrow />
+                </span>
+              </a>
+              <button type="button" className={styles.start} onClick={() => void create('blanco')}>
+                <span className={styles.startIcon}>{blankIcon}</span>
+                <span className={styles.startText}>
+                  <strong>{t('En blanco')}</strong>
+                  <span>{t('Armalo pieza por pieza, para un mueble que no está en las plantillas')}</span>
+                </span>
+                <span className={styles.startArrow} aria-hidden="true">
+                  <IconArrow />
+                </span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.mine} aria-labelledby="mis">
+          <div className={styles.sectionHead}>
+            <h2 id="mis" className={styles.h2}>
+              {t('Mis proyectos')}
+              {projects && projects.length > 0 && <span className={styles.count}>{projects.length}</span>}
+            </h2>
+            <button type="button" className={styles.smallBtn} onClick={() => fileRef.current?.click()}>
+              <IconOpen />
+              {t('Abrir archivo')}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void openFile(f);
+                e.target.value = '';
+              }}
+            />
+          </div>
+          {fileError && (
+            <p className={styles.error} role="alert">
+              {fileError}
+            </p>
+          )}
+          <div className={styles.projectsScroll}>
+            {projects && projects.length === 0 && (
+              <div className={styles.empty}>
+                <BrandMark height={40} />
+                <p>{t('Todavía no hay proyectos. Empezá con una plantilla: en un minuto tenés el mueble armado.')}</p>
+              </div>
+            )}
+            <ul className={styles.projects}>
+              {projects?.map((p) => (
+                <ProjectRow key={p.id} project={p} onOpen={onOpen} onChanged={refresh} />
+              ))}
+            </ul>
+            <p className={styles.foot}>{t('Los proyectos se guardan solo en este navegador. Si borrás los datos de navegación, se pierden: guardá una copia en archivo de vez en cuando.')}</p>
+            {import.meta.env.DEV && (
+              <p className={styles.foot}>
+                <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>
+              </p>
+            )}
+          </div>
+        </section>
+      </main>
+      <TemplatePicker open={picking} onClose={() => setPicking(false)} onPick={(id) => void create(id)} />
+    </div>
+  );
+}
+
+const IconArrow = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+);
+
+/** Las diez plantillas, en una ventana que se abre desde "Desde una plantilla". */
+function TemplatePicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (id: string) => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      className={styles.picker}
+      aria-labelledby="elegir-plantilla"
+      onClose={onClose}
+      onClick={(e) => {
+        // Tocar afuera de la ventana la cierra.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className={styles.pickerBody}>
+        <div className={styles.pickerHead}>
+          <div>
+            <h2 id="elegir-plantilla" className={styles.h2}>
+              {t('Elegí una plantilla')}
+            </h2>
+            <p className={styles.sub}>{t('Se arma con sus encastres y después ajustás cada medida.')}</p>
+          </div>
+          <button type="button" className={styles.close} aria-label={t('Cerrar')} onClick={onClose}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div className={styles.templates}>
           {TEMPLATES.map((tpl) => {
             const joint = templateById(tpl.id)?.joints?.default;
             return (
-              <button key={tpl.id} type="button" className={styles.template} onClick={() => void create(tpl.id)}>
+              <button key={tpl.id} type="button" className={styles.template} onClick={() => onPick(tpl.id)}>
                 <span className={styles.templateArt}>{tpl.icon}</span>
                 <span className={styles.templateName}>{t(tpl.name)}</span>
                 <span className={styles.templateSize}>{templateSize(tpl.id)}</span>
@@ -342,73 +502,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
             );
           })}
         </div>
-      </section>
-
-      <section className={styles.section} aria-labelledby="otras">
-        <h2 id="otras" className={styles.h2}>
-          {t('Otras formas de empezar')}
-        </h2>
-        <div className={styles.starts}>
-          <a href="#/foto" className={styles.start}>
-            <span className={styles.startIcon} aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
-            </span>
-            <span className={styles.startText}>
-              <strong>{t('Desde una foto')}</strong>
-              <span>{t('Marcá una medida que conozcas y calcá las piezas')}</span>
-            </span>
-          </a>
-          <button type="button" className={styles.start} onClick={() => void create('blanco')}>
-            <span className={styles.startIcon}>{blankIcon}</span>
-            <span className={styles.startText}>
-              <strong>{t('En blanco')}</strong>
-              <span>{t('Armalo pieza por pieza, para un mueble que no está en las plantillas')}</span>
-            </span>
-          </button>
-        </div>
-      </section>
-
-      <section className={styles.section} aria-labelledby="mis">
-        <div className={styles.sectionHead}>
-          <h2 id="mis" className={styles.h2}>
-            {t('Mis proyectos')}
-          </h2>
-          <button type="button" className={styles.link} onClick={() => fileRef.current?.click()}>
-            {t('Abrir archivo')}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".json,application/json"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void openFile(f);
-              e.target.value = '';
-            }}
-          />
-        </div>
-        {fileError && (
-          <p className={styles.error} role="alert">
-            {fileError}
-          </p>
-        )}
-        {projects && projects.length === 0 && <p className={styles.muted}>{t('Todavía no hay proyectos. Empezá con una plantilla.')}</p>}
-        <ul className={styles.projects}>
-          {projects?.map((p) => (
-            <ProjectRow key={p.id} project={p} onOpen={onOpen} onChanged={refresh} />
-          ))}
-        </ul>
-      </section>
-      <p className={styles.foot}>{t('Los proyectos se guardan solo en este navegador. Si borrás los datos de navegación, se pierden: guardá una copia en archivo de vez en cuando.')}</p>
-      {import.meta.env.DEV && (
-        <p className={styles.foot}>
-          <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>
-        </p>
-      )}
-    </div>
+      </div>
+    </dialog>
   );
 }
