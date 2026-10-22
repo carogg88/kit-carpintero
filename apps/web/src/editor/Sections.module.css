@@ -410,3 +410,13 @@
 
 /* Debajo del desperdicio: si es normal o alto, y qué hacer con lo que sobra. */
 .wasteNote { margin: calc(-1 * var(--space-2)) 0 0; font-size: var(--text-s); line-height: 1.45; color: var(--muted); }
+
+/* Placas: vistas de frente, a escala. */
+.sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: var(--space-4); }
+.sheet { width: 100%; height: auto; display: block; border-radius: 3px; }
+.sheetEdge { stroke: var(--piece-line); stroke-width: 8; }
+.sheetBg { fill: var(--surface); }
+.sheetHatch { fill: var(--waste); }
+.sheetPiece { fill: var(--piece); stroke: var(--piece-line); stroke-width: 5; }
+.sheetLabel { fill: var(--ink); font-family: var(--font-num); font-weight: 500; text-anchor: middle; dominant-baseline: central; }
+@media print { .sheet { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }

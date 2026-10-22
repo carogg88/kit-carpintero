@@ -2,6 +2,7 @@ import { boxSize, partBox, type Box, type Vec3 } from './geometry';
 import { defaultJointParams } from './joints';
 import { nextPartId } from './edit';
 import { t, tk } from './i18n';
+import { isSheet, nearestSheetThickness, sheetById, thinPanelMaterial } from './woods';
 import type { Component, Joint, JointType, Part } from './project';
 
 /**
@@ -146,6 +147,12 @@ const PAIR_GAP = 3;
 export const FRONT_T = 20;
 const BOX_T = 15;
 const BOTTOM_T = 9;
+/** En placa, frentes y cajones salen del espesor de placa más cercano a 18 mm, así se compra una sola. */
+const frontT = (wood: string) => {
+  const sheet = sheetById(wood);
+  return sheet ? nearestSheetThickness(sheet, 18) : FRONT_T;
+};
+const boxT = (wood: string) => (sheetById(wood) ? frontT(wood) : BOX_T);
 /** Largos de correderas metálicas que se consiguen. */
 const SLIDE_LENGTHS = [250, 300, 350, 400, 450, 500, 550, 600];
 
@@ -186,7 +193,8 @@ class Builder {
       base: { kind: 'box', size: [r(max[0] - min[0]), r(max[1] - min[1]), r(max[2] - min[2])] },
       position: [r(min[0]), r(min[1]), r(min[2])],
       rotation: [0, 0, 0],
-      ops: [{ kind: 'round', edges: 'all', radius: 1 }],
+      // Las placas no se redondean: el canto lleva tapacanto o queda recto.
+      ops: isSheet(this.wood) ? [] : [{ kind: 'round', edges: 'all', radius: 1 }],
       pockets: [],
       bevels: [],
       sections: [],
@@ -239,27 +247,29 @@ function split(lo: number, hi: number, n: number, gap: number): [number, number]
 }
 
 /** Lo que tapa el frente: el hueco menos la luz si es embutido, o más el canto si es superpuesto. */
-function frontRect(o: Opening, style: FrontStyle): { x: [number, number]; y: [number, number]; z: [number, number] } {
+function frontRect(o: Opening, style: FrontStyle, thick = FRONT_T): { x: [number, number]; y: [number, number]; z: [number, number] } {
   const { min, max } = o.box;
   if (style === 'embutido') {
-    return { x: [min[0] + REVEAL, max[0] - REVEAL], y: [min[1] + REVEAL, max[1] - REVEAL], z: [max[2] - FRONT_T, max[2]] };
+    return { x: [min[0] + REVEAL, max[0] - REVEAL], y: [min[1] + REVEAL, max[1] - REVEAL], z: [max[2] - thick, max[2]] };
   }
   // 1 mm adelante del mueble: tocándolo, la app pensaría que va encastrado en los cantos.
   return {
     x: [min[0] - overlay(o.edge.left), max[0] + overlay(o.edge.right)],
     y: [min[1] - overlay(o.edge.below), max[1] + overlay(o.edge.above)],
-    z: [max[2] + 1, max[2] + 1 + FRONT_T],
+    z: [max[2] + 1, max[2] + 1 + thick],
   };
 }
 
 /** Lugar que necesita cada cajón, para avisar antes de armarlo. */
-export function drawerProblem(o: Opening, opts: Pick<DrawerOptions, 'count' | 'slides' | 'front'>): string | null {
+export function drawerProblem(o: Opening, opts: Pick<DrawerOptions, 'count' | 'slides' | 'front'> & { wood?: string }): string | null {
+  const box = boxT(opts.wood ?? '');
+  const front = frontT(opts.wood ?? '');
   const s = boxSize(o.box);
   const slot = s[1] / opts.count;
   if (slot - 2 - 15 < 40) return t('No entran {n} cajones: cada uno quedaría de menos de 6 cm de alto.', { n: opts.count });
   const gap = opts.slides === 'metalicas' ? 12.5 : REVEAL;
-  if (s[0] - 2 * gap - 2 * BOX_T < 60) return t('El hueco es muy angosto para un cajón.');
-  const back = opts.front === 'embutido' ? FRONT_T : -1;
+  if (s[0] - 2 * gap - 2 * box < 60) return t('El hueco es muy angosto para un cajón.');
+  const back = opts.front === 'embutido' ? front : -1;
   if (s[2] - back - 10 < MIN_DEPTH) return t('El hueco es muy poco hondo para un cajón.');
   return null;
 }
@@ -267,7 +277,8 @@ export function drawerProblem(o: Opening, opts: Pick<DrawerOptions, 'count' | 's
 /** Cajones apilados en el hueco: frente, dos costados, trasera y fondo cada uno, con colas de milano y canal. */
 export function buildDrawers(existing: { parts: Part[]; components: Component[] }, o: Opening, opts: DrawerOptions): Fitting {
   const b = new Builder(existing.parts, opts.wood, 'K');
-  const f = frontRect(o, opts.front);
+  const box = boxT(opts.wood);
+  const f = frontRect(o, opts.front, frontT(opts.wood));
   const { min, max } = o.box;
   const fronts = split(f.y[0], f.y[1], opts.count, opts.front === 'embutido' ? REVEAL : PAIR_GAP);
   const slots = split(min[1], max[1], opts.count, 0);
@@ -279,7 +290,8 @@ export function buildDrawers(existing: { parts: Part[]; components: Component[] 
   const bx1 = max[0] - gap;
   const zb = zf - depth;
   // Encastres de un cajón fino: colas de milano adelante y atrás. Si no entran, rebaje o tarugos.
-  const corner: JointType[] = ['cola-milano', 'rebaje', 'clavija', 'tope'];
+  // En placa no hay colas de milano: tarugos.
+  const corner: JointType[] = isSheet(opts.wood) ? ['clavija', 'tope'] : ['cola-milano', 'rebaje', 'clavija', 'tope'];
   for (let i = 0; i < opts.count; i++) {
     const [fy0, fy1] = fronts[i]!;
     const [sy0, sy1] = slots[i]!;
@@ -287,10 +299,11 @@ export function buildDrawers(existing: { parts: Part[]; components: Component[] 
     const by0 = sy0 + 2;
     const by1 = sy1 - 15;
     const front = b.part(DRAWER_NAMES.front, [f.x[0], fy0, f.z[0]], [f.x[1], fy1, f.z[1]]);
-    const left = b.part(DRAWER_NAMES.side, [bx0, by0, zb + BOX_T], [bx0 + BOX_T, by1, zf]);
-    const right = b.part(DRAWER_NAMES.side, [bx1 - BOX_T, by0, zb + BOX_T], [bx1, by1, zf]);
-    const back = b.part(DRAWER_NAMES.back, [bx0, by0, zb], [bx1, by1, zb + BOX_T]);
-    const bottom = b.part(DRAWER_NAMES.bottom, [bx0 + BOX_T, by0 + 10, zb + BOX_T], [bx1 - BOX_T, by0 + 10 + BOTTOM_T, zf]);
+    const left = b.part(DRAWER_NAMES.side, [bx0, by0, zb + box], [bx0 + box, by1, zf]);
+    const right = b.part(DRAWER_NAMES.side, [bx1 - box, by0, zb + box], [bx1, by1, zf]);
+    const back = b.part(DRAWER_NAMES.back, [bx0, by0, zb], [bx1, by1, zb + box]);
+    const bottom = b.part(DRAWER_NAMES.bottom, [bx0 + box, by0 + 10, zb + box], [bx1 - box, by0 + 10 + BOTTOM_T, zf]);
+    bottom.wood = thinPanelMaterial(opts.wood, BOTTOM_T);
     for (const side of [left, right]) {
       b.join(front, side, corner);
       b.join(back, side, corner);
@@ -310,7 +323,7 @@ export function doorProblem(o: Opening, opts: Pick<DoorOptions, 'count'>): strin
 /** Una puerta o un par: de una tabla entera, o de marco (largueros y peinazos con mortaja) con un tablero en canal. */
 export function buildDoors(existing: { parts: Part[]; components: Component[] }, o: Opening, opts: DoorOptions): Fitting {
   const b = new Builder(existing.parts, opts.wood, 'D');
-  const f = frontRect(o, opts.front);
+  const f = frontRect(o, opts.front, frontT(opts.wood));
   const leaves = split(f.x[0], f.x[1], opts.count, PAIR_GAP);
   const [z0, z1] = f.z;
   const [y0, y1] = f.y;
@@ -339,15 +352,19 @@ export function buildDoors(existing: { parts: Part[]; components: Component[] },
 }
 
 /** Lugar que necesitan los estantes: al menos 8 cm entre uno y otro. */
-export function shelfProblem(o: Opening, opts: Pick<ShelfOptions, 'count'>): string | null {
+export function shelfProblem(o: Opening, opts: Pick<ShelfOptions, 'count'> & { wood?: string }): string | null {
   const h = boxSize(o.box)[1];
-  const t0 = shelfThickness(o);
+  const t0 = shelfThickness(o, opts.wood);
   if ((h - opts.count * t0) / (opts.count + 1) < 80) return t('No entran {n} estantes: quedarían a menos de 8 cm uno de otro.', { n: opts.count });
   return null;
 }
 
-/** Del mismo espesor que la pieza de abajo del hueco, entre 15 y 25 mm. */
-const shelfThickness = (o: Opening) => Math.max(15, Math.min(25, Math.round(o.edge.below) || 18));
+/** Del mismo espesor que la pieza de abajo del hueco, entre 15 y 25 mm (en placa, el espesor de placa más cercano). */
+const shelfThickness = (o: Opening, wood = '') => {
+  const v = Math.max(15, Math.min(25, Math.round(o.edge.below) || 18));
+  const sheet = sheetById(wood);
+  return sheet ? nearestSheetThickness(sheet, v) : v;
+};
 
 /**
  * Estantes repartidos parejo en el hueco. Fijos: de lateral a lateral, en canal. Regulables: con 1 mm de juego
@@ -356,7 +373,7 @@ const shelfThickness = (o: Opening) => Math.max(15, Math.min(25, Math.round(o.ed
 export function buildShelves(existing: { parts: Part[]; components: Component[] }, o: Opening, opts: ShelfOptions): Fitting {
   const b = new Builder(existing.parts, opts.wood, 'E');
   const { min, max } = o.box;
-  const t0 = shelfThickness(o);
+  const t0 = shelfThickness(o, opts.wood);
   const gap = (max[1] - min[1] - opts.count * t0) / (opts.count + 1);
   const play = opts.mode === 'regulable' ? 1 : 0;
   const sides = [...o.sides.left, ...o.sides.right].map((id) => existing.parts.find((p) => p.id === id)).filter((p): p is Part => !!p);

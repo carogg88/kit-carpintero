@@ -4,6 +4,7 @@ import { defaultJointParams, suggestJoints } from '../joints';
 import { partBox, type Vec3 } from '../geometry';
 import { createTable, TABLE_DEFAULTS } from './table';
 import { tk } from '../i18n';
+import { isSheet, sheetById, thinPanelMaterial } from '../woods';
 
 /**
  * Muebles de cajón: dos laterales, tapa arriba, piso sobre un zócalo y trasera de 9 mm. Los huecos se llenan
@@ -49,7 +50,7 @@ function carcass(d: CarcassDims, wood: string): Part[] {
     b('L2', tk('Lateral derecho'), [W - t, 0, 0], [W, H - t, D]),
     b('T1', tk('Tapa'), [0, H - t, 0], [W, H, D]),
     b('E1', tk('Estante de abajo'), [t, plinth, BACK_T], [W - t, plinth + t, D]),
-    b('B1', tk('Fondo trasero'), [t, plinth + t, 0], [W - t, H - t, BACK_T]),
+    { ...b('B1', tk('Fondo trasero'), [t, plinth + t, 0], [W - t, H - t, BACK_T]), wood: thinPanelMaterial(wood, BACK_T) },
   ];
   if (plinth > 0) parts.push(b('Z1', tk('Zócalo'), [t, 0, D - 20 - t], [W - t, plinth, D - 20]));
   [...d.shelves, ...(d.inner ?? [])].forEach((y, i) => {
@@ -61,10 +62,12 @@ function carcass(d: CarcassDims, wood: string): Part[] {
 
 /** Encastres del mueble: estantes en canal, tapa con tarugos y la trasera apoyada en estantes y piso. */
 function carcassProject(id: string, name: string, now: string, parts: Part[]): Project {
+  // La melamina se arma con tarugos: la cara plástica no se encastra.
+  const melamine = sheetById(parts[0]?.wood ?? '')?.banding ?? false;
   const force = (a: Part, b: Part): JointType | null => {
     const ids = [a.id, b.id];
     if (ids.includes('B1')) return ids.some((x) => x.startsWith('L') || x === 'T1') ? null : 'tope';
-    if (ids.includes('T1')) return 'clavija';
+    if (ids.includes('T1') || melamine) return 'clavija';
     return null;
   };
   const joints = suggestJoints(parts).map((j) => {
@@ -125,7 +128,7 @@ export function createBookcase(v: V, wood: string, now: string): Project {
   const p = carcassProject('biblioteca', 'Biblioteca', now, carcass({ width: W, height: H, depth: D, board: t, plinth: PLINTH, shelves: ys }, wood));
   if (doors) {
     const o = opening(p);
-    if (o) fit(p, buildDoors(p, o, { count: W > 600 ? 2 : 1, front: 'embutido', style: 'marco', wood }));
+    if (o) fit(p, buildDoors(p, o, { count: W > 600 ? 2 : 1, front: 'embutido', style: isSheet(wood) ? 'tablero' : 'marco', wood }));
   }
   return p;
 }
@@ -136,7 +139,7 @@ export function createWallCabinet(v: V, wood: string, now: string): Project {
   const mid = Math.round((H - t) / 2);
   const p = carcassProject('alacena', 'Alacena', now, carcass({ width: W, height: H, depth: D, board: t, plinth: 0, shelves: [], inner: [mid] }, wood));
   const o = opening(p);
-  if (o) fit(p, buildDoors(p, o, { count: W > 600 ? 2 : 1, front: 'embutido', style: 'marco', wood }));
+  if (o) fit(p, buildDoors(p, o, { count: W > 600 ? 2 : 1, front: 'embutido', style: isSheet(wood) ? 'tablero' : 'marco', wood }));
   return p;
 }
 

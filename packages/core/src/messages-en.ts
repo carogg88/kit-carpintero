@@ -135,6 +135,28 @@ export const MESSAGES_EN: Record<string, string> = {
   'Blanda, clara y económica. Fácil de trabajar pero se marca con los golpes; buena para prototipos y muebles livianos.':
     'Soft, pale and inexpensive. Easy to work but dents easily; good for prototypes and light furniture.',
 
+  // Placas (woods.ts, cutlist.ts)
+  'sale de placa de {s} mm':
+    'cut from {s} mm sheet',
+  'tapacanto en {n} canto':
+    'edge banding on {n} edge',
+  'tapacanto en {n} cantos':
+    'edge banding on {n} edges',
+  'Placa de fibra, lisa y pareja, sin veta. Se pinta o se laquea muy bien; no le gusta la humedad y los tornillos en el canto se aflojan.':
+    'Fiberboard: smooth and even, with no grain. Paints and lacquers beautifully; it dislikes moisture and screws in the edge work loose.',
+  'Melamina blanca':
+    'White melamine',
+  'Aglomerado con cara plástica, lista para usar: no se pinta ni se lustra. Los cantos a la vista llevan tapacanto y se arma con tarugos o tornillos.':
+    'Particleboard with a plastic face, ready to use: no paint or finish needed. Visible edges get edge banding, and it goes together with dowels or screws.',
+  'Terciado':
+    'Plywood',
+  'Chapas de madera encoladas cruzadas: liviano, firme y económico. Ideal para traseras y fondos de cajón.':
+    'Cross-glued wood veneers: light, stiff and inexpensive. Ideal for cabinet backs and drawer bottoms.',
+  'Multilaminado':
+    'Multi-ply',
+  'Terciado de muchas capas finas y sin huecos: muy estable y con el canto prolijo para dejarlo a la vista. Para cuerpos de muebles y cajones.':
+    'Plywood with many thin, void-free layers: very stable, with a clean edge you can leave exposed. For cabinet carcasses and drawers.',
+
   // Plantillas (templates/index.ts): nombres, campos y avisos
   Mesa: 'Table',
   'Mesa de comedor': 'Dining table',

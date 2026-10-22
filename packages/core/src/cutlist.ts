@@ -7,6 +7,8 @@ import { describeTurning } from './turning';
 import { jointGeometry, solidBox } from './joints';
 import type { Joint, Part, Project } from './project';
 import { t, tk } from './i18n';
+import { sheetById } from './woods';
+import { BANDING_MIN_MM, bandingWidth, exposedEdges, packSheets, sheetThicknessFor, type SheetBoard, type SheetPiece } from './sheets';
 
 /** Corte de sierra, en mm. */
 export const KERF_MM = 3;
@@ -23,6 +25,8 @@ export interface CutPiece {
   /** Cuántas espigas o lengüetas lleva. */
   tongues: number;
   work: string[];
+  /** Cantos con tapacanto, de los largos y de los cortos (solo piezas de placa que lo llevan). */
+  band?: [number, number];
 }
 
 /** Grupo de piezas iguales, como una fila de la lista de cortes. */
@@ -36,6 +40,8 @@ export interface CutRow {
   work: string[];
   /** Tablas a encolar de canto para llegar al ancho (1 si sale de una). */
   boards: number;
+  /** Cantos con tapacanto, de los largos y de los cortos. */
+  band?: [number, number];
 }
 
 const unionBox = (a: Box, b: Box): Box => ({
@@ -171,7 +177,19 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   if (op) work.push(op.kind === 'round' ? t('cantos redondeados {r} mm', { r: op.radius }) : t('cantos chaflanados {s} mm', { s: op.size }));
   const finished = [...boxSize(box)].sort((x, y) => y - x);
   const cut = [...boxSize(outer)].sort((x, y) => y - x) as [number, number, number];
-  return { part, cut, extraLength: Math.round(cut[0] - (finished[0] ?? 0)), tongues, work };
+  const sheet = sheetById(part.wood);
+  let band: [number, number] | undefined;
+  if (sheet) {
+    // La placa no se cepilla: si la pieza no tiene un espesor de placa, se avisa de cuál sale.
+    const from = sheetThicknessFor(sheet, cut[2]);
+    if (from !== null && Math.abs(from - cut[2]) > 0.5) work.push(t('sale de placa de {s} mm', { s: from }));
+    if (sheet.banding && cut[2] >= BANDING_MIN_MM) {
+      band = exposedEdges(part, project.parts);
+      const n = band[0] + band[1];
+      if (n) work.push(plural(n, tk('tapacanto en {n} canto'), tk('tapacanto en {n} cantos')));
+    }
+  }
+  return { part, cut, extraLength: Math.round(cut[0] - (finished[0] ?? 0)), tongues, work, ...(band ? { band } : {}) };
 }
 
 /**
@@ -202,7 +220,7 @@ export function cutList(project: Project): CutRow[] {
   }
   const rows = [...groups.values()].map((g) => {
     const c = g[0]!;
-    const stock = stockFor(c.cut);
+    const stock = sheetById(c.part.wood) ? null : stockFor(c.cut);
     const work = stock && stock.boards > 1 ? [t('encolar {n} tiras', { n: stock.boards }), ...c.work] : c.work;
     return {
       name: g.length > 1 ? commonName(g.map((x) => x.part.name)) : c.part.name,
@@ -213,6 +231,7 @@ export function cutList(project: Project): CutRow[] {
       tongues: c.tongues,
       work,
       boards: stock?.boards ?? 1,
+      ...(c.band ? { band: c.band } : {}),
     };
   });
   // Filas con el mismo nombre ("Faldón" y "Faldón"): se distinguen por el largo.
@@ -253,8 +272,14 @@ export interface StockBoard {
 
 export interface CutPlan {
   boards: StockBoard[];
+  /** Placas a comprar, con sus piezas. */
+  sheets: SheetBoard[];
   /** Piezas que no entran en ningún largo comercial. */
   tooLong: string[];
+  /** Piezas de placa que no salen de una placa entera, o más gruesas que la placa más gruesa. */
+  tooBig: string[];
+  /** Tapacanto a comprar: placa, ancho en mm y metros. */
+  banding: { material: string; width: number; meters: number }[];
   /** Pies madereros por madera. */
   feet: Record<string, number>;
   /** Desperdicio: madera comprada que no termina en piezas, de 0 a 1. */
@@ -341,8 +366,33 @@ function packThickness(wood: string, thicknessIn: number, pieces: Piece[]): Stoc
 export function cutPlan(project: Project): CutPlan {
   const byThickness = new Map<string, { wood: string; t: number; pieces: Piece[] }>();
   const tooLong: string[] = [];
+  const tooBig: string[] = [];
+  const bySheet = new Map<string, { material: string; t: number; pieces: SheetPiece[] }>();
+  const band = new Map<string, { material: string; width: number; mm: number }>();
+  const sheetVolume = new Map<string, number>();
   let piecesVolume = 0;
   for (const c of project.parts.filter((p) => p.base.kind === 'box').map((p) => cutPiece(p, project))) {
+    const sheet = sheetById(c.part.wood);
+    if (sheet) {
+      const th = sheetThicknessFor(sheet, c.cut[2]);
+      if (th === null) {
+        tooBig.push(c.part.id);
+        continue;
+      }
+      sheetVolume.set(c.part.id, c.cut[0] * c.cut[1] * c.cut[2]);
+      const key = `${sheet.id}|${th}`;
+      const g = bySheet.get(key) ?? { material: sheet.id, t: th, pieces: [] };
+      g.pieces.push({ id: c.part.id, length: c.cut[0], width: c.cut[1] });
+      bySheet.set(key, g);
+      if (c.band && c.band[0] + c.band[1] > 0) {
+        const width = bandingWidth(th);
+        const b = band.get(`${sheet.id}|${width}`) ?? { material: sheet.id, width, mm: 0 };
+        // Cada canto lleva 5 cm de más para recortar las puntas.
+        b.mm += c.band[0] * (c.cut[0] + 50) + c.band[1] * (c.cut[1] + 50);
+        band.set(`${sheet.id}|${width}`, b);
+      }
+      continue;
+    }
     const stock = stockFor(c.cut);
     if (!stock || c.cut[0] + 2 * END_TRIM_MM > MAX_LENGTH) {
       tooLong.push(c.part.id);
@@ -359,11 +409,30 @@ export function cutPlan(project: Project): CutPlan {
     byThickness.set(key, g);
   }
   const boards = [...byThickness.values()].flatMap((g) => packThickness(g.wood, g.t, g.pieces));
+  const sheets = [...bySheet.values()].flatMap((g) => {
+    const r = packSheets(sheetById(g.material)!, g.t, g.pieces);
+    tooBig.push(...r.tooBig);
+    for (const b of r.boards) for (const p of b.placements) piecesVolume += sheetVolume.get(p.id) ?? 0;
+    return r.boards;
+  });
 
   const feet: Record<string, number> = {};
   for (const b of boards) feet[b.wood] = (feet[b.wood] ?? 0) + boardFeet(b.thicknessIn, b.widthIn, b.lengthM);
-  const bought = boughtVolume(boards);
-  return { boards, tooLong, feet, waste: bought ? Math.max(0, 1 - piecesVolume / bought) : 0 };
+  const bought = boughtVolume(boards) + sheets.reduce((v, s) => v + s.size[0] * s.size[1] * s.thickness, 0);
+  const banding = [...band.values()].map((b) => ({ material: b.material, width: b.width, meters: Math.ceil(b.mm / 1000) }));
+  return { boards, sheets, tooLong, tooBig, banding, feet, waste: bought ? Math.max(0, 1 - piecesVolume / bought) : 0 };
+}
+
+/** Placas a comprar: las iguales juntas. */
+export function sheetShopping(plan: CutPlan): { material: string; thickness: number; size: [number, number]; count: number }[] {
+  const rows = new Map<string, { material: string; thickness: number; size: [number, number]; count: number }>();
+  for (const s of plan.sheets) {
+    const key = `${s.material}|${s.thickness}`;
+    const r = rows.get(key) ?? { material: s.material, thickness: s.thickness, size: s.size, count: 0 };
+    r.count += 1;
+    rows.set(key, r);
+  }
+  return [...rows.values()].sort((a, b) => a.material.localeCompare(b.material) || b.thickness - a.thickness);
 }
 
 /** Lista de compras: tablas iguales juntas. */

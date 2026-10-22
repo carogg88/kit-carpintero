@@ -4,6 +4,10 @@ import {
   formatInches,
   formatNumber,
   getLang,
+  isSheet,
+  sheetById,
+  sheetShopping,
+  sheetThicknessFor,
   locale,
   t,
   tk,
@@ -14,6 +18,7 @@ import {
   type Hardness,
   type Project,
   type StockKind,
+  type Wood,
 } from '@kitc/core';
 
 export type ShopRow = { wood: string; kind: StockKind; thicknessIn: number; widthIn: number; lengthM: number; count: number };
@@ -30,6 +35,12 @@ export const decimal = (v: number, digits = 1) => v.toLocaleString(locale(), { m
 export const woodName = (id: string) => {
   const name = woodById(id)?.name;
   return name ? t(name) : id;
+};
+
+/** Nombre en minúscula para el medio de una frase, salvo siglas: "guatambú", "terciado", "MDF". */
+export const lowerName = (id: string) => {
+  const name = woodName(id);
+  return name === name.toLocaleUpperCase(locale()) ? name : name.toLocaleLowerCase(locale());
 };
 
 /** "P1 a P4" si son correlativas, "F1, F2" si no. */
@@ -77,8 +88,9 @@ export function shopUse(r: ShopRow, plan: CutPlan, rows: CutRow[], project: Proj
 
 /** "paraíso o cedro (semiduras), lapacho o algarrobo (duras)". */
 export function alternativesText(id: string): string {
+  if (isSheet(id)) return woodAlternatives(id).map((w) => lowerName(w.id)).reduce((a, b) => t('{a} o {b}', { a, b }));
   const groups = new Map<Hardness, string[]>();
-  for (const w of woodAlternatives(id)) groups.set(w.hardness, [...(groups.get(w.hardness) ?? []), t(w.name).toLocaleLowerCase(locale())]);
+  for (const w of woodAlternatives(id) as Wood[]) groups.set(w.hardness, [...(groups.get(w.hardness) ?? []), t(w.name).toLocaleLowerCase(locale())]);
   return [...groups].map(([h, names]) => `${names.reduce((a, b) => t('{a} o {b}', { a, b }))} (${t(HARDNESS_PLURAL[h])})`).join(', ');
 }
 
@@ -91,7 +103,7 @@ const cell = (v: string | number, sep: string) => {
  * Planilla para abrir en Excel o Google Sheets: en español, separador ; y coma decimal, como en Argentina;
  * en inglés, separador , y punto decimal.
  */
-export function cutsCsv(project: Project, rows: CutRow[], shop: ShopRow[]): string {
+export function cutsCsv(project: Project, rows: CutRow[], shop: ShopRow[], plan: CutPlan): string {
   const sep = getLang() === 'en' ? ',' : ';';
   const u = project.units === 'cm' ? 'cm' : t('pulgadas');
   const n = (mm: number) => formatNumber(mm, project.units);
@@ -113,6 +125,48 @@ export function cutsCsv(project: Project, rows: CutRow[], shop: ShopRow[]): stri
     [t('Para comprar')],
     [t('Madera'), t('Tipo'), t('Espesor'), t('Ancho'), t('Largo (m)'), t('Cantidad')],
     ...shop.map((s) => [woodName(s.wood), kindName(s.kind), formatInches(s.thicknessIn), formatInches(s.widthIn), decimal(s.lengthM, 2), s.count]),
+    ...sheetShopping(plan).map((s) => [woodName(s.material), t('placa'), `${decimal(s.thickness)} mm`, `${decimal(s.size[1] / 10)} cm`, decimal(s.size[0] / 1000, 2), s.count]),
+    ...plan.banding.map((b) => [woodName(b.material), t('tapacanto'), '', `${b.width} mm`, b.meters, 1]),
   ];
+  // El despiece para la casa de placas: en mm, con los cantos que llevan tapacanto, como lo piden para cortar.
+  const sheetRows = rows.filter((r) => isSheet(r.wood));
+  if (sheetRows.length) {
+    lines.push(
+      [],
+      [t('Despiece para cortar las placas (mm)')],
+      [t('Placa'), t('Espesor'), t('Largo'), t('Ancho'), t('Cantidad'), t('Tapacanto en largos'), t('Tapacanto en anchos'), t('Piezas')],
+      ...sheetRows.map((r) => {
+        const sheet = sheetById(r.wood)!;
+        return [woodName(r.wood), decimal(sheetThicknessFor(sheet, r.cut[2]) ?? r.cut[2]), Math.round(r.cut[0]), Math.round(r.cut[1]), r.ids.length, r.band?.[0] ?? 0, r.band?.[1] ?? 0, r.ids.join(' ')];
+      }),
+    );
+  }
   return '﻿' + lines.map((l) => l.map((v) => cell(v, sep)).join(sep)).join('\r\n') + '\r\n';
+}
+
+export type SheetRow = { material: string; thickness: number; size: [number, number]; count: number };
+
+export const sheetKey = (r: Pick<SheetRow, 'material' | 'thickness'>) => `placa|${r.material}|${r.thickness}`;
+
+/** "MDF 18 mm · 260 × 183 cm". */
+export const sheetLabel = (r: Pick<SheetRow, 'material' | 'thickness' | 'size'>) =>
+  t('{sheet} {t} mm · {l} × {w} cm', { sheet: woodName(r.material), t: decimal(r.thickness), l: decimal(r.size[0] / 10), w: decimal(r.size[1] / 10) });
+
+/** "2 placas de MDF de 18 mm (260 × 183 cm)". */
+export const sheetCountLabel = (r: SheetRow) =>
+  t(r.count === 1 ? tk('{n} placa de {sheet} de {t} mm ({l} × {w} cm)') : tk('{n} placas de {sheet} de {t} mm ({l} × {w} cm)'), {
+    n: r.count,
+    sheet: woodName(r.material),
+    t: decimal(r.thickness),
+    l: decimal(r.size[0] / 10),
+    w: decimal(r.size[1] / 10),
+  });
+
+/** Qué sale de esas placas: "L1, L2, T1, E1 · se aprovecha el 64%". */
+export function sheetPieces(r: SheetRow, plan: CutPlan): string {
+  const boards = plan.sheets.filter((b) => sheetKey(b) === sheetKey(r));
+  const ids = boards.flatMap((b) => b.placements.map((p) => p.id));
+  const area = boards.reduce((s, b) => s + b.placements.reduce((a, p) => a + p.length * p.width, 0), 0);
+  const pct = Math.round((area / (r.size[0] * r.size[1] * boards.length)) * 100);
+  return t('{ids} · se aprovecha el {pct}%', { ids: ids.join(', '), pct });
 }
