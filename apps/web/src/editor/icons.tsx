@@ -86,6 +86,11 @@ export const IconWarn = () => (
     <path d="M12 10v5M12 18v.5" />
   </svg>
 );
+export const IconCheck = () => (
+  <svg {...base} width={16} height={16}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </svg>
+);
 export const IconModel = () => (
   <svg {...base} width={22} height={22} strokeLinejoin="round">
     <path d="M12 2 3 7v10l9 5 9-5V7z" />

@@ -49,6 +49,7 @@ import {
   type Section,
   type Units,
 } from '@kitc/core';
+import { PartNotes, ReviewCard } from './Review';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
 import { IconLink, IconRotate, IconTrash, IconWarn } from './icons';
@@ -525,6 +526,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
       </div>
+      <PartNotes project={project} partId={part.id} />
       <fieldset className={styles.dims}>
         <legend className={styles.legend}>{t('Medidas terminadas ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}</legend>
         {/* Siempre en el mismo orden y con el nombre de la dirección: no cambian al girar la pieza con las medidas. */}
@@ -886,6 +888,7 @@ function ProjectOverview({ project }: { project: Project }) {
         </p>
       </div>
       {project.parts.length > 1 && <FurnitureSize project={project} />}
+      <ReviewCard project={project} />
       <ul className={styles.partList}>
         {project.parts.map((p) => (
           <li key={p.id}>

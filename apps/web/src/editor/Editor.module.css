@@ -274,10 +274,28 @@
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: var(--space-2) var(--space-4); font-size: var(--text-s); box-shadow: var(--shadow-card);
 }
 .chipNum { font-family: var(--font-num); font-size: var(--text-s); background: var(--surface-2); border-radius: var(--radius-pill); padding: 2px 8px; }
+/* Arriba a la izquierda de la vista: el estado de los cortes y la revisión del diseño, uno abajo del otro. */
+.stageStatus {
+  position: absolute; top: var(--space-2); left: var(--space-2); max-width: 55%; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1);
+  pointer-events: none;
+}
+.stageStatus > * { pointer-events: auto; }
+/* En el celular, arriba van las vistas a todo el ancho: el estado va abajo a la izquierda, a la par del botón de agregar pieza. */
+@media (max-width: 899px) {
+  .stageStatus { top: auto; bottom: calc(var(--space-2) * 2 + 52px + var(--space-1) * 2 + 2px + 4px); max-width: calc(100% - 150px); }
+}
 .engine {
-  position: absolute; top: var(--space-2); left: var(--space-2); max-width: 55%; padding: 6px 10px; border-radius: 8px;
+  padding: 6px 10px; border-radius: 8px;
   background: var(--surface); border: 1px solid var(--line); font-size: var(--text-xs); color: var(--muted);
 }
+.reviewPill {
+  min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px 0 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink); box-shadow: var(--shadow-card);
+  font: 500 var(--text-s) var(--font-ui); cursor: pointer; transition: filter 150ms ease;
+}
+.reviewPill:hover { filter: brightness(0.97); }
+.reviewPill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reviewPill svg { flex: none; }
 .hint {
   position: absolute; transform: translate(14px, -120%); pointer-events: none; display: flex; flex-direction: column; gap: 2px;
   padding: 6px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font: 500 var(--text-s) var(--font-num); white-space: nowrap;
@@ -493,6 +511,9 @@
   .toolbar button { flex: none; width: 60px; height: 50px; }
   .toolSep { width: auto; height: 1px; margin: 2px 8px; }
   .chip.desktopOnly { top: var(--space-3); bottom: auto; left: calc(var(--space-3) + 60px + var(--space-1) * 2 + 2px + var(--space-3)); }
+  /* A la derecha de la barra de herramientas, abajo del cartel de la pieza elegida si lo hay. */
+  .stageStatus { top: var(--space-3); left: calc(var(--space-3) + 60px + var(--space-1) * 2 + 2px + var(--space-3)); }
+  .stage:has(.chip.desktopOnly) .stageStatus { top: calc(var(--space-3) + 48px); }
   .guide { top: auto; bottom: var(--space-3); left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100% - 2 * var(--space-3) - 160px); padding-right: var(--space-2); }
   .guide:has(.done) { padding-right: var(--space-1); }
   .guide { flex-wrap: nowrap; }
@@ -607,3 +628,28 @@
 @media (max-width: 640px) {
   .primaryBtn, .secondaryBtn { align-self: stretch; }
 }
+
+/* Revisión del diseño: en el panel del proyecto, plegada por aviso; en el de la pieza, abierta. */
+.review { display: flex; flex-direction: column; gap: var(--space-2); scroll-margin-top: var(--space-4); }
+.reviewHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.reviewCount { font: 500 var(--text-xs) var(--font-ui); color: var(--warn-ink); background: var(--warn-bg); border-radius: var(--radius-pill); padding: 2px 10px; }
+.reviewOk { margin: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-s); color: var(--forest); }
+.reviewOk svg { flex: none; }
+.reviewList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--warn-line); border-radius: 12px; background: var(--warn-bg); overflow: hidden; }
+.reviewList > li + li { border-top: 1px solid color-mix(in srgb, var(--warn-line) 35%, transparent); }
+.reviewItem {
+  width: 100%; min-height: var(--tap); display: flex; align-items: center; gap: var(--space-2); padding: 8px 12px; border: 0; background: none;
+  color: var(--warn-ink); font: 500 var(--text-s)/1.3 var(--font-ui); text-align: left; cursor: pointer;
+}
+.reviewItem svg { flex: none; }
+.reviewItem:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.reviewBody { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 0 12px 8px 36px; font-size: var(--text-s); line-height: 1.45; color: var(--ink); }
+.reviewBody p, .partNote p { margin: 0; }
+.reviewBody .link { min-height: 36px; }
+.partNotes { display: flex; flex-direction: column; gap: var(--space-2); }
+.partNote {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--warn-line); background: var(--warn-bg);
+  font-size: var(--text-s); line-height: 1.45; color: var(--ink);
+}
+.partNote > strong { display: flex; align-items: center; gap: 6px; color: var(--warn-ink); font-weight: 600; }
+.partNote > strong svg { flex: none; }

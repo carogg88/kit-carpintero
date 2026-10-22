@@ -35,6 +35,7 @@ import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
 import { MeasureBubble } from './MeasureBubble';
 import { NextSteps, useVisitSection } from './NextSteps';
+import { ReviewPill } from './Review';
 import { Viewport } from './Viewport';
 import styles from './Editor.module.css';
 
@@ -478,11 +479,14 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 <span className={styles.chipNum}>{selDims.map((mm) => formatLength(mm, project.units).replace(/ cm|″/, '')).join(' × ')}{project.units === 'cm' ? ' cm' : '″'}</span>
               </span>
             )}
-            {(engineText || warnings > 0) && (
-              <span className={styles.engine} role="status">
-                {engineText ?? (warnings === 1 ? t('1 pieza no se pudo cortar del todo') : t('{n} piezas no se pudieron cortar del todo', { n: warnings }))}
-              </span>
-            )}
+            <div className={styles.stageStatus}>
+              {(engineText || warnings > 0) && (
+                <span className={styles.engine} role="status">
+                  {engineText ?? (warnings === 1 ? t('1 pieza no se pudo cortar del todo') : t('{n} piezas no se pudieron cortar del todo', { n: warnings }))}
+                </span>
+              )}
+              {tool === 'select' && <ReviewPill project={project} />}
+            </div>
             {hint && <HintLabel hint={hint} />}
             {tool === 'select' && !empty && (
               <span className={styles.mobileOnly}>

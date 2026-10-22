@@ -2,6 +2,7 @@ import { boxSize, overlapBox, partBox, type Box } from './geometry';
 import { jointGeometry } from './joints';
 import { boardPieces, dowelsNeeded, type CutPlan } from './cutlist';
 import type { Part, Project } from './project';
+import { tipRisk } from './review';
 import { isSheet, sheetById } from './woods';
 import { t } from './i18n';
 
@@ -122,6 +123,9 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
     if (!/^E\d+$/.test(p.id) || project.joints.some((j) => j.partA === p.id || j.partB === p.id)) continue;
     add(rows, { id: 'soporte', name: t('Soportes de estante de 5 mm'), qty: 4, unit: 'u', note: t('cuatro por estante regulable') });
   }
+
+  // Alto y de poco fondo: se atornilla a la pared.
+  if (tipRisk(project)) add(rows, { id: 'antivuelco', name: t('Escuadras antivuelco'), qty: 2, unit: 'u', note: t('con tornillos y tarugos, para fijarlo a la pared') });
 
   // Una caja chica con tapa suelta arriba: la tapa va con dos bisagras chicas, no atornillada.
   const all = boxes.length ? unionOf(boxes) : null;
