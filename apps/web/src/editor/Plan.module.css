@@ -42,13 +42,30 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
 .pdf:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
 .note { margin: -4px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
 
-.desk { min-width: 0; background: var(--desk); border-radius: var(--radius-m); padding: var(--space-3); overflow-x: auto; }
+.desk { min-width: 0; background: var(--desk); border-radius: var(--radius-m); padding: var(--space-2) var(--space-3) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .page { display: none; }
 .page[data-current] { display: block; }
+/* La hoja entra justa en el ancho; con --zoom se agranda y la caja deja moverse adentro. */
+.zoomBox { --zoom: 1; overflow: auto; touch-action: pan-x pan-y; overscroll-behavior: contain; border-radius: 6px; }
+.zoomBox[data-zoomed] { max-height: 72dvh; }
 .sheet {
-  display: block; width: 100%; min-width: 680px; max-width: 1040px; height: auto; margin: 0 auto;
+  display: block; width: calc(100% * var(--zoom)); max-width: calc(1040px * var(--zoom)); height: auto; margin: 0 auto;
   box-shadow: 0 1px 3px rgb(28 35 32 / 0.12), 0 8px 24px rgb(28 35 32 / 0.08);
 }
+.zoomBar { display: flex; align-items: center; gap: 4px; }
+.zoomBtn, .zoomFit {
+  display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: 500 14px var(--font-num); cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.zoomFit { min-width: 76px; white-space: nowrap; }
+.zoomBtn:hover:not(:disabled), .zoomFit:hover:not(:disabled) { background: var(--surface-2); }
+.zoomBtn:disabled, .zoomFit:disabled { color: var(--muted); cursor: default; }
+.zoomFit:disabled { border-color: transparent; background: transparent; }
+.zoomBtn:focus-visible, .zoomFit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.zoomHint { margin-left: var(--space-2); font-size: 13px; color: var(--muted); }
+/* Con mouse, la ayuda es Ctrl y la rueda: no hace falta decirlo en cada hoja. */
+@media (hover: hover) and (pointer: fine) { .zoomHint { display: none; } }
 
 /* Dentro de la hoja: papel blanco y tinta, en los dos modos. */
 .paper { fill: var(--paper); }
@@ -78,6 +95,19 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
 .tbValue { fill: var(--paper-ink); font: 600 3.2px var(--font-ui); }
 .tbMono { fill: var(--paper-ink); font: 500 3.2px var(--font-num); }
 
+/* Hoja del mueble: tabla de piezas, leyenda y lista de hojas. */
+.keyHeading { fill: var(--paper-ink); font: 600 3.2px var(--font-ui); }
+.keyText { fill: var(--paper-ink); font: 400 2.6px var(--font-ui); }
+.keyMuted { fill: var(--paper-muted); font: 400 2.6px var(--font-ui); }
+.keyCode { fill: var(--paper-ink); font: 600 2.6px var(--font-num); }
+.keyNum { fill: var(--paper-muted); font: 500 2.6px var(--font-num); }
+.jointSample { fill: var(--signal); fill-opacity: 0.55; }
+.swatch { stroke: var(--paper-ink); stroke-width: 0.2; }
+.tag { fill: var(--paper); stroke-width: 0.5; }
+.tagText { fill: var(--paper-ink); font: 700 2.6px var(--font-num); }
+.thumbBox { fill: none; stroke: var(--paper-muted); stroke-width: 0.15; stroke-dasharray: 0.8 0.8; }
+.viewName { fill: var(--paper-muted); font: 500 2.6px var(--font-ui); }
+
 .off-contornos .contour, .off-cotas .dim, .off-ocultas .hidden, .off-encastres .joints, .off-notas .notes { display: none; }
 
 .empty { flex: 1; padding: var(--space-6) var(--gutter); }
@@ -95,7 +125,7 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheetList button, .pdf { transition: none; }
+  .sheetList button, .pdf, .zoomBtn, .zoomFit { transition: none; }
 }
 
 @page { size: A4 landscape; margin: 0; }
@@ -105,6 +135,8 @@ summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; ma
   .page { display: block; break-after: page; width: 297mm; height: 210mm; overflow: hidden; }
   .page:last-child { break-after: auto; }
   .sheet { width: 297mm; height: 210mm; min-width: 0; max-width: none; box-shadow: none; }
+  .zoomBar { display: none; }
+  .zoomBox, .zoomBox[data-zoomed] { overflow: visible; max-height: none; }
 }
 .dimDot { fill: var(--paper-accent); stroke: none; }
 .turnTpl { fill: rgba(158, 96, 39, 0.08); stroke: var(--paper-ink); stroke-width: 0.35; stroke-linejoin: round; }

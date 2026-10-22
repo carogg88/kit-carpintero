@@ -81,4 +81,38 @@ export default {
   'Taco de {side} × {side} × {len}. Las distancias se miden desde {from}; con el calibre llevá cada diámetro a su estación.':
     'Blank {side} × {side} × {len}. Distances are measured from {from}; use calipers to take each diameter to its station.',
   'queda cuadrado': 'stays square',
+
+  // Hoja del mueble en 3D
+  'Sin escala': 'Not to scale',
+  'Contorno: el borde de la pieza que se ve.': 'Outline: the visible edge of a part.',
+  'Línea oculta: un borde que queda detrás o adentro de la madera.': 'Hidden line: an edge behind or inside the wood.',
+  'Cota: una medida, de marca a marca.': 'Dimension: a measurement, from tick to tick.',
+  'Encastre resaltado: espiga, mortaja o agujero.': 'Highlighted joint: tenon, mortise or hole.',
+  tapada: 'hidden',
+  'Y {n} más en el despiece': 'And {n} more in the parts sheets',
+  'Cómo leer las líneas': 'How to read the lines',
+  'Escala 1:10 quiere decir que 1 cm en la hoja son 10 cm de verdad.': 'Scale 1:10 means 1 cm on paper is 10 cm for real.',
+  'Cada hoja dice la suya abajo. Las cotas van en {units}: no hace falta medir el papel.':
+    'Each sheet shows its own at the bottom. Dimensions are in {units}: no need to measure the paper.',
+  'Qué hay en cada hoja': 'What is on each sheet',
+  'El mueble': 'The piece',
+  'En 3D, con el código de cada pieza': 'In 3D, with every part code',
+  'El mueble armado': 'The assembled piece',
+  'Cada pieza lleva su código: es el mismo en el despiece, en las uniones y en la lista de cortes.':
+    'Every part has its code: the same one used in the parts sheets, the joints and the cut list.',
+  'Este navegador no puede dibujar en 3D: el mueble se ve en la hoja de vistas generales.':
+    'This browser cannot draw in 3D: the piece is shown on the general views sheet.',
+  'Plantillas a tamaño real': 'Full-size templates',
+  'Plantillas 1:1': '1:1 templates',
+  'Medido en {id}; las otras son iguales, o en espejo donde haga falta.': 'Measured on {id}; the others are the same, mirrored where needed.',
+  'Sigue en la hoja de encastres.': 'Continued on the joints sheet.',
+  'Vista de costado': 'Side view',
+  'Vista desde arriba': 'View from above',
+  'Vista de frente': 'Front view',
+
+  // Agrandar la hoja
+  Alejar: 'Zoom out',
+  'Ajustar la hoja al ancho': 'Fit sheet to width',
+  Acercar: 'Zoom in',
+  'Pellizcá para agrandar': 'Pinch to zoom',
 } satisfies Record<string, string>;

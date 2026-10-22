@@ -56,6 +56,18 @@ export const IconPlus = () => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
+export const IconZoomIn = () => (
+  <svg {...base} width={20} height={20}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m16 16 4.5 4.5M8 11h6M11 8v6" />
+  </svg>
+);
+export const IconZoomOut = () => (
+  <svg {...base} width={20} height={20}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m16 16 4.5 4.5M8 11h6" />
+  </svg>
+);
 export const IconChevron = () => (
   <svg {...base} width={18} height={18}>
     <path d="m9 6 6 6-6 6" />

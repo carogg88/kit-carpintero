@@ -1,7 +1,8 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   arcTemplate,
   cutList,
+  describePartJoints,
   drawJointDetail,
   drawPart,
   drawView,
@@ -27,9 +28,10 @@ import {
   type Rect2,
   type Units,
 } from '@kitc/core';
-import { IconDownload } from './icons';
+import { IconDownload, IconZoomIn, IconZoomOut } from './icons';
 import { capitalize, woodName } from './cutsData';
-import { useEngineLines } from './useGeometry';
+import { shoot, type Shot } from './planShots';
+import { useEngineLines, type ExactMesh } from './useGeometry';
 import styles from './Plan.module.css';
 
 /** Hoja A4 apaisada, en mm de papel. */
@@ -51,6 +53,35 @@ const LAYERS: [Layer, string][] = [
 
 /** Cambia las líneas de cajas por las de la forma exacta, si el motor ya las tiene. */
 type Refine = (d: Drawing) => Drawing;
+
+/** Foto en 3D de algunas piezas (o de todas), del tamaño pedido en mm de papel. */
+type Shooter = (parts: string[] | undefined, w: number, h: number, labels?: boolean) => Shot | null;
+
+/** Píxeles de las fotos 3D por mm de papel: alcanza para imprimir nítido. */
+const SHOT_PX = 8;
+
+/**
+ * Un color por tipo de pieza, el mismo en la hoja del mueble y en el despiece: claros, para que se lean los
+ * códigos y las aristas encima, y distintos entre sí aun impresos en una impresora común.
+ */
+const PIECE_COLORS = ['#d8b07e', '#93b38a', '#86a9c9', '#e0a35f', '#c48a7a', '#a99bc4', '#7fb8ae', '#c9b45c', '#b5a48f', '#d79bb0'];
+
+/** Lista de códigos corta: "P1 a P4" si son más de dos. */
+const codes = (ids: string[]) => (ids.length > 2 ? t('{a} a {b}', { a: ids[0]!, b: ids[ids.length - 1]! }) : ids.join(', '));
+
+/** Corta un texto en renglones de hasta `max` letras, sin partir palabras. */
+function wrap(text: string, max: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    if (line && line.length + word.length + 1 > max) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
 
 const pickScale = (fits: (s: number) => boolean) => SCALES.find(fits) ?? SCALES[SCALES.length - 1]!;
 
@@ -205,7 +236,7 @@ function Radius({ m, at, text }: { m: ArcMark; at: Place; text: string }) {
   );
 }
 
-function TitleBlock({ project, sheet, of, scale, units }: { project: Project; sheet: number; of: number; scale: number | null; units: Units }) {
+function TitleBlock({ project, sheet, of, scale, units }: { project: Project; sheet: number; of: number; scale: number | null | 'none'; units: Units }) {
   const x = W - M - TITLE_W;
   const y = H - M - TITLE_H;
   const woods = [...new Set(project.parts.map((p) => woodName(p.wood)))].join(', ');
@@ -224,7 +255,7 @@ function TitleBlock({ project, sheet, of, scale, units }: { project: Project; sh
     <g className={styles.titleBlock}>
       {cell(x, y, 80, t('Proyecto'), project.name)}
       {cell(x + 80, y, TITLE_W - 80, t('Hoja'), t('{n} de {total}', { n: sheet, total: of }), true)}
-      {cell(x, y + TITLE_H / 2, 30, t('Escala'), scale ? `1:${scale}` : t('Indicada'), true)}
+      {cell(x, y + TITLE_H / 2, 30, t('Escala'), scale === 'none' ? t('Sin escala') : scale ? `1:${scale}` : t('Indicada'), true)}
       {cell(x + 30, y + TITLE_H / 2, 30, t('Medidas'), units === 'cm' ? 'cm' : t('pulgadas'), true)}
       {cell(x + 60, y + TITLE_H / 2, TITLE_W - 60, t('Madera'), woods)}
     </g>
@@ -235,8 +266,8 @@ interface SheetDef {
   key: string;
   title: string;
   hint: string;
-  /** Escala de toda la hoja, o null si cada dibujo lleva la suya. */
-  scale: number | null;
+  /** Escala de toda la hoja, null si cada dibujo lleva la suya, o 'none' si es un dibujo en 3D sin escala. */
+  scale: number | null | 'none';
   body: React.ReactNode;
 }
 
@@ -252,7 +283,198 @@ function Sheet({ def, n, of, project, layers }: { def: SheetDef; n: number; of: 
   );
 }
 
-/** Hoja 1: frente, costado y planta con las medidas generales. */
+/** Lo que va en la columna de la derecha de la hoja del mueble: el ancho del rótulo, para que queden alineados. */
+const KEY_X = W - M - TITLE_W;
+
+/** Muestra de cada tipo de línea, para la leyenda: las mismas clases que en los dibujos. */
+const LINE_SAMPLES: { key: string; label: string; draw: (x: number, y: number) => ReactNode }[] = [
+  {
+    key: 'contorno',
+    label: tk('Contorno: el borde de la pieza que se ve.'),
+    draw: (x, y) => (
+      <g className={styles.contour}>
+        <line x1={x} y1={y} x2={x + 12} y2={y} />
+      </g>
+    ),
+  },
+  {
+    key: 'oculta',
+    label: tk('Línea oculta: un borde que queda detrás o adentro de la madera.'),
+    draw: (x, y) => (
+      <g className={styles.hidden}>
+        <line x1={x} y1={y} x2={x + 12} y2={y} />
+      </g>
+    ),
+  },
+  {
+    key: 'cota',
+    label: tk('Cota: una medida, de marca a marca.'),
+    draw: (x, y) => <Dim from={x} to={x + 12} at={y + 2.2} offset={-1.6} text="75" />,
+  },
+  {
+    key: 'encastre',
+    label: tk('Encastre resaltado: espiga, mortaja o agujero.'),
+    draw: (x, y) => (
+      <rect x={x} y={y - 1.4} width={12} height={2.8} className={styles.jointSample} />
+    ),
+  },
+];
+
+/**
+ * Hoja 1: el mueble armado en 3D, cada pieza con su código y su color, la tabla de piezas, cómo leer las líneas
+ * y qué hay en cada hoja. Es la que se mira primero en el taller.
+ */
+function overviewSheet(project: Project, colors: ReadonlyMap<string, string>, shots: Shooter, rest: SheetDef[]): SheetDef {
+  const n = (mm: number) => formatNumber(mm, project.units);
+  const img = { x: M + 4, y: M + 15, w: KEY_X - M - 8, h: H - M - 19 };
+  const shot = shots(undefined, img.w, img.h, true);
+  const hidden = new Set(shot?.hidden ?? []);
+  const rows = cutList(project);
+
+  // Columna derecha, de arriba abajo: piezas, líneas, escala y hojas.
+  const x = KEY_X;
+  let y = M + 6;
+  const body: ReactNode[] = [];
+  const heading = (text: string) => {
+    body.push(
+      <text key={`h-${text}`} x={x} y={y} className={styles.keyHeading}>
+        {text}
+      </text>,
+    );
+    y += 5;
+  };
+  heading(t('Piezas'));
+  // Lugar para la tabla: lo que no ocupan las líneas, la escala y la lista de hojas.
+  const groups = sheetGroups(rest);
+  const room = H - M - TITLE_H - 6 - y - (5 + LINE_SAMPLES.length * 6 + 3) - 12 - (5 + groups.length * 4.4 + 2);
+  const fit = Math.max(1, Math.floor(room / 5));
+  const shown = rows.length > fit ? rows.slice(0, fit - 1) : rows;
+  for (const r of shown) {
+    const part = project.parts.find((p) => p.id === r.ids[0])!;
+    const size = [...partBox(part).max.map((v, i) => v - partBox(part).min[i]!)].sort((a, b) => b - a);
+    const out = r.ids.every((id) => hidden.has(id));
+    body.push(
+      <g key={`r-${r.ids.join()}`}>
+        <rect x={x} y={y - 2.9} width={3.6} height={3.6} rx={0.6} fill={colors.get(r.ids[0]!)} className={styles.swatch} />
+        <text x={x + 6} y={y} className={styles.keyCode}>
+          {codes(r.ids)}
+        </text>
+        <text x={x + 27} y={y} className={styles.keyText}>
+          {r.ids.length > 1 ? `${r.name} × ${r.ids.length}` : r.name}
+          {out && <tspan className={styles.keyMuted}> · {t('tapada')}</tspan>}
+        </text>
+        <text x={x + TITLE_W} y={y} textAnchor="end" className={styles.keyNum}>
+          {size.map(n).join(' × ')}
+        </text>
+      </g>,
+    );
+    y += 5;
+  }
+  if (shown.length < rows.length) {
+    body.push(
+      <text key="more" x={x + 6} y={y} className={styles.keyMuted}>
+        {t('Y {n} más en el despiece', { n: rows.length - shown.length })}
+      </text>,
+    );
+    y += 5;
+  }
+  y += 3;
+  heading(t('Cómo leer las líneas'));
+  for (const l of LINE_SAMPLES) {
+    body.push(
+      <g key={`l-${l.key}`}>
+        {l.draw(x, y - 1)}
+        <text x={x + 16} y={y} className={styles.keyText}>
+          {t(l.label)}
+        </text>
+      </g>,
+    );
+    y += 6;
+  }
+  y += 3;
+  body.push(
+    <text key="escala" x={x} y={y} className={styles.keyText}>
+      {t('Escala 1:10 quiere decir que 1 cm en la hoja son 10 cm de verdad.')}
+    </text>,
+    <text key="escala-2" x={x} y={y + 4} className={styles.keyMuted}>
+      {t('Cada hoja dice la suya abajo. Las cotas van en {units}: no hace falta medir el papel.', { units: project.units === 'cm' ? 'cm' : t('pulgadas') })}
+    </text>,
+  );
+  y += 12;
+  heading(t('Qué hay en cada hoja'));
+  for (const g of groups) {
+    body.push(
+      <text key={`g-${g.from}`} x={x} y={y} className={styles.keyText}>
+        <tspan className={styles.keyCode}>{g.from === g.to ? g.from : t('{a} a {b}', { a: g.from, b: g.to })}</tspan>
+        <tspan dx={2}>
+          {g.title} · {g.hint}
+        </tspan>
+      </text>,
+    );
+    y += 4.4;
+  }
+
+  return {
+    key: 'mueble',
+    title: t('El mueble'),
+    hint: t('En 3D, con el código de cada pieza'),
+    scale: 'none',
+    body: (
+      <>
+        <text x={M + 6} y={M + 6} className={styles.cellTitle}>
+          {t('El mueble armado')}
+        </text>
+        <text x={M + 6} y={M + 11} className={styles.cellMeta}>
+          {t('Cada pieza lleva su código: es el mismo en el despiece, en las uniones y en la lista de cortes.')}
+        </text>
+        {shot ? (
+          <>
+            <image href={shot.url} x={img.x} y={img.y} width={img.w} height={img.h} />
+            <g className={styles.notes}>
+              {shot.labels.map((l) => {
+                const w = l.id.length * 1.7 + 2.6;
+                const cx = img.x + l.x * img.w;
+                const cy = img.y + l.y * img.h;
+                return (
+                  <g key={l.id}>
+                    <rect x={cx - w / 2} y={cy - 2.1} width={w} height={4.2} rx={1.2} className={styles.tag} stroke={colors.get(l.id)} />
+                    <text x={cx} y={cy + 1} textAnchor="middle" className={styles.tagText}>
+                      {l.id}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          </>
+        ) : (
+          <text x={img.x + img.w / 2} y={img.y + img.h / 2} textAnchor="middle" className={styles.cellMeta}>
+            {t('Este navegador no puede dibujar en 3D: el mueble se ve en la hoja de vistas generales.')}
+          </text>
+        )}
+        {body}
+      </>
+    ),
+  };
+}
+
+/** Hojas seguidas del mismo tipo juntas, para la lista de la hoja 1: "3 a 4 · Despiece". */
+function sheetGroups(sheets: SheetDef[]): { from: number; to: number; title: string; hint: string }[] {
+  const kind = (s: SheetDef) => s.key.replace(/-.*$/, '');
+  const out: { from: number; to: number; title: string; hint: string; kind: string }[] = [];
+  sheets.forEach((s, i) => {
+    const last = out[out.length - 1];
+    // Son las que siguen a la del mueble, que es la 1: la primera de estas es la 2.
+    if (last && last.kind === kind(s)) last.to = i + 2;
+    else out.push({ from: i + 2, to: i + 2, title: s.title.replace(/ \d+$/, ''), hint: s.hint, kind: kind(s) });
+  });
+  return out.map((g) => {
+    const many = g.to > g.from;
+    const hint = g.kind === 'plantilla' ? t('Plantillas a tamaño real') : g.hint;
+    return { from: g.from, to: g.to, title: g.kind === 'plantilla' ? t('Plantillas 1:1') : g.title, hint: many && g.kind === 'piezas' ? t('Cada pieza acotada') : hint };
+  });
+}
+
+/** Hoja 2: frente, costado y planta con las medidas generales. */
 function generalSheet(project: Project, refine: Refine): SheetDef {
   const n = (mm: number) => formatNumber(mm, project.units);
   const front = refine(drawView(project, 'front'));
@@ -323,11 +545,37 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
   };
 }
 
-/** Hoja 2 (y siguientes): cada pieza distinta, acotada, con sus espigas y mortajas. */
-function partSheets(project: Project, refine: Refine): SheetDef[] {
+/**
+ * Puntos donde empiezan y terminan los encastres sobre cada eje del dibujo, con las puntas de la pieza y de lo que
+ * sobresale: para acotarlos en cadena arriba y a la derecha. Sin encastres que caigan adentro, no hay cadena.
+ */
+function jointStops(d: Drawing, id: string): { u: number[]; v: number[] } {
+  const body = d.rects.find((r) => r.id === id)?.rect;
+  if (!body || !d.joints.length) return { u: [], v: [] };
+  const chain = (lo: number, hi: number, outer: [number, number], edges: number[]) => {
+    const inner = edges.filter((x) => x > lo + 0.5 && x < hi - 0.5);
+    if (!inner.length && outer[0] > lo - 0.5 && outer[1] < hi + 0.5) return [];
+    const all = [outer[0], lo, ...inner, hi, outer[1]].sort((a, b) => a - b);
+    return all.filter((x, i) => i === 0 || x - all[i - 1]! > 0.5);
+  };
+  return {
+    u: chain(body.u0, body.u1, [d.bounds.u0, d.bounds.u1], d.joints.flatMap((r) => [r.u0, r.u1])),
+    v: chain(body.v0, body.v1, [d.bounds.v0, d.bounds.v1], d.joints.flatMap((r) => [r.v0, r.v1])),
+  };
+}
+
+/** Lugar de la foto 3D en cada pieza del despiece, en mm de papel. */
+const THUMB = { w: 32, h: 26 };
+/** Letras que entran en un renglón de nota de una celda del despiece. */
+const NOTE_CHARS = 98;
+const NOTE_LINE = 3.3;
+
+/** Despiece: cada pieza distinta, acotada, con sus espigas y mortajas, su foto en 3D y dónde marcar cada encastre. */
+function partSheets(project: Project, refine: Refine, colors: ReadonlyMap<string, string>, shots: Shooter): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
   const rows = cutList(project);
-  const PER = 8;
+  // Cuatro por hoja: lugar para el dibujo, la foto y las frases de dónde marcar.
+  const PER = 4;
   const sheets: SheetDef[] = [];
   for (let i = 0; i < rows.length; i += PER) {
     const chunk = rows.slice(i, i + PER);
@@ -337,27 +585,57 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
     const cellH = (H - 2 * M - TITLE_H) / nRows;
     const drawn = chunk.map((r) => {
       const part = project.parts.find((p) => p.id === r.ids[0])!;
-      return { r, part, d: refine(drawPart(project, part)) };
+      const d = refine(drawPart(project, part));
+      const marks = describePartJoints(project, part, n);
+      const notes = [...marks, ...(r.work.length ? [capitalize(r.work.join(' · '))] : [])];
+      if (r.ids.length > 1 && marks.length) {
+        notes.push(t('Medido en {id}; las otras son iguales, o en espejo donde haga falta.', { id: r.ids[0]! }));
+      }
+      const stops = jointStops(d, part.id);
+      // La foto va a la derecha del dibujo o abajo, al lado de las notas: la que deje el dibujo más grande.
+      // Con tramos, la cota en cadena va pegada a la pieza y la total más afuera: hace falta un poco más de lugar.
+      // Un torneado lleva los diámetros arriba y las distancias abajo; los encastres, su cadena arriba y a la derecha.
+      const extraU = (d.stops?.v.length ? 6 : 0) + (stops.v.length ? 9 : 0);
+      const extraV = (d.stops?.u.length ? 6 : 0) + (d.turns?.length ? 20 : stops.u.length ? 7 : 0);
+      const layouts = (['side', 'below'] as const).map((thumbAt) => {
+        const all = notes.flatMap((x) => wrap(x, thumbAt === 'side' ? NOTE_CHARS : Math.floor((NOTE_CHARS * (cellW - 16 - THUMB.w)) / (cellW - 12))));
+        // Siempre queda lugar para el dibujo: si las notas no entran, siguen en la hoja de encastres.
+        const max = Math.floor((cellH - 40) / NOTE_LINE);
+        const lines = all.length > max ? [...all.slice(0, max - 1), t('Sigue en la hoja de encastres.')] : all;
+        const notesH = thumbAt === 'side' ? lines.length * NOTE_LINE : Math.max(lines.length * NOTE_LINE, THUMB.h + 2);
+        const width = cellW - 30 - extraU - (thumbAt === 'side' ? THUMB.w + 4 : 0);
+        const scale = pickScale((s) => (d.bounds.u1 - d.bounds.u0) / s <= width && (d.bounds.v1 - d.bounds.v0) / s <= cellH - 22 - extraV - notesH);
+        return { thumbAt, lines, scale };
+      });
+      const best = layouts[1]!.scale < layouts[0]!.scale ? layouts[1]! : layouts[0]!;
+      return { r, part, d, stops, ...best };
     });
-    // Con tramos, la cota en cadena va pegada a la pieza y la total más afuera: hace falta un poco más de lugar.
-    // Un torneado lleva los diámetros arriba y las distancias abajo.
-    const extraV = (d: Drawing) => (d.stops?.u.length ? 6 : 0) + (d.turns?.length ? 20 : 0);
-    const scaleFor = (d: Drawing) =>
-      pickScale((s) => (d.bounds.u1 - d.bounds.u0) / s <= cellW - 26 - (d.stops?.v.length ? 6 : 0) && (d.bounds.v1 - d.bounds.v0) / s <= cellH - 22 - extraV(d));
-    const scales = new Set(drawn.map(({ d }) => scaleFor(d)));
+    const scales = new Set(drawn.map((x) => x.scale));
     sheets.push({
       key: `piezas-${i}`,
       title: rows.length > PER ? t('Despiece {n}', { n: i / PER + 1 }) : t('Despiece'),
       hint: t('Cada pieza acotada'),
       scale: scales.size === 1 ? [...scales][0]! : null,
-      body: drawn.map(({ r, part, d }, k) => {
-        const scale = scaleFor(d);
+      body: drawn.map((x, k) => {
+        const { r, part, d, stops, lines, scale, thumbAt } = x;
         const cx = M + (k % cols) * cellW;
         const cy = M + Math.floor(k / cols) * cellH;
-        const p: Place = { x: cx + 16, y: cy + 12 + (d.turns?.length ? 9 : 0), s: scale, b: d.bounds };
+        const p: Place = { x: cx + 16, y: cy + 12 + (d.turns?.length ? 9 : stops.u.length ? 6 : 0), s: scale, b: d.bounds };
         const below = d.stops?.u.length ? 11 : d.turns?.length ? 15 : 5;
         const size = partBox(part);
         const thick = Math.min(...size.max.map((v, j) => v - size.min[j]!));
+        const thumb = thumbAt === 'side' ? { x: cx + cellW - 6 - THUMB.w, y: cy + 9 } : { x: cx + cellW - 6 - THUMB.w, y: cy + cellH - 2 - THUMB.h };
+        const shot = shots([part.id], THUMB.w, THUMB.h);
+        // Una cadena se dibuja si cada medida entra entre sus marcas; solo la del extremo puede ir afuera.
+        const readable = (pts: number[], last: 'first' | 'last') =>
+          pts.length > 2 &&
+          pts.slice(1).every((b, j) => {
+            const room = Math.abs(b - pts[j]!) / scale > n(b - pts[j]!).length * 1.8 + 2;
+            return room || (last === 'last' ? j === pts.length - 2 : j === 0);
+          });
+        const chainU = !d.turns?.length && readable(stops.u, 'last') ? stops.u : [];
+        // En la cadena vertical, la medida que puede ir afuera es la de abajo: la primera de la lista.
+        const chainV = readable(stops.v, 'first') ? stops.v : [];
         return (
           <g key={r.ids.join()}>
             <text x={cx + 6} y={cy + 6} className={styles.cellTitle}>
@@ -366,16 +644,33 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
             <text x={cx + cellW - 6} y={cy + 6} textAnchor="end" className={styles.cellMeta}>
               × {r.ids.length} · {woodName(r.wood)} · {t('espesor {n}', { n: n(thick) })} · 1:{scale}
             </text>
+            {shot && (
+              <g>
+                <rect x={thumb.x} y={thumb.y} width={THUMB.w} height={THUMB.h} rx={1.5} className={styles.thumbBox} />
+                <image href={shot.url} x={thumb.x + 1} y={thumb.y + 1} width={THUMB.w - 2} height={THUMB.h - 2} />
+                <rect x={thumb.x + 2} y={thumb.y + 2} width={3} height={3} rx={0.5} fill={colors.get(part.id)} className={styles.swatch} />
+              </g>
+            )}
             <Lines d={d} at={p} />
             <Chain stops={d.stops?.u} lo={d.bounds.u0} hi={d.bounds.u1} render={(a, b, k) => <Dim key={k} from={px(p, a)} to={px(p, b)} at={py(p, d.bounds.v0)} offset={5} text={n(b - a)} />} />
             <Chain stops={d.stops?.v} lo={d.bounds.v0} hi={d.bounds.v1} render={(a, b, k) => <Dim key={k} vertical from={py(p, b)} to={py(p, a)} at={px(p, d.bounds.u0)} offset={-5} text={n(b - a)} />} />
+            {chainU.slice(1).map((b, j) => (
+              <Dim key={`ju${j}`} from={px(p, chainU[j]!)} to={px(p, b)} at={py(p, d.bounds.v1)} offset={-5} text={n(b - chainU[j]!)} />
+            ))}
+            {chainV.slice(1).map((b, j) => (
+              <Dim key={`jv${j}`} vertical from={py(p, b)} to={py(p, chainV[j]!)} at={px(p, d.bounds.u1)} offset={5} text={n(b - chainV[j]!)} />
+            ))}
             <TurnDims d={d} at={p} n={n} />
             <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={below} text={n(d.bounds.u1 - d.bounds.u0)} />
             <Dim vertical from={py(p, d.bounds.v1)} to={py(p, d.bounds.v0)} at={px(p, d.bounds.u0)} offset={d.stops?.v.length ? -11 : -5} text={n(d.bounds.v1 - d.bounds.v0)} />
             {d.arcs?.map((m) => <Radius key={m.id} m={m} at={p} text={`R ${n(m.radius)}`} />)}
-            {r.work.length > 0 && (
-              <text x={cx + 6} y={cy + cellH - 3} className={`${styles.notes} ${styles.cellMeta}`}>
-                {capitalize(r.work.join(' · '))}
+            {lines.length > 0 && (
+              <text className={`${styles.notes} ${styles.cellMeta}`}>
+                {lines.map((l, j) => (
+                  <tspan key={j} x={cx + 6} y={cy + cellH - 3 - (lines.length - 1 - j) * NOTE_LINE}>
+                    {l}
+                  </tspan>
+                ))}
               </text>
             )}
           </g>
@@ -386,7 +681,10 @@ function partSheets(project: Project, refine: Refine): SheetDef[] {
   return sheets;
 }
 
-/** Hoja de encastres: un detalle por grupo de uniones con cortes, en dos vistas. */
+/** Desde dónde se mira cada vista de detalle, según el eje de profundidad: siempre desde el lado positivo. */
+const VIEW_NAMES = [tk('Vista de costado'), tk('Vista desde arriba'), tk('Vista de frente')] as const;
+
+/** Hoja de encastres: un detalle por grupo de uniones con cortes, en dos vistas con su nombre. */
 function jointSheets(project: Project, refine: Refine): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
   const groups = groupJoints(project).filter((g) => g.joints.some((j) => j.type !== 'tope'));
@@ -419,7 +717,7 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
     const rowH = (H - 2 * M - TITLE_H) / chunk.length;
     const viewW = (W - 2 * M) / 2;
     const scaleFor = (d: NonNullable<ReturnType<typeof drawJointDetail>>) =>
-      pickScale((s) => d.views.every((v) => (v.bounds.u1 - v.bounds.u0) / s <= viewW - 34 && (v.bounds.v1 - v.bounds.v0) / s <= rowH - 20));
+      pickScale((s) => d.views.every((v) => (v.bounds.u1 - v.bounds.u0) / s <= viewW - 34 && (v.bounds.v1 - v.bounds.v0) / s <= rowH - 24));
     const scales = new Set(chunk.map(({ d }) => scaleFor(d)));
     sheets.push({
       key: `encastres-${i}`,
@@ -463,6 +761,9 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
                       </text>
                     ))}
                   </g>
+                  <text x={px(p, (v.bounds.u0 + v.bounds.u1) / 2)} y={py(p, v.bounds.v0) + 10} textAnchor="middle" className={`${styles.notes} ${styles.viewName}`}>
+                    {t(VIEW_NAMES[d.projections[vi]!.depth])}
+                  </text>
                   {ext && (
                     <>
                       <Dim from={px(p, ext.u0)} to={px(p, ext.u1)} at={py(p, v.bounds.v0)} offset={4} text={n(ext.u1 - ext.u0)} />
@@ -740,28 +1041,132 @@ function Ruler({ x, y }: { x: number; y: number }) {
   );
 }
 
-const buildSheets = (project: Project, refine: Refine) => [
-  generalSheet(project, refine),
-  ...partSheets(project, refine),
-  ...jointSheets(project, refine),
-  ...templateSheets(project),
-];
+function buildSheets(project: Project, refine: Refine, colors: ReadonlyMap<string, string>, shots: Shooter): SheetDef[] {
+  const rest = [generalSheet(project, refine), ...partSheets(project, refine, colors, shots), ...jointSheets(project, refine), ...templateSheets(project)];
+  return [overviewSheet(project, colors, shots, rest), ...rest];
+}
 
-export function PlanView({ project }: { project: Project }) {
+/** Un color de PIECE_COLORS por fila de la lista de cortes: las piezas iguales comparten color. */
+function pieceColors(project: Project): Map<string, string> {
+  const colors = new Map<string, string>();
+  cutList(project).forEach((r, i) => r.ids.forEach((id) => colors.set(id, PIECE_COLORS[i % PIECE_COLORS.length]!)));
+  return colors;
+}
+
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 1.5;
+
+/**
+ * Agrandar la hoja: con dos dedos en el celular, con Ctrl y la rueda (o pellizcando el panel táctil) en la compu, y
+ * con los botones en los dos. El punto que queda entre los dedos o bajo el puntero no se mueve.
+ */
+function useSheetZoom() {
+  const box = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const current = useRef(1);
+  const pending = useRef<{ x: number; y: number; from: number } | null>(null);
+
+  const zoomTo = (next: number, at?: { x: number; y: number }) => {
+    const el = box.current;
+    const z = Math.min(ZOOM_MAX, Math.max(1, next));
+    if (!el || Math.abs(z - current.current) < 0.001) return;
+    pending.current = { x: at?.x ?? el.clientWidth / 2, y: at?.y ?? el.clientHeight / 2, from: current.current };
+    current.current = z;
+    setZoom(z);
+  };
+  const onGesture = useEffectEvent(zoomTo);
+
+  useLayoutEffect(() => {
+    const el = box.current;
+    const a = pending.current;
+    if (!el || !a) return;
+    pending.current = null;
+    const k = zoom / a.from;
+    el.scrollLeft = (el.scrollLeft + a.x) * k - a.x;
+    el.scrollTop = (el.scrollTop + a.y) * k - a.y;
+  }, [zoom]);
+
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    let pinch: { d: number; z: number } | null = null;
+    const local = (x: number, y: number) => {
+      const r = el.getBoundingClientRect();
+      return { x: x - r.left, y: y - r.top };
+    };
+    const spread = (e: TouchEvent) => {
+      const [a, b] = [e.touches[0]!, e.touches[1]!];
+      return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mid: local((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2) };
+    };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) pinch = { d: spread(e).d || 1, z: current.current };
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return;
+      if (e.cancelable) e.preventDefault();
+      const { d, mid } = spread(e);
+      onGesture((pinch.z * d) / pinch.d, mid);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinch = null;
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      onGesture(current.current * Math.exp(-e.deltaY * 0.01), local(e.clientX, e.clientY));
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, []);
+
+  return { box, zoom, zoomTo };
+}
+
+export function PlanView({ project, meshes }: { project: Project; meshes: ReadonlyMap<string, ExactMesh> }) {
+  const colors = useMemo(() => pieceColors(project), [project]);
   // Primero con cajas, para saber qué vistas pedirle al motor; después cada vista cambia a la forma exacta cuando llega.
   const wanted = useMemo(() => {
     const views: EngineView[] = [];
-    buildSheets(project, (d) => {
-      if (d.engine) views.push(d.engine);
-      return d;
-    });
+    buildSheets(
+      project,
+      (d) => {
+        if (d.engine) views.push(d.engine);
+        return d;
+      },
+      colors,
+      () => null,
+    );
     return views;
-  }, [project]);
+  }, [project, colors]);
   const refine = useEngineLines(project, wanted);
-  const sheets = useMemo(() => buildSheets(project, refine), [project, refine]);
+  const sheets = useMemo(() => {
+    const shots: Shooter = (parts, w, h, labels) => shoot({ project, meshes, colors, parts, width: Math.round(w * SHOT_PX), height: Math.round(h * SHOT_PX), labels });
+    return buildSheets(project, refine, colors, shots);
+  }, [project, refine, colors, meshes]);
+  const { box, zoom, zoomTo } = useSheetZoom();
   const [current, setCurrent] = useState(0);
   const [layers, setLayers] = useState<Set<Layer>>(() => new Set<Layer>(['contornos', 'cotas', 'ocultas', 'notas']));
   const index = Math.min(current, sheets.length - 1);
+  // Las hojas no cambian al agrandar: solo el ancho, que va por CSS.
+  const pages = useMemo(
+    () =>
+      sheets.map((s, i) => (
+        <div key={s.key} className={styles.page} data-current={i === index || undefined}>
+          <Sheet def={s} n={i + 1} of={sheets.length} project={project} layers={layers} />
+        </div>
+      )),
+    [sheets, index, project, layers],
+  );
   const toggle = (k: Layer, on: boolean) => {
     const next = new Set(layers);
     if (on) next.add(k);
@@ -816,11 +1221,21 @@ export function PlanView({ project }: { project: Project }) {
         <p className={styles.note}>{t('Se abre la ventana de impresión: elegí «Guardar como PDF». Salen las {n} hojas en A4 apaisado.', { n: sheets.length })}</p>
       </aside>
       <section className={styles.desk} aria-label={t('Hoja {n}: {title}', { n: index + 1, title: sheets[index]?.title ?? '' })}>
-        {sheets.map((s, i) => (
-          <div key={s.key} className={styles.page} data-current={i === index || undefined}>
-            <Sheet def={s} n={i + 1} of={sheets.length} project={project} layers={layers} />
-          </div>
-        ))}
+        <div className={styles.zoomBar}>
+          <button type="button" className={styles.zoomBtn} onClick={() => zoomTo(zoom / ZOOM_STEP)} disabled={zoom <= 1} aria-label={t('Alejar')}>
+            <IconZoomOut />
+          </button>
+          <button type="button" className={styles.zoomFit} onClick={() => zoomTo(1)} disabled={zoom <= 1} aria-label={`${Math.round(zoom * 100)} % · ${t('Ajustar la hoja al ancho')}`}>
+            {Math.round(zoom * 100)} %
+          </button>
+          <button type="button" className={styles.zoomBtn} onClick={() => zoomTo(zoom * ZOOM_STEP)} disabled={zoom >= ZOOM_MAX} aria-label={t('Acercar')}>
+            <IconZoomIn />
+          </button>
+          <span className={styles.zoomHint}>{t('Pellizcá para agrandar')}</span>
+        </div>
+        <div ref={box} className={styles.zoomBox} data-zoomed={zoom > 1 || undefined} style={{ '--zoom': zoom } as React.CSSProperties}>
+          {pages}
+        </div>
       </section>
     </main>
   );
