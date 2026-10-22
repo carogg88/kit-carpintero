@@ -218,9 +218,37 @@
   .stepBody { padding-left: calc(36px + var(--space-3)); }
   .stepCard[aria-current='step'] { padding: calc(var(--space-4) - 1px) calc(var(--space-5) - 1px); }
   .stepBadge { width: 36px; height: 36px; }
+
+  /* Dos columnas: la lista de pasos a la izquierda y el paso elegido a la derecha, cada una con su scroll. */
+  .assemblyWide { flex-direction: row; align-items: stretch; justify-content: center; gap: var(--space-5); overflow: hidden; }
+  .assemblyNav { flex: 0 1 380px; min-width: 300px; display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; padding-right: 4px; }
+  .stepRows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+  .stepRows button {
+    width: 100%; min-height: 48px; display: flex; align-items: center; gap: var(--space-3); padding: 4px 10px; border: 1px solid transparent;
+    border-radius: 12px; background: none; color: var(--ink); font: 500 15px var(--font-ui); text-align: left; cursor: pointer;
+    transition: background-color 150ms ease;
+  }
+  .stepRows .stepBadge { width: 32px; height: 32px; }
+  .stepRows button:hover { background: var(--surface-2); }
+  .stepRows button[aria-pressed='true'] { background: var(--surface); border-color: var(--line-strong); font-weight: 600; }
+  .stepRows button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .stepRows li[aria-current='step'] .stepBadge { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .stepRows li[data-done] .stepBadge { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
+  .stepRows li[data-done] .stepTitle { color: var(--muted); }
+  .stepPanel {
+    flex: 1 1 560px; max-width: 760px; align-self: flex-start; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3);
+    padding: var(--space-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m);
+  }
+  .stepPanel[data-current] { border: 2px solid var(--accent); padding: calc(var(--space-5) - 1px); }
+  .stepPanelHead { display: flex; align-items: center; gap: var(--space-3); }
+  .stepPanelCount { font: 500 13px var(--font-num); color: var(--muted); }
+  .stepPanel[data-current] .stepPanelHead .stepBadge { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .stepPanel[data-done] .stepPanelHead .stepBadge { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
+  .stepPanel .stepBody { padding-left: 0; }
+  .stepPanel .h2 { margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .progressBar span, .doneToggle, .stepChevron { transition: none; }
+  .progressBar span, .doneToggle, .stepChevron, .stepRows button { transition: none; }
 }
 
 /* ---------- Cortes ---------- */
@@ -258,8 +286,24 @@
 .cardDims { font-family: var(--font-num); font-size: 16px; font-weight: 500; }
 .cutCards .muted { font-size: 13px; }
 
+/* Lista de piezas | Cómo cortar cada tabla */
+.cutTabs { display: flex; gap: var(--space-1); padding: 4px; border-radius: 22px; background: var(--surface-2); }
+.cutTabs button {
+  flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 4px 10px;
+  border: 0; border-radius: 18px; background: transparent; color: var(--muted); font: 500 14px/1.2 var(--font-ui); text-align: center; cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+@media (min-width: 900px) {
+  .cutTabs { align-self: flex-start; border-radius: var(--radius-pill); }
+  .cutTabs button { flex: none; padding: 0 16px; white-space: nowrap; border-radius: var(--radius-pill); }
+}
+.cutTabs button[aria-selected='true'] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgb(43 54 40 / 0.12); }
+.cutTabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tabCount { min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--line); font: 600 12px/20px var(--font-num); color: var(--ink); }
+.cutPanel { display: flex; flex-direction: column; gap: 14px; }
+.cutPanel[hidden] { display: none; }
 .diagrams {
-  display: flex; flex-direction: column; gap: 14px; padding: var(--space-4); background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 10px; padding: var(--space-4); background: var(--surface-2);
   border: 1px solid var(--line); border-radius: 12px;
 }
 .board { margin: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -353,11 +397,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .primary, .secondary, .radio, .jointItems button, .changeBtn { transition: none; }
+  .primary, .secondary, .radio, .jointItems button, .changeBtn, .cutTabs button { transition: none; }
 }
 
 @media print {
-  .actionBar { display: none; }
+  .actionBar, .cutTabs { display: none; }
+  .cutPanel[hidden] { display: flex; }
   .boardBar, .piece, .waste, .swatchPiece, .swatchWaste { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 

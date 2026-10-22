@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { assemblySteps, formatNumber, t, tk, type AssemblyKind, type Project } from '@kitc/core';
 import { JointMeta } from '../help/Help';
 import { sectionHref, type Section } from '../routes';
@@ -21,6 +21,26 @@ function writeDone(id: string, keys: string[]) {
     // Sin almacenamiento: no pasa nada.
   }
 }
+
+/** En la compu, la lista de pasos va a la izquierda y el paso abierto a la derecha. */
+const WIDE = '(min-width: 900px)';
+function useWide(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = matchMedia(WIDE);
+      m.addEventListener('change', cb);
+      return () => m.removeEventListener('change', cb);
+    },
+    () => matchMedia(WIDE).matches,
+    () => false,
+  );
+}
+
+const Check = () => (
+  <svg viewBox="0 0 16 16">
+    <path d="M3.5 8.5l3 3 6-7" />
+  </svg>
+);
 
 /** Adónde mirar en cada paso: la lista de cortes, el plano o la unión. */
 const LINKS: Partial<Record<AssemblyKind, [Section, string]>> = {
@@ -56,38 +76,106 @@ export function AssemblyView({ project }: { project: Project }) {
   const count = steps.filter((s) => done.has(s.key)).length;
   const current = steps.find((s) => !done.has(s.key))?.key;
   const shown = open === undefined ? current : open;
+  const wide = useWide();
+
+  const body = (s: (typeof steps)[number]) => {
+    const isDone = done.has(s.key);
+    const link = LINKS[s.kind];
+    return (
+      <>
+        <p className={styles.stepText}>{s.text}</p>
+        {s.joint && <JointMeta type={s.joint} />}
+        {s.items.length > 0 && (
+          <ul className={styles.stepItems}>
+            {s.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        )}
+        <div className={styles.stepActions}>
+          <button type="button" className={styles.doneToggle} aria-pressed={isDone} onClick={() => toggle(s.key)}>
+            <span className={styles.doneBox} aria-hidden="true" />
+            {isDone ? t('Hecho') : t('Marcar como hecho')}
+          </button>
+          {link && (
+            <a className={styles.stepLink} href={sectionHref(project.id, link[0])}>
+              {t(link[1])}
+            </a>
+          )}
+        </div>
+      </>
+    );
+  };
+  const badge = (i: number, isDone: boolean): ReactNode => (
+    <span className={styles.stepBadge} aria-hidden="true">
+      {isDone ? <Check /> : i + 1}
+    </span>
+  );
+
+  const head = (
+    <div className={styles.assemblyHead}>
+      <h1 className={styles.h1}>{t('Cómo armarlo')}</h1>
+      <p className={styles.muted}>{t('El orden de trabajo para este mueble, de la madera cortada al mueble terminado. Marcá cada paso cuando lo termines.')}</p>
+      <div className={styles.progress}>
+        <span className={styles.progressBar} aria-hidden="true">
+          <span style={{ width: `${(count / steps.length) * 100}%` }} />
+        </span>
+        <span role="status">{count === steps.length ? t('¡Terminado!') : t('{done} de {n} pasos hechos', { done: count, n: steps.length })}</span>
+      </div>
+    </div>
+  );
+
+  if (wide) {
+    // En la compu siempre hay un paso a la vista: el elegido o, si no, el que sigue (o el último, si se terminó todo).
+    const pick = steps.find((s) => s.key === shown) ?? steps.find((s) => s.key === current) ?? steps[steps.length - 1];
+    const pickIndex = pick ? steps.indexOf(pick) : -1;
+    return (
+      <main className={`${styles.assembly} ${styles.assemblyWide}`}>
+        <div className={styles.assemblyNav}>
+          {head}
+          <ol className={styles.stepRows}>
+            {steps.map((s, i) => {
+              const isDone = done.has(s.key);
+              return (
+                <li key={s.key} data-done={isDone || undefined} aria-current={s.key === current ? 'step' : undefined}>
+                  <button type="button" aria-pressed={s === pick} aria-controls="paso-abierto" onClick={() => setOpen(s.key)}>
+                    {badge(i, isDone)}
+                    <span className={styles.stepTitle}>{s.title}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+        {pick && (
+          <section id="paso-abierto" className={styles.stepPanel} aria-labelledby="paso-abierto-titulo" data-done={done.has(pick.key) || undefined} data-current={pick.key === current || undefined}>
+            <div className={styles.stepPanelHead}>
+              {badge(pickIndex, done.has(pick.key))}
+              <span className={styles.stepPanelCount}>{t('Paso {n} de {total}', { n: pickIndex + 1, total: steps.length })}</span>
+            </div>
+            <h2 id="paso-abierto-titulo" className={styles.h2}>
+              {pick.title}
+            </h2>
+            <div className={styles.stepBody}>{body(pick)}</div>
+          </section>
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className={styles.assembly}>
-      <div className={styles.assemblyHead}>
-        <h1 className={styles.h1}>{t('Cómo armarlo')}</h1>
-        <p className={styles.muted}>{t('El orden de trabajo para este mueble, de la madera cortada al mueble terminado. Marcá cada paso cuando lo termines.')}</p>
-        <div className={styles.progress}>
-          <span className={styles.progressBar} aria-hidden="true">
-            <span style={{ width: `${(count / steps.length) * 100}%` }} />
-          </span>
-          <span role="status">{count === steps.length ? t('¡Terminado!') : t('{done} de {n} pasos hechos', { done: count, n: steps.length })}</span>
-        </div>
-      </div>
+      {head}
       <ol className={styles.stepList}>
         {steps.map((s, i) => {
           const isDone = done.has(s.key);
-          const link = LINKS[s.kind];
           const isOpen = s.key === shown;
           const bodyId = `paso-${i}`;
           return (
             <li key={s.key} className={styles.stepCard} data-done={isDone || undefined} aria-current={s.key === current ? 'step' : undefined}>
               <h2 className={styles.h3}>
                 <button type="button" className={styles.stepHead} aria-expanded={isOpen} aria-controls={bodyId} onClick={() => setOpen(isOpen ? null : s.key)}>
-                  <span className={styles.stepBadge} aria-hidden="true">
-                    {isDone ? (
-                      <svg viewBox="0 0 16 16">
-                        <path d="M3.5 8.5l3 3 6-7" />
-                      </svg>
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
+                  {badge(i, isDone)}
                   <span className={styles.stepTitle}>{s.title}</span>
                   <svg className={styles.stepChevron} viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M4 6l4 4 4-4" />
@@ -95,26 +183,7 @@ export function AssemblyView({ project }: { project: Project }) {
                 </button>
               </h2>
               <div className={styles.stepBody} id={bodyId} hidden={!isOpen}>
-                <p className={styles.stepText}>{s.text}</p>
-                {s.joint && <JointMeta type={s.joint} />}
-                {s.items.length > 0 && (
-                  <ul className={styles.stepItems}>
-                    {s.items.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                )}
-                <div className={styles.stepActions}>
-                  <button type="button" className={styles.doneToggle} aria-pressed={isDone} onClick={() => toggle(s.key)}>
-                    <span className={styles.doneBox} aria-hidden="true" />
-                    {isDone ? t('Hecho') : t('Marcar como hecho')}
-                  </button>
-                  {link && (
-                    <a className={styles.stepLink} href={sectionHref(project.id, link[0])}>
-                      {t(link[1])}
-                    </a>
-                  )}
-                </div>
+                {body(s)}
               </div>
             </li>
           );

@@ -1157,8 +1157,8 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
   const { box, zoom, zoomTo } = useSheetZoom();
   const [current, setCurrent] = useState(0);
   const [layers, setLayers] = useState<Set<Layer>>(() => new Set<Layer>(['contornos', 'cotas', 'ocultas', 'notas']));
-  // En el celular las capas empiezan cerradas: así el botón del PDF queda justo debajo de la hoja.
-  const [layersOpen, setLayersOpen] = useState(() => typeof matchMedia !== 'function' || matchMedia('(min-width: 900px)').matches);
+  // En el celular y en pantallas bajas las capas empiezan cerradas: así la hoja y el botón del PDF entran sin bajar.
+  const [layersOpen, setLayersOpen] = useState(() => typeof matchMedia !== 'function' || matchMedia('(min-width: 900px) and (min-height: 860px)').matches);
   const index = Math.min(current, sheets.length - 1);
   // Las hojas no cambian al agrandar: solo el ancho, que va por CSS.
   const pages = useMemo(
