@@ -170,6 +170,8 @@ export function duplicatePart(parts: Part[], part: Part): Part {
  * "Listón del asiento" pasa a ser L. Las palabras que no están acá dejan el código como estaba.
  */
 const NAME_PREFIXES: [RegExp, string][] = [
+  [/^((frente|costado|trasera|fondo) del caj[oó]n|drawer)(?=\s|$)/, 'K'],
+  [/^(puerta|(larguero|peinazo|tablero) de la puerta|door)(?=\s|$)/, 'D'],
   [/^(pata|leg)(?=\s|$)/, 'P'],
   [/^(fald[oó]n|apron)(?=\s|$)/, 'F'],
   [/^(travesa[ñn]o|rail|stretcher|rung)(?=\s|$)/, 'R'],

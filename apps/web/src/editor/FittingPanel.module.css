@@ -1,0 +1,55 @@
+/* Agregar cajón o puerta: el frente del mueble para elegir el hueco y pocas opciones, todo en el panel. */
+.text { margin: 0; line-height: 1.45; }
+
+.map { display: block; width: 100%; max-height: 220px; background: var(--surface-2); border-radius: var(--radius-s); }
+.mapPart { fill: var(--piece); stroke: var(--piece-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.mapHole { cursor: pointer; }
+.mapHole rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; transition: fill 150ms ease; }
+.mapHole text { fill: var(--muted); font-family: var(--font-display); font-weight: 500; pointer-events: none; }
+.mapHole:hover rect { fill: var(--accent-soft); }
+.mapHole[data-chosen] rect { fill: var(--accent-soft); stroke: var(--accent); stroke-dasharray: none; stroke-width: 2.5; }
+.mapHole[data-chosen] text { fill: var(--accent); }
+
+.holes { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.holes button {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px 0 6px; border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: 400 var(--text-s) var(--font-num); cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.holes button strong {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface-2); font: 500 var(--text-s) var(--font-display);
+}
+.holes button:hover { background: var(--surface-2); }
+.holes button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.holes button[aria-pressed='true'] strong { background: var(--accent); color: var(--accent-ink); }
+.holes button:focus-visible, .stepper button:focus-visible, .primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.options { display: flex; flex-direction: column; gap: var(--space-3); }
+.option { display: flex; flex-direction: column; }
+.option > span { margin-bottom: var(--space-1); }
+
+.stepper { display: inline-flex; align-items: center; align-self: flex-start; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); overflow: hidden; }
+.stepper button {
+  width: 44px; height: 42px; border: 0; background: var(--surface); color: var(--ink); font: 500 var(--text-l) var(--font-ui); cursor: pointer;
+}
+.stepper button:disabled { color: var(--line-strong); cursor: default; }
+.stepper button:not(:disabled):hover { background: var(--surface-2); }
+.stepper output { min-width: 96px; padding: 0 var(--space-2); text-align: center; font: 500 var(--text-s) var(--font-ui); }
+
+.summary {
+  display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); border-radius: 14px; background: var(--surface-2);
+  font-size: var(--text-s); line-height: 1.45;
+}
+.summary:empty { display: none; }
+.summary span { color: var(--muted); }
+
+.primary {
+  flex: 1; height: var(--tap); border: 0; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-ink);
+  font: 600 var(--text-s) var(--font-ui); cursor: pointer;
+}
+.primary:disabled { opacity: 0.45; cursor: default; }
+
+@media (max-width: 899px) {
+  .map { max-height: 150px; }
+}

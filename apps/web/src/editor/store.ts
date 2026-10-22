@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { syncComponents, syncJoints, t, type Bevel, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
+import { syncComponents, syncJoints, t, type Bevel, type Box, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
 export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn';
 export type View = 'iso' | 'front' | 'side' | 'top';
@@ -41,6 +41,9 @@ export type DrawShape = 'rect' | 'circle' | 'arc';
 /** Cuerda de un arco ya marcada: falta decir cuánto se curva. */
 export type ArcChord = DrawFace & { u: number; v: number; u2: number; v2: number };
 
+/** Panel para agregar un cajón o una puerta en un hueco del mueble. */
+export type FittingKind = 'cajon' | 'puerta';
+
 const HISTORY = 80;
 
 interface EditorState {
@@ -76,6 +79,10 @@ interface EditorState {
   /** Aviso de lo que acaba de cambiar, con la opción de deshacerlo. `key` cambia con cada aviso nuevo. */
   notice: Notice | null;
   bubble: Bubble | null;
+  /** Se está agregando un cajón o una puerta: el panel muestra las opciones. */
+  fitting: FittingKind | null;
+  /** El hueco elegido y las piezas que se van a sumar, marcados en la vista 3D. */
+  fittingPreview: { opening: Box; parts: Box[] } | null;
 
   open: (p: Project) => void;
   close: () => void;
@@ -107,6 +114,8 @@ interface EditorState {
   /** Aviso sin cambio que deshacer: algo no se pudo hacer y por qué. */
   warn: (text: string) => void;
   setBubble: (b: Bubble | null) => void;
+  setFitting: (f: FittingKind | null) => void;
+  setFittingPreview: (p: EditorState['fittingPreview']) => void;
 }
 
 export interface Notice {
@@ -182,9 +191,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
   arcChord: null,
   notice: null,
   bubble: null,
+  fitting: null,
+  fittingPreview: null,
 
   open: (project) =>
-    set({ project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+    set({ fitting: null, fittingPreview: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -238,6 +249,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   select: (selectedId) =>
     set((s) => ({
       selectedId,
+      ...(selectedId ? { fitting: null, fittingPreview: null } : {}),
       ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}),
       ...(s.bubble && s.bubble.target.id !== selectedId ? { bubble: null } : {}),
     })),
@@ -264,6 +276,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   dismissNotice: () => set({ notice: null }),
   warn: (text) => set({ notice: { text, key: ++noticeKey, undo: false } }),
   setBubble: (bubble) => set({ bubble }),
+  setFitting: (fitting) => set(fitting ? { fitting, selectedId: null, tool: 'select', drawFace: null, bubble: null } : { fitting, fittingPreview: null }),
+  setFittingPreview: (fittingPreview) => set({ fittingPreview }),
   setUnits: (units) => {
     const { project } = get();
     if (project) set({ project: produce(project, (d) => void (d.units = units)) });

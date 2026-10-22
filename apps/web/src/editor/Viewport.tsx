@@ -406,6 +406,48 @@ function SectionDraft({ accent }: { accent: string }) {
   return lines ? <primitive object={lines} renderOrder={2} /> : null;
 }
 
+/** Cajón o puerta por agregar: el hueco elegido, sombreado, y las piezas que van a ir, en líneas. */
+function FittingPreview({ accent }: { accent: string }) {
+  const preview = useEditor((s) => s.fittingPreview);
+  const invalidate = useThree((s) => s.invalidate);
+  const objects = useMemo(() => {
+    if (!preview) return null;
+    const boxGeo = (b: Box) => {
+      const geo = new THREE.BoxGeometry(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
+      geo.translate((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
+      return geo;
+    };
+    const hole = new THREE.Mesh(boxGeo(preview.opening), new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.14, depthWrite: false }));
+    const lines = preview.parts.map((b) => {
+      const g = boxGeo(b);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({ color: accent, depthTest: false }));
+      g.dispose();
+      return edges;
+    });
+    return { hole, lines };
+  }, [preview, accent]);
+  useEffect(
+    () => () => {
+      if (!objects) return;
+      for (const o of [objects.hole, ...objects.lines]) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    },
+    [objects],
+  );
+  useEffect(() => invalidate(), [objects, invalidate]);
+  if (!objects) return null;
+  return (
+    <>
+      <primitive object={objects.hole} renderOrder={1} />
+      {objects.lines.map((l, i) => (
+        <primitive key={i} object={l} renderOrder={2} />
+      ))}
+    </>
+  );
+}
+
 /**
  * Una raya en vez de un rectángulo: sin ancho, o, con la vista en diagonal, tan finita que seguro fue sin querer
  * (el arrastre siguió un solo borde de la cara).
@@ -1056,6 +1098,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       })}
       <BevelDraft accent={colors.accent} />
       <SectionDraft accent={colors.accent} />
+      <FittingPreview accent={colors.accent} />
       {drawFace &&
         (() => {
           const part = project.parts.find((p) => p.id === drawFace.partId);

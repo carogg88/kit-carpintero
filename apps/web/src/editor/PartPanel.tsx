@@ -49,7 +49,8 @@ import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
 import { IconLink, IconRotate, IconTrash, IconWarn } from './icons';
 import { TurningCard } from './TurningCard';
-import { useEditor } from './store';
+import { FittingPanel } from './FittingPanel';
+import { useEditor, type FittingKind } from './store';
 import styles from './Editor.module.css';
 
 const HARDNESS = { dura: tk('dura'), semidura: tk('semidura'), blanda: tk('blanda') } as const;
@@ -810,8 +811,15 @@ export function useAddPart() {
   };
 }
 
+/** Cajón y puerta: no son una pieza sino varias, armadas en un hueco del mueble. */
+export const FITTING_OPTIONS: [FittingKind, string, string][] = [
+  ['cajon', tk('Cajón'), tk('Frente, costados, trasera y fondo')],
+  ['puerta', tk('Puerta'), tk('De una tabla o de marco y tablero')],
+];
+
 function ProjectOverview({ project }: { project: Project }) {
   const select = useEditor((s) => s.select);
+  const setFitting = useEditor((s) => s.setFitting);
   const add = useAddPart();
   return (
     <>
@@ -848,6 +856,16 @@ function ProjectOverview({ project }: { project: Project }) {
             </button>
           ))}
         </div>
+        {project.parts.length > 0 && (
+          <div className={styles.addRow2}>
+            {FITTING_OPTIONS.map(([k, label, what]) => (
+              <button key={k} type="button" className={styles.addBtn} onClick={() => setFitting(k)}>
+                <strong>{t(label)}</strong>
+                <span className={styles.addWhat}>{t(what)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
@@ -856,7 +874,9 @@ function ProjectOverview({ project }: { project: Project }) {
 export function PartPanel() {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
+  const fitting = useEditor((s) => s.fitting);
   if (!project) return null;
+  if (fitting) return <FittingPanel key={fitting} project={project} kind={fitting} />;
   const part = selectedId ? project.parts.find((p) => p.id === selectedId) : undefined;
   return part ? <PartEditor key={part.id} part={part} project={project} /> : <ProjectOverview project={project} />;
 }
