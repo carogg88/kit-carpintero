@@ -818,6 +818,7 @@ export function useAddPart() {
 export const FITTING_OPTIONS: [FittingKind, string, string][] = [
   ['cajon', tk('Cajón'), tk('Frente, costados, trasera y fondo')],
   ['puerta', tk('Puerta'), tk('De una tabla o de marco y tablero')],
+  ['estantes', tk('Estantes'), tk('Repartidos parejo en un hueco')],
 ];
 
 const SIZE_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;

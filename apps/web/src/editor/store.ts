@@ -42,7 +42,7 @@ export type DrawShape = 'rect' | 'circle' | 'arc';
 export type ArcChord = DrawFace & { u: number; v: number; u2: number; v2: number };
 
 /** Panel para agregar un cajón o una puerta en un hueco del mueble. */
-export type FittingKind = 'cajon' | 'puerta';
+export type FittingKind = 'cajon' | 'puerta' | 'estantes';
 
 const HISTORY = 80;
 

@@ -3,6 +3,7 @@ import { partBox } from '../geometry';
 import { partWord } from '../jointinfo';
 import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../project';
 import { createTable, TABLE_DEFAULTS } from './table';
+import { COFFEE_DEFAULTS, createBookcase, createCoffeeTable, createDresser, createNightstand, createWallCabinet } from './cabinets';
 import { autoComponents } from '../components';
 import { fitJointDepths } from '../jointfit';
 import { t, tk } from '../i18n';
@@ -278,6 +279,139 @@ export const TEMPLATES: TemplateDef[] = [
     build: createBox,
   },
 ];
+
+/** Ancho, alto, fondo y espesor de un mueble de cajón: los campos que comparten mesa de luz, cajonera, biblioteca y alacena. */
+const cabinetFields = (d: { width: number; height: number; depth: number }, typical?: Pick<TemplateField, 'typical' | 'typicalNote'>): TemplateField[] => [
+  { key: 'width', label: tk('Ancho'), hint: tk('De lado a lado, por fuera de los laterales.'), shows: { parts: 'T1', measure: 'all', axis: 0 }, group: 'general', default: d.width, min: 250, max: 2400 },
+  { key: 'height', label: tk('Alto'), hint: tk('Desde el piso hasta arriba de la tapa.'), shows: { parts: 'L', measure: 'all', axis: 1 }, group: 'general', default: d.height, min: 300, max: 2400, ...typical },
+  { key: 'depth', label: tk('Fondo'), hint: tk('De adelante hacia atrás, con la trasera.'), shows: { parts: 'L', measure: 'all', axis: 2 }, group: 'general', default: d.depth, min: 200, max: 700 },
+  { key: 'board', label: tk('Espesor de las tablas'), hint: tk('Lo grueso de los laterales, la tapa y los estantes.'), shows: { parts: 'L', measure: 'L2', axis: 0 }, group: 'piezas', default: 18, min: 15, max: 30 },
+];
+const cabinetJoints: JointChoice = { groups: ['Lateral|Estante'], label: tk('Estantes con laterales'), options: ['canal', 'clavija'], default: 'canal' };
+
+TEMPLATES.push(
+  {
+    id: 'mesa-luz',
+    name: tk('Mesa de luz'),
+    projectName: tk('Mesa de luz'),
+    createLabel: tk('Crear mesa de luz'),
+    fields: cabinetFields({ width: 450, height: 600, depth: 380 }, { typical: [500, 700], typicalNote: tk('una mesa de luz suele quedar a la altura del colchón, entre 50 y 70 cm') }),
+    joints: cabinetJoints,
+    build: createNightstand,
+  },
+  {
+    id: 'cajonera',
+    name: tk('Cajonera'),
+    projectName: tk('Cajonera'),
+    createLabel: tk('Crear cajonera'),
+    fields: [
+      ...cabinetFields({ width: 800, height: 900, depth: 450 }),
+      { key: 'drawers', label: tk('Cantidad de cajones'), hint: tk('Cuántos cajones apilados lleva, todos iguales, con correderas metálicas.'), shows: { parts: 'K' }, group: 'piezas', default: 4, min: 1, max: 8, count: true },
+    ],
+    joints: cabinetJoints,
+    build: createDresser,
+  },
+  {
+    id: 'biblioteca',
+    name: tk('Biblioteca'),
+    projectName: tk('Biblioteca'),
+    createLabel: tk('Crear biblioteca'),
+    fields: [
+      ...cabinetFields({ width: 900, height: 2000, depth: 350 }),
+      { key: 'shelves', label: tk('Estantes abiertos'), hint: tk('Cuántos estantes lleva arriba, sin contar la tapa.'), shows: { parts: 'E' }, group: 'piezas', default: 4, min: 1, max: 10, count: true },
+      {
+        key: 'doors',
+        label: tk('Abajo'),
+        hint: tk('Un mueble con puertas de marco abajo, o estantes abiertos hasta el piso.'),
+        shows: { parts: 'D' },
+        group: 'piezas',
+        default: 1,
+        min: 0,
+        max: 1,
+        choices: [tk('Abierta'), tk('Con puertas')],
+      },
+    ],
+    joints: cabinetJoints,
+    build: createBookcase,
+  },
+  {
+    id: 'alacena',
+    name: tk('Alacena'),
+    projectName: tk('Alacena'),
+    createLabel: tk('Crear alacena'),
+    fields: cabinetFields({ width: 800, height: 700, depth: 320 }),
+    joints: cabinetJoints,
+    build: createWallCabinet,
+  },
+  {
+    id: 'mesa-ratona',
+    name: tk('Mesa ratona'),
+    projectName: tk('Mesa ratona'),
+    createLabel: tk('Crear mesa ratona'),
+    fields: [
+      { key: 'width', label: tk('Largo'), hint: tk('El lado largo de la tapa, de punta a punta.'), shows: { parts: 'T1', measure: 'all', axis: 0 }, group: 'general', default: COFFEE_DEFAULTS.width, min: 400, max: 2000 },
+      { key: 'depth', label: tk('Fondo'), hint: tk('El lado corto de la tapa, de adelante hacia atrás.'), shows: { parts: 'T1', measure: 'all', axis: 2 }, group: 'general', default: COFFEE_DEFAULTS.depth, min: 300, max: 1200 },
+      {
+        key: 'height',
+        label: tk('Alto'),
+        hint: tk('Desde el piso hasta arriba de la tapa.'),
+        shows: { parts: 'P', measure: 'all', axis: 1 },
+        group: 'general',
+        default: COFFEE_DEFAULTS.height,
+        min: 250,
+        max: 600,
+        typical: [380, 480],
+        typicalNote: tk('una mesa ratona suele quedar a la altura del asiento del sillón, entre 38 y 48 cm'),
+      },
+      { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: COFFEE_DEFAULTS.leg, min: 30, max: 120 },
+      { key: 'top', label: tk('Espesor de la tapa'), hint: tk('Lo grueso de la tabla de arriba.'), shows: { parts: 'T1', measure: 'T1', axis: 1 }, group: 'piezas', default: COFFEE_DEFAULTS.top, min: 15, max: 60 },
+    ],
+    joints: { groups: ['Pata|Faldón'], label: tk('Patas con faldón'), options: ['mortaja', 'clavija'], default: 'mortaja' },
+    build: createCoffeeTable,
+  },
+  {
+    id: 'banco',
+    name: tk('Banco'),
+    projectName: tk('Banco'),
+    createLabel: tk('Crear banco'),
+    fields: [
+      { key: 'width', label: tk('Largo'), hint: tk('De punta a punta, por fuera de las patas.'), shows: { parts: 'P', measure: 'all', axis: 0 }, group: 'general', default: 1000, min: 500, max: 2000 },
+      { key: 'depth', label: tk('Fondo'), hint: tk('De adelante hacia atrás, por fuera de las patas.'), shows: { parts: 'P', measure: 'all', axis: 2 }, group: 'general', default: 320, min: 220, max: 500 },
+      {
+        key: 'height',
+        label: tk('Alto'),
+        hint: tk('Desde el piso hasta arriba del asiento.'),
+        shows: { parts: 'P', measure: 'all', axis: 1 },
+        group: 'general',
+        default: 450,
+        min: 300,
+        max: 700,
+        typical: [420, 480],
+        typicalNote: tk('un banco para sentarse suele medir entre 42 y 48 cm de alto'),
+      },
+      { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: 45, min: 30, max: 90 },
+      {
+        key: 'seatType',
+        label: tk('Asiento'),
+        hint: tk('Una tabla entera o listones de adelante hacia atrás.'),
+        shows: { parts: 'S1|L' },
+        group: 'piezas',
+        default: SEAT_TABLA,
+        min: 0,
+        max: 1,
+        choices: [tk('Tabla'), tk('Listones')],
+      },
+      { key: 'seat', label: tk('Espesor del asiento'), hint: tk('Lo grueso de la tabla o de los listones donde te sentás.'), shows: { parts: 'S1|L', measure: 'S1|L1', axis: 1 }, group: 'piezas', default: 28, min: 18, max: 50 },
+    ],
+    joints: { groups: ['Pata|Faldón', 'Pata|Travesaño'], label: tk('Patas con faldones y travesaños'), options: ['mortaja', 'clavija'], default: 'mortaja' },
+    build: (v, wood, now) => {
+      const p = createStool({ apronHeight: 80, rung: 150, ...v }, wood, now);
+      p.template = 'banco';
+      p.id = `banco-${now}`;
+      return p;
+    },
+  },
+);
 
 export const templateById = (id: string) => TEMPLATES.find((t) => t.id === id);
 

@@ -74,7 +74,9 @@ export function findOpenings(parts: Part[]): Opening[] {
       // El frente del hueco: el de los costados que lo cierran (un zócalo puede estar más adentro).
       const zf = Math.max(...(left.length && right.length ? [...left, ...right] : around).map((x) => x.b.max[2]));
       // El fondo: una trasera detrás del hueco, o hasta donde llegan las piezas que lo cierran.
-      const behind = all.filter((x) => x.b.max[2] < zf - 1 && x.b.min[0] < x1 - 1 && x.b.max[0] > x0 + 1 && x.b.min[1] < y1 - 1 && x.b.max[1] > y0 + 1);
+      // Cuenta como fondo lo que tapa la mayor parte del hueco (una trasera), no un estante retirado que lo cruza.
+      const cover = (b: Box) => (Math.max(0, Math.min(b.max[0], x1) - Math.max(b.min[0], x0)) * Math.max(0, Math.min(b.max[1], y1) - Math.max(b.min[1], y0))) / ((x1 - x0) * (y1 - y0));
+      const behind = all.filter((x) => x.b.max[2] < zf - 1 && cover(x.b) > 0.5);
       const zb = Math.max(...behind.map((x) => x.b.max[2]), ...around.map((x) => x.b.min[2]));
       if (zf - zb < MIN_DEPTH) continue;
       const thick = (xs: typeof left, k: 0 | 1) => Math.min(...xs.map((x) => boxSize(x.b)[k]));
@@ -108,6 +110,8 @@ export type FrontStyle = 'embutido' | 'superpuesto';
 /** Correderas de madera (el cajón corre sobre el estante) o metálicas, que piden 12,5 mm por costado. */
 export type Slides = 'madera' | 'metalicas';
 export type DoorStyle = 'tablero' | 'marco';
+/** Estantes fijos, encastrados en canal en los laterales, o regulables, que apoyan en soportes. */
+export type ShelfMode = 'fijo' | 'regulable';
 
 export interface DrawerOptions {
   count: number;
@@ -120,6 +124,12 @@ export interface DoorOptions {
   count: 1 | 2;
   front: FrontStyle;
   style: DoorStyle;
+  wood: string;
+}
+
+export interface ShelfOptions {
+  count: number;
+  mode: ShelfMode;
   wood: string;
 }
 
@@ -148,6 +158,8 @@ const DRAWER_NAMES = {
   back: tk('Trasera del cajón'),
   bottom: tk('Fondo del cajón'),
 };
+const SHELF_NAME = tk('Estante');
+
 const DOOR_NAMES = {
   slab: tk('Puerta'),
   stile: tk('Larguero de la puerta'),
@@ -322,6 +334,38 @@ export function buildDoors(existing: { parts: Part[]; components: Component[] },
       b.join(stile, top, ['mortaja', 'clavija', 'tope']);
     }
     for (const p of [left, right, bottom, top]) b.join(p, panel, ['canal', 'tope']);
+  }
+  return b.done(existing.components);
+}
+
+/** Lugar que necesitan los estantes: al menos 8 cm entre uno y otro. */
+export function shelfProblem(o: Opening, opts: Pick<ShelfOptions, 'count'>): string | null {
+  const h = boxSize(o.box)[1];
+  const t0 = shelfThickness(o);
+  if ((h - opts.count * t0) / (opts.count + 1) < 80) return t('No entran {n} estantes: quedarían a menos de 8 cm uno de otro.', { n: opts.count });
+  return null;
+}
+
+/** Del mismo espesor que la pieza de abajo del hueco, entre 15 y 25 mm. */
+const shelfThickness = (o: Opening) => Math.max(15, Math.min(25, Math.round(o.edge.below) || 18));
+
+/**
+ * Estantes repartidos parejo en el hueco. Fijos: de lateral a lateral, en canal. Regulables: con 1 mm de juego
+ * a cada lado y 2 mm atrás del frente, apoyados en soportes (sin encastre).
+ */
+export function buildShelves(existing: { parts: Part[]; components: Component[] }, o: Opening, opts: ShelfOptions): Fitting {
+  const b = new Builder(existing.parts, opts.wood, 'E');
+  const { min, max } = o.box;
+  const t0 = shelfThickness(o);
+  const gap = (max[1] - min[1] - opts.count * t0) / (opts.count + 1);
+  const play = opts.mode === 'regulable' ? 1 : 0;
+  const sides = [...o.sides.left, ...o.sides.right].map((id) => existing.parts.find((p) => p.id === id)).filter((p): p is Part => !!p);
+  for (let i = 0; i < opts.count; i++) {
+    const y = min[1] + gap * (i + 1) + t0 * i;
+    // 1 mm adelante de la trasera, para que no se tome como encastrado en ella.
+    const shelf = b.part(SHELF_NAME, [min[0] + play, y, min[2] + 1], [max[0] - play, y + t0, max[2] - 2 * play]);
+    shelf.ops = [];
+    if (opts.mode === 'fijo') for (const side of sides) b.join(side, shelf, ['canal', 'clavija', 'tope']);
   }
   return b.done(existing.components);
 }

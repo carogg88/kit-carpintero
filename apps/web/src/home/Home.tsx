@@ -64,6 +64,66 @@ const TEMPLATES = [
       </svg>
     ),
   },
+  {
+    id: 'mesa-luz',
+    name: tk('Mesa de luz'),
+    icon: (
+      <svg {...icon}>
+        <rect x="7" y="5" width="18" height="21" rx="1" />
+        <path d="M7 12h18M14 8.5h4M7 22h18M9 26v2M23 26v2" />
+      </svg>
+    ),
+  },
+  {
+    id: 'cajonera',
+    name: tk('Cajonera'),
+    icon: (
+      <svg {...icon}>
+        <rect x="5" y="4" width="22" height="23" rx="1" />
+        <path d="M5 10h22M5 16h22M5 22h22M14 7h4M14 13h4M14 19h4" />
+      </svg>
+    ),
+  },
+  {
+    id: 'biblioteca',
+    name: tk('Biblioteca'),
+    icon: (
+      <svg {...icon}>
+        <rect x="7" y="2" width="18" height="27" rx="1" />
+        <path d="M7 8h18M7 14h18M7 19h18M16 19v10M14 23v2M18 23v2" />
+      </svg>
+    ),
+  },
+  {
+    id: 'alacena',
+    name: tk('Alacena'),
+    icon: (
+      <svg {...icon}>
+        <rect x="5" y="7" width="22" height="16" rx="1" />
+        <path d="M16 7v16M13.5 15v2M18.5 15v2M3 4h26" />
+      </svg>
+    ),
+  },
+  {
+    id: 'mesa-ratona',
+    name: tk('Mesa ratona'),
+    icon: (
+      <svg {...icon}>
+        <rect x="2" y="15" width="28" height="4" rx="1" />
+        <path d="M5 19v7M27 19v7" />
+      </svg>
+    ),
+  },
+  {
+    id: 'banco',
+    name: tk('Banco'),
+    icon: (
+      <svg {...icon}>
+        <rect x="2" y="12" width="28" height="4" rx="1" />
+        <path d="M5 16l-1 10M27 16l1 10M4.5 22h23" />
+      </svg>
+    ),
+  },
 ] as const;
 
 const blankIcon = (

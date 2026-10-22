@@ -38,7 +38,8 @@
 .startText strong { font: 500 var(--text-l)/1.25 var(--font-display); }
 .startText span { opacity: 0.8; }
 .templates { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
-@media (min-width: 700px) { .templates { grid-template-columns: repeat(4, 1fr); } }
+/* Diez plantillas: dos filas de cinco en la compu, con la página un poco más ancha para que entren las medidas. */
+@media (min-width: 1000px) { .shell { max-width: 960px; } .templates { grid-template-columns: repeat(5, 1fr); } }
 .template {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: var(--space-3); min-height: 168px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); color: var(--ink);
