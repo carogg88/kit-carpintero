@@ -319,6 +319,38 @@ function EmptyStart() {
   );
 }
 
+const PANEL_KEY = 'kitc:panel';
+
+/**
+ * El panel de la derecha abierto o plegado (en la compu), recordado en este navegador. Al elegir una pieza o un
+ * cajón se abre solo: si no, no se vería qué se eligió.
+ */
+function usePanelOpen(): [boolean, (open: boolean) => void] {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(PANEL_KEY) !== 'cerrado';
+    } catch {
+      return true;
+    }
+  });
+  const set = (v: boolean) => {
+    setOpen(v);
+    try {
+      localStorage.setItem(PANEL_KEY, v ? 'abierto' : 'cerrado');
+    } catch {
+      // Sin almacenamiento: vale para esta visita.
+    }
+  };
+  const selectedId = useEditor((s) => s.selectedId);
+  const fitting = useEditor((s) => s.fitting);
+  const [seen, setSeen] = useState({ selectedId, fitting });
+  if (seen.selectedId !== selectedId || seen.fitting !== fitting) {
+    setSeen({ selectedId, fitting });
+    if ((selectedId || fitting) && !open) setOpen(true);
+  }
+  return [open, set];
+}
+
 const SECTION_TITLES: Record<Section, string> = { modelo: '', uniones: tk('Uniones'), cortes: tk('Cortes y compras'), plano: tk('Plano'), armado: tk('Cómo armarlo'), taller: tk('Modo taller') };
 
 export function Editor({ section, onExit }: { section: Section; onExit: () => void }) {
@@ -334,6 +366,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const canRedo = useEditor((s) => s.future.length > 0);
   const { undo, redo, setTool, setXray, setView } = useEditor.getState();
   const selected = useSelectedPart();
+  const [panelOpen, setPanelOpen] = usePanelOpen();
   const saveState = useAutosave();
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
   useShortcuts(section === 'modelo');
@@ -441,7 +474,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             <NextSteps key={project.id} projectId={project.id} busy={tool !== 'select'} />
           </span>
         )}
-        <main className={styles.main}>
+        <main className={styles.main} data-panel={panelOpen ? 'open' : 'closed'}>
           <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool} data-framed={framed || undefined}>
             <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: projectName(project.name), part: selected.name }) : t('Modelo 3D de {name}', { name: projectName(project.name) })} />
             <div className={styles.toolbar} role="toolbar" aria-label={t('Herramientas')}>
@@ -500,9 +533,25 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 <AddPartButton />
               </span>
             )}
+            <button
+              type="button"
+              className={styles.panelToggle}
+              aria-expanded={panelOpen}
+              aria-controls="panel-mueble"
+              aria-label={panelOpen ? t('Ocultar el panel de detalles') : t('Mostrar el panel de detalles')}
+              title={panelOpen ? t('Ocultar el panel de detalles') : t('Mostrar el panel de detalles')}
+              onClick={() => setPanelOpen(!panelOpen)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <path d="M15 4v16" />
+                {panelOpen ? <path d="m9 10 2 2-2 2" /> : <path d="M17.5 9h1M17.5 12h1M17.5 15h1" />}
+              </svg>
+              {!panelOpen && <span>{t('Detalles')}</span>}
+            </button>
           </section>
 
-          <aside className={styles.panel} aria-label={selected ? t('Pieza seleccionada') : t('Piezas del proyecto')}>
+          <aside id="panel-mueble" className={styles.panel} aria-label={selected ? t('Pieza seleccionada') : t('Piezas del proyecto')}>
             <span className={styles.grabber} aria-hidden="true" />
             <PartPanel />
           </aside>

@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   acrossFace,
   arcInfo,
@@ -18,6 +18,7 @@ import {
   formatLength,
   formatNumber,
   furnitureBox,
+  goldenChecks,
   resizeFurniture,
   JOINT_NAMES,
   jointName,
@@ -49,11 +50,12 @@ import {
   type Section,
   type Units,
 } from '@kitc/core';
-import { PartNotes, ReviewCard } from './Review';
-import { GoldenCard } from './Golden';
+import { OPEN_EVENT, PartNotes, ReviewCard, reviewSummary, useReview } from './Review';
+import { GoldenCard, goldenCount } from './Golden';
+import { Accordion } from '../ui/Accordion';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
-import { IconLink, IconRotate, IconTrash, IconWarn } from './icons';
+import { IconLink, IconPlus, IconRotate, IconTrash, IconWarn } from './icons';
 import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
@@ -843,7 +845,7 @@ const SIZE_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
  * Ancho, alto y fondo de todo el mueble. Al cambiarlos se estiran las piezas largas sobre ese eje y las demás se
  * corren o se reparten, sin cambiar espesores.
  */
-function FurnitureSize({ project }: { project: Project }) {
+function FurnitureSize({ project, heading = true }: { project: Project; heading?: boolean }) {
   const commit = useEditor((s) => s.commit);
   const box = furnitureBox(project.parts);
   if (!box) return null;
@@ -865,7 +867,7 @@ function FurnitureSize({ project }: { project: Project }) {
   };
   return (
     <fieldset className={styles.dims}>
-      <legend className={styles.legend}>{t('Medidas del mueble')}</legend>
+      <legend className={heading ? styles.legend : styles.srOnly}>{t('Medidas del mueble')}</legend>
       {AXIS_LABELS.map((label, k) => (
         <LengthField key={label} label={t(label)} mm={size[k]!} units={project.units} min={30} max={6000} onCommit={(mm) => resize(k as Axis, mm)} />
       ))}
@@ -873,60 +875,190 @@ function FurnitureSize({ project }: { project: Project }) {
   );
 }
 
+type OverviewFold = 'medidas' | 'revision' | 'aurea' | 'piezas';
+/** Qué secciones del panel quedaron abiertas: se recuerda al ir y volver de una pieza. */
+let overviewOpen = new Set<OverviewFold>(['medidas', 'piezas']);
+
+/** Con más piezas que estas, la lista pasa a ser una lista desplegable para que el panel entre sin desplazar. */
+const PART_LIST_MAX = 6;
+
 function ProjectOverview({ project }: { project: Project }) {
   const select = useEditor((s) => s.select);
-  const setFitting = useEditor((s) => s.setFitting);
-  const add = useAddPart();
+  const notes = useReview(project);
+  const checks = useMemo(() => goldenChecks(project), [project]);
+  const [open, setOpen] = useState(overviewOpen);
+  const toggle = (k: OverviewFold, on: boolean) => {
+    const next = new Set(open);
+    if (on) next.add(k);
+    else next.delete(k);
+    overviewOpen = next;
+    setOpen(next);
+  };
+  // La píldora de avisos del modelo abre la revisión.
+  useEffect(() => {
+    const show = () =>
+      setOpen((o) => {
+        overviewOpen = new Set(o).add('revision');
+        return overviewOpen;
+      });
+    window.addEventListener(OPEN_EVENT, show);
+    return () => window.removeEventListener(OPEN_EVENT, show);
+  }, []);
+  const box = furnitureBox(project.parts);
+  const unit = project.units === 'cm' ? ' cm' : '″';
+  const size = box ? boxSize(box).map((mm) => formatLength(mm, project.units).replace(/ cm|″/, '')).join(' × ') + unit : '';
+  const many = project.parts.length > PART_LIST_MAX;
   return (
     <>
       <div>
         <span className={styles.eyebrow}>
           {t('{parts} piezas · {joints} uniones', { parts: project.parts.length, joints: project.joints.length })}
         </span>
-        <h2 className={styles.panelTitle}>{t('Piezas')}</h2>
+        <h2 className={styles.panelTitle}>{t('El mueble')}</h2>
         <p className={styles.muted}>
-          {project.parts.length ? t('Tocá una pieza en el modelo o en la lista para editarla.') : t('Todavía no hay piezas. Agregá la primera acá abajo o en el medio de la vista.')}
+          {project.parts.length ? t('Tocá una pieza en el modelo o elegila en la lista para editarla.') : t('Todavía no hay piezas. Agregá la primera acá abajo o en el medio de la vista.')}
         </p>
       </div>
-      {project.parts.length > 1 && <FurnitureSize project={project} />}
-      <ReviewCard project={project} />
-      {project.parts.length > 1 && <GoldenCard project={project} />}
-      <ul className={styles.partList}>
-        {project.parts.map((p) => (
-          <li key={p.id}>
-            <button type="button" onClick={() => select(p.id)}>
-              <strong>{p.id}</strong>
-              <span>{p.name}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {project.parts.length > 0 && (
+        <div className={styles.overviewFolds}>
+          {project.parts.length > 1 && (
+            <Accordion variant="line" title={t('Medidas del mueble')} summary={`${t('Ancho × alto × fondo')} · ${size}`} open={open.has('medidas')} onToggle={(on) => toggle('medidas', on)}>
+              <FurnitureSize project={project} heading={false} />
+            </Accordion>
+          )}
+          <Accordion
+            variant="line"
+            title={t('Revisión del diseño')}
+            summary={reviewSummary(notes.length)}
+            meta={notes.length > 0 ? <span className={styles.foldWarn}>{notes.length}</span> : undefined}
+            done={notes.length === 0}
+            open={open.has('revision')}
+            onToggle={(on) => toggle('revision', on)}
+          >
+            <ReviewCard project={project} heading={false} />
+          </Accordion>
+          {project.parts.length > 1 && checks.length > 0 && (
+            <Accordion variant="line" title={t('Proporción áurea')} summary={t('Guía para medidas equilibradas')} meta={goldenCount(checks)} open={open.has('aurea')} onToggle={(on) => toggle('aurea', on)}>
+              <GoldenCard project={project} heading={false} />
+            </Accordion>
+          )}
+          <Accordion
+            variant="line"
+            title={t('Piezas')}
+            summary={project.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: project.parts.length })}
+            open={open.has('piezas')}
+            onToggle={(on) => toggle('piezas', on)}
+          >
+            {many ? (
+              <label className={styles.field}>
+                {t('Elegí una pieza para editarla')}
+                <select value="" onChange={(e) => e.target.value && select(e.target.value)}>
+                  <option value="" disabled>
+                    {t('{n} piezas · elegí una', { n: project.parts.length })}
+                  </option>
+                  {project.parts.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.id} · {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <ul className={styles.partList}>
+                {project.parts.map((p) => (
+                  <li key={p.id}>
+                    <button type="button" onClick={() => select(p.id)}>
+                      <strong>{p.id}</strong>
+                      <span>{p.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Accordion>
+        </div>
+      )}
       <div className={`${styles.stack} ${styles.mobileOnly}`}>
         <span className={styles.legend}>{t('Unidades')}</span>
         <UnitsToggle units={project.units} />
       </div>
-      <div className={styles.stack}>
-        <span className={styles.legend}>{t('Agregar pieza')}</span>
-        <div className={styles.addRow}>
+      <div className={`${styles.panelActions} ${styles.overviewActions}`}>
+        <AddPartMenu fittings={project.parts.length > 0} />
+      </div>
+    </>
+  );
+}
+
+/** "Agregar pieza": un botón que despliega las piezas sueltas y, si ya hay mueble, cajón, puerta y estantes. */
+function AddPartMenu({ fittings }: { fittings: boolean }) {
+  const [open, setOpen] = useState(false);
+  const add = useAddPart();
+  const setFitting = useEditor((s) => s.setFitting);
+  const ref = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('pointerdown', away);
+    window.addEventListener('keydown', esc);
+    return () => {
+      window.removeEventListener('pointerdown', away);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className={styles.addDrop}>
+      {open && (
+        <div id={menuId} className={styles.addDropMenu} role="menu" aria-label={t('Agregar pieza')}>
+          <span className={styles.addDropGroup} aria-hidden="true">
+            {t('Una pieza')}
+          </span>
           {ADD_OPTIONS.map(([k, label, size]) => (
-            <button key={k} type="button" className={styles.addBtn} onClick={() => add(k)}>
+            <button
+              key={k}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                add(k);
+                setOpen(false);
+              }}
+            >
               <strong>{t(label)}</strong>
               <span>{t(size)}</span>
             </button>
           ))}
+          {fittings && (
+            <>
+              <span className={styles.addDropGroup} aria-hidden="true">
+                {t('Armado en un hueco')}
+              </span>
+              {FITTING_OPTIONS.map(([k, label, what]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setFitting(k);
+                    setOpen(false);
+                  }}
+                >
+                  <strong>{t(label)}</strong>
+                  <span className={styles.addWhat}>{t(what)}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
-        {project.parts.length > 0 && (
-          <div className={styles.addRow2}>
-            {FITTING_OPTIONS.map(([k, label, what]) => (
-              <button key={k} type="button" className={styles.addBtn} onClick={() => setFitting(k)}>
-                <strong>{t(label)}</strong>
-                <span className={styles.addWhat}>{t(what)}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+      )}
+      <button type="button" className={styles.addDropBtn} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={() => setOpen(!open)}>
+        <IconPlus />
+        {t('Agregar pieza')}
+        <svg className={styles.addDropChevron} viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4 10l4-4 4 4" />
+        </svg>
+      </button>
+    </div>
   );
 }
 
