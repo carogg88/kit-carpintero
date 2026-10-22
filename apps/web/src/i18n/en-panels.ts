@@ -366,4 +366,9 @@ export default {
   'Cada frente mide {w} × {h}; el cajón tiene {d} de hondo.': 'Each front is {w} × {h}; the drawer is {d} deep.',
   'Cada hoja mide {w} × {h}.': 'Each leaf is {w} × {h}.',
   'Uniones: {list}.': 'Joints: {list}.',
+
+  // Medidas generales del mueble (PartPanel.tsx)
+  'Medidas del mueble': 'Overall size',
+  'No se puede achicar tanto: no queda lugar libre entre las piezas. Achicá antes alguna pieza.': 'It can’t shrink that much: there’s no free space left between the pieces. Shrink a piece first.',
+  'El mueble ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}': 'The piece is now {mm} in {axis}: {s} pieces stretched and {m} moved',
 } satisfies Record<string, string>;

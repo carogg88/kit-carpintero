@@ -21,3 +21,4 @@ export * from './assembly';
 export * from './jointfit';
 export * from './rotate';
 export * from './fittings';
+export * from './resize';
