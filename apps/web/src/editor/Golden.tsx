@@ -76,7 +76,7 @@ export function GoldenList({ checks, onFix, heading = true }: { checks: GoldenCh
 }
 
 /** En el panel del proyecto: las proporciones del mueble, y un toque para llevarlas a la áurea. */
-export function GoldenCard({ project }: { project: Project }) {
+export function GoldenCard({ project, heading = true }: { project: Project; heading?: boolean }) {
   const commit = useEditor((s) => s.commit);
   const checks = useMemo(() => goldenChecks(project), [project]);
   const apply = (fix: GoldenFix) => {
@@ -91,5 +91,5 @@ export function GoldenCard({ project }: { project: Project }) {
     }
     commit((d) => void resizeFurniture(d.parts as Part[], fix.axis, fix.mm), t('Llevaste el mueble a {len} para la proporción áurea', { len: formatLength(fix.mm, project.units) }));
   };
-  return <GoldenList checks={checks} onFix={apply} />;
+  return <GoldenList checks={checks} onFix={apply} heading={heading} />;
 }

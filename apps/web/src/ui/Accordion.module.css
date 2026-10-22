@@ -19,7 +19,7 @@
 }
 .mark[data-done] { background: var(--forest); border-color: var(--forest); }
 .mark svg { width: 14px; height: 14px; fill: none; stroke: var(--forest-ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.accordion[data-variant='line'] .mark:not([data-done]) { display: none; }
+.accordion[data-variant='line'] .mark:not([data-done]) { width: 0; border: 0; margin-right: calc(-1 * var(--space-2)); }
 .title { grid-area: title; font: 500 var(--text-m)/1.3 var(--font-display); }
 .summary { grid-area: sum; font-size: var(--text-s); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .meta { grid-area: meta; font: 500 var(--text-s) var(--font-num); color: var(--muted); }

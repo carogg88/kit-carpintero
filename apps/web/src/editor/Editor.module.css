@@ -501,7 +501,9 @@
   .chip.desktopOnly { display: flex; }
   .header { flex-wrap: wrap; gap: var(--space-3) var(--space-5); padding: var(--space-3) var(--space-5); background: var(--surface); border-bottom: 1px solid var(--line); }
   /* Con el "qué sigue" en el encabezado, en pantallas medianas la marca queda solo con el logo para que todo entre en una fila. */
-  .header { column-gap: var(--space-4); }
+  .header { column-gap: var(--space-4); flex-wrap: nowrap; }
+  .header:has(.nextChip) { column-gap: var(--space-3); }
+  .header:has(.nextChip) .homeBack { margin-right: 0; }
   .header:has(.nextChip) .brandText { display: none; }
   /* Entre la marca y el nombre, una línea y la flecha para volver a mis proyectos, pegada al nombre. */
   .headerDivider { align-self: stretch; width: 1px; margin: 6px 0; background: var(--line); }
@@ -689,3 +691,52 @@
 }
 .goldenFix:hover { background: var(--surface-2); border-color: var(--forest); }
 .goldenFix:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Panel del mueble: secciones plegables y agregar pieza al pie ---------- */
+.overviewFolds { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin-top: calc(-1 * var(--space-2)); }
+.foldWarn {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: var(--radius-pill);
+  background: var(--warn-bg); color: var(--warn-ink); font: 600 var(--text-xs) var(--font-num);
+}
+.overviewActions { display: none; }
+.addDrop { position: relative; flex: 1; }
+.addDropBtn {
+  width: 100%; height: 48px; display: flex; align-items: center; justify-content: center; gap: var(--space-2); border: 0; border-radius: var(--radius-pill);
+  background: var(--forest); color: var(--forest-ink); font: 600 var(--text-m) var(--font-ui); cursor: pointer; transition: background-color 150ms ease;
+}
+.addDropBtn:hover { background: color-mix(in srgb, var(--forest) 86%, #000); }
+.addDropBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.addDropChevron { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform 150ms ease; }
+.addDropBtn[aria-expanded='true'] .addDropChevron { transform: rotate(180deg); }
+/* Se abre hacia arriba: el botón está al pie del panel. */
+.addDropMenu {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + var(--space-2)); z-index: 3; display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: var(--space-1); box-shadow: 0 -8px 28px rgb(43 54 40 / 0.16);
+}
+.addDropMenu button {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: var(--space-3); min-height: 44px; padding: 0 var(--space-3);
+  border: 0; border-radius: 10px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; font: inherit;
+}
+.addDropMenu button:hover, .addDropMenu button:focus-visible { background: var(--surface-2); outline: none; }
+.addDropMenu strong { font: 500 var(--text-m) var(--font-display); }
+.addDropMenu span { font-family: var(--font-num); font-size: var(--text-xs); color: var(--muted); text-align: right; }
+.addDropMenu .addWhat { font-family: var(--font-ui); }
+.addDropGroup { padding: var(--space-2) var(--space-3) 2px; font: 500 var(--text-xs) var(--font-display) !important; letter-spacing: var(--track-caps); text-transform: uppercase; text-align: left !important; }
+
+/* Botón para plegar el panel de la derecha y que el modelo ocupe casi toda la pantalla (solo en la compu). */
+.panelToggle { display: none; }
+@media (min-width: 900px) {
+  .overviewActions { display: flex; }
+  .panelToggle {
+    position: absolute; z-index: 2; top: var(--space-3); right: var(--space-3); display: flex; align-items: center; gap: var(--space-2);
+    height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink);
+    box-shadow: var(--shadow-card); font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+  }
+  .panelToggle:hover { border-color: var(--forest); }
+  .panelToggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .panelToggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .panelToggle[aria-expanded='true'] { width: 48px; padding: 0; justify-content: center; }
+  .stage .views { right: calc(var(--space-3) + 48px + var(--space-2)); }
+  .stage:has(.panelToggle[aria-expanded='false']) .views { right: calc(var(--space-3) + 128px + var(--space-2)); }
+  .main[data-panel='closed'] .panel { display: none; }
+}

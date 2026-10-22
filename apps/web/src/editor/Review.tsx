@@ -11,7 +11,8 @@ import styles from './Editor.module.css';
  */
 
 /** Pide abrir la revisión en el panel del proyecto, desde el cartel de la vista 3D. */
-const OPEN_EVENT = 'kitc:revision';
+/** Pide abrir la revisión del diseño en el panel: la dispara la píldora de avisos del modelo. */
+export const OPEN_EVENT = 'kitc:revision';
 
 export function useReview(project: Project): ReviewNote[] {
   return useMemo(() => reviewDesign(project), [project]);
@@ -54,7 +55,13 @@ function NoteBody({ note }: { note: ReviewNote }) {
 }
 
 /** En el panel del proyecto: todos los avisos, plegados, con un botón para ir a la pieza. */
-export function ReviewCard({ project }: { project: Project }) {
+/** Cuántos avisos hay, o que no hay nada: para el resumen de la sección plegada. */
+export function reviewSummary(n: number): string {
+  return n === 0 ? t('Nada para corregir') : countText(n);
+}
+
+/** La revisión. Sin `heading`, va adentro de una sección que ya dice el título. */
+export function ReviewCard({ project, heading = true }: { project: Project; heading?: boolean }) {
   const notes = useReview(project);
   const select = useEditor((s) => s.select);
   const titleId = useId();
@@ -70,13 +77,15 @@ export function ReviewCard({ project }: { project: Project }) {
   }, [notes]);
   if (!project.parts.length) return null;
   return (
-    <section ref={ref} className={styles.review} aria-labelledby={titleId}>
-      <div className={styles.reviewHead}>
-        <span id={titleId} className={styles.legend}>
-          {t('Revisión del diseño')}
-        </span>
-        {notes.length > 0 && <span className={styles.reviewCount}>{countText(notes.length)}</span>}
-      </div>
+    <section ref={ref} className={styles.review} aria-labelledby={heading ? titleId : undefined} aria-label={heading ? undefined : t('Revisión del diseño')}>
+      {heading && (
+        <div className={styles.reviewHead}>
+          <span id={titleId} className={styles.legend}>
+            {t('Revisión del diseño')}
+          </span>
+          {notes.length > 0 && <span className={styles.reviewCount}>{countText(notes.length)}</span>}
+        </div>
+      )}
       {notes.length === 0 ? (
         <p className={styles.reviewOk}>
           <IconCheck />

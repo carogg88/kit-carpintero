@@ -543,4 +543,15 @@ export default {
   "completa": "complete",
   "Guía para medidas equilibradas": "A guide to balanced measurements",
   "Madera y uniones": "Wood and joints",
+  // Panel del modelo en acordeones (tanda 28)
+  "Tocá una pieza en el modelo o elegila en la lista para editarla.": "Tap a piece in the model or pick it from the list to edit it.",
+  "Ancho × alto × fondo": "Width × height × depth",
+  "Nada para corregir": "Nothing to fix",
+  "Elegí una pieza para editarla": "Choose a piece to edit",
+  "{n} piezas · elegí una": "{n} pieces · pick one",
+  "Una pieza": "A single piece",
+  "Armado en un hueco": "Built into an opening",
+  "Ocultar el panel de detalles": "Hide the details panel",
+  "Mostrar el panel de detalles": "Show the details panel",
+  "Detalles": "Details",
 } satisfies Record<string, string>;
