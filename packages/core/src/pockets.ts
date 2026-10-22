@@ -134,7 +134,7 @@ export function newPocket(part: Part, axis: Axis, side: 1 | -1, shape: PocketSha
 }
 
 /** Recorta un polígono con el rectángulo de la cara (0..w, 0..h). */
-function clipToFace(poly: [number, number][], w: number, h: number): [number, number][] {
+export function clipToFace(poly: [number, number][], w: number, h: number): [number, number][] {
   const edges: [(p: [number, number]) => number][] = [[(p) => p[0]], [(p) => w - p[0]], [(p) => p[1]], [(p) => h - p[1]]];
   let out = poly;
   for (const [inside] of edges) {

@@ -6,7 +6,7 @@
 .desk { order: 1; }
 .plan > *, .aside > * { flex-shrink: 0; }
 .aside > details { order: 2; }
-.aside > .pdf { order: 3; }
+.aside > .pdf, .aside > .printTpl { order: 3; }
 .aside > .note { order: 4; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 6px; }
 .eyebrow { margin: 0 0 4px; font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--muted); }
@@ -50,6 +50,13 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
   transition: background-color 150ms ease;
 }
 .pdf:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
+/* Solo las plantillas 1:1: para imprimirlas de nuevo sin gastar las hojas del plano. */
+.printTpl {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+  transition: background-color 150ms ease;
+}
+.printTpl:hover { background: var(--surface-2); }
 .note { margin: -4px 0 0; font-size: var(--text-s); line-height: 1.45; color: var(--muted); }
 
 .desk { min-width: 0; background: var(--desk); border-radius: var(--radius-m); padding: var(--space-2) var(--space-3) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
@@ -138,7 +145,7 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheetList button, .pdf, .zoomBtn, .zoomFit { transition: none; }
+  .sheetList button, .pdf, .printTpl, .zoomBtn, .zoomFit { transition: none; }
 }
 
 @page { size: A4 landscape; margin: 0; }
@@ -147,6 +154,7 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
   .plan, .desk { display: block; overflow: visible; padding: 0; margin: 0; background: none; border-radius: 0; }
   .page { display: block; break-after: page; width: 297mm; height: 210mm; overflow: hidden; }
   .page:last-child { break-after: auto; }
+  .plan[data-print='plantillas'] .page:not([data-template]) { display: none; }
   .sheet { width: 297mm; height: 210mm; min-width: 0; max-width: none; box-shadow: none; }
   .zoomBar { display: none; }
   .zoomBox, .zoomBox[data-zoomed] { overflow: visible; max-height: none; }
@@ -154,3 +162,8 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .dimDot { fill: var(--paper-accent); stroke: none; }
 .turnTpl { fill: rgba(158, 96, 39, 0.08); stroke: var(--paper-ink); stroke-width: 0.35; stroke-linejoin: round; }
 .turnBlankTpl { fill: none; stroke: var(--paper-muted); stroke-width: 0.2; stroke-dasharray: 2 1.5; }
+.faceTpl { fill: none; stroke: var(--paper-ink); stroke-width: 0.2; }
+.blindTpl { fill: rgba(158, 96, 39, 0.08); stroke: var(--paper-ink); stroke-width: 0.35; stroke-dasharray: 1.6 1; }
+.contour .traceLine { stroke-width: 0.6; }
+.shapeId { fill: var(--paper-accent); font: 500 2.6px var(--font-num); }
+.edgeName { fill: var(--paper-muted); font: 500 2.4px var(--font-display); letter-spacing: 0.04em; }

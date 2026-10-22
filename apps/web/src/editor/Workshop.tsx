@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cutList, describePartJoints, drawPart, formatNumber, t, type CutRow, type Drawing, type Project } from '@kitc/core';
+import { cutList, describePartJoints, drawPart, facePattern, formatNumber, t, type CutRow, type Drawing, type Project } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { woodName } from './cutsData';
 import { IconCheck, IconChevron, IconClose } from './icons';
@@ -113,6 +113,8 @@ interface Task {
 function tasks(project: Project, row: CutRow, n: (mm: number) => string, dims: (c: number[]) => string): Task[] {
   const part = project.parts.find((p) => p.id === row.ids[0]);
   const list: Task[] = [{ key: 'cortar', text: t('Cortar a {dims}', { dims: dims(row.cut) }), kind: 'cortar' }];
+  // Las curvas y los calados se marcan con la plantilla impresa del plano, no con regla.
+  if (part && facePattern(part, n)) list.push({ key: 'plantilla', text: t('Calcar la plantilla 1:1 del plano y sacar lo rayado'), kind: 'trabajo' });
   const marks = part ? describePartJoints(project, part, n) : [];
   // "2 mortajas" sobra si abajo está cada mortaja con dónde marcarla.
   const work = marks.length ? row.work.filter((w) => !row.jointWork.includes(w)) : row.work;
