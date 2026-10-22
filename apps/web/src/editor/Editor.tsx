@@ -28,7 +28,7 @@ import {
 } from './icons';
 import { JointsView } from './JointsView';
 import { PlanView } from './PlanView';
-import { ADD_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
+import { ADD_OPTIONS, FITTING_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
 import { useEditor, useSelectedPart, type DragHint, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
@@ -257,6 +257,20 @@ function AddPartButton() {
             >
               <strong>{t(label)}</strong>
               <span>{t(size)}</span>
+            </button>
+          ))}
+          {FITTING_OPTIONS.map(([k, label, what]) => (
+            <button
+              key={k}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                useEditor.getState().setFitting(k);
+                setOpen(false);
+              }}
+            >
+              <strong>{t(label)}</strong>
+              <span className={styles.addWhat}>{t(what)}</span>
             </button>
           ))}
         </div>

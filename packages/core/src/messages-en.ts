@@ -358,4 +358,18 @@ export const MESSAGES_EN: Record<string, string> = {
   'Lijá con grano 220, sacá el polvo con un trapo apenas húmedo y pasá la terminación: aceite, cera o laca. Probala antes en un retazo de la misma madera.': 'Sand with 220 grit, wipe the dust with a barely damp cloth and apply the finish: oil, wax or lacquer. Try it first on a scrap of the same wood.',
   '{who}: {work}': '{who}: {work}',
   'Todas las piezas': 'All pieces',
+
+  // Cajones y puertas (fittings.ts)
+  'Frente del cajón': 'Drawer front',
+  'Costado del cajón': 'Drawer side',
+  'Trasera del cajón': 'Drawer back',
+  'Fondo del cajón': 'Drawer bottom',
+  Puerta: 'Door',
+  'Larguero de la puerta': 'Door stile',
+  'Peinazo de la puerta': 'Door rail',
+  'Tablero de la puerta': 'Door panel',
+  'No entran {n} cajones: cada uno quedaría de menos de 6 cm de alto.': '{n} drawers don’t fit: each one would be less than 6 cm tall.',
+  'El hueco es muy angosto para un cajón.': 'The opening is too narrow for a drawer.',
+  'El hueco es muy poco hondo para un cajón.': 'The opening is too shallow for a drawer.',
+  'El hueco es muy angosto para {n} puertas.': 'The opening is too narrow for {n} doors.',
 };
