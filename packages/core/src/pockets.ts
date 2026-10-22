@@ -1,4 +1,4 @@
-import { boxSize, otherAxes, partBox, type Axis, type Vec3 } from './geometry';
+import { boxSize, otherAxes, overlapBox, partBox, type Axis, type Vec3 } from './geometry';
 import { arcPoints, circleThrough, type Solid } from './joints';
 import type { Part, Pocket, PocketShape } from './project';
 import { t, tk } from './i18n';
@@ -243,6 +243,37 @@ export function pocketSolid(part: Part, p: Pocket): Solid {
   min[va] = box.min[va] + p.shape.v;
   max[va] = min[va] + p.shape.h;
   return { kind: 'box', box: { min, max } };
+}
+
+/** Si el punto (en coordenadas del mueble) cae en lo que saca el vaciado. */
+export function pointInPocket(part: Part, p: Pocket, pt: Vec3): boolean {
+  const box = partBox(part);
+  const face = p.side > 0 ? box.max[p.axis] : box.min[p.axis];
+  const into = (face - pt[p.axis]) * p.side;
+  const depth = p.through ? box.max[p.axis] - box.min[p.axis] : p.depth;
+  if (into < 0 || into > depth) return false;
+  const [ua, va] = otherAxes(p.axis);
+  const poly = pocketRegion(part, p.axis, p.shape, p.shape.kind === 'arc' ? p.shape.outside : undefined);
+  const [x, y] = [pt[ua] - box.min[ua], pt[va] - box.min[va]];
+  let inside = false;
+  for (let i = 0, k = poly.length - 1; i < poly.length; k = i++) {
+    const [xi, yi] = poly[i]!;
+    const [xk, yk] = poly[k]!;
+    if (yi > y !== yk > y && x < ((xk - xi) * (y - yi)) / (yk - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Dos piezas que se cruzan donde una ya tiene una muesca dibujada (un listón apoyado en el calado de un faldón):
+ * la muesca hace de encastre, no hace falta rebajar a media madera.
+ */
+export function crossingInNotch(a: Part, b: Part): boolean {
+  if (a.base.kind !== 'box' || b.base.kind !== 'box') return false;
+  const o = overlapBox(partBox(a), partBox(b));
+  if (!o) return false;
+  const c: Vec3 = [(o.min[0] + o.max[0]) / 2, (o.min[1] + o.max[1]) / 2, (o.min[2] + o.max[2]) / 2];
+  return [a, b].some((part) => part.pockets.some((p) => pointInPocket(part, p, c)));
 }
 
 /** En palabras de taller: "calado Ø 35 mm en la cara de arriba". */

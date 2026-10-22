@@ -319,7 +319,9 @@
   flex: 0 0 auto; min-height: 0; display: flex; align-items: center; padding: 0 6px; overflow: hidden;
   background: var(--piece); color: var(--ink);
 }
-.piece + .waste { border-top: 1px solid var(--piece-line); }
+.pieceRow { display: flex; flex: 0 0 auto; min-height: 0; }
+.pieceRow .piece { flex: 0 0 auto; box-sizing: border-box; }
+.pieceRow + .waste, .pieceRow + .pieceRow { border-top: 1px solid var(--piece-line); }
 .pieceLabel { font: 500 11px var(--font-num); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pieceLabel span { color: var(--muted); }
 .diagramLegend { display: flex; flex-wrap: wrap; gap: var(--space-4); font-size: 13px; color: var(--muted); }

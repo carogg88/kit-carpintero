@@ -17,21 +17,25 @@ import {
   endJoint,
   formatNumber,
   JOINT_NAMES,
+  jointName,
   jointOptions,
   locale,
   makeComponent,
   makeUnique,
   MEASURED_FROM,
   newPart,
+  overlapBox,
   parseLength,
   partBox,
   partPlace,
   pocketTakesWholePart,
   renamePart,
+  rotatePart,
   setPlace,
   t,
   tk,
   WOODS,
+  type Axis,
   type Bevel,
   type Joint,
   type NewPartKind,
@@ -43,7 +47,7 @@ import {
 } from '@kitc/core';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
-import { IconLink, IconTrash, IconWarn } from './icons';
+import { IconLink, IconRotate, IconTrash, IconWarn } from './icons';
 import { TurningCard } from './TurningCard';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
@@ -167,6 +171,7 @@ function JointRow({ joint, partId, project }: { joint: Joint; partId: string; pr
   const b = project.parts.find((p) => p.id === joint.partB);
   const options = a && b ? jointOptions(partBox(a), partBox(b)) : [];
   if (!options.includes(joint.type)) options.unshift(joint.type);
+  const crossing = !!a && !!b && !!overlapBox(partBox(a), partBox(b));
   return (
     <li className={styles.jointRow}>
       <span className={styles.jointDot} data-plain={joint.type === 'tope' || undefined} aria-hidden="true" />
@@ -189,7 +194,7 @@ function JointRow({ joint, partId, project }: { joint: Joint; partId: string; pr
       >
         {options.map((type) => (
           <option key={type} value={type}>
-            {t(JOINT_NAMES[type])}
+            {t(jointName(type, crossing))}
           </option>
         ))}
       </select>
@@ -222,6 +227,12 @@ function Fold({ title, summary, open, onToggle, children }: { title: string; sum
 }
 
 const AXIS_LABELS = [tk('Ancho'), tk('Alto'), tk('Fondo')] as const;
+/** Los tres giros, por el eje sobre el que gira la pieza. */
+const ROTATIONS = [
+  [1, tk('En el piso'), tk('Gira un cuarto de vuelta apoyada como está: lo largo a lo ancho pasa a ir de adelante hacia atrás')],
+  [0, tk('Adelante'), tk('La vuelca hacia adelante: lo de arriba pasa al frente')],
+  [2, tk('Al costado'), tk('La vuelca de costado: lo de arriba pasa a un lado')],
+] as const;
 /** Desde dónde se mide la posición en cada eje. */
 const PLACE_LABELS = [tk('De la izquierda'), tk('Del piso'), tk('De atrás')] as const;
 
@@ -440,6 +451,11 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       const q = d.parts.find((x) => x.id === part.id);
       if (q) recipe(q as Part);
     });
+  const rotate = (axis: Axis) =>
+    commit((d) => {
+      const q = d.parts.find((x) => x.id === part.id);
+      if (q) rotatePart(q as Part, axis);
+    }, t('Giraste {id}', { id: part.id }));
   const setEdges = (kind: EdgeKind, mm = edgeSize) =>
     update((q) => {
       q.ops = kind === 'rectos' ? [] : kind === 'round' ? [{ kind: 'round', edges: 'all', radius: mm }] : [{ kind: 'chamfer', edges: 'all', size: mm }];
@@ -522,6 +538,18 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           />
         ))}
       </fieldset>
+      {/* Girar pasa también los vaciados, biseles, tramos y torneado: cambiar las medidas a mano los dejaría en otra cara. */}
+      <div className={styles.rotateRow} role="group" aria-label={t('Girar 90°')}>
+        <span className={styles.rotateTitle}>
+          <IconRotate />
+          {t('Girar 90°')}
+        </span>
+        {ROTATIONS.map(([axis, label, title]) => (
+          <button key={axis} type="button" title={t(title)} onClick={() => rotate(axis)}>
+            {t(label)}
+          </button>
+        ))}
+      </div>
       <label className={styles.field} htmlFor={woodId}>
         {t('Madera')}
         <select id={woodId} value={part.wood} onChange={(e) => update((q) => void (q.wood = e.target.value))}>

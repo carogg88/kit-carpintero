@@ -611,7 +611,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         const snaps: string[] = [];
         const shifts = ([0, 2] as const).map((k) => {
           const s = snapMove(p.parts, drag.start, k, pt.getComponent(k) - drag.origin.getComponent(k), part.id);
-          if (s.to) snaps.push(s.to);
+          if (s.to) snaps.push(s.mirror ? t('mismo retiro que {id}', { id: s.to }) : t('cara de {id}', { id: s.to }));
           return s.value;
         });
         if (shifts[0] || shifts[1]) moved = true;
@@ -624,7 +624,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         setHint({
           ...hintAt,
           text: `${copying ? t('Copia {id}', { id: part.id }) : part.id} · ${formatLength(Math.abs(shifts[0]!), units)} ↔ · ${formatLength(Math.abs(shifts[1]!), units)} ↕`,
-          snap: snaps.length ? t('cara de {id}', { id: [...new Set(snaps)].join(', ') }) : null,
+          snap: snaps.length ? [...new Set(snaps)].join(' · ') : null,
         });
       }
       invalidate();

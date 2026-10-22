@@ -235,6 +235,8 @@ export interface CutSlot {
   length: number;
   /** Ancho que ocupa en la tabla (menor que el de la tabla si se corta a lo ancho). */
   width: number;
+  /** Trozos más angostos que salen al lado, en el mismo tramo de la tabla, cortando a lo largo. */
+  beside?: CutSlot[];
 }
 
 /** Una tabla o tirante a comprar y cómo cortarla. */
@@ -261,12 +263,83 @@ export interface CutPlan {
 
 const MAX_LENGTH = Math.max(...LENGTHS_M) * 1000;
 
+/** Todos los trozos de una tabla, también los que salen al lado de otro. */
+export const boardPieces = (b: StockBoard): CutSlot[] => b.slots.flatMap((s) => [s, ...(s.beside ?? [])]);
+
+interface Piece {
+  slot: CutSlot;
+  /** Ancho de la tabla comercial que le corresponde sola. */
+  widthIn: number;
+}
+
+/** Reparte trozos en tablas de `widthIn`: los angostos se ponen uno al lado del otro, los más largos primero. */
+function packBoards(wood: string, thicknessIn: number, widthIn: number, pieces: CutSlot[], rip: boolean): StockBoard[] {
+  const wide = planedMm(widthIn);
+  const segments: { slot: CutSlot; used: number }[] = [];
+  for (const s of [...pieces].sort((x, y) => y.length - x.length || y.width - x.width)) {
+    const seg = rip ? segments.find((g) => g.used + KERF_MM + s.width <= wide && s.length <= g.slot.length) : undefined;
+    if (seg) {
+      seg.slot.beside = [...(seg.slot.beside ?? []), { ...s }];
+      seg.used += KERF_MM + s.width;
+    } else segments.push({ slot: { ...s }, used: s.width });
+  }
+  const bins: { slots: CutSlot[]; used: number }[] = [];
+  for (const { slot } of segments) {
+    const need = slot.length + KERF_MM;
+    const bin = bins.find((b) => b.used + need <= MAX_LENGTH);
+    if (bin) {
+      bin.slots.push(slot);
+      bin.used += need;
+    } else bins.push({ slots: [slot], used: 2 * END_TRIM_MM + need });
+  }
+  return bins.map((b) => ({
+    wood,
+    kind: stockKind(thicknessIn, widthIn),
+    thicknessIn,
+    widthIn,
+    lengthM: LENGTHS_M.find((m) => m * 1000 >= b.used) ?? MAX_LENGTH / 1000,
+    slots: b.slots,
+    used: b.used,
+  }));
+}
+
+const boughtVolume = (boards: StockBoard[]) => boards.reduce((v, b) => v + planedMm(b.thicknessIn) * planedMm(b.widthIn) * b.lengthM * 1000, 0);
+
 /**
- * Plan de corte: reparte los trozos de cada sección (madera, espesor y ancho) en tablas comerciales,
- * los más largos primero, y achica cada tabla al largo comercial más corto que alcanza.
+ * Las piezas de una madera y un espesor: cada sección en su tabla, o las angostas sacadas a lo largo de una tabla
+ * más ancha que igual se compra. Se queda con lo que menos madera hace comprar.
+ */
+function packThickness(wood: string, thicknessIn: number, pieces: Piece[]): StockBoard[] {
+  const bySection = (list: Piece[]) => {
+    const widths = [...new Set(list.map((p) => p.widthIn))].sort((x, y) => x - y);
+    return widths.flatMap((w) =>
+      packBoards(
+        wood,
+        thicknessIn,
+        w,
+        list.filter((p) => p.widthIn === w).map((p) => p.slot),
+        false,
+      ),
+    );
+  };
+  let best = bySection(pieces);
+  for (const w of new Set(pieces.map((p) => p.widthIn))) {
+    const fits = pieces.filter((p) => p.widthIn <= w);
+    if (fits.length === pieces.filter((p) => p.widthIn === w).length) continue;
+    const option = [...packBoards(wood, thicknessIn, w, fits.map((p) => p.slot), true), ...bySection(pieces.filter((p) => p.widthIn > w))];
+    const [a, b] = [boughtVolume(option), boughtVolume(best)];
+    if (a < b - 1 || (Math.abs(a - b) <= 1 && option.length < best.length)) best = option;
+  }
+  return best;
+}
+
+/**
+ * Plan de corte: reparte los trozos en tablas comerciales, los más largos primero, y achica cada tabla al largo
+ * comercial más corto que alcanza. Las piezas angostas pueden salir a lo largo de una tabla más ancha del mismo
+ * espesor (dos travesaños de una tabla de 4″), si así se compra menos madera.
  */
 export function cutPlan(project: Project): CutPlan {
-  const bySection = new Map<string, { wood: string; t: number; w: number; slots: CutSlot[] }>();
+  const byThickness = new Map<string, { wood: string; t: number; pieces: Piece[] }>();
   const tooLong: string[] = [];
   let piecesVolume = 0;
   for (const c of project.parts.filter((p) => p.base.kind === 'box').map((p) => cutPiece(p, project))) {
@@ -275,40 +348,22 @@ export function cutPlan(project: Project): CutPlan {
       tooLong.push(c.part.id);
       continue;
     }
-    const key = `${c.part.wood}|${stock.thicknessIn}|${stock.widthIn}`;
-    const sec = bySection.get(key) ?? { wood: c.part.wood, t: stock.thicknessIn, w: stock.widthIn, slots: [] };
+    piecesVolume += c.cut[0] * c.cut[1] * c.cut[2];
+    const key = `${c.part.wood}|${stock.thicknessIn}`;
+    const g = byThickness.get(key) ?? { wood: c.part.wood, t: stock.thicknessIn, pieces: [] };
+    // Una tapa encolada son varias tiras, cada una del ancho entero de la tabla.
     const width = stock.boards > 1 ? planedMm(stock.widthIn) : c.cut[1];
     for (let i = 0; i < stock.boards; i++) {
-      sec.slots.push({ id: stock.boards > 1 ? `${c.part.id}·${i + 1}` : c.part.id, length: c.cut[0], width });
+      g.pieces.push({ slot: { id: stock.boards > 1 ? `${c.part.id}·${i + 1}` : c.part.id, length: c.cut[0], width }, widthIn: stock.widthIn });
     }
-    bySection.set(key, sec);
-    piecesVolume += c.cut[0] * c.cut[1] * c.cut[2];
+    byThickness.set(key, g);
   }
-
-  const boards: StockBoard[] = [];
-  for (const sec of bySection.values()) {
-    const bins: { slots: CutSlot[]; used: number }[] = [];
-    for (const s of [...sec.slots].sort((x, y) => y.length - x.length)) {
-      const need = s.length + KERF_MM;
-      const bin = bins.find((b) => b.used + need <= MAX_LENGTH);
-      if (bin) {
-        bin.slots.push(s);
-        bin.used += need;
-      } else bins.push({ slots: [s], used: 2 * END_TRIM_MM + need });
-    }
-    for (const b of bins) {
-      const lengthM = LENGTHS_M.find((m) => m * 1000 >= b.used) ?? MAX_LENGTH / 1000;
-      boards.push({ wood: sec.wood, kind: stockKind(sec.t, sec.w), thicknessIn: sec.t, widthIn: sec.w, lengthM, slots: b.slots, used: b.used });
-    }
-  }
+  const boards = [...byThickness.values()].flatMap((g) => packThickness(g.wood, g.t, g.pieces));
 
   const feet: Record<string, number> = {};
-  let boughtVolume = 0;
-  for (const b of boards) {
-    feet[b.wood] = (feet[b.wood] ?? 0) + boardFeet(b.thicknessIn, b.widthIn, b.lengthM);
-    boughtVolume += planedMm(b.thicknessIn) * planedMm(b.widthIn) * b.lengthM * 1000;
-  }
-  return { boards, tooLong, feet, waste: boughtVolume ? Math.max(0, 1 - piecesVolume / boughtVolume) : 0 };
+  for (const b of boards) feet[b.wood] = (feet[b.wood] ?? 0) + boardFeet(b.thicknessIn, b.widthIn, b.lengthM);
+  const bought = boughtVolume(boards);
+  return { boards, tooLong, feet, waste: bought ? Math.max(0, 1 - piecesVolume / bought) : 0 };
 }
 
 /** Lista de compras: tablas iguales juntas. */

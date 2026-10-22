@@ -19,3 +19,4 @@ export * from './turning';
 export * from './jointmarks';
 export * from './assembly';
 export * from './jointfit';
+export * from './rotate';
