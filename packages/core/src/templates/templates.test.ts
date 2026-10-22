@@ -33,6 +33,32 @@ describe('plantillas', () => {
     expect(p.joints.filter((j) => j.partA === 'S1' || j.partB === 'S1').every((j) => j.type === 'tope')).toBe(true);
   });
 
+  it('el taburete puede ser más ancho que hondo, con asiento de listones o sin asiento', () => {
+    const def = templateById('taburete')!;
+    const valid = (p: ReturnType<typeof buildTemplate>) => {
+      const boxes = p.parts.map((x) => [x.id, partBox(x)] as const);
+      expect(boxes.flatMap(([i, a], k) => boxes.slice(k + 1).filter(([, b]) => overlapBox(a, b, 0.5)).map(([j]) => `${i}-${j}`))).toEqual([]);
+      for (const x of p.parts) expect(p.joints.some((j) => j.partA === x.id || j.partB === x.id)).toBe(true);
+    };
+    const wide = buildTemplate(def, { width: 450, depth: 340, height: 470, seat: 20 }, 'guatambu', 'mortaja', now);
+    valid(wide);
+    expect(wide.parts.find((x) => x.id === 'S1')?.base).toEqual({ kind: 'box', size: [450, 20, 340] });
+    expect(wide.parts.find((x) => x.id === 'F1')?.base).toMatchObject({ size: [370, 70, 20] });
+
+    const slats = buildTemplate(def, { width: 450, depth: 340, height: 470, seat: 20, seatType: 1 }, 'guatambu', 'mortaja', now);
+    valid(slats);
+    const ls = slats.parts.filter((x) => x.id.startsWith('L'));
+    expect(ls.length).toBe(6);
+    expect(slats.parts.some((x) => x.id === 'S1')).toBe(false);
+    expect(slats.joints.filter((j) => j.partA.startsWith('L') || j.partB.startsWith('L')).every((j) => j.type === 'tope')).toBe(true);
+    expect(new Set(ls.map((x) => x.component)).size).toBe(1);
+
+    const bare = buildTemplate(def, { width: 450, depth: 340, height: 450, seatType: 2 }, 'guatambu', 'mortaja', now);
+    valid(bare);
+    expect(bare.parts.find((x) => x.id === 'P1')?.base).toMatchObject({ size: [40, 450, 40] });
+    expect(bare.parts.some((x) => x.id === 'S1' || x.id.startsWith('L'))).toBe(false);
+  });
+
   it('el estante encastra los estantes en canal y respeta la cantidad', () => {
     const p = buildTemplate(templateById('estante')!, { shelves: 4 }, 'pino', 'canal', now);
     expect(p.parts.filter((x) => x.id.startsWith('E'))).toHaveLength(4);

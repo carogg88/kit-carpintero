@@ -145,7 +145,7 @@ export function PhotoTrace() {
   const [refField, setRefField] = useState<string>('');
 
   // Paso 3: una línea por medida de la plantilla.
-  const fields = def.fields.filter((f) => !f.count);
+  const fields = def.fields.filter((f) => !f.count && !f.choices);
   const [traces, setTraces] = useState<Record<string, Seg>>({});
   const [order, setOrder] = useState<string[]>([]);
   const [current, setCurrent] = useState<string>('');

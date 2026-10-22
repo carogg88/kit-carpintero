@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duplicatePart, namePrefix, newPart, nextPartId, partAxesBySize, renamePart, snapCoord, snapMove, syncJoints } from './edit';
+import { duplicatePart, namePrefix, newPart, nextPartId, partAxesBySize, partPlace, renamePart, setPlace, snapCoord, snapMove, syncJoints } from './edit';
 import { partBox } from './geometry';
 import { createTable } from './templates/table';
 
@@ -95,5 +95,20 @@ describe('renombrar una pieza', () => {
     const p = structuredClone(table);
     expect(renamePart(p, 'F1', 'Faldón de adelante')).toBe('F1');
     expect(renamePart(p, 'F2', 'Cosa rara')).toBe('F2');
+  });
+});
+
+describe('posición de una pieza', () => {
+  it('se mide desde el piso y desde los bordes izquierdo y de atrás del resto del mueble', () => {
+    const p = structuredClone(table);
+    const leg = p.parts.find((x) => x.id === 'P1')!;
+    expect(partPlace(p.parts, leg)[1]).toBe(leg.position[1]);
+    setPlace(p.parts, 'P1', 1, 100);
+    expect(leg.position[1]).toBe(100);
+    setPlace(p.parts, 'P1', 0, 50);
+    expect(partPlace(p.parts, leg)[0]).toBe(50);
+    // Medida sin contar la pieza: correrla no cambia desde dónde se mide.
+    setPlace(p.parts, 'P1', 0, 80);
+    expect(partPlace(p.parts, leg)[0]).toBe(80);
   });
 });

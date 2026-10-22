@@ -50,6 +50,7 @@
 .form { display: flex; flex-direction: column; gap: 14px; padding: 0 var(--gutter); flex: 1; }
 .grid { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
 .grid legend { grid-column: 1 / -1; }
+.grid .wide { grid-column: 1 / -1; }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
 .legend { padding: 0; margin-bottom: var(--space-2); font-size: 13px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); }
 .label { margin: 0 0 var(--space-2); padding: 0; font-size: 14px; font-weight: 600; }

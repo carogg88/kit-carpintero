@@ -60,6 +60,28 @@ export function snapMove(parts: Part[], start: Box, axis: Axis, delta: number, e
   return best;
 }
 
+/**
+ * Desde dónde se mide la posición de una pieza: el alto desde el piso; a lo ancho y a lo fondo, desde el borde
+ * izquierdo y el de atrás del resto del mueble (sin la pieza misma, así el número no cambia al moverla).
+ */
+export function placeOrigin(parts: Part[], id: string): Vec3 {
+  const others = parts.filter((p) => p.id !== id && p.base.kind === 'box').map(partBox);
+  if (!others.length) return [0, 0, 0];
+  return [Math.min(...others.map((b) => b.min[0])), 0, Math.min(...others.map((b) => b.min[2]))];
+}
+
+/** Posición de la pieza medida desde `placeOrigin`: [desde la izquierda, desde el piso, desde atrás]. */
+export function partPlace(parts: Part[], part: Part): Vec3 {
+  const o = placeOrigin(parts, part.id);
+  return [part.position[0] - o[0], part.position[1] - o[1], part.position[2] - o[2]];
+}
+
+/** Lleva la pieza a esa distancia del borde (o del piso) sobre un eje. */
+export function setPlace(parts: Part[], id: string, axis: Axis, value: number): void {
+  const part = parts.find((p) => p.id === id);
+  if (part) part.position[axis] = placeOrigin(parts, id)[axis] + value;
+}
+
 /** Primer id libre con ese prefijo: N1, N2… */
 export function nextPartId(parts: Part[], prefix: string): string {
   const used = new Set(parts.map((p) => p.id));

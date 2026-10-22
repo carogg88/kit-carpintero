@@ -21,6 +21,10 @@ export interface TemplateField {
   max: number;
   /** Cantidad (entero), no medida. */
   count?: boolean;
+  /** Una opción entre varias, no medida: el valor es el número de la opción elegida. */
+  choices?: string[];
+  /** Solo tiene sentido si otro campo no vale eso (el espesor del asiento, si el taburete no lleva asiento). */
+  unlessKey?: { key: string; value: number };
   /** Rango habitual: fuera de él se avisa, sin impedir seguir. */
   typical?: [number, number];
   /** Aviso cuando la medida queda fuera del rango habitual. */
@@ -29,7 +33,8 @@ export interface TemplateField {
   hint: string;
   /**
    * Qué marca la vista previa con el campo elegido: las piezas cuyo código empieza con `parts` y, si es
-   * una medida, la cota de la pieza `measure` (o de todo el mueble con 'all') a lo largo de `axis`.
+   * una medida, la cota de la pieza `measure` (o de todo el mueble con 'all') a lo largo de `axis`. Con
+   * "S1|L" vale cualquiera de las dos: el asiento puede ser una tabla o listones.
    * `fromFloor` mide desde el piso hasta abajo de la pieza.
    */
   shows: { parts: string; measure?: string; axis?: 0 | 1 | 2; fromFloor?: boolean };
@@ -84,31 +89,52 @@ const boxPart = (wood: string, ops: Part['ops']) => (id: string, name: string, m
 
 const round3: Part['ops'] = [{ kind: 'round', edges: 'all', radius: 3 }];
 
+/** Asiento del taburete: una tabla entera, listones de adelante hacia atrás, o sin asiento. */
+export const SEAT_TABLA = 0;
+export const SEAT_LISTONES = 1;
+export const SEAT_NINGUNO = 2;
+
 function createStool(v: Record<string, number>, wood: string, now: string): Project {
-  const { width: S, height: H, leg, seat, apronHeight: aH, rung } = v as Record<'width' | 'height' | 'leg' | 'seat' | 'apronHeight' | 'rung', number>;
+  const { width: W, height: H, leg, seat, apronHeight: aH, rung } = v as Record<'width' | 'height' | 'leg' | 'seat' | 'apronHeight' | 'rung', number>;
+  // Los proyectos de antes tenían un solo lado: el asiento cuadrado.
+  const D = v.depth ?? W;
+  const seatType = v.seatType ?? SEAT_TABLA;
   const aT = 20;
   const set = 6;
   const rH = 30;
   const box = boxPart(wood, round3);
-  const sY = H - seat;
+  const sY = seatType === SEAT_NINGUNO ? H : H - seat;
   const aY = sY - aH;
-  const far = S - leg;
+  const farX = W - leg;
+  const farZ = D - leg;
   const parts: Part[] = [
-    box('S1', tk('Asiento'), [0, sY, 0], [S, H, S]),
     box('P1', tk('Pata trasera izquierda'), [0, 0, 0], [leg, sY, leg]),
-    box('P2', tk('Pata trasera derecha'), [far, 0, 0], [S, sY, leg]),
-    box('P3', tk('Pata delantera derecha'), [far, 0, far], [S, sY, S]),
-    box('P4', tk('Pata delantera izquierda'), [0, 0, far], [leg, sY, S]),
-    box('F1', tk('Faldón delantero'), [leg, aY, S - set - aT], [far, sY, S - set]),
-    box('F2', tk('Faldón trasero'), [leg, aY, set], [far, sY, set + aT]),
-    box('F3', tk('Faldón izquierdo'), [set, aY, leg], [set + aT, sY, far]),
-    box('F4', tk('Faldón derecho'), [S - set - aT, aY, leg], [S - set, sY, far]),
-    box('R1', tk('Travesaño delantero'), [leg, rung, S - set - aT], [far, rung + rH, S - set]),
-    box('R2', tk('Travesaño trasero'), [leg, rung, set], [far, rung + rH, set + aT]),
-    box('R3', tk('Travesaño izquierdo'), [set, rung + rH + 10, leg], [set + aT, rung + 2 * rH + 10, far]),
-    box('R4', tk('Travesaño derecho'), [S - set - aT, rung + rH + 10, leg], [S - set, rung + 2 * rH + 10, far]),
+    box('P2', tk('Pata trasera derecha'), [farX, 0, 0], [W, sY, leg]),
+    box('P3', tk('Pata delantera derecha'), [farX, 0, farZ], [W, sY, D]),
+    box('P4', tk('Pata delantera izquierda'), [0, 0, farZ], [leg, sY, D]),
+    box('F1', tk('Faldón delantero'), [leg, aY, D - set - aT], [farX, sY, D - set]),
+    box('F2', tk('Faldón trasero'), [leg, aY, set], [farX, sY, set + aT]),
+    box('F3', tk('Faldón izquierdo'), [set, aY, leg], [set + aT, sY, farZ]),
+    box('F4', tk('Faldón derecho'), [W - set - aT, aY, leg], [W - set, sY, farZ]),
+    box('R1', tk('Travesaño delantero'), [leg, rung, D - set - aT], [farX, rung + rH, D - set]),
+    box('R2', tk('Travesaño trasero'), [leg, rung, set], [farX, rung + rH, set + aT]),
+    box('R3', tk('Travesaño izquierdo'), [set, rung + rH + 10, leg], [set + aT, rung + 2 * rH + 10, farZ]),
+    box('R4', tk('Travesaño derecho'), [W - set - aT, rung + rH + 10, leg], [W - set, rung + 2 * rH + 10, farZ]),
   ];
-  return project('taburete', 'Taburete', now, parts, (a, b) => (a.id === 'S1' || b.id === 'S1' ? 'tope' : null));
+  if (seatType === SEAT_TABLA) parts.unshift(box('S1', tk('Asiento'), [0, sY, 0], [W, H, D]));
+  if (seatType === SEAT_LISTONES) {
+    // Listones de adelante hacia atrás, de unos 7 cm, con 1 cm de luz y los de las puntas al ras de las patas.
+    const gap = 10;
+    const n = Math.max(2, Math.round((W + gap) / (70 + gap)));
+    // Todos del mismo ancho, en milímetros enteros: lo que sobra se reparte en la luz entre ellos.
+    const slat = Math.floor((W - gap * (n - 1)) / n);
+    for (let i = 0; i < n; i++) {
+      const x = Math.round((i * (W - slat)) / (n - 1));
+      parts.push(box(`L${i + 1}`, tk('Listón del asiento'), [x, sY, 0], [x + slat, H, D]));
+    }
+  }
+  const seatPart = (p: Part) => p.id === 'S1' || p.id.startsWith('L');
+  return project('taburete', 'Taburete', now, parts, (a, b) => (seatPart(a) || seatPart(b) ? 'tope' : null));
 }
 
 function createShelf(v: Record<string, number>, wood: string, now: string): Project {
@@ -178,11 +204,12 @@ export const TEMPLATES: TemplateDef[] = [
     projectName: tk('Taburete'),
     createLabel: tk('Crear taburete'),
     fields: [
-      { key: 'width', label: tk('Lado del asiento'), hint: tk('El asiento es cuadrado: es lo que mide cada lado.'), shows: { parts: 'S1', measure: 'S1', axis: 0 }, group: 'general', default: 340, min: 220, max: 600 },
+      { key: 'width', label: tk('Ancho'), hint: tk('De lado a lado, por fuera de las patas.'), shows: { parts: 'P', measure: 'all', axis: 0 }, group: 'general', default: 340, min: 220, max: 800 },
+      { key: 'depth', label: tk('Fondo'), hint: tk('De adelante hacia atrás, por fuera de las patas.'), shows: { parts: 'P', measure: 'all', axis: 2 }, group: 'general', default: 340, min: 220, max: 800 },
       {
         key: 'height',
         label: tk('Alto'),
-        hint: tk('Desde el piso hasta arriba del asiento.'),
+        hint: tk('Desde el piso hasta arriba del asiento; sin asiento, hasta arriba de las patas.'),
         shows: { parts: 'P', measure: 'all', axis: 1 },
         group: 'general',
         default: 650,
@@ -193,7 +220,28 @@ export const TEMPLATES: TemplateDef[] = [
       },
       { key: 'rung', label: tk('Altura del travesaño'), hint: tk('Los travesaños son las barras de abajo, donde se apoyan los pies: a qué altura del piso van.'), shows: { parts: 'R', measure: 'R1', axis: 1, fromFloor: true }, group: 'general', default: 220, min: 80, max: 500 },
       { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: 40, min: 25, max: 80 },
-      { key: 'seat', label: tk('Espesor del asiento'), hint: tk('Lo grueso de la tabla donde te sentás.'), shows: { parts: 'S1', measure: 'S1', axis: 1 }, group: 'piezas', default: 25, min: 15, max: 50 },
+      {
+        key: 'seatType',
+        label: tk('Asiento'),
+        hint: tk('Una tabla entera, listones de adelante hacia atrás, o sin asiento para agregarlo vos después.'),
+        shows: { parts: 'S1|L' },
+        group: 'piezas',
+        default: SEAT_TABLA,
+        min: 0,
+        max: 2,
+        choices: [tk('Tabla'), tk('Listones'), tk('Sin asiento')],
+      },
+      {
+        key: 'seat',
+        label: tk('Espesor del asiento'),
+        hint: tk('Lo grueso de la tabla o de los listones donde te sentás.'),
+        shows: { parts: 'S1|L', measure: 'S1|L1', axis: 1 },
+        group: 'piezas',
+        default: 25,
+        min: 15,
+        max: 50,
+        unlessKey: { key: 'seatType', value: SEAT_NINGUNO },
+      },
       { key: 'apronHeight', label: tk('Alto del faldón'), hint: tk('El faldón es la tabla que une las patas debajo del asiento: cuánto baja.'), shows: { parts: 'F', measure: 'F1', axis: 1 }, group: 'piezas', default: 70, min: 40, max: 120 },
     ],
     joints: { groups: ['Pata|Faldón', 'Pata|Travesaño'], label: tk('Patas con faldones y travesaños'), options: ['mortaja', 'clavija'], default: 'mortaja' },

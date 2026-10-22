@@ -19,8 +19,13 @@ export interface DrawFace {
   side: 1 | -1;
 }
 
-/** Lo que se acaba de estirar o biselar: la burbuja de medida junto a la pieza lo cambia. */
-export type MeasureTarget = ({ kind: 'push' } & LastPush) | { kind: 'bevel'; id: string; bevelId: string } | { kind: 'pocket'; id: string; pocketId: string };
+/** Lo que se acaba de estirar, mover, biselar o dibujar: la burbuja de medida junto a la pieza lo cambia. */
+export type MeasureTarget =
+  | ({ kind: 'push' } & LastPush)
+  | { kind: 'bevel'; id: string; bevelId: string }
+  | { kind: 'pocket'; id: string; pocketId: string }
+  /** Lo que se acaba de mover: `from` es dónde estaba antes del arrastre. */
+  | { kind: 'move'; id: string; from: [number, number, number] };
 
 /** Burbuja para escribir la medida exacta, donde se soltó el arrastre (en píxeles de la vista 3D). */
 export interface Bubble {

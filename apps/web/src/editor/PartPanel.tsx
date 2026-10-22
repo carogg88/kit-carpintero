@@ -25,8 +25,10 @@ import {
   newPart,
   parseLength,
   partBox,
+  partPlace,
   pocketTakesWholePart,
   renamePart,
+  setPlace,
   t,
   tk,
   WOODS,
@@ -196,7 +198,7 @@ function JointRow({ joint, partId, project }: { joint: Joint; partId: string; pr
 }
 
 /** Qué bloques del panel quedan abiertos: se recuerda al pasar de una pieza a otra. */
-const foldOpen = { forma: false, uniones: false };
+const foldOpen = { posicion: false, forma: false, uniones: false };
 
 /** Un bloque del panel que se pliega: el título y un resumen de una línea siempre a la vista. */
 function Fold({ title, summary, open, onToggle, children }: { title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode }) {
@@ -220,6 +222,8 @@ function Fold({ title, summary, open, onToggle, children }: { title: string; sum
 }
 
 const AXIS_LABELS = [tk('Ancho'), tk('Alto'), tk('Fondo')] as const;
+/** Desde dónde se mide la posición en cada eje. */
+const PLACE_LABELS = [tk('De la izquierda'), tk('Del piso'), tk('De atrás')] as const;
 
 /** Un vaciado o calado de la pieza, con sus medidas editables. */
 function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocket; part: Part; units: Units; onChange: (recipe: (p: Pocket) => void) => void; onRemove: () => void }) {
@@ -455,6 +459,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
   const jointSummary = joints.length
     ? [...byType].map(([type, count]) => `${t(JOINT_NAMES[type])} ×${count}`).join(' · ')
     : t('Ninguna todavía');
+  // Dónde está: desde la izquierda, desde el piso y desde atrás. Así se sube o se baja una pieza escribiendo.
+  const place = partPlace(project.parts, part);
+  const num = (mm: number) => formatNumber(mm, units);
+  const placeSummary = t('Del piso {y} · izquierda {x} · atrás {z}', { x: num(place[0]), y: num(place[1]), z: n(place[2]) });
   const tools: [Parameters<typeof setTool>[0], string][] = [
     ['draw', tk('Dibujar')],
     ['bevel', tk('Biselar')],
@@ -526,6 +534,20 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       </label>
       {component && <ComponentNote project={project} part={part} name={component.name} />}
       <div className={styles.folds}>
+        <Fold title={t('Posición')} summary={placeSummary} open={open.posicion} onToggle={() => toggle('posicion')}>
+          <div className={styles.dims}>
+            {([1, 0, 2] as const).map((axis) => (
+              <LengthField
+                key={axis}
+                label={t(PLACE_LABELS[axis])}
+                mm={place[axis]}
+                units={units}
+                min={0}
+                onCommit={(v) => commit((d) => setPlace(d.parts as Part[], part.id, axis, v), t('Moviste {id}', { id: part.id }))}
+              />
+            ))}
+          </div>
+        </Fold>
         <Fold title={t('Forma')} summary={shape} open={open.forma} onToggle={() => toggle('forma')}>
           <fieldset className={styles.plainFieldset}>
             <legend className={styles.legend}>
