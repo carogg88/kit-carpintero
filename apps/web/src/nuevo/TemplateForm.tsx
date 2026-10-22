@@ -71,6 +71,8 @@ function Fields({ fields, values, units, warnings, onChange, onPoint }: FieldsPr
   return (
     <>
       {fields.map((f) => {
+        // Sin asiento no hay espesor de asiento que pedir.
+        if (f.unlessKey && values[f.unlessKey.key] === f.unlessKey.value) return null;
         const warn = warnings.get(f.key);
         const point = {
           onFocus: () => onPoint(f.key, 'focus'),
@@ -78,6 +80,24 @@ function Fields({ fields, values, units, warnings, onChange, onPoint }: FieldsPr
           onMouseEnter: () => onPoint(f.key, 'hover'),
           onMouseLeave: () => onPoint(null, 'hover'),
         };
+        if (f.choices) {
+          return (
+            <fieldset key={f.key} className={`${styles.plain} ${styles.wide}`} aria-describedby={`ayuda-${f.key}`} {...point}>
+              <legend className={styles.label}>{t(f.label)}</legend>
+              <div className={styles.chips}>
+                {f.choices.map((label, i) => (
+                  <label key={label} className={styles.chip}>
+                    <input type="radio" name={f.key} value={i} checked={values[f.key] === i} onChange={() => onChange(f.key, i)} />
+                    {t(label)}
+                  </label>
+                ))}
+              </div>
+              <span id={`ayuda-${f.key}`} className={styles.srOnly}>
+                {t(f.hint)}
+              </span>
+            </fieldset>
+          );
+        }
         if (f.count) {
           const n: number[] = [];
           for (let i = f.min; i <= f.max; i++) n.push(i);

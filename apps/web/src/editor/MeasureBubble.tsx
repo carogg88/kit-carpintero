@@ -1,7 +1,22 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { depthUnder, faceSize, formatLength, formatNumber, MEASURED_FROM, newBevel, parseLength, pocketTakesWholePart, t, tk, type Part } from '@kitc/core';
+import {
+  depthUnder,
+  faceSize,
+  formatLength,
+  formatNumber,
+  MEASURED_FROM,
+  newBevel,
+  parseLength,
+  partPlace,
+  pocketTakesWholePart,
+  setPlace,
+  t,
+  tk,
+  type Part,
+  type Project,
+} from '@kitc/core';
 import { IconClose, IconWarn } from './icons';
-import { useEditor } from './store';
+import { useEditor, type MeasureTarget } from './store';
 import styles from './Editor.module.css';
 
 /** Igual que en el panel: la medida se nombra por su dirección. */
@@ -9,7 +24,7 @@ const AXIS_LABELS = [tk('Ancho'), tk('Alto'), tk('Fondo')] as const;
 
 /**
  * Burbuja junto a la pieza, donde se soltó el arrastre: muestra la medida que quedó y deja escribir la exacta.
- * Sirve para Estirar (el largo, ancho o espesor de esa cara), para Biselar (el bisel o el radio) y para Dibujar:
+ * Sirve para Estirar (el largo, ancho o espesor de esa cara), para Mover (cuánto se corrió y a qué altura), para Biselar (el bisel o el radio) y para Dibujar:
  * ahí se elige si lo dibujado es un vaciado o un calado y qué tan hondo baja.
  * `docked`: en el celular va dentro de la tarjeta de pasos, donde no tapa la pieza ni el dedo.
  */
@@ -40,6 +55,7 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   const { target } = bubble;
   const part = project.parts.find((p) => p.id === target.id);
   if (!part || part.base.kind !== 'box') return null;
+  if (target.kind === 'move') return <MoveBubble key={`${bubble.x},${bubble.y}`} target={target} part={part} project={project} docked={docked} x={bubble.x} y={bubble.y} />;
   const units = project.units;
   const bevel = target.kind === 'bevel' ? part.bevels.find((b) => b.id === target.bevelId) : undefined;
   const pocket = target.kind === 'pocket' ? part.pockets.find((p) => p.id === target.pocketId) : undefined;
@@ -254,6 +270,100 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
           {shape && dirty && <div className={styles.bubbleFoot}>{okButton}</div>}
         </>
       )}
+    </form>
+  );
+}
+
+/**
+ * Burbuja de Mover: cuánto se corrió la pieza a lo ancho y a lo fondo (hacia donde se la arrastró) y a qué
+ * altura del piso queda. Mover arrastra por el piso; la altura solo se cambia escribiéndola.
+ */
+function MoveBubble({ target, part, project, docked, x, y }: { target: Extract<MeasureTarget, { kind: 'move' }>; part: Part; project: Project; docked: boolean; x: number; y: number }) {
+  const { commit, setBubble } = useEditor.getState();
+  const [texts, setTexts] = useState<Record<string, string>>({});
+  const [error, setError] = useState<{ field: string; text: string } | null>(null);
+  const units = project.units;
+  const sign = (k: 0 | 2) => (part.position[k] - target.from[k] < 0 ? -1 : 1);
+  const values = { x: Math.abs(part.position[0] - target.from[0]), z: Math.abs(part.position[2] - target.from[2]), y: partPlace(project.parts, part)[1] };
+  const labels = {
+    x: sign(0) < 0 ? t('A la izquierda') : t('A la derecha'),
+    z: sign(2) < 0 ? t('Hacia atrás') : t('Hacia adelante'),
+    y: t('Del piso'),
+  };
+  const keys = ['x', 'z', 'y'] as const;
+  const edited = (k: (typeof keys)[number]) => texts[k] !== undefined && texts[k].trim() !== formatNumber(values[k], units);
+  const dirty = keys.some(edited);
+  const id = docked ? 'medida-celu' : 'medida';
+
+  const apply = () => {
+    if (!dirty) return setBubble(null);
+    const read: Partial<Record<(typeof keys)[number], number>> = {};
+    for (const k of keys) {
+      if (!edited(k)) continue;
+      const v = parseLength(texts[k]!, units);
+      if (v === null || v < 0) return setError({ field: k, text: t('Medida no válida') });
+      read[k] = v;
+    }
+    commit((d) => {
+      const q = d.parts.find((p) => p.id === part.id);
+      if (!q) return;
+      if (read.x !== undefined) q.position[0] = target.from[0] + sign(0) * read.x;
+      if (read.z !== undefined) q.position[2] = target.from[2] + sign(2) * read.z;
+      if (read.y !== undefined) setPlace(d.parts as Part[], part.id, 1, read.y);
+    }, t('Moviste {id}', { id: part.id }));
+    setBubble(null);
+  };
+
+  return (
+    <form
+      className={docked ? styles.bubbleDocked : styles.bubble}
+      data-wide={!docked || undefined}
+      // Arriba de donde se soltó: abajo quedan el aviso de lo que se hizo y la tarjeta de pasos.
+      style={docked ? undefined : { left: `clamp(8px, ${x - 134}px, calc(100% - 276px))`, top: `clamp(56px, ${y - 220}px, calc(100% - 330px))` }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        apply();
+      }}
+      onKeyDown={(e) => e.key === 'Escape' && setBubble(null)}
+    >
+      <div className={styles.bubbleHead}>
+        <span className={styles.bubbleId}>
+          {t('Mover {id}', { id: part.id })} · {units === 'cm' ? 'cm' : t('pulg.')}
+        </span>
+        <button type="button" className={styles.bubbleClose} aria-label={t('Cerrar')} onClick={() => setBubble(null)}>
+          <IconClose />
+        </button>
+      </div>
+      <div className={styles.bubbleFields}>
+        {keys.map((k, i) => (
+          <label key={k} className={styles.bubbleSmall}>
+            <span>{labels[k]}</span>
+            <input
+              id={i === 0 ? id : `${id}-${k}`}
+              inputMode="decimal"
+              autoComplete="off"
+              value={texts[k] ?? formatNumber(values[k], units)}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-invalid={error?.field === k}
+              aria-describedby={error?.field === k ? `${id}-error` : undefined}
+              onChange={(e) => {
+                setTexts((s) => ({ ...s, [k]: e.target.value }));
+                setError(null);
+              }}
+            />
+          </label>
+        ))}
+      </div>
+      {error && (
+        <span id={`${id}-error`} className={styles.error} role="alert">
+          {error.text}
+        </span>
+      )}
+      <div className={styles.bubbleFoot}>
+        <button type="submit" className={styles.bubbleOk}>
+          {dirty ? t('Aplicar') : t('Listo')}
+        </button>
+      </div>
     </form>
   );
 }

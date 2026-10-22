@@ -37,7 +37,7 @@ export function fieldDimension(project: Project, field: TemplateField): Dimensio
   const { measure, axis, fromFloor } = field.shows;
   if (!measure || axis === undefined) return null;
   const all = boundsOf(project);
-  const box = measure === 'all' ? all : boundsOf(project, (id) => id === measure);
+  const box = measure === 'all' ? all : boundsOf(project, (id) => measure.split('|').includes(id));
   if (box.isEmpty()) return null;
   const size = all.getSize(new THREE.Vector3());
   const off = Math.max(size.x, size.y, size.z) * 0.07;
@@ -163,7 +163,7 @@ export function Preview3D({ project, field, onLabel }: Props) {
     const off = Math.max(s.x, s.y, s.z) * 0.1;
     return all.clone().expandByPoint(all.max.clone().add(new THREE.Vector3(off, 0, off)));
   }, [all.min.x, all.min.y, all.min.z, all.max.x, all.max.y, all.max.z]); // eslint-disable-line react-hooks/exhaustive-deps
-  const lit = (id: string) => !field || id.startsWith(field.shows.parts);
+  const lit = (id: string) => !field || field.shows.parts.split('|').some((prefix) => id.startsWith(prefix));
   return (
     <Canvas
       frameloop="demand"

@@ -653,7 +653,12 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         endDrag(pushed, changed ? label : undefined);
         // Al soltar, la medida exacta se escribe ahí mismo.
         setBubble({ target: { kind: 'push', ...pushed }, ...last });
-      } else endDrag(undefined, moved ? (copying ? t('Hiciste la copia {id}', { id: part.id }) : t('Moviste {id}', { id: part.id })) : undefined);
+      } else {
+        endDrag(undefined, moved ? (copying ? t('Hiciste la copia {id}', { id: part.id }) : t('Moviste {id}', { id: part.id })) : undefined);
+        // Como en Estirar: al soltar se escribe cuánto se corrió y a qué altura queda. Un toque sin arrastrar
+        // también la abre, para subir o bajar la pieza escribiendo.
+        setBubble({ target: { kind: 'move', id: part.id, from: [...drag.start.min] }, ...last });
+      }
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
