@@ -478,4 +478,12 @@ export default {
   "{parts} piezas · {joints} uniones · {woods}": "{parts} parts · {joints} joints · {woods}",
   "Guardá una copia para verlo entero: el modelo, los cortes, el plano y el armado. Queda en este dispositivo y los cambios que hagas no le llegan a quien te lo mandó.": "Save a copy to see all of it: the model, cuts, plan and assembly. It stays on this device, and your changes don’t reach the person who sent it.",
   "Guardar una copia y abrirla": "Save a copy and open it",
+  "1 aviso": "1 note",
+  "{n} avisos": "{n} notes",
+  "Revisión": "Review",
+  "Qué hacer:": "What to do:",
+  "Revisión del diseño": "Design review",
+  "No veo nada para corregir antes de cortar.": "Nothing to fix before cutting.",
+  "Ver el primero ({id})": "Show the first one ({id})",
+  "Ver la pieza ({id})": "Show the piece ({id})",
 } satisfies Record<string, string>;
