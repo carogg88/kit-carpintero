@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import {
   acrossFace,
   arcInfo,
@@ -40,6 +40,7 @@ import {
   type Units,
 } from '@kitc/core';
 import { HelpTip } from '../help/Help';
+import { sectionHref } from '../routes';
 import { IconLink, IconTrash, IconWarn } from './icons';
 import { TurningCard } from './TurningCard';
 import { useEditor } from './store';
@@ -156,7 +157,8 @@ export function describeJoint(j: Joint, project: Project): string {
   }
 }
 
-function JointCard({ joint, partId, project }: { joint: Joint; partId: string; project: Project }) {
+/** Una unión de la pieza en una línea: con qué pieza y el encastre, que se cambia acá mismo. */
+function JointRow({ joint, partId, project }: { joint: Joint; partId: string; project: Project }) {
   const commit = useEditor((s) => s.commit);
   const otherId = joint.partA === partId ? joint.partB : joint.partA;
   const other = project.parts.find((p) => p.id === otherId);
@@ -164,40 +166,57 @@ function JointCard({ joint, partId, project }: { joint: Joint; partId: string; p
   const b = project.parts.find((p) => p.id === joint.partB);
   const options = a && b ? jointOptions(partBox(a), partBox(b)) : [];
   if (!options.includes(joint.type)) options.unshift(joint.type);
-  const selectId = useId();
   return (
-    <div className={styles.jointCard}>
-      <span className={styles.jointDot} aria-hidden="true" />
-      <span className={styles.jointText}>
-        <label htmlFor={selectId} className={styles.srOnly}>
-          {t('Encastre con {id}', { id: otherId })}
-        </label>
-        <select
-          id={selectId}
-          className={styles.jointSelect}
-          value={joint.type}
-          onChange={(e) =>
-            commit((d) => {
-              const j = d.joints.find((x) => x.id === joint.id);
-              if (j) {
-                j.type = e.target.value as Joint['type'];
-                j.params = {};
-              }
-            })
-          }
-        >
-          {options.map((type) => (
-            <option key={type} value={type}>
-              {t(JOINT_NAMES[type])}
-            </option>
-          ))}
-        </select>
-        <span className={styles.muted}>
-          {t('con {id}', { id: otherId })}
-          {other ? ` · ${other.name}` : ''} · {describeJoint(joint, project)}
-        </span>
+    <li className={styles.jointRow}>
+      <span className={styles.jointDot} data-plain={joint.type === 'tope' || undefined} aria-hidden="true" />
+      <span className={styles.jointWho} title={describeJoint(joint, project)}>
+        <strong>{otherId}</strong> {other?.name}
       </span>
-    </div>
+      <select
+        className={styles.jointSelect}
+        aria-label={t('Encastre con {id}', { id: otherId })}
+        value={joint.type}
+        onChange={(e) =>
+          commit((d) => {
+            const j = d.joints.find((x) => x.id === joint.id);
+            if (j) {
+              j.type = e.target.value as Joint['type'];
+              j.params = {};
+            }
+          })
+        }
+      >
+        {options.map((type) => (
+          <option key={type} value={type}>
+            {t(JOINT_NAMES[type])}
+          </option>
+        ))}
+      </select>
+    </li>
+  );
+}
+
+/** Qué bloques del panel quedan abiertos: se recuerda al pasar de una pieza a otra. */
+const foldOpen = { forma: false, uniones: false };
+
+/** Un bloque del panel que se pliega: el título y un resumen de una línea siempre a la vista. */
+function Fold({ title, summary, open, onToggle, children }: { title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section className={styles.fold}>
+      <h3 className={styles.foldHead}>
+        <button type="button" aria-expanded={open} aria-controls={id} onClick={onToggle}>
+          <span className={styles.foldTitle}>{title}</span>
+          <span className={styles.foldSummary}>{summary}</span>
+          <svg className={styles.foldChevron} viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </button>
+      </h3>
+      <div id={id} className={styles.foldBody} hidden={!open}>
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -394,6 +413,21 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
   const edge: EdgeKind = !op ? 'rectos' : op.kind;
   const edgeSize = op ? (op.kind === 'round' ? op.radius : op.size) : 3;
   const joints = project.joints.filter((j) => j.partA === part.id || j.partB === part.id);
+  const component = project.components.find((c) => c.id === part.component);
+  const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
+
+  // Forma se abre sola cuando se le suma algo a la pieza (un vaciado recién dibujado, un bisel), para editarlo.
+  const features = part.pockets.length + part.bevels.length + part.sections.length + (part.turning ? 1 : 0);
+  const [open, setOpen] = useState(() => ({ ...foldOpen, forma: foldOpen.forma || features > 0 }));
+  const [seen, setSeen] = useState(features);
+  if (seen !== features) {
+    setSeen(features);
+    if (features > seen && !open.forma) setOpen({ ...open, forma: true });
+  }
+  const toggle = (k: keyof typeof foldOpen) => {
+    foldOpen[k] = !open[k];
+    setOpen({ ...open, [k]: !open[k] });
+  };
 
   const update = (recipe: (p: Part) => void) =>
     commit((d) => {
@@ -405,29 +439,52 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       q.ops = kind === 'rectos' ? [] : kind === 'round' ? [{ kind: 'round', edges: 'all', radius: mm }] : [{ kind: 'chamfer', edges: 'all', size: mm }];
     });
 
+  const shape = [
+    edge === 'rectos' ? t('Cantos rectos') : edge === 'round' ? t('Cantos redondeados de {r}', { r: n(edgeSize) }) : t('Cantos con chaflán de {r}', { r: n(edgeSize) }),
+    part.pockets.length && (part.pockets.length === 1 ? t('1 vaciado') : t('{n} vaciados', { n: part.pockets.length })),
+    part.bevels.length && (part.bevels.length === 1 ? t('1 bisel') : t('{n} biseles', { n: part.bevels.length })),
+    part.sections.length && (part.sections.length === 1 ? t('1 tramo') : t('{n} tramos', { n: part.sections.length })),
+    part.turning && t('torneada'),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const byType = new Map<Joint['type'], number>();
+  for (const j of joints) byType.set(j.type, (byType.get(j.type) ?? 0) + 1);
+  const jointSummary = joints.length
+    ? [...byType].map(([type, count]) => `${t(JOINT_NAMES[type])} ×${count}`).join(' · ')
+    : t('Ninguna todavía');
+  const tools: [Parameters<typeof setTool>[0], string][] = [
+    ['draw', tk('Dibujar')],
+    ['bevel', tk('Biselar')],
+    ['section', tk('Tramo')],
+    ['turn', tk('Tornear')],
+  ];
+
   return (
     <>
-      <div>
+      <div className={styles.partHead}>
         <div className={styles.panelHead}>
           <span className={styles.eyebrow}>{t('{id} · pieza seleccionada', { id: part.id })}</span>
           <button type="button" className={styles.link} onClick={() => select(null)}>
             {t('Ver todas las piezas')}
           </button>
         </div>
-        <label className={styles.field} htmlFor={nameId}>
+        <label className={styles.srOnly} htmlFor={nameId}>
           {t('Nombre')}
-          <input
-            id={nameId}
-            key={`${part.id}-${part.name}`}
-            defaultValue={part.name}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v && v !== part.name) update((q) => void (q.name = v));
-              else e.target.value = part.name;
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          />
         </label>
+        <input
+          id={nameId}
+          className={styles.nameInput}
+          key={`${part.id}-${part.name}`}
+          defaultValue={part.name}
+          title={t('Tocá para cambiar el nombre')}
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v && v !== part.name) update((q) => void (q.name = v));
+            else e.target.value = part.name;
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
       </div>
       <fieldset className={styles.dims}>
         <legend className={styles.legend}>{t('Medidas terminadas ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}</legend>
@@ -456,155 +513,149 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           ))}
         </select>
       </label>
-      <ComponentBox project={project} part={part} />
-      <fieldset className={styles.plainFieldset}>
-        <legend className={styles.legend}>
-          {t('Cantos')}
-          <HelpTip term="cantos" />
-        </legend>
-        <div className={styles.row}>
-          <div className={styles.seg} role="group" aria-label={t('Tipo de canto')}>
-            {(
-              [
-                ['rectos', tk('Rectos')],
-                ['round', tk('Redondeados')],
-                ['chamfer', tk('Chaflán')],
-              ] as const
-            ).map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={edge === k} onClick={() => setEdges(k)}>
-                {t(label)}
-              </button>
-            ))}
-          </div>
-          {edge !== 'rectos' && (
-            <LengthField compact label={edge === 'round' ? t('Radio') : t('Medida')} mm={edgeSize} units={units} min={0.5} onCommit={(v) => setEdges(edge, v)} />
+      {component && <ComponentNote project={project} part={part} name={component.name} />}
+      <div className={styles.folds}>
+        <Fold title={t('Forma')} summary={shape} open={open.forma} onToggle={() => toggle('forma')}>
+          <fieldset className={styles.plainFieldset}>
+            <legend className={styles.legend}>
+              {t('Cantos')}
+              <HelpTip term="cantos" />
+            </legend>
+            <div className={styles.row}>
+              <div className={styles.seg} role="group" aria-label={t('Tipo de canto')}>
+                {(
+                  [
+                    ['rectos', tk('Rectos')],
+                    ['round', tk('Redondeados')],
+                    ['chamfer', tk('Chaflán')],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button key={k} type="button" aria-pressed={edge === k} onClick={() => setEdges(k)}>
+                    {t(label)}
+                  </button>
+                ))}
+              </div>
+              {edge !== 'rectos' && (
+                <LengthField compact label={edge === 'round' ? t('Radio') : t('Medida')} mm={edgeSize} units={units} min={0.5} onCommit={(v) => setEdges(edge, v)} />
+              )}
+            </div>
+          </fieldset>
+          {part.pockets.length > 0 && (
+            <div className={styles.stack}>
+              <span className={styles.legend}>
+                {t('Vaciados y calados ({n})', { n: part.pockets.length })}
+                <HelpTip term="vaciados" />
+              </span>
+              {part.pockets.map((pk) => (
+                <PocketCard
+                  key={pk.id}
+                  pocket={pk}
+                  part={part}
+                  units={units}
+                  onChange={(recipe) =>
+                    update((q) => {
+                      const x = q.pockets.find((y) => y.id === pk.id);
+                      if (x) recipe(x);
+                    })
+                  }
+                  onRemove={() => update((q) => void (q.pockets = q.pockets.filter((y) => y.id !== pk.id)))}
+                />
+              ))}
+            </div>
           )}
-        </div>
-      </fieldset>
-      <div className={styles.stack}>
-        <span className={styles.legend}>
-          {t('Vaciados y calados ({n})', { n: part.pockets.length })}
-          <HelpTip term="vaciados" />
-        </span>
-        {part.pockets.length === 0 && (
-          <p className={styles.muted}>
-            {t('Con')}{' '}
-            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('draw')}>
-              {t('Dibujar')}
-            </button>{' '}
-            {t('marcás un rectángulo o un círculo en una cara y se saca de la pieza.')}
-          </p>
-        )}
-        {part.pockets.map((pk) => (
-          <PocketCard
-            key={pk.id}
-            pocket={pk}
-            part={part}
-            units={units}
-            onChange={(recipe) =>
-              update((q) => {
-                const x = q.pockets.find((y) => y.id === pk.id);
-                if (x) recipe(x);
-              })
-            }
-            onRemove={() => update((q) => void (q.pockets = q.pockets.filter((y) => y.id !== pk.id)))}
-          />
-        ))}
+          {part.bevels.length > 0 && (
+            <div className={styles.stack}>
+              <span className={styles.legend}>
+                {t('Biseles, redondeos y cortes en ángulo ({n})', { n: part.bevels.length })}
+                <HelpTip term="biseles" />
+              </span>
+              {part.bevels.map((bv) => (
+                <BevelCard
+                  key={bv.id}
+                  bevel={bv}
+                  part={part}
+                  units={units}
+                  onChange={(recipe) =>
+                    update((q) => {
+                      const x = q.bevels.find((y) => y.id === bv.id);
+                      if (x) recipe(x);
+                    })
+                  }
+                  onRemove={() => update((q) => void (q.bevels = q.bevels.filter((y) => y.id !== bv.id)))}
+                />
+              ))}
+            </div>
+          )}
+          {part.sections.length > 0 && (
+            <div className={styles.stack}>
+              <span className={styles.legend}>
+                {t('Tramos ({n})', { n: part.sections.length })}
+                <HelpTip term="tramos" />
+              </span>
+              {part.sections.map((sec) => (
+                <SectionCard
+                  key={sec.id}
+                  section={sec}
+                  part={part}
+                  units={units}
+                  onChange={(recipe) =>
+                    update((q) => {
+                      const x = q.sections.find((y) => y.id === sec.id);
+                      if (x) recipe(x);
+                    })
+                  }
+                  onRemove={() => update((q) => void (q.sections = q.sections.filter((y) => y.id !== sec.id)))}
+                />
+              ))}
+            </div>
+          )}
+          {part.turning && (
+            <div className={styles.stack}>
+              <span className={styles.legend}>
+                {t('Torneado')}
+                <HelpTip term="torneado" />
+              </span>
+              <TurningCard
+                part={part}
+                units={units}
+                onChange={(turning) =>
+                  update((q) => {
+                    if (turning) q.turning = turning;
+                    else delete q.turning;
+                  })
+                }
+              />
+            </div>
+          )}
+          <div className={styles.stack}>
+            <span className={styles.legend}>{t('Más forma con las herramientas')}</span>
+            <div className={styles.toolChips}>
+              {tools.map(([tool, label]) => (
+                <button key={tool} type="button" onClick={() => setTool(tool)}>
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Fold>
+        <Fold title={t('Uniones ({n})', { n: joints.length })} summary={jointSummary} open={open.uniones} onToggle={() => toggle('uniones')}>
+          {joints.length === 0 ? (
+            <p className={styles.muted}>{t('Acercá esta pieza a otra hasta que se toquen y se propone un encastre.')}</p>
+          ) : (
+            <>
+              <ul className={styles.jointRows}>
+                {joints.map((j) => (
+                  <JointRow key={j.id} joint={j} partId={part.id} project={project} />
+                ))}
+              </ul>
+              <a className={styles.link} href={sectionHref(project.id, 'uniones')}>
+                {t('Ver las medidas en Uniones')}
+              </a>
+            </>
+          )}
+        </Fold>
       </div>
-      <div className={styles.stack}>
-        <span className={styles.legend}>
-          {t('Biseles, redondeos y cortes en ángulo ({n})', { n: part.bevels.length })}
-          <HelpTip term="biseles" />
-        </span>
-        {part.bevels.length === 0 && (
-          <p className={styles.muted}>
-            {t('Con')}{' '}
-            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('bevel')}>
-              {t('Biselar')}
-            </button>{' '}
-            {t('tocás una cara cerca de una arista o una esquina y arrastrás hacia adentro. En la barra elegís bisel o redondeo; si un bisel cruza toda la cara, es un corte en ángulo.')}
-          </p>
-        )}
-        {part.bevels.map((bv) => (
-          <BevelCard
-            key={bv.id}
-            bevel={bv}
-            part={part}
-            units={units}
-            onChange={(recipe) =>
-              update((q) => {
-                const x = q.bevels.find((y) => y.id === bv.id);
-                if (x) recipe(x);
-              })
-            }
-            onRemove={() => update((q) => void (q.bevels = q.bevels.filter((y) => y.id !== bv.id)))}
-          />
-        ))}
-      </div>
-      <div className={styles.stack}>
-        <span className={styles.legend}>
-          {t('Tramos ({n})', { n: part.sections.length })}
-          <HelpTip term="tramos" />
-        </span>
-        {part.sections.length === 0 && (
-          <p className={styles.muted}>
-            {t('Con')}{' '}
-            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('section')}>
-              {t('Tramo')}
-            </button>{' '}
-            {t('arrastrás a lo largo de la pieza y ese tramo pasa a tener otra medida: el pie más grueso de una pata, un cuello más fino.')}
-          </p>
-        )}
-        {part.sections.map((sec) => (
-          <SectionCard
-            key={sec.id}
-            section={sec}
-            part={part}
-            units={units}
-            onChange={(recipe) =>
-              update((q) => {
-                const x = q.sections.find((y) => y.id === sec.id);
-                if (x) recipe(x);
-              })
-            }
-            onRemove={() => update((q) => void (q.sections = q.sections.filter((y) => y.id !== sec.id)))}
-          />
-        ))}
-      </div>
-      <div className={styles.stack}>
-        <span className={styles.legend}>
-          {t('Torneado')}
-          <HelpTip term="torneado" />
-        </span>
-        {part.turning ? (
-          <TurningCard
-            part={part}
-            units={units}
-            onChange={(turning) =>
-              update((q) => {
-                if (turning) q.turning = turning;
-                else delete q.turning;
-              })
-            }
-          />
-        ) : (
-          <p className={styles.muted}>
-            {t('Con')}{' '}
-            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => setTool('turn')}>
-              {t('Tornear')}
-            </button>{' '}
-            {t('tocás una pieza larga y pasa a ser su taco girado en el torno: una pata, una columna, un barrote.')}
-          </p>
-        )}
-      </div>
-      <div className={styles.stack}>
-        <span className={styles.legend}>{t('Uniones de esta pieza ({n})', { n: joints.length })}</span>
-        {joints.length === 0 && <p className={styles.muted}>{t('Acercá esta pieza a otra hasta que se toquen y se propone un encastre.')}</p>}
-        {joints.map((j) => (
-          <JointCard key={j.id} joint={j} partId={part.id} project={project} />
-        ))}
-      </div>
-      <div className={styles.actionsRow}>
+      <div className={styles.panelActions}>
         <button
           type="button"
           className={styles.btn}
@@ -616,46 +667,48 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         >
           {t('Duplicar')}
         </button>
-        <button type="button" className={`${styles.btn} ${styles.danger}`} onClick={() => commit((d) => void (d.parts = d.parts.filter((x) => x.id !== part.id)), t('Borraste {id}', { id: part.id }))}>
-          {t('Eliminar')}
+        {component ? (
+          <button type="button" className={styles.btn} onClick={() => commit((d) => makeUnique(d as Project, part.id))}>
+            {t('Hacer única')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.btn}
+            title={t('Si hacés un componente, cada copia de esta pieza cambia junto con las demás.')}
+            onClick={() => commit((d) => void makeComponent(d as Project, part.id))}
+          >
+            {t('Hacer componente')}
+          </button>
+        )}
+        <HelpTip term="componente" />
+        <button
+          type="button"
+          className={`${styles.iconBtn} ${styles.dangerIcon}`}
+          aria-label={t('Eliminar {id}', { id: part.id })}
+          title={t('Eliminar')}
+          onClick={() => commit((d) => void (d.parts = d.parts.filter((x) => x.id !== part.id)), t('Borraste {id}', { id: part.id }))}
+        >
+          <IconTrash />
         </button>
       </div>
     </>
   );
 }
 
-/** Componente de la pieza: cuántas copias vinculadas tiene, o el botón para crear uno. */
-function ComponentBox({ project, part }: { project: Project; part: Part }) {
-  const commit = useEditor((s) => s.commit);
+/** Si la pieza es parte de un componente: cuántas copias tiene y qué cambia junto. */
+function ComponentNote({ project, part, name }: { project: Project; part: Part; name: string }) {
   const copies = componentCopies(project, part);
-  const component = project.components.find((c) => c.id === part.component);
-  if (!component) {
-    return (
-      <div className={styles.componentBox}>
-        <p className={styles.muted}>{t('Si hacés un componente, cada copia de esta pieza cambia junto con las demás.')}</p>
-        <button type="button" className={styles.btn} onClick={() => commit((d) => void makeComponent(d as Project, part.id))}>
-          {t('Hacer componente')}
-        </button>
-      </div>
-    );
-  }
   const others = copies.filter((p) => p.id !== part.id).map((p) => p.id);
   return (
     <div className={`${styles.componentBox} ${styles.componentOn}`}>
       <span className={styles.componentTitle}>
         <IconLink />
-        {copies.length === 1
-          ? t('Componente {name} · {n} copia', { name: component.name, n: 1 })
-          : t('Componente {name} · {n} copias', { name: component.name, n: copies.length })}
+        {copies.length === 1 ? t('Componente {name} · {n} copia', { name, n: 1 }) : t('Componente {name} · {n} copias', { name, n: copies.length })}
       </span>
       <p className={styles.muted}>
-        {others.length
-          ? t('Las medidas, la madera y los cantos cambian también en {ids}. Mover una copia no mueve las otras.', { ids: others.join(', ') })
-          : t('Duplicala o copiala al mover y las copias quedan vinculadas.')}
+        {others.length ? t('Medidas, madera y cantos cambian junto con {ids}.', { ids: others.join(', ') }) : t('Duplicala o copiala al mover y las copias quedan vinculadas.')}
       </p>
-      <button type="button" className={styles.btn} onClick={() => commit((d) => makeUnique(d as Project, part.id))}>
-        {t('Hacer única')}
-      </button>
     </div>
   );
 }
