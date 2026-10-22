@@ -115,12 +115,6 @@ export const IconAssembly = () => (
     <path d="M8 8l1.5 1.5L12 7M8 14l1.5 1.5L12 13M14 8.5h2.5M14 14.5h2.5" />
   </svg>
 );
-export const IconLogo = () => (
-  <svg width="24" height="24" viewBox="0 0 28 28" aria-hidden="true">
-    <rect x="3" y="6" width="22" height="5" rx="1" fill="none" stroke="currentColor" strokeWidth="2" />
-    <path d="M6 11v13M22 11v13" stroke="currentColor" strokeWidth="2" />
-  </svg>
-);
 export const IconInfo = () => (
   <svg {...base} width={18} height={18}>
     <circle cx="12" cy="12" r="9" />

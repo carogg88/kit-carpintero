@@ -100,6 +100,7 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .partId { fill: var(--paper-muted); font: 500 2.4px var(--font-num); }
 .cellTitle { fill: var(--paper-ink); font: 600 3.2px var(--font-ui); }
 .cellMeta { fill: var(--paper-muted); font: 400 2.6px var(--font-ui); }
+.titleBlock { --brand-ink: var(--paper-ink); --brand-wood: var(--paper-accent); }
 .titleBlock rect { fill: none; stroke: var(--paper-ink); stroke-width: 0.3; }
 .tbLabel { fill: var(--paper-muted); font: 400 2.3px var(--font-ui); }
 .tbValue { fill: var(--paper-ink); font: 600 3.2px var(--font-ui); }

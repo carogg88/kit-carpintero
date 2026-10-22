@@ -24,7 +24,7 @@ export default {
   'Exportar archivo': 'Export file',
   '¿Eliminar "{name}" de este dispositivo? No se puede deshacer.': 'Delete “{name}” from this device? This can’t be undone.',
   Eliminar: 'Delete',
-  'El archivo no es un proyecto de Kit Carpintero.': 'That file isn’t a Kit Carpintero project.',
+  'El archivo no es un proyecto de Calibre Studio.': 'That file isn’t a Calibre Studio project.',
   'Instalar la app': 'Install the app',
   'Sin cuenta. Tus proyectos se guardan en este dispositivo.': 'Saved on this device, no account needed.',
   '¿Qué mueble vas a hacer?': 'What are you building?',

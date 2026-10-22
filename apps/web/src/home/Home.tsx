@@ -15,7 +15,7 @@ import {
 } from '@kitc/core';
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
-import { IconLogo } from '../editor/icons';
+import { BrandMark, BrandWordmark } from '../brand/Brand';
 import { navigate } from '../routes';
 import { useInstall } from '../pwa';
 import { projectName, switchLang } from '../i18n';
@@ -146,7 +146,7 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
     <li className={styles.project}>
       <button type="button" className={styles.projectMain} onClick={() => onOpen(project.id)}>
         <span className={styles.thumb} aria-hidden="true">
-          <IconLogo />
+          <BrandMark height={30} />
         </span>
         <span className={styles.projectText}>
           <span className={styles.projectName}>{projectName(project.name)}</span>
@@ -233,7 +233,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
       await saveProject(p);
       onOpen(p.id);
     } catch {
-      setFileError(t('El archivo no es un proyecto de Kit Carpintero.'));
+      setFileError(t('El archivo no es un proyecto de Calibre Studio.'));
     }
   };
 
@@ -241,10 +241,8 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <span className={styles.brand}>
-          <IconLogo />
-          <span>
-            Kit <span className={styles.brandWood}>Carpintero</span>
-          </span>
+          <BrandMark height={52} />
+          <BrandWordmark height={36} />
         </span>
         <span className={styles.headerActions}>
           {install && (

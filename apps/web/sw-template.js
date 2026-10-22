@@ -1,4 +1,4 @@
-/* Service worker de Kit Carpintero. El build completa la versión y la lista de archivos. */
+/* Service worker de Calibre Studio. El build completa la versión y la lista de archivos. */
 /* global self, caches, fetch, URL */
 const CACHE = 'kit-__VERSION__';
 const FILES = [/* __FILES__ */];

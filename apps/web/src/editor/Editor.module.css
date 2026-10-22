@@ -8,9 +8,9 @@
 
 /* ---------- Cabecera ---------- */
 .header { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-2) 6px; }
-.brand { display: flex; align-items: center; gap: var(--space-2); color: var(--ink); text-decoration: none; font-weight: 700; min-height: var(--tap); letter-spacing: -0.2px; }
-.brand svg { color: var(--forest); }
-.brandWood { color: var(--accent); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-height: var(--tap); border-radius: var(--radius-s); }
+.brand svg { display: block; flex-shrink: 0; }
+.brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .titleBlock { display: flex; flex-direction: column; min-width: 0; }
 .titleBlock h1 { margin: 0; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .titleBlock span { font-size: 12px; }
@@ -523,7 +523,7 @@
 }
 
 @media (min-width: 1440px) {
-  .header:has(.nextChip) .brandText { display: inline; }
+  .header:has(.nextChip) .brandText { display: block; }
 }
 
 @media (prefers-reduced-motion: reduce) {

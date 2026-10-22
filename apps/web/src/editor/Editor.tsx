@@ -3,6 +3,7 @@ import { formatLength, t, tk } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { projectName } from '../i18n';
 import { saveProject } from '../storage/db';
+import { BrandMark, BrandWordmark } from '../brand/Brand';
 import { AssemblyView } from './AssemblyView';
 import { CutsView } from './CutsView';
 import {
@@ -13,7 +14,6 @@ import {
   IconDraw,
   IconCuts,
   IconJoints,
-  IconLogo,
   IconModel,
   IconMore,
   IconMove,
@@ -355,16 +355,14 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
           <a
             href="#/"
             className={styles.brand}
-            aria-label="Kit Carpintero"
+            aria-label="Calibre Studio"
             onClick={(e) => {
               e.preventDefault();
               onExit();
             }}
           >
-            <IconLogo />
-            <span className={styles.brandText}>
-              Kit <span className={styles.brandWood}>Carpintero</span>
-            </span>
+            <BrandMark height={34} />
+            <BrandWordmark className={styles.brandText} height={24} />
           </a>
         </span>
         <div className={styles.titleBlock}>

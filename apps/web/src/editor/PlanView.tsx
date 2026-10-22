@@ -34,6 +34,7 @@ import { shoot, type Shot } from './planShots';
 import { useEngineLines, type ExactMesh } from './useGeometry';
 import styles from './Plan.module.css';
 import { projectName } from '../i18n';
+import { BrandLogo } from '../brand/Brand';
 
 /** Hoja A4 apaisada, en mm de papel. */
 const W = 297;
@@ -41,6 +42,8 @@ const H = 210;
 const M = 10;
 const TITLE_W = 118;
 const TITLE_H = 22;
+/** La casilla del logo, pegada a la izquierda del rótulo. */
+const BRAND_W = 26;
 const SCALES = [1, 2, 5, 10, 20, 25, 50];
 
 type Layer = 'contornos' | 'cotas' | 'ocultas' | 'encastres' | 'notas';
@@ -254,6 +257,8 @@ function TitleBlock({ project, sheet, of, scale, units }: { project: Project; sh
   );
   return (
     <g className={styles.titleBlock}>
+      <rect x={x - BRAND_W} y={y} width={BRAND_W} height={TITLE_H} />
+      <BrandLogo x={x - BRAND_W + (BRAND_W - 17) / 2} y={y + 2.5} height={17} />
       {cell(x, y, 80, t('Proyecto'), projectName(project.name))}
       {cell(x + 80, y, TITLE_W - 80, t('Hoja'), t('{n} de {total}', { n: sheet, total: of }), true)}
       {cell(x, y + TITLE_H / 2, 30, t('Escala'), scale === 'none' ? t('Sin escala') : scale ? `1:${scale}` : t('Indicada'), true)}
