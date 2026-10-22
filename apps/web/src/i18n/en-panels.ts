@@ -81,8 +81,6 @@ export default {
   'Hacer componente': 'Make component',
   'Componente {name} · {n} copia': 'Component {name} · {n} copy',
   'Componente {name} · {n} copias': 'Component {name} · {n} copies',
-  'Las medidas, la madera y los cantos cambian también en {ids}. Mover una copia no mueve las otras.':
-    'Dimensions, wood and edges also change in {ids}. Moving one copy doesn’t move the others.',
   'Duplicala o copiala al mover y las copias quedan vinculadas.': 'Duplicate it, or copy it while moving, and the copies stay linked.',
   'Hacer única': 'Make unique',
   Unidades: 'Units',
@@ -300,4 +298,24 @@ export default {
   'recomendado': 'recommended',
   'Dónde está': 'Where it is',
   'El mueble entero con {a} y {b} marcadas': 'The whole piece of furniture with {a} and {b} highlighted',
+  // Panel de la pieza plegado
+  'Cantos rectos': 'Square edges',
+  'Cantos redondeados de {r}': 'Edges rounded {r}',
+  'Cantos con chaflán de {r}': 'Edges chamfered {r}',
+  '1 vaciado': '1 pocket',
+  '1 bisel': '1 bevel',
+  '1 tramo': '1 section',
+  '{n} tramos': '{n} sections',
+  torneada: 'turned',
+  'Ninguna todavía': 'None yet',
+  'Tocá para cambiar el nombre': 'Click to rename',
+  Forma: 'Shape',
+  'Más forma con las herramientas': 'Add shape with the tools',
+  'Uniones ({n})': 'Joints ({n})',
+  'Ver las medidas en Uniones': 'See the measurements in Joints',
+  'Eliminar {id}': 'Delete {id}',
+  'Medidas, madera y cantos cambian junto con {ids}.': 'Measurements, wood and edges change together with {ids}.',
+  Componente: 'Component',
+  'Si hacés un componente, cada copia de esta pieza cambia junto con las demás: las medidas, la madera y los cantos. Sirve para las cuatro patas de una mesa.':
+    'If you make a component, every copy of this part changes together: measurements, wood and edges. Handy for the four legs of a table.',
 } satisfies Record<string, string>;

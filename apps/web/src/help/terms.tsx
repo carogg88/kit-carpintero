@@ -184,6 +184,19 @@ export const TERMS = {
       </Svg>
     ),
   },
+  componente: {
+    title: tk('Componente'),
+    text: tk('Si hacés un componente, cada copia de esta pieza cambia junto con las demás: las medidas, la madera y los cantos. Sirve para las cuatro patas de una mesa.'),
+    drawing: (
+      <Svg>
+        <rect className={P} x="20" y="22" width="16" height="44" />
+        <rect className={M} x="20" y="10" width="16" height="12" />
+        <rect className={P} x="84" y="22" width="16" height="44" />
+        <rect className={M} x="84" y="10" width="16" height="12" />
+        <path className={H} d="M36 16 H84" />
+      </Svg>
+    ),
+  },
   pie: {
     title: tk('Pie maderero'),
     text: tk('Así se vende la madera en las madereras. Un pie es una tabla de 1 pulgada de espesor, 12 pulgadas de ancho y 1 pie (30,5 cm) de largo.'),
