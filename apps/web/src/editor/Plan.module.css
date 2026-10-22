@@ -9,7 +9,7 @@
 .aside > .pdf { order: 3; }
 .aside > .note { order: 4; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 6px; }
-.eyebrow { margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
+.eyebrow { margin: 0 0 4px; font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--muted); }
 summary.eyebrow { min-height: var(--tap); display: flex; align-items: center; justify-content: space-between; margin: -6px 0 0; cursor: pointer; list-style: none; }
 summary.eyebrow::-webkit-details-marker { display: none; }
 summary.eyebrow::after {
@@ -26,31 +26,31 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .sheetList button {
   flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center; min-height: 52px; padding: 0 var(--space-3);
   border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left;
-  font: 400 14px var(--font-ui); cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease;
+  font: 400 var(--text-s) var(--font-ui); cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease;
 }
 .sheetList button:hover { background: var(--surface-2); }
 .sheetList button strong { font-weight: 500; white-space: nowrap; }
-.sheetList button span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.sheetList button span { font-size: var(--text-xs); color: var(--muted); white-space: nowrap; }
 .sheetList button[aria-current='page'] { background: var(--accent-soft); border-color: var(--forest); }
 .sheetList button[aria-current='page'] strong { font-weight: 600; }
 
 .layers { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.layers label { display: flex; align-items: center; gap: 10px; min-height: var(--tap); font-size: 14px; cursor: pointer; }
+.layers label { display: flex; align-items: center; gap: 10px; min-height: var(--tap); font-size: var(--text-s); cursor: pointer; }
 .layers input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex-shrink: 0; }
 .layers label > span { width: 18px; flex-shrink: 0; }
 .swatch-contornos { border-top: 2px solid var(--ink); }
 .swatch-cotas { border-top: 2px solid var(--accent); }
 .swatch-ocultas { border-top: 2px dashed var(--muted); }
 .swatch-encastres { height: 8px; background: var(--signal); }
-.swatch-notas { font: 500 11px var(--font-num); }
+.swatch-notas { font: 500 var(--text-xs) var(--font-num); }
 
 .pdf {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 48px; padding: 0 var(--space-4);
-  border: 0; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-ink); font: 600 15px var(--font-ui); cursor: pointer;
+  border: 0; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-ink); font: 600 var(--text-m) var(--font-ui); cursor: pointer;
   transition: background-color 150ms ease;
 }
 .pdf:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
-.note { margin: -4px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.note { margin: -4px 0 0; font-size: var(--text-s); line-height: 1.45; color: var(--muted); }
 
 .desk { min-width: 0; background: var(--desk); border-radius: var(--radius-m); padding: var(--space-2) var(--space-3) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .page { display: none; }
@@ -65,7 +65,7 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .zoomBar { display: flex; align-items: center; gap: 4px; }
 .zoomBtn, .zoomFit {
   display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); padding: 0 10px;
-  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: 500 14px var(--font-num); cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: 500 var(--text-s) var(--font-num); cursor: pointer;
   transition: background-color 150ms ease, border-color 150ms ease;
 }
 .zoomFit { min-width: 76px; white-space: nowrap; }
@@ -73,7 +73,7 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .zoomBtn:disabled, .zoomFit:disabled { color: var(--muted); cursor: default; }
 .zoomFit:disabled { border-color: transparent; background: transparent; }
 .zoomBtn:focus-visible, .zoomFit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.zoomHint { margin-left: var(--space-2); font-size: 13px; color: var(--muted); }
+.zoomHint { margin-left: var(--space-2); font-size: var(--text-s); color: var(--muted); }
 /* Con mouse, la ayuda es Ctrl y la rueda: no hace falta decirlo en cada hoja. */
 @media (hover: hover) and (pointer: fine) { .zoomHint { display: none; } }
 
@@ -96,9 +96,9 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ruler rect { fill: var(--paper-ink); }
 .ruler line { stroke: var(--paper-ink); stroke-width: 0.25; }
 .ruler text { fill: var(--paper-ink); font: 600 2.8px var(--font-num); }
-.viewTitle { fill: var(--paper-ink); font: 600 3.4px var(--font-ui); }
+.viewTitle { fill: var(--paper-ink); font: 500 3.4px var(--font-display); }
 .partId { fill: var(--paper-muted); font: 500 2.4px var(--font-num); }
-.cellTitle { fill: var(--paper-ink); font: 600 3.2px var(--font-ui); }
+.cellTitle { fill: var(--paper-ink); font: 500 3.2px var(--font-display); }
 .cellMeta { fill: var(--paper-muted); font: 400 2.6px var(--font-ui); }
 .titleBlock { --brand-ink: var(--paper-ink); --brand-wood: var(--paper-accent); }
 .titleBlock rect { fill: none; stroke: var(--paper-ink); stroke-width: 0.3; }
@@ -107,7 +107,7 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .tbMono { fill: var(--paper-ink); font: 500 3.2px var(--font-num); }
 
 /* Hoja del mueble: tabla de piezas, leyenda y lista de hojas. */
-.keyHeading { fill: var(--paper-ink); font: 600 3.2px var(--font-ui); }
+.keyHeading { fill: var(--paper-ink); font: 500 3.2px var(--font-display); }
 .keyText { fill: var(--paper-ink); font: 400 2.6px var(--font-ui); }
 .keyMuted { fill: var(--paper-muted); font: 400 2.6px var(--font-ui); }
 .keyCode { fill: var(--paper-ink); font: 600 2.6px var(--font-num); }
@@ -115,14 +115,14 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .jointSample { fill: var(--signal); fill-opacity: 0.55; }
 .swatch { stroke: var(--paper-ink); stroke-width: 0.2; }
 .tag { fill: var(--paper); stroke-width: 0.5; }
-.tagText { fill: var(--paper-ink); font: 700 2.6px var(--font-num); }
+.tagText { fill: var(--paper-ink); font: 600 2.6px var(--font-num); }
 .thumbBox { fill: none; stroke: var(--paper-muted); stroke-width: 0.15; stroke-dasharray: 0.8 0.8; }
 .viewName { fill: var(--paper-muted); font: 500 2.6px var(--font-ui); }
 
 .off-contornos .contour, .off-cotas .dim, .off-ocultas .hidden, .off-encastres .joints, .off-notas .notes { display: none; }
 
 .empty { flex: 1; padding: var(--space-6) var(--gutter); }
-.empty h1 { margin: 0 0 var(--space-2); font-size: 20px; }
+.empty h1 { margin: 0 0 var(--space-2); font: 500 var(--text-xl)/1.2 var(--font-display); }
 .empty p { margin: 0; color: var(--muted); }
 
 @media (min-width: 900px) {

@@ -46,9 +46,21 @@
   --trace: #343f31;
   --trace-fill: rgba(52, 63, 49, 0.16);
 
+  /* Jost para títulos, pestañas y rótulos: geométrica y liviana como las letras del logo. Inter para el texto de trabajo. */
+  --font-display: 'Jost', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   /* Inter con cifras de ancho fijo: las medidas se alinean sin cambiar de letra. */
   --font-num: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Escala de letra: cinco tamaños y la portada. Nada por debajo de 12 px, y 12 solo para datos cortos. */
+  --text-xs: 12px;
+  --text-s: 14px;
+  --text-m: 16px;
+  --text-l: 18px;
+  --text-xl: 22px;
+  --text-display: clamp(30px, 5vw, 40px);
+  /* Rótulos en mayúsculas espaciadas, como STUDIO en el logo. */
+  --track-caps: 0.12em;
 
   --radius-s: 12px;
   --radius-m: 18px;
