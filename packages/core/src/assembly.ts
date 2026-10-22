@@ -1,6 +1,7 @@
 import { cutList, cutPiece } from './cutlist';
 import { t, tk } from './i18n';
 import { groupJoints } from './jointinfo';
+import { jointRoom } from './jointfit';
 import { JOINT_NAMES } from './joints';
 import type { JointType, Project } from './project';
 
@@ -98,12 +99,22 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
       const joints = g.joints.filter((j) => j.type === type);
       const a = listIds(joints.map((j) => j.partA));
       const b = listIds(joints.map((j) => j.partB));
+      // Las espigas o agujeros que se acortaron para no chocar adentro de la pieza: que no se hagan como las demás.
+      const short = joints.filter((j) => {
+        const room = jointRoom(project, j);
+        return room && room.current < room.usual;
+      });
+      const shortNote = short.length
+        ? type === 'mortaja'
+          ? t('Ojo: las espigas de {b} que van en {a} son más cortas, para no chocar adentro con las otras.', { a: listIds(short.map((j) => j.partA)), b: listIds(short.map((j) => j.partB)) })
+          : t('Ojo: los agujeros de {a} para {b} son menos hondos, para no chocar adentro con los otros.', { a: listIds(short.map((j) => j.partA)), b: listIds(short.map((j) => j.partB)) })
+        : null;
       steps.push({
         key: `encastre:${g.key}:${type}`,
         kind: 'encastre',
         title: t('{joint}: {group}', { joint: t(JOINT_NAMES[type]), group: g.label.toLocaleLowerCase() }),
         text: t(JOINT_HOW[type] ?? tk('Hacé los encastres en {a} y {b}. Probá primero con un retazo.'), { a, b }),
-        items: [joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: joints.length })],
+        items: [joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: joints.length }), ...(shortNote ? [shortNote] : [])],
         joint: type,
       });
     }

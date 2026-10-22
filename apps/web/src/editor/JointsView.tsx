@@ -3,11 +3,13 @@ import {
   BISCUITS,
   defaultJointParams,
   endJoint,
+  fitJointDepths,
   formatNumber,
   groupJoints,
   JOINT_NAMES,
   jointContact,
   jointGrowth,
+  jointNotes,
   jointOptions,
   locale,
   recommendedJoint,
@@ -43,7 +45,18 @@ const minDim = (p: Part) => {
   return Math.min(...b.max.map((v, i) => v - b.min[i]!));
 };
 
-function JointList({ groups, current, onPick }: { groups: JointGroup[]; current: Joint; onPick: (j: Joint) => void }) {
+function JointList({
+  groups,
+  current,
+  warned,
+  onPick,
+}: {
+  groups: JointGroup[];
+  current: Joint;
+  /** Uniones con un aviso de taller: cortes que chocan, espigas muy angostas. */
+  warned: ReadonlySet<string>;
+  onPick: (j: Joint) => void;
+}) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   return (
     <aside className={styles.jointList} aria-labelledby="uniones-titulo">
@@ -68,6 +81,11 @@ function JointList({ groups, current, onPick }: { groups: JointGroup[]; current:
                     <span className={styles.pair}>
                       {j.partA} ↔ {j.partB}
                     </span>
+                    {warned.has(j.id) && (
+                      <span className={styles.rowWarn} role="img" aria-label={t('Tiene un aviso')}>
+                        <IconWarn />
+                      </span>
+                    )}
                     <span className={styles.typeName}>{t(JOINT_NAMES[j.type])}</span>
                   </button>
                 </li>
@@ -195,6 +213,8 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           j.params = {};
         }
       }
+      // Con las medidas de siempre, la espiga nueva puede cruzarse adentro de la pieza con otra: se acorta sola.
+      fitJointDepths(d, new Set(targets.map((x) => x.id)));
     });
   const setParam = (key: string, value: number) =>
     commit((d) => {
@@ -307,6 +327,19 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             {t('El encastre no se pudo cortar del todo en el modelo. Revisá las medidas.')}
           </p>
         )}
+        {jointNotes(project, joint, n).map((note) =>
+          note.level === 'warn' ? (
+            <p key={note.text} className={styles.warn} role="alert">
+              <IconWarn />
+              <span>{note.text}</span>
+            </p>
+          ) : (
+            <p key={note.text} className={`${styles.tip} ${styles.flat}`}>
+              <IconInfo />
+              <span>{note.text}</span>
+            </p>
+          ),
+        )}
       </div>
 
       <div className={styles.detailSide}>
@@ -337,6 +370,15 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           <IconInfo />
           <span>{ruleHint(joint, a, b, n)}</span>
         </p>
+        {/* En el celular, el aviso queda lejos de las medidas: se repite al lado de lo que se acaba de cambiar. */}
+        {jointNotes(project, joint, n)
+          .filter((note) => note.level === 'warn')
+          .map((note) => (
+            <p key={note.text} className={`${styles.warn} ${styles.mobileOnly}`}>
+              <IconWarn />
+              <span>{note.text}</span>
+            </p>
+          ))}
 
         <div className={styles.changes}>
           <span className={styles.eyebrow}>{t('Qué cambia en los cortes')}</span>
@@ -374,11 +416,13 @@ export function JointsView({ project, meshes }: { project: Project; meshes: Read
       </main>
     );
   }
+  const warned = new Set(project.joints.filter((j) => jointNotes(project, j, String).some((x) => x.level === 'warn')).map((j) => j.id));
   return (
     <main className={styles.joints} data-detail={detailOpen || undefined}>
       <JointList
         groups={groups}
         current={joint}
+        warned={warned}
         onPick={(j) => {
           setSelectedId(j.id);
           setDetailOpen(true);

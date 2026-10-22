@@ -1,5 +1,5 @@
 import { boxSize, type Box } from '../geometry';
-import { box, endJoint, slab, type JointGeometry } from './common';
+import { box, endJoint, half, slab, type JointGeometry } from './common';
 
 export interface MortiseParams {
   /** Largo de la espiga, en mm. */
@@ -10,18 +10,25 @@ export interface MortiseParams {
   shoulder: number;
 }
 
-/** Medidas de taller para una mortaja: espiga de un tercio, hasta 40 mm de largo, hombros de 10 mm. */
+/**
+ * Medidas de taller para una mortaja: espiga de un tercio, hasta 40 mm de largo, hombros de 10 mm. En piezas angostas
+ * (un travesaño de 3 cm) el hombro baja a un sexto del ancho, para que la espiga no quede de 1 cm y se quiebre.
+ */
 export function defaultMortiseParams(mortisePart: Box, tenonPart: Box): MortiseParams | null {
   const j = endJoint(mortisePart, tenonPart);
   if (!j) return null;
   const size = boxSize(tenonPart);
   const depthAvailable = boxSize(mortisePart)[j.axis];
+  const wide = j.section.max[j.wide] - j.section.min[j.wide];
   return {
     length: Math.round(Math.min(40, depthAvailable * 0.65)),
     thickness: Math.round((size[j.thin] / 3) * 10) / 10,
-    shoulder: 10,
+    shoulder: Math.min(10, Math.max(3, half(wide / 6))),
   };
 }
+
+/** Por debajo de este ancho, una espiga se quiebra con facilidad. */
+export const MIN_TENON_WIDTH = 15;
 
 /**
  * Geometría de una mortaja y espiga: la espiga que se suma a `tenonPart` y la mortaja que se resta

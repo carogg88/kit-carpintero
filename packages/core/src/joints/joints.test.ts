@@ -11,8 +11,8 @@ const boxOf = (s: Solid | undefined) => {
 };
 
 describe('encastres base', () => {
-  it('entre pata y faldón (a 12 mm del canto) entran todos los de punta, menos inglete y machimbre', () => {
-    expect(jointOptions(leg, apron)).toEqual(['tope', 'mortaja', 'canal', 'rebaje', 'clavija', 'cola-milano', 'dedos', 'brida', 'galleta', 'bolsillo']);
+  it('entre pata y faldón (a 12 mm del canto) entran todos los de punta, menos rebaje, inglete y machimbre', () => {
+    expect(jointOptions(leg, apron)).toEqual(['tope', 'mortaja', 'canal', 'clavija', 'cola-milano', 'dedos', 'brida', 'galleta', 'bolsillo']);
   });
 
   it('canal: el faldón entra entero un tercio de la pata, hasta 12 mm', () => {
@@ -35,6 +35,13 @@ describe('encastres base', () => {
     const g = jointGeometry('rebaje', side, back, { depth: 9 });
     expect(boxOf(g?.cutA[0])).toEqual({ min: [0, 0, 9], max: [16, 300, 18] });
     expect(boxOf(g?.addB[0])).toEqual({ min: [4, 0, 9], max: [16, 300, 18] });
+  });
+
+  it('rebaje: no si la pieza queda lejos del canto (dejaría un escalón vacío)', () => {
+    const side: Box = { min: [0, 0, 0], max: [20, 1800, 300] };
+    const plinth: Box = { min: [20, 0, 260], max: [780, 70, 280] };
+    expect(jointOptions(side, plinth)).not.toContain('rebaje');
+    expect(jointOptions(side, plinth)).toContain('canal');
   });
 
   it('media madera: cada pieza pierde la mitad del cruce', () => {

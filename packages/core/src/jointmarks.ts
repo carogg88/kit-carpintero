@@ -25,8 +25,11 @@ export interface JointMark {
    * (false) o si no se puede decir (null: es vertical, o la pieza está en el medio).
    */
   face: Side;
-  /** Distancia a la punta o al borde más cercano sobre cada eje de la cara (al centro, si son agujeros redondos). */
-  from: (Side & { mm: number; centered: boolean })[];
+  /**
+   * Distancia a la punta o al borde más cercano sobre cada eje de la cara (al centro, si son agujeros redondos).
+   * `through`: el corte va de punta a punta (o de borde a borde) sobre ese eje.
+   */
+  from: (Side & { mm: number; centered: boolean; through?: boolean })[];
   /** Medida sobre cada eje de la cara, en el mismo orden que `from`. */
   size: number[];
   /** Hondo del corte o largo de lo que sale. */
@@ -41,6 +44,10 @@ export interface JointMark {
   along?: number[];
   /** Uno en cada punta del largo, iguales. */
   bothEnds?: boolean;
+  /** Dos iguales sobre la misma cara, a esta distancia de cada punta del largo. */
+  fromEachEnd?: number;
+  /** Cómo se llama el corte en el taller, si no es el del encastre: un canal que sale por la punta es un rebaje. */
+  cutName?: JointType;
 }
 
 const TOL = 0.5;
@@ -96,9 +103,13 @@ function openFace(body: Box, s: Box): { axis: Axis; side: 1 | -1 } {
   }
   // Un corte que atraviesa toca las dos caras de un eje: se marca desde la de adelante o la de arriba.
   touches.sort((a, b) => a.ratio - b.ratio || b.side - a.side);
-  // Si no toca ninguna (un agujero ciego por dentro), desde la cara más ancha.
   const thin = ([0, 1, 2] as Axis[]).sort((a, b) => size[a] - size[b])[0]!;
-  return touches[0] ?? { axis: thin, side: 1 };
+  // En una tabla, los canales y rebajes se hacen desde la cara ancha aunque salgan por una punta: es donde se apoya
+  // la fresa o la sierra, y desde ahí se mide lo hondo.
+  const board = size[thin] < 0.8 * Math.min(...([0, 1, 2] as Axis[]).filter((k) => k !== thin).map((k) => size[k]));
+  const onFace = board ? touches.find((x) => x.axis === thin && x.ratio < 1 - 1e-6) : undefined;
+  // Si no toca ninguna (un agujero ciego por dentro), desde la cara más ancha.
+  return onFace ?? touches[0] ?? { axis: thin, side: 1 };
 }
 
 /** Cara de la pieza de la que sale algo: la que queda del otro lado del sólido. */
@@ -142,9 +153,16 @@ function markOf(
     const hi = body.max[k] - first.max[k];
     const side: 1 | -1 = hi < lo - TOL ? 1 : -1;
     const mm = Math.max(0, side > 0 ? hi : lo) + (radius ?? 0);
-    return { axis: k, side, out: outward(body, center, k, side), mm, centered: Math.abs(lo - hi) < TOL && lo > TOL };
+    const through = !shaped && radius === undefined && lo < TOL && hi < TOL;
+    return { axis: k, side, out: outward(body, center, k, side), mm, centered: Math.abs(lo - hi) < TOL && lo > TOL, through };
   });
   const size = [a1, a2].map((k) => first.max[k] - first.min[k]);
+  // Un canal que sale por una punta sobre su ancho (no sobre su largo) es un rebaje: el estante de arriba apoya en la
+  // punta del lateral, no en una ranura.
+  const narrow = size[0]! <= size[1]! ? 0 : 1;
+  const f0 = from[narrow]!;
+  const cutName: JointType | undefined =
+    role === 'cut' && base.type === 'canal' && !f0.through && f0.mm < TOL && size[narrow]! < size[1 - narrow]! - TOL ? 'rebaje' : undefined;
   const depth = first.max[face.axis] - first.min[face.axis];
   const diameter = radius !== undefined ? 2 * radius : undefined;
   let spacing: number | undefined;
@@ -164,6 +182,7 @@ function markOf(
     shaped,
     ...(diameter !== undefined ? { diameter } : {}),
     ...(spacing ? { spacing } : {}),
+    ...(cutName ? { cutName } : {}),
   };
 }
 
@@ -210,6 +229,9 @@ const list = (xs: string[]) => (xs.length > 1 ? t('{a} y {b}', { a: xs.slice(0, 
 const EDGE_OUT = [tk('del borde de adentro'), tk('del borde de afuera')] as const;
 const FACE_OUT = [tk('la cara de adentro'), tk('la cara de afuera')] as const;
 
+/** Cortes que cruzan la pieza entera sobre un eje: largo, ancho o espesor. */
+const THROUGH = [tk('de punta a punta'), tk('de borde a borde'), tk('en todo el espesor')] as const;
+
 /** "la punta de arriba": la punta como lugar, sin el "de" de la distancia. */
 const END_PLACES = [
   [tk('la punta izquierda'), tk('la punta derecha')],
@@ -223,7 +245,7 @@ const END_PLACES = [
  */
 export function describeJointMark(part: Part, m: JointMark, n: (mm: number) => string): string {
   const [length, width] = partAxesBySize(part);
-  const names = (m.role === 'cut' ? CUT_NAMES : ADD_NAMES)[m.type] ?? (m.role === 'cut' ? [tk('Corte'), tk('cortes')] : [tk('Saliente'), tk('salientes')]);
+  const names = (m.role === 'cut' ? CUT_NAMES : ADD_NAMES)[m.cutName ?? m.type] ?? (m.role === 'cut' ? [tk('Corte'), tk('cortes')] : [tk('Saliente'), tk('salientes')]);
   const where = m.bothEnds
     ? t('cada punta')
     : m.face.axis === length
@@ -236,7 +258,13 @@ export function describeJointMark(part: Part, m: JointMark, n: (mm: number) => s
     ? t('{n} {what} para {other} en {face}', { n: m.count, what: t(names[1]), other: m.other, face: where })
     : t('{what} para {other} en {face}', { what: t(names[0]), other: m.other, face: where });
   if (m.shaped) return t('{head}: se marca con la hoja de encastres.', { head });
+  // Lo que sale con la sección entera de la pieza no se marca: es la punta, que entra en la otra pieza.
+  if (m.role === 'add' && m.from.every((f) => f.through))
+    return t('{head}: no se rebaja, la pieza entra entera {depth} en la otra. La medida de corte ya lo incluye.', { head, depth: n(m.depth) });
   const place = m.from.map((f) => {
+    if (f.through) return t(THROUGH[f.axis === length ? 0 : f.axis === width ? 1 : 2]);
+    if (f.axis === length && m.fromEachEnd !== undefined)
+      return m.fromEachEnd < TOL ? t('al ras de cada punta') : t('a {n} de cada punta', { n: n(m.fromEachEnd) });
     if (f.axis === length && m.along && m.along.length > 1) return t('a {n} {ref}', { n: list(m.along.map(n)), ref: t(ENDS[f.axis][0]) });
     if (f.centered) return f.axis === length ? t('a la mitad del largo') : f.axis === width ? t('a la mitad del ancho') : t('a la mitad del espesor');
     const ref = t(f.axis === length ? ENDS[f.axis][f.side > 0 ? 1 : 0] : f.out !== null ? EDGE_OUT[f.out ? 1 : 0] : EDGES[f.axis][f.side > 0 ? 1 : 0]);
@@ -287,6 +315,11 @@ export function describePartJoints(project: Project, part: Part, n: (mm: number)
     const at = [...new Set(ms.map((m) => Math.round(fromLow(m) ?? 0)))].sort((a, b) => a - b);
     const bothEnds = ms[0]!.face.axis === length && new Set(ms.map((m) => m.face.side)).size === 2;
     const base = { ...ms[0]!, other: list(others), count, bothEnds };
+    // Dos iguales, uno cerca de cada punta y a la misma distancia: "al ras de cada punta", no "a 0 y 23".
+    const i = ms[0]!.from.findIndex((f) => f.axis === length);
+    const w = ms[0]!.diameter !== undefined ? 0 : (ms[0]!.size[i] ?? 0);
+    if (at.length === 2 && i >= 0 && Math.abs(at[0]! - (len - at[1]! - w)) < 1)
+      return describeJointMark(part, { ...base, fromEachEnd: ms[0]!.diameter !== undefined ? at[0]! : Math.max(0, at[0]!) }, n);
     return at.length > 1 ? describeJointMark(part, { ...base, along: at }, n) : describeJointMark(part, base, n);
   });
 }

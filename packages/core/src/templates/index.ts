@@ -4,6 +4,7 @@ import { partWord } from '../jointinfo';
 import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../project';
 import { createTable, TABLE_DEFAULTS } from './table';
 import { autoComponents } from '../components';
+import { fitJointDepths } from '../jointfit';
 import { t, tk } from '../i18n';
 
 /**
@@ -265,6 +266,8 @@ export function buildTemplate(tpl: TemplateDef, v: Record<string, number>, wood:
       j.params = { ...defaultJointParams(joint, partBox(a), partBox(b)) };
     }
   }
+  // Las espigas de dos faldones que llegan a la misma altura de una pata no se pueden cruzar.
+  fitJointDepths(p);
   for (const x of p.parts) x.name = localPartName(x.name);
   autoComponents(p);
   return p;

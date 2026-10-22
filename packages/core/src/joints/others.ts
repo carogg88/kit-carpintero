@@ -21,10 +21,13 @@ export function nearestEdge(a: Box, j: EndJoint): { side: 'min' | 'max'; gap: nu
   return toMin <= toMax ? { side: 'min', gap: toMin } : { side: 'max', gap: toMax };
 }
 
-/** Rebaje: como el canal, pero abierto hacia el canto de A. Solo si B está cerca del canto. */
+/**
+ * Rebaje: como el canal, pero abierto hacia el canto de A. Solo si B llega al canto o queda apenas adentro (un fondo
+ * retirado unos milímetros): más adentro, el rebaje dejaría un escalón vacío a la vista y va un canal.
+ */
 export function rabbetFits(a: Box, b: Box): boolean {
   const j = endJoint(a, b);
-  return !!j && nearestEdge(a, j).gap <= boxSize(b)[j.thin];
+  return !!j && nearestEdge(a, j).gap <= boxSize(b)[j.thin] / 2;
 }
 
 export const defaultRabbetParams = defaultGrooveParams;

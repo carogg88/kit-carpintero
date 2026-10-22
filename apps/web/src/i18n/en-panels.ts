@@ -167,6 +167,7 @@ export default {
   'Hondo en {id}': 'Depth in {id}',
   Espiga: 'Tenon',
   'Todas las uniones': 'All joints',
+  'Tiene un aviso': 'Has a warning',
   'Detalle en rayos X: {b} entra en {a} con {joint}': 'X-ray detail: {b} goes into {a} with a {joint} joint',
   '{part} en rayos X': '{part} in X-ray',
   'Arrastrá para girar el detalle': 'Drag to rotate the detail',
