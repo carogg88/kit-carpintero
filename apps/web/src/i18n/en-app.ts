@@ -9,6 +9,11 @@ export default {
   'Caja de té': 'Tea box',
   'En blanco': 'Blank',
   'Proyecto nuevo': 'New project',
+  'Cambió desde la última copia en archivo.': 'Changed since the last file backup.',
+  'Todavía no tiene copia en archivo.': 'No file backup yet.',
+  'Guardar copia': 'Save a backup',
+  'Los proyectos se guardan solo en este navegador. Si borrás los datos de navegación, se pierden: guardá una copia en archivo de vez en cuando.':
+    'Projects are saved only in this browser. If you clear your browsing data they are lost, so save a file backup now and then.',
   hoy: 'today',
   ayer: 'yesterday',
   'Sin piezas': 'No parts',
@@ -35,8 +40,6 @@ export default {
   'Mis proyectos': 'Your projects',
   'Abrir archivo': 'Open file',
   'Todavía no hay proyectos. Empezá con una plantilla.': 'No projects yet. Start with a template.',
-  'Para no perder un proyecto, exportalo como archivo desde el menú de cada uno.':
-    'To keep a project safe, export it as a file from its menu.',
   'Probar el motor de geometría en este dispositivo': 'Test the geometry engine on this device',
 
   // Nuevo desde plantilla

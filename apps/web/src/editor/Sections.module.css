@@ -45,7 +45,7 @@
 .group { display: flex; flex-direction: column; gap: var(--space-2); margin-top: 6px; }
 .jointItems { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .jointItems button {
-  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 var(--space-3);
+  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 var(--space-3) 0 var(--space-2);
   border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--ink);
   font: 400 14px var(--font-ui); text-align: left; cursor: pointer; transition: background-color 150ms ease;
 }
@@ -53,7 +53,15 @@
 .jointItems button[aria-current='true'] { background: var(--accent-soft); border-color: var(--forest); font-weight: 600; }
 .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--signal); flex-shrink: 0; }
 .dot[data-plain] { background: var(--joint-plain); }
-.pair { flex: 1; font-family: var(--font-num); font-size: 14px; }
+.pair { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 6px 0; }
+.pairTop { display: flex; align-items: center; gap: var(--space-2); }
+.pairCodes { font-family: var(--font-num); font-size: 14px; white-space: nowrap; }
+.pairTop .typeName { margin-left: auto; text-align: right; }
+.pairNames { font-size: 12px; line-height: 1.35; color: var(--muted); font-weight: 400; }
+/* El dibujo del encastre, chico: se reconoce el tipo sin leer. */
+.thumb { flex: none; width: 44px; display: flex; border-radius: 8px; box-shadow: inset 3px 0 0 var(--signal); overflow: hidden; }
+.thumb[data-plain] { box-shadow: inset 3px 0 0 var(--joint-plain); }
+.thumb svg { width: 44px; height: auto; max-height: none; }
 .typeName { font-size: 13px; color: var(--muted); font-weight: 400; }
 .jointItems button[aria-current='true'] .typeName { color: var(--ink); }
 .more {
@@ -145,7 +153,18 @@
   display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius-m);
 }
-.stepHead { display: flex; align-items: center; gap: var(--space-3); }
+.stepHead {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--tap); margin: -6px 0; padding: 0;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.stepTitle { flex: 1; min-width: 0; }
+.stepHead:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.stepChevron {
+  flex: none; width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  transition: transform 150ms ease;
+}
+.stepHead[aria-expanded='true'] .stepChevron { transform: rotate(180deg); }
+.stepBody[hidden] { display: none; }
 .stepCard[aria-current='step'] { border: 2px solid var(--accent); padding: calc(var(--space-4) - 1px); }
 .stepBadge {
   flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
@@ -155,7 +174,7 @@
 .stepCard[data-done] .stepBadge { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
 .stepBadge svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .stepBody { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-.stepCard[data-done] .stepHead .h3 { color: var(--muted); }
+.stepCard[data-done] .stepTitle { color: var(--muted); }
 .stepText { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink); }
 .stepCard[data-done] .stepText { color: var(--muted); }
 .stepItems { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.45; color: var(--muted); }
@@ -185,7 +204,7 @@
   .stepBadge { width: 36px; height: 36px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .progressBar span, .doneToggle { transition: none; }
+  .progressBar span, .doneToggle, .stepChevron { transition: none; }
 }
 
 /* ---------- Cortes ---------- */
@@ -324,3 +343,6 @@
   .actionBar { display: none; }
   .boardBar, .piece, .waste, .swatchPiece, .swatchWaste { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+
+/* Debajo del desperdicio: si es normal o alto, y qué hacer con lo que sobra. */
+.wasteNote { margin: calc(-1 * var(--space-2)) 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }

@@ -1,4 +1,4 @@
-import { addMessages, setLang, type Lang } from '@kitc/core';
+import { addMessages, setLang, t, type Lang } from '@kitc/core';
 
 /** Cada pantalla trae su archivo de traducciones: en-<pantalla>.ts con `export default { 'español': 'English' }`. */
 const files = import.meta.glob<{ default: Record<string, string> }>('./en-*.ts', { eager: true });
@@ -42,4 +42,12 @@ export function switchLang(lang: Lang): void {
   }
   setLang(lang);
   location.reload();
+}
+
+/** El nombre que trae un proyecto en blanco, en los dos idiomas. */
+const BLANK_NAMES = new Set(['Proyecto nuevo', 'New project']);
+
+/** El nombre a mostrar: si es el de un proyecto en blanco sin renombrar, en el idioma de ahora. */
+export function projectName(name: string): string {
+  return BLANK_NAMES.has(name) ? t('Proyecto nuevo') : name;
 }

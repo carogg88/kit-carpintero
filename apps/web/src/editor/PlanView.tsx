@@ -33,6 +33,7 @@ import { capitalize, woodName } from './cutsData';
 import { shoot, type Shot } from './planShots';
 import { useEngineLines, type ExactMesh } from './useGeometry';
 import styles from './Plan.module.css';
+import { projectName } from '../i18n';
 
 /** Hoja A4 apaisada, en mm de papel. */
 const W = 297;
@@ -253,7 +254,7 @@ function TitleBlock({ project, sheet, of, scale, units }: { project: Project; sh
   );
   return (
     <g className={styles.titleBlock}>
-      {cell(x, y, 80, t('Proyecto'), project.name)}
+      {cell(x, y, 80, t('Proyecto'), projectName(project.name))}
       {cell(x + 80, y, TITLE_W - 80, t('Hoja'), t('{n} de {total}', { n: sheet, total: of }), true)}
       {cell(x, y + TITLE_H / 2, 30, t('Escala'), scale === 'none' ? t('Sin escala') : scale ? `1:${scale}` : t('Indicada'), true)}
       {cell(x + 30, y + TITLE_H / 2, 30, t('Medidas'), units === 'cm' ? 'cm' : t('pulgadas'), true)}
@@ -1156,6 +1157,8 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
   const { box, zoom, zoomTo } = useSheetZoom();
   const [current, setCurrent] = useState(0);
   const [layers, setLayers] = useState<Set<Layer>>(() => new Set<Layer>(['contornos', 'cotas', 'ocultas', 'notas']));
+  // En el celular las capas empiezan cerradas: así el botón del PDF queda justo debajo de la hoja.
+  const [layersOpen, setLayersOpen] = useState(() => typeof matchMedia !== 'function' || matchMedia('(min-width: 900px)').matches);
   const index = Math.min(current, sheets.length - 1);
   // Las hojas no cambian al agrandar: solo el ancho, que va por CSS.
   const pages = useMemo(
@@ -1199,7 +1202,7 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
             ))}
           </div>
         </nav>
-        <details className={styles.card} open>
+        <details className={styles.card} open={layersOpen} onToggle={(e) => setLayersOpen(e.currentTarget.open)}>
           <summary className={styles.eyebrow}>{t('Capas')}</summary>
           <fieldset className={styles.layers}>
             <legend className={styles.srOnly}>{t('Capas del plano')}</legend>
@@ -1231,9 +1234,19 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
           <button type="button" className={styles.zoomBtn} onClick={() => zoomTo(zoom * ZOOM_STEP)} disabled={zoom >= ZOOM_MAX} aria-label={t('Acercar')}>
             <IconZoomIn />
           </button>
-          <span className={styles.zoomHint}>{t('Pellizcá para agrandar')}</span>
+          <span className={styles.zoomHint}>{t('Pellizcá o tocá dos veces para agrandar')}</span>
         </div>
-        <div ref={box} className={styles.zoomBox} data-zoomed={zoom > 1 || undefined} style={{ '--zoom': zoom } as React.CSSProperties}>
+        <div
+          ref={box}
+          className={styles.zoomBox}
+          data-zoomed={zoom > 1 || undefined}
+          style={{ '--zoom': zoom } as React.CSSProperties}
+          onDoubleClick={(e) => {
+            // Dos toques: de la hoja entera a leer lo que hay bajo el dedo, y de vuelta.
+            const r = e.currentTarget.getBoundingClientRect();
+            zoomTo(zoom > 1 ? 1 : 2.5, { x: e.clientX - r.left, y: e.clientY - r.top });
+          }}
+        >
           {pages}
         </div>
       </section>
