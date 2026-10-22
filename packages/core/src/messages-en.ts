@@ -491,4 +491,5 @@ export const MESSAGES_EN: Record<string, string> = {
   'Todos iguales, o graduados: cada uno un poco más bajo que el de abajo, con el de abajo 1,618 veces el de arriba (proporción áurea).': 'All equal, or graduated: each a little shorter than the one below, with the bottom one 1.618 times the top one (golden ratio).',
   'Iguales': 'Equal',
   'Graduados': 'Graduated',
+  'a {x} de {ex} y a {y} de {ey}': '{x} from {ex} and {y} from {ey}',
 };

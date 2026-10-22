@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import {
   arcTemplate,
   cutList,
@@ -6,6 +7,8 @@ import {
   drawJointDetail,
   drawPart,
   drawView,
+  faceLabelOf,
+  facePattern,
   faceName,
   formatNumber,
   groupJoints,
@@ -13,6 +16,9 @@ import {
   MEASURED_FROM,
   otherAxes,
   partBox,
+  patternDetails,
+  shapeBounds,
+  shapePlace,
   t,
   tk,
   turnBlank,
@@ -24,6 +30,8 @@ import {
   type Part,
   type Turning,
   type EngineView,
+  type FacePattern,
+  type PatternShape,
   type Project,
   type Rect2,
   type Units,
@@ -809,14 +817,17 @@ interface TiledTemplate {
  * Reparte un dibujo a tamaño real en las hojas A4 que haga falta. Las hojas vecinas se pisan una franja, con cruces
  * para pegarlas y la línea de corte; todas llevan la barra de 10 cm para comprobar la impresión.
  */
+function tileGrid(b: Rect2): { cols: number; rows: number } {
+  const count = (c: number, r: number) => (c <= r ? 1 : Math.ceil((c - OVERLAP) / (r - OVERLAP)));
+  return { cols: count(b.u1 - b.u0, TPL.x1 - TPL.x0), rows: count(b.v1 - b.v0, TPL.y1 - TPL.y0) };
+}
+
 function tiledSheets({ id, b, title, hint, heading, note, draw }: TiledTemplate): SheetDef[] {
   const rw = TPL.x1 - TPL.x0;
   const rh = TPL.y1 - TPL.y0;
   const cw = b.u1 - b.u0;
   const ch = b.v1 - b.v0;
-  const count = (c: number, r: number) => (c <= r ? 1 : Math.ceil((c - OVERLAP) / (r - OVERLAP)));
-  const cols = count(cw, rw);
-  const rows = count(ch, rh);
+  const { cols, rows } = tileGrid(b);
   // Si entra en una hoja, centrada; si no, desde la punta izquierda de arriba.
   const left = cols === 1 ? b.u0 - (rw - cw) / 2 : b.u0;
   const top = rows === 1 ? b.v1 + (rh - ch) / 2 : b.v1;
@@ -890,14 +901,24 @@ function tiledSheets({ id, b, title, hint, heading, note, draw }: TiledTemplate)
   return sheets;
 }
 
-/** Plantillas 1:1: cada arco acostado sobre su cuerda y cada torneado acostado sobre su eje, en las hojas que haga falta. */
+/** Hasta cuántas hojas se imprime la cara entera; si hacen falta más, una plantilla de detalle por forma. */
+const WHOLE_FACE_SHEETS = 4;
+
+/**
+ * Plantillas 1:1: la cara de cada pieza con curvas o calados (entera si entra en pocas hojas, y si no cada esquina
+ * y cada calado con lo que lo rodea), cada arco acostado sobre su cuerda y cada torneado acostado sobre su eje.
+ */
 function templateSheets(project: Project): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
   const sheets: SheetDef[] = [];
   for (const r of cutList(project)) {
     const part = project.parts.find((p) => p.id === r.ids[0])!;
+    const traced = faceSheets(part, r, n);
+    sheets.push(...traced.sheets);
     for (const pk of part.pockets) {
       if (pk.shape.kind !== 'arc') continue;
+      // En la cara entera ya está dibujado en su lugar.
+      if (traced.whole && pk.axis === traced.whole.axis) continue;
       const sh = pk.shape;
       const arc = arcTemplate(sh);
       const ys = arc.points.map((q) => q[1]);
@@ -962,6 +983,151 @@ function templateSheets(project: Project): SheetDef[] {
     if (part.turning) sheets.push(...turningTemplate(part, part.turning, r, n));
   }
   return sheets;
+}
+
+const poly = (at: Place, pts: [number, number][]) => pts.map(([x, y]) => `${px(at, x)},${py(at, y)}`).join(' ');
+
+/** Los tramos del borde de lo que se saca que no van sobre el canto de la pieza: la línea nueva, la que se calca. */
+function traceSegments(p: FacePattern, pts: [number, number][]): [[number, number], [number, number]][] {
+  const onEdge = (a: [number, number], b: [number, number]) =>
+    (Math.abs(a[0]) < 0.01 && Math.abs(b[0]) < 0.01) ||
+    (Math.abs(a[0] - p.width) < 0.01 && Math.abs(b[0] - p.width) < 0.01) ||
+    (Math.abs(a[1]) < 0.01 && Math.abs(b[1]) < 0.01) ||
+    (Math.abs(a[1] - p.height) < 0.01 && Math.abs(b[1] - p.height) < 0.01);
+  return pts.map((a, i) => [a, pts[(i + 1) % pts.length]!] as [[number, number], [number, number]]).filter(([a, b]) => !onEdge(a, b));
+}
+
+/** La cara a tamaño real: el canto de la pieza fino, lo que se saca rayado, la línea a calcar gruesa y los vaciados de puntos. */
+function FaceDrawing({ p, at, n, guides }: { p: FacePattern; at: Place; n: (mm: number) => string; guides?: PatternShape[] }) {
+  const cuts = p.shapes.filter((s) => s.kind === 'cut');
+  const blind = p.shapes.filter((s) => s.kind === 'pocket');
+  // El id va en el medio de la forma; en un círculo, abajo de la cruz del centro.
+  const label = (s: PatternShape): [number, number] => {
+    if (s.circle) return [s.circle.c[0], s.circle.c[1] - Math.min(s.circle.r * 0.6, 6) - 3];
+    const b = shapeBounds(s.points);
+    return [(b.u0 + b.u1) / 2, (b.v0 + b.v1) / 2];
+  };
+  const edge = (f: { axis: 0 | 1 | 2; side: 1 | -1 }) => t(faceName(f.axis, f.side));
+  // El nombre de cada canto, en el medio de lo que se ve de ese canto en la hoja.
+  const mid = (lo: number, hi: number, a: number, b: number) => (Math.max(lo, a) + Math.min(hi, b)) / 2;
+  const cx = mid(0, p.width, at.b.u0 + 12, at.b.u1 - 12);
+  const cy = mid(0, p.height, at.b.v0 + 12, at.b.v1 - 12);
+  return (
+    <>
+      {cuts.map((s) => (
+        <polygon key={s.id} points={poly(at, s.points)} className={styles.cutAway} />
+      ))}
+      <rect x={px(at, 0)} y={py(at, p.height)} width={p.width} height={p.height} className={styles.faceTpl} />
+      {blind.map((s) => (
+        <polygon key={s.id} points={poly(at, s.points)} className={styles.blindTpl} />
+      ))}
+      <g className={styles.contour}>
+        {cuts.flatMap((s) =>
+          traceSegments(p, s.points).map(([a, b], i) => <line key={`${s.id}-${i}`} x1={px(at, a[0])} y1={py(at, a[1])} x2={px(at, b[0])} y2={py(at, b[1])} className={styles.traceLine} />),
+        )}
+      </g>
+      <g className={styles.guide}>
+        {p.shapes
+          .filter((s) => s.circle)
+          .map((s) => {
+            const [x, y] = s.circle!.c;
+            const k = Math.min(6, s.circle!.r * 0.6);
+            return (
+              <g key={s.id}>
+                <line x1={px(at, x - k)} y1={py(at, y)} x2={px(at, x + k)} y2={py(at, y)} />
+                <line x1={px(at, x)} y1={py(at, y - k)} x2={px(at, x)} y2={py(at, y + k)} />
+              </g>
+            );
+          })}
+        {guides?.map((s) => {
+          // Por el punto que ubica la forma, una línea a lo largo y otra a lo ancho: ahí van las marcas medidas desde los cantos.
+          const [x, y] = s.circle?.c ?? s.anchor;
+          return (
+            <g key={`g-${s.id}`}>
+              <line x1={px(at, at.b.u0)} y1={py(at, y)} x2={px(at, at.b.u1)} y2={py(at, y)} className={styles.axisLine} />
+              <line x1={px(at, x)} y1={py(at, at.b.v0)} x2={px(at, x)} y2={py(at, at.b.v1)} className={styles.axisLine} />
+            </g>
+          );
+        })}
+      </g>
+      <g className={styles.notes}>
+        {p.shapes.map((s) => {
+          const [x, y] = label(s);
+          return (
+            <text key={s.id} x={px(at, x)} y={py(at, y) + 1} textAnchor="middle" className={styles.shapeId}>
+              {s.id}
+            </text>
+          );
+        })}
+        <text x={px(at, cx)} y={py(at, 0) - 2.5} textAnchor="middle" className={styles.edgeName}>
+          {edge(p.edges.bottom)}
+        </text>
+        <text x={px(at, cx)} y={py(at, p.height) + 4.5} textAnchor="middle" className={styles.edgeName}>
+          {edge(p.edges.top)}
+        </text>
+        <text x={px(at, 0) + 4.5} y={py(at, cy)} transform={`rotate(-90 ${px(at, 0) + 4.5} ${py(at, cy)})`} textAnchor="middle" className={styles.edgeName}>
+          {edge(p.edges.left)}
+        </text>
+        <text x={px(at, p.width) - 2.5} y={py(at, cy)} transform={`rotate(90 ${px(at, p.width) - 2.5} ${py(at, cy)})`} textAnchor="middle" className={styles.edgeName}>
+          {edge(p.edges.right)}
+        </text>
+      </g>
+      {!guides && (
+        <>
+          <Dim from={px(at, 0)} to={px(at, p.width)} at={py(at, 0)} offset={10} text={n(p.width)} />
+          <Dim vertical from={py(at, p.height)} to={py(at, 0)} at={px(at, p.width)} offset={8} text={n(p.height)} />
+        </>
+      )}
+    </>
+  );
+}
+
+/** La cara con curvas o calados: entera si entra en pocas hojas, y si no una plantilla por forma. */
+function faceSheets(part: Part, r: CutRow, n: (mm: number) => string): { sheets: SheetDef[]; whole?: FacePattern } {
+  const p = facePattern(part, n);
+  if (!p) return { sheets: [] };
+  const face = t(faceName(p.axis, p.side));
+  const heading = `${r.name} · ${r.ids.join(', ')}`;
+  const blindNote = p.shapes.some((s) => s.kind === 'pocket') ? ` ${t('De puntos, los vaciados que no atraviesan.')}` : '';
+  const b: Rect2 = { u0: -10, v0: -16, u1: p.width + 22, v1: p.height + 8 };
+  const { cols, rows } = tileGrid(b);
+  if (cols * rows <= WHOLE_FACE_SHEETS) {
+    return {
+      whole: p,
+      sheets: tiledSheets({
+        id: `${r.ids[0]}-cara`,
+        b,
+        title: t('Contorno · {part}', { part: r.ids[0]! }),
+        hint: (k, total) => (total > 1 ? t('La pieza entera, hoja {k} de {total}', { k, total }) : t('La pieza entera a tamaño real')),
+        heading,
+        note: `${t('Mirando {face} desde afuera. Lo rayado se saca: calcá la línea gruesa.', { face: faceLabelOf(p.axis, p.side) })}${blindNote}`,
+        draw: (at) => <FaceDrawing p={p} at={at} n={n} />,
+      }),
+    };
+  }
+  const sheets: SheetDef[] = [];
+  for (const d of patternDetails(p)) {
+    const ids = d.shapes.map((g) => g.shape.id).join(', ');
+    const what = d.shapes
+      .map(({ shape, count }) => {
+        const where = shape.source === 'bevel' ? '' : `, ${shapePlace(p, shape.circle?.c ?? shape.anchor, n)}`;
+        const same = count > 1 ? `; ${t('sirve para las {n} esquinas iguales: girá la hoja', { n: count })}` : '';
+        return `${shape.id}: ${shape.label}${where}${same}`;
+      })
+      .join(' · ');
+    sheets.push(
+      ...tiledSheets({
+        id: `${r.ids[0]}-${ids}`,
+        b: d.b,
+        title: t('Plantilla {id} · {part}', { id: ids, part: r.ids[0]! }),
+        hint: (k, total) => (total > 1 ? t('Detalle a tamaño real, hoja {k} de {total}', { k, total }) : t('Detalle a tamaño real')),
+        heading: `${heading} · ${face}`,
+        note: `${capitalize(what)}.${blindNote}`,
+        draw: (at) => <FaceDrawing p={p} at={at} n={n} guides={d.shapes.filter((g) => g.shape.source === 'pocket').map((g) => g.shape)} />,
+      }),
+    );
+  }
+  return { sheets };
 }
 
 /**
@@ -1169,12 +1335,19 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
   const pages = useMemo(
     () =>
       sheets.map((s, i) => (
-        <div key={s.key} className={styles.page} data-current={i === index || undefined}>
+        <div key={s.key} className={styles.page} data-current={i === index || undefined} data-template={s.key.startsWith('plantilla-') || undefined}>
           <Sheet def={s} n={i + 1} of={sheets.length} project={project} layers={layers} />
         </div>
       )),
     [sheets, index, project, layers],
   );
+  const templates = sheets.filter((s) => s.key.startsWith('plantilla-')).length;
+  const [printing, setPrinting] = useState<'todo' | 'plantillas'>('todo');
+  const printTemplates = () => {
+    flushSync(() => setPrinting('plantillas'));
+    window.print();
+    setPrinting('todo');
+  };
   const toggle = (k: Layer, on: boolean) => {
     const next = new Set(layers);
     if (on) next.add(k);
@@ -1192,7 +1365,7 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
   }
 
   return (
-    <main className={styles.plan}>
+    <main className={styles.plan} data-print={printing}>
       <aside className={styles.aside} aria-label={t('Hojas y capas')}>
         <nav className={styles.card} aria-label={t('Hojas del plano')}>
           <h2 className={styles.eyebrow}>{t('Hojas')}</h2>
@@ -1226,6 +1399,11 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
           <IconDownload />
           {t('Descargar PDF')}
         </button>
+        {templates > 0 && (
+          <button type="button" className={styles.printTpl} onClick={printTemplates}>
+            {templates === 1 ? t('Imprimir solo la plantilla 1:1') : t('Imprimir solo las {n} hojas de plantillas 1:1', { n: templates })}
+          </button>
+        )}
         <p className={styles.note}>{t('Se abre la ventana de impresión: elegí «Guardar como PDF». Salen las {n} hojas en A4 apaisado.', { n: sheets.length })}</p>
       </aside>
       <section className={styles.desk} aria-label={t('Hoja {n}: {title}', { n: index + 1, title: sheets[index]?.title ?? '' })}>

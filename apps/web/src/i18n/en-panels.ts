@@ -520,4 +520,16 @@ export default {
   "Una pieza por pantalla, en letra grande, para el celu en el banco": "One piece per screen, in large type, for your phone on the bench",
   "Volver": "Back",
   "{n} listas · ver todas": "{n} done · see all",
+  // Plantillas de calco (PlanView.tsx, Workshop.tsx)
+  "Calcar la plantilla 1:1 del plano y sacar lo rayado": "Trace the 1:1 template from the plans and remove the hatched area",
+  "Contorno · {part}": "Outline · {part}",
+  "La pieza entera, hoja {k} de {total}": "Whole piece, sheet {k} of {total}",
+  "La pieza entera a tamaño real": "Whole piece at full size",
+  "Mirando {face} desde afuera. Lo rayado se saca: calcá la línea gruesa.": "Looking at {face} from outside. The hatched area comes off: trace the thick line.",
+  "De puntos, los vaciados que no atraviesan.": "Dotted: recesses that don't go all the way through.",
+  "sirve para las {n} esquinas iguales: girá la hoja": "works for all {n} matching corners: turn the sheet",
+  "Detalle a tamaño real, hoja {k} de {total}": "Full-size detail, sheet {k} of {total}",
+  "Detalle a tamaño real": "Full-size detail",
+  "Imprimir solo la plantilla 1:1": "Print only the 1:1 template",
+  "Imprimir solo las {n} hojas de plantillas 1:1": "Print only the {n} 1:1 template sheets",
 } satisfies Record<string, string>;
