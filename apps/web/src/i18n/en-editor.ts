@@ -38,6 +38,8 @@ export default {
   Uniones: 'Joints',
   Cortes: 'Cuts',
   'Cortes y compras': 'Cuts and shopping',
+  'Qué ver': 'What to show',
+  'Lista de piezas': 'Parts list',
   'Es normal: las tablas vienen en largos fijos y siempre sobra algo. Guardá los retazos para probar los encastres.':
     'That is normal: boards come in fixed lengths and there is always some left over. Keep the offcuts to test your joints.',
   'Es alto: las piezas no aprovechan bien los largos de la maderera. Podés pedir que te corten las tablas a medida, o usar lo que sobra para probar los encastres.':

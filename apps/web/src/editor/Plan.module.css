@@ -132,6 +132,8 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
   .sheetList { flex-direction: column; overflow: visible; margin: 0; padding: 0; gap: 6px; }
   .sheetList button { border-color: transparent; }
   .desk { flex: 999 1 640px; padding: var(--space-5); }
+  /* La hoja entera entra en la pantalla, rótulo incluido: el ancho se limita también por el alto que queda. */
+  .sheet { max-width: calc(min(1040px, (100dvh - 216px) * 297 / 210) * var(--zoom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

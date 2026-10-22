@@ -177,7 +177,7 @@ function BoardDiagram({ board, n, showWood }: { board: StockBoard; n: (mm: numbe
         <strong>{stockLabel(board)}</strong>
         {showWood && <span> · {woodName(board.wood)}</span>}
       </figcaption>
-      <div className={styles.boardBar} style={{ height: Math.min(64, Math.max(30, board.widthIn * 10)) }} role="img" aria-label={description}>
+      <div className={styles.boardBar} style={{ height: Math.min(40, Math.max(24, board.widthIn * 6)) }} role="img" aria-label={description}>
         <span className={styles.waste} style={{ flexBasis: pct(END_TRIM_MM) }} />
         {board.slots.map((s, i) => (
           <span key={`${s.id}-${i}`} className={styles.slot} style={{ flexBasis: pct(s.length), marginRight: pct(KERF_MM) }} title={`${s.id} · ${n(s.length)}`}>
@@ -242,6 +242,8 @@ export function CutsView({ project }: { project: Project }) {
     return { rows: cutList(project), plan, shop: shoppingList(plan), dowels: dowelsNeeded(project) };
   }, [project]);
   const [price, setPrice] = useState(() => readStored<string>('kitc.precioPie', ''));
+  // La lista y el despiece de cada tabla van en pestañas: cada uno entra en una pantalla.
+  const [tab, setTab] = useState<'lista' | 'tablas'>('lista');
   const units = project.units;
   const unit = units === 'cm' ? ' cm' : '″';
   const n = (mm: number) => formatNumber(mm, units);
@@ -302,31 +304,44 @@ export function CutsView({ project }: { project: Project }) {
               {t('Exportar planilla')}
             </button>
           </div>
-          <CutTable rows={rows} n={n} project={project} />
-          <CutCards rows={rows} n={n} unit={unit} project={project} />
-          {tooLong.length > 0 && (
-            <p className={styles.warn} role="alert">
-              {tooLong.length === 1
-                ? t('{ids} es más larga que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.', { ids: tooLong.join(', ') })
-                : t('{ids} son más largas que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.', { ids: tooLong.join(', ') })}
-            </p>
-          )}
+          <div className={styles.cutTabs} role="tablist" aria-label={t('Qué ver')}>
+            <button type="button" role="tab" id="tab-lista" aria-selected={tab === 'lista'} aria-controls="panel-lista" onClick={() => setTab('lista')}>
+              {t('Lista de piezas')}
+            </button>
+            <button type="button" role="tab" id="tab-tablas" aria-selected={tab === 'tablas'} aria-controls="panel-tablas" onClick={() => setTab('tablas')}>
+              {t('Cómo cortar cada tabla')}
+              <span className={styles.tabCount}>{plan.boards.length}</span>
+            </button>
+          </div>
+          <div id="panel-lista" role="tabpanel" aria-labelledby="tab-lista" className={styles.cutPanel} hidden={tab !== 'lista'}>
+            <CutTable rows={rows} n={n} project={project} />
+            <CutCards rows={rows} n={n} unit={unit} project={project} />
+            {tooLong.length > 0 && (
+              <p className={styles.warn} role="alert">
+                {tooLong.length === 1
+                  ? t('{ids} es más larga que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.', { ids: tooLong.join(', ') })
+                  : t('{ids} son más largas que las tablas de la maderera (3,66 m): hay que empalmar o pedir un largo especial.', { ids: tooLong.join(', ') })}
+              </p>
+            )}
+          </div>
 
-          <h2 className={styles.h2}>{t('Cómo cortar cada tabla')}</h2>
-          <div className={styles.diagrams}>
-            {plan.boards.map((b, i) => (
-              <BoardDiagram key={i} board={b} n={n} showWood={woods.length > 1} />
-            ))}
-            <div className={styles.diagramLegend}>
-              <span>
-                <span className={styles.swatchPiece} aria-hidden="true" />
-                {t('Pieza')}
-              </span>
-              <span>
-                <span className={styles.swatchWaste} aria-hidden="true" />
-                {t('Sobrante')}
-              </span>
-              <span>{t('Corte de sierra: {kerf} mm', { kerf: KERF_MM })}</span>
+          <div id="panel-tablas" role="tabpanel" aria-labelledby="tab-tablas" className={styles.cutPanel} hidden={tab !== 'tablas'}>
+            <h2 className={styles.srOnly}>{t('Cómo cortar cada tabla')}</h2>
+            <div className={styles.diagrams}>
+              {plan.boards.map((b, i) => (
+                <BoardDiagram key={i} board={b} n={n} showWood={woods.length > 1} />
+              ))}
+              <div className={styles.diagramLegend}>
+                <span>
+                  <span className={styles.swatchPiece} aria-hidden="true" />
+                  {t('Pieza')}
+                </span>
+                <span>
+                  <span className={styles.swatchWaste} aria-hidden="true" />
+                  {t('Sobrante')}
+                </span>
+                <span>{t('Corte de sierra: {kerf} mm', { kerf: KERF_MM })}</span>
+              </div>
             </div>
           </div>
         </section>
@@ -421,6 +436,7 @@ export function CutsView({ project }: { project: Project }) {
       <div className={`${styles.actionBar} ${styles.mobileOnly}`}>
         <a className={styles.secondary} href="#cortes-lista" onClick={(e) => {
           e.preventDefault();
+          setTab('lista');
           document.getElementById('cortes-lista')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
         }}>
           {t('Ver cortes')}
