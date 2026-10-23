@@ -181,7 +181,7 @@ export default {
   'Tocá una pieza para editarla. Arrastrá el fondo para girar la vista.': 'Tap a part to edit it. Drag the background to turn the view.',
   'Arrastrá una cara para estirar o acortar': 'Drag a face to stretch or shorten',
   'Escribí la medida exacta abajo, en Medida': 'Type the exact size below, in Size',
-  'Arrastrá la pieza por el piso': 'Drag the part along the floor',
+  'Arrastrá la pieza: en Frente o Costado también sube y baja': 'Drag the part: in Front or Side view it also goes up and down',
   'Arrastrá la pieza: queda una copia': 'Drag the part: a copy is left',
   'Soltala donde va: se pega a las otras': 'Drop it in place: it snaps to the others',
   'Tocá la cara donde vas a dibujar': 'Tap the face to draw on',

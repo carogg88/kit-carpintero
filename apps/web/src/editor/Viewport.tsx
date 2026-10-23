@@ -523,6 +523,27 @@ interface Drag {
   origin: THREE.Vector3;
   dir: THREE.Vector3;
   plane: THREE.Plane;
+  /** Mover: los dos ejes que sigue el arrastre, el de la pantalla a lo ancho y el de la pantalla a lo alto. */
+  axes: [Axis, Axis];
+}
+
+/**
+ * Mover arrastra sobre el plano que mira la vista: de frente, a lo ancho y de alto; de costado, a lo fondo y
+ * de alto; desde arriba (y en 3D), por el piso. En 3D, con Mayús sube o baja. Así ningún lado queda trabado.
+ */
+function movePlane(view: View, point: THREE.Vector3, camera: THREE.Camera, vertical: boolean): { plane: THREE.Plane; axes: [Axis, Axis] } {
+  if (view === 'front') return { plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), -point.z), axes: [0, 1] };
+  if (view === 'side') return { plane: new THREE.Plane(new THREE.Vector3(1, 0, 0), -point.x), axes: [2, 1] };
+  if (view === 'iso' && vertical) {
+    // De pie, de cara a la cámara: sólo se usa el alto.
+    const look = new THREE.Vector3();
+    camera.getWorldDirection(look);
+    const along: Axis = Math.abs(look.x) > Math.abs(look.z) ? 0 : 2;
+    const n = new THREE.Vector3();
+    n.setComponent(along, 1);
+    return { plane: new THREE.Plane(n, -point.getComponent(along)), axes: [1, 1] };
+  }
+  return { plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -point.y), axes: [0, 2] };
 }
 
 /** Parámetro sobre la recta (origin + t·dir) del punto más cercano al rayo. */
@@ -597,6 +618,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const sign = ([n.x, n.y, n.z][axis] ?? 0) > 0 ? 1 : -1;
     const dir = new THREE.Vector3();
     dir.setComponent(axis, sign);
+    const vertical = e.nativeEvent.shiftKey;
     const drag: Drag = {
       kind: tool,
       part,
@@ -605,7 +627,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       sign,
       origin: e.point.clone(),
       dir,
-      plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -e.point.y),
+      ...movePlane(useEditor.getState().view, e.point, camera, vertical),
     };
     const [x0, y0] = [e.nativeEvent.clientX, e.nativeEvent.clientY];
     beginDrag();
@@ -651,21 +673,31 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         // Un toque o un temblor no corre la pieza.
         if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) <= DEAD_PX) return;
         const snaps: string[] = [];
-        const shifts = ([0, 2] as const).map((k) => {
-          const s = snapMove(p.parts, drag.start, k, pt.getComponent(k) - drag.origin.getComponent(k), part.id);
+        const [ax, ay] = drag.axes;
+        const shift = (k: Axis) => {
+          let delta = pt.getComponent(k) - drag.origin.getComponent(k);
+          // No se mete debajo del piso.
+          if (k === 1) delta = Math.max(delta, -drag.start.min[1]);
+          const s = snapMove(p.parts, drag.start, k, delta, part.id);
           if (s.to) snaps.push(s.mirror ? t('mismo retiro que {id}', { id: s.to }) : t('cara de {id}', { id: s.to }));
-          return s.value;
-        });
-        if (shifts[0] || shifts[1]) moved = true;
+          return k === 1 ? Math.max(s.value, -drag.start.min[1]) : s.value;
+        };
+        const sx = shift(ax);
+        const sy = ay === ax ? 0 : shift(ay);
+        if (sx || sy) moved = true;
         dragUpdate((d) => {
           const q = d.parts.find((x) => x.id === part.id);
           if (!q) return;
-          q.position[0] = drag.start.min[0] + shifts[0]!;
-          q.position[2] = drag.start.min[2] + shifts[1]!;
+          q.position[ax] = drag.start.min[ax] + sx;
+          if (ay !== ax) q.position[ay] = drag.start.min[ay] + sy;
         });
+        const who = copying ? t('Copia {id}', { id: part.id }) : part.id;
         setHint({
           ...hintAt,
-          text: `${copying ? t('Copia {id}', { id: part.id }) : part.id} · ${formatLength(Math.abs(shifts[0]!), units)} ↔ · ${formatLength(Math.abs(shifts[1]!), units)} ↕`,
+          text:
+            ay === ax
+              ? `${who} · ${formatLength(Math.abs(sx), units)} ${sx < 0 ? '↓' : '↑'}`
+              : `${who} · ${formatLength(Math.abs(sx), units)} ↔ · ${formatLength(Math.abs(sy), units)} ↕`,
           snap: snaps.length ? [...new Set(snaps)].join(' · ') : null,
         });
       }

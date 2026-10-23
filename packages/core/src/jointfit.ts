@@ -35,6 +35,8 @@ export interface JointRoom {
   partId: string;
   /** La otra pieza cuyo corte está en el camino. */
   other: string;
+  /** La unión de ese otro corte. */
+  otherJoint: string;
 }
 
 /** Cuánto lugar tiene el corte de esta unión dentro de la pieza que lo recibe, o null si no se encuentra con nada. */
@@ -52,7 +54,7 @@ export function jointRoom(project: Model, joint: Joint): JointRoom | null {
   const [k1, k2] = ([0, 1, 2] as Axis[]).filter((k) => k !== e.axis) as [Axis, Axis];
   const crosses = (c: Box, o: Box) => [k1, k2].every((k) => Math.min(c.max[k], o.max[k]) - Math.max(c.min[k], o.min[k]) > TOL);
   const own = g.cutA.map(solidBox);
-  let room: { free: number; other: string } | null = null;
+  let room: { free: number; other: string; otherJoint: string } | null = null;
   for (const o of project.joints) {
     if (o.id === joint.id || o.type === 'tope' || (o.partA !== a.id && o.partB !== a.id)) continue;
     const oa = project.parts.find((p) => p.id === o.partA);
@@ -65,7 +67,7 @@ export function jointRoom(project: Model, joint: Joint): JointRoom | null {
       if (!own.some((c) => crosses(c, ob2))) continue;
       // Lo que hay entre la cara donde abre el corte y el otro corte, sobre el eje en que avanza.
       const free = e.dir === 1 ? ob2.min[e.axis] - e.face : e.face - ob2.max[e.axis];
-      if (free > TOL && (!room || free < room.free)) room = { free, other };
+      if (free > TOL && (!room || free < room.free)) room = { free, other, otherJoint: o.id };
     }
   }
   if (!room) return null;
@@ -75,20 +77,53 @@ export function jointRoom(project: Model, joint: Joint): JointRoom | null {
     usual,
     partId: a.id,
     other: room.other,
+    otherJoint: room.otherJoint,
   };
 }
 
 /**
- * Acorta las espigas y los agujeros que se cruzarían con otro corte de la misma pieza. Van en orden: la primera unión
- * que choca se acorta y la otra queda entera, que es lo que hace un carpintero (la más larga, más fuerte). Con `ids`,
- * solo esas uniones (las nuevas): las demás tienen las medidas que eligió la persona.
+ * De dos cortes que se cruzan, cuál se acorta. Siempre el mismo, sin importar en qué orden se armaron las piezas:
+ * así los travesaños gemelos (el de adelante y el de atrás) salen con la misma espiga y el mismo largo de corte.
+ * Se acorta la pieza que va a lo ancho; si las dos van igual, la más larga; si no, la de código menor.
+ */
+function shortens(project: Model, j: Joint, o: Joint): boolean {
+  const piece = (x: Joint) => project.parts.find((p) => p.id === x.partB);
+  const long = (x: Joint) => {
+    const p = piece(x);
+    if (!p || p.base.kind !== 'box') return { axis: -1, size: 0 };
+    const size = p.base.size;
+    const axis = size.indexOf(Math.max(...size));
+    return { axis, size: size[axis] ?? 0 };
+  };
+  const a = long(j);
+  const b = long(o);
+  if ((a.axis === 0) !== (b.axis === 0)) return a.axis === 0;
+  if (Math.abs(a.size - b.size) > 0.5) return a.size > b.size;
+  return j.id < o.id;
+}
+
+/**
+ * Acorta las espigas y los agujeros que se cruzarían con otro corte de la misma pieza. De cada par se acorta uno y el
+ * otro queda entero, que es lo que hace un carpintero (la más larga, más fuerte); cuál, lo decide `shortens`, no el orden.
+ * Con `ids`, solo esas uniones (las nuevas) y las que chocan con ellas: las demás tienen las medidas que eligió la persona.
  */
 export function fitJointDepths(project: Model, ids?: Set<string>): void {
   for (const j of project.joints) {
     const fit = FITS[j.type];
     if (!fit || (ids && !ids.has(j.id))) continue;
     const room = jointRoom(project, j);
-    if (room && room.current > room.max && room.max > 0) j.params = { ...j.params, [fit.key]: room.max };
+    if (!room || room.current <= room.max) continue;
+    const o = project.joints.find((x) => x.id === room.otherJoint);
+    const ofit = o && FITS[o.type];
+    const oroom = o && ofit ? jointRoom(project, o) : null;
+    // La otra unión es la que se acorta: vuelve a tener su largo común y se acorta ella.
+    if (o && ofit && oroom && oroom.max > 0 && !shortens(project, j, o)) {
+      o.params = { ...o.params, [ofit.key]: Math.min(oroom.current, oroom.max) };
+      const again = jointRoom(project, j);
+      if (again && again.current > again.max && again.max > 0) j.params = { ...j.params, [fit.key]: again.max };
+      continue;
+    }
+    if (room.max > 0) j.params = { ...j.params, [fit.key]: room.max };
   }
 }
 

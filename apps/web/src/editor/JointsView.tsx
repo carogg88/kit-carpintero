@@ -92,7 +92,7 @@ function JointList({
               variant="line"
               level={2}
               title={g.label}
-              summary={[...new Set(g.joints.map((j) => nameOf(j.type)))].join(' · ')}
+              summary={[...new Set(g.joints.map((j) => nameOf(j.type, parts.find((x) => x.id === j.partA), parts.find((x) => x.id === j.partB))))].join(' · ')}
               meta={
                 <span className={styles.groupMeta}>
                   {warns && (

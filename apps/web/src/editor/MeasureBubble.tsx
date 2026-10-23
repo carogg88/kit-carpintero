@@ -276,7 +276,7 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
 
 /**
  * Burbuja de Mover: cuánto se corrió la pieza a lo ancho y a lo fondo (hacia donde se la arrastró) y a qué
- * altura del piso queda. Mover arrastra por el piso; la altura solo se cambia escribiéndola.
+ * altura del piso queda.
  */
 function MoveBubble({ target, part, project, docked, x, y }: { target: Extract<MeasureTarget, { kind: 'move' }>; part: Part; project: Project; docked: boolean; x: number; y: number }) {
   const { commit, setBubble } = useEditor.getState();

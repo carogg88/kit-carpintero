@@ -194,7 +194,7 @@ export function cutPiece(part: Part, project: Project): CutPiece {
       if (n) work.push(plural(n, tk('tapacanto en {n} canto'), tk('tapacanto en {n} cantos')));
     }
   }
-  return { part, cut, extraLength: Math.round(cut[0] - (finished[0] ?? 0)), tongues, work, jointWork, ...(band ? { band } : {}) };
+  return { part, cut, extraLength: Math.round((cut[0] - (finished[0] ?? 0)) * 2) / 2, tongues, work, jointWork, ...(band ? { band } : {}) };
 }
 
 /**
@@ -365,6 +365,35 @@ function packThickness(wood: string, thicknessIn: number, pieces: Piece[]): Stoc
 }
 
 /**
+ * Piezas finas que salen de una tabla más gruesa de la misma madera: dos listones de 34 cm salen del tirante de las
+ * patas (cepillándolos a su espesor), en lugar de comprar otro listón entero para ellos. Se pasa una tabla entera, y
+ * solo si así se compra menos madera.
+ */
+function useLeftovers(boards: StockBoard[]): StockBoard[] {
+  const out = [...boards];
+  const volume = (b: StockBoard, lengthM = b.lengthM) => planedMm(b.thicknessIn) * planedMm(b.widthIn) * lengthM * 1000;
+  for (const thin of [...boards].sort((x, y) => x.thicknessIn - y.thicknessIn)) {
+    const need = thin.slots.reduce((n, s) => n + s.length + KERF_MM, 0);
+    const widest = Math.max(...thin.slots.map((s) => s.width + (s.beside ?? []).reduce((w, x) => w + KERF_MM + x.width, 0)));
+    // La tabla gruesa puede pasar al largo comercial siguiente, si eso hace comprar menos madera que la tabla fina.
+    let best: { host: StockBoard; lengthM: number; extra: number } | null = null;
+    for (const b of out) {
+      if (b === thin || b.wood !== thin.wood || b.thicknessIn <= thin.thicknessIn || planedMm(b.widthIn) < widest) continue;
+      const lengthM = LENGTHS_M.find((m) => m * 1000 >= b.used + need);
+      if (!lengthM) continue;
+      const extra = volume(b, lengthM) - volume(b);
+      if (extra < volume(thin) && (!best || extra < best.extra)) best = { host: b, lengthM, extra };
+    }
+    if (!best) continue;
+    best.host.slots.push(...thin.slots);
+    best.host.used += need;
+    best.host.lengthM = Math.max(best.host.lengthM, best.lengthM);
+    out.splice(out.indexOf(thin), 1);
+  }
+  return out;
+}
+
+/**
  * Plan de corte: reparte los trozos en tablas comerciales, los más largos primero, y achica cada tabla al largo
  * comercial más corto que alcanza. Las piezas angostas pueden salir a lo largo de una tabla más ancha del mismo
  * espesor (dos travesaños de una tabla de 4″), si así se compra menos madera.
@@ -414,7 +443,7 @@ export function cutPlan(project: Project): CutPlan {
     }
     byThickness.set(key, g);
   }
-  const boards = [...byThickness.values()].flatMap((g) => packThickness(g.wood, g.t, g.pieces));
+  const boards = useLeftovers([...byThickness.values()].flatMap((g) => packThickness(g.wood, g.t, g.pieces)));
   const sheets = [...bySheet.values()].flatMap((g) => {
     const r = packSheets(sheetById(g.material)!, g.t, g.pieces);
     tooBig.push(...r.tooBig);

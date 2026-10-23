@@ -1,6 +1,6 @@
 import { boxSize, endContact, overlapBox, partBox, type Axis, type Box, type Vec3 } from './geometry';
-import { defaultJointParams, suggestJoints } from './joints';
-import type { Joint, Part } from './project';
+import { defaultJointParams, endJoint, MIN_TENON_WIDTH, suggestJoints } from './joints';
+import type { Component, Joint, Part } from './project';
 import { t, tk } from './i18n';
 import { fitJointDepths } from './jointfit';
 import { crossingInNotch } from './pockets';
@@ -193,10 +193,20 @@ export function namePrefix(name: string): string | null {
  * Cambia el nombre de una pieza. Si el nombre nuevo corresponde a otra letra de código (una copia de faldón que pasa
  * a ser "Listón del asiento"), la pieza recibe un código nuevo y sus uniones lo siguen. Devuelve el código final.
  */
-export function renamePart(project: { parts: Part[]; joints: Joint[] }, id: string, name: string): string {
+export function renamePart(project: { parts: Part[]; joints: Joint[]; components?: Component[] }, id: string, name: string): string {
   const part = project.parts.find((p) => p.id === id);
   if (!part) return id;
+  const before = part.name.trim().split(/\s+/)[0];
   part.name = name;
+  // El componente lleva el nombre de su pieza: un "Faldón" que pasa a "Travesaño" deja de llamarse Faldón 2.
+  const word = name.trim().split(/\s+/)[0] ?? '';
+  const comp = project.components?.find((c) => c.id === part.component);
+  if (comp && word && word !== before && comp.name.split(' ')[0] !== word) {
+    const taken = new Set(project.components!.filter((c) => c !== comp).map((c) => c.name));
+    let label = word;
+    for (let n = 2; taken.has(label); n++) label = `${word} ${n}`;
+    comp.name = label;
+  }
   const prefix = namePrefix(name);
   if (!prefix || id.replace(/\d+$/, '') === prefix) return id;
   const next = nextPartId(project.parts, prefix);
@@ -215,6 +225,25 @@ function touches(a: Box, b: Box): boolean {
 }
 
 /**
+ * Una espiga que ya no entra en su pieza, porque la pieza se achicó (un faldón de 8 cm que pasa a travesaño de 3):
+ * los hombros y el espesor vuelven a las medidas de taller para la pieza nueva. El largo que eligió la persona queda.
+ */
+function refitTenon(j: Joint, a: Box, b: Box): Joint {
+  if (j.type !== 'mortaja') return j;
+  const e = endJoint(a, b);
+  const def = defaultJointParams('mortaja', a, b);
+  if (!e || !def) return j;
+  const wide = e.section.max[e.wide] - e.section.min[e.wide];
+  const thin = e.section.max[e.thin] - e.section.min[e.thin];
+  const shoulder = j.params.shoulder ?? def.shoulder!;
+  const thickness = j.params.thickness ?? def.thickness!;
+  const narrow = wide - 2 * shoulder < MIN_TENON_WIDTH && def.shoulder! < shoulder;
+  const thick = thickness >= thin;
+  if (!narrow && !thick) return j;
+  return { ...j, params: { ...j.params, ...(narrow ? { shoulder: def.shoulder } : {}), ...(thick ? { thickness: def.thickness } : {}) } };
+}
+
+/**
  * Encastres al día con las piezas: conserva los que siguen valiendo (con el tipo y las medidas que eligió
  * la persona), propone uno para cada contacto nuevo y saca los de piezas que ya no se tocan.
  */
@@ -226,7 +255,7 @@ export function syncJoints(parts: Part[], joints: Joint[]): Joint[] {
     const a = boxes.get(j.partA);
     const b = boxes.get(j.partB);
     if (!a || !b || !touches(a, b)) continue;
-    if (defaultJointParams(j.type, a, b) !== null) kept.set(key(j.partA, j.partB), j);
+    if (defaultJointParams(j.type, a, b) !== null) kept.set(key(j.partA, j.partB), refitTenon(j, a, b));
   }
   const result: Joint[] = [];
   const added = new Set<string>();

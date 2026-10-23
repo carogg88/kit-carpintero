@@ -57,12 +57,25 @@ describe('cortes que se cruzan adentro de una pieza', () => {
     });
   });
 
-  it('con ids, solo toca esas uniones', () => {
+  it('con ids, solo toca esas uniones y las que chocan con ellas', () => {
     const p = build('taburete', 'mortaja');
     for (const j of p.joints) if (j.type === 'mortaja') j.params.length = 26;
     fitJointDepths(p, new Set(['P1-F3']));
-    expect(p.joints.find((j) => j.id === 'P1-F3')!.params.length).toBeLessThan(26);
+    // P1-F3 (costado) choca con P1-F2 (atrás, a lo ancho): se acorta la de atrás, como en la plantilla.
+    expect(p.joints.find((j) => j.id === 'P1-F3')!.params.length).toBe(26);
+    expect(p.joints.find((j) => j.id === 'P1-F2')!.params.length).toBe(17.5);
     expect(p.joints.find((j) => j.id === 'P4-F1')!.params.length).toBe(26);
+  });
+
+  it('los gemelos quedan iguales sin importar el orden en que se armaron', () => {
+    // Faldones de costado primero y los de frente después, al revés que la plantilla.
+    const p = build('taburete', 'mortaja');
+    for (const j of p.joints) if (j.type === 'mortaja') j.params.length = 26;
+    fitJointDepths(p, new Set(['P1-F3', 'P2-F4', 'P3-F4', 'P4-F3']));
+    const len = (id: string) => p.joints.find((j) => j.id === id)!.params.length;
+    expect([len('P4-F1'), len('P3-F1'), len('P1-F2'), len('P2-F2')]).toEqual([17.5, 17.5, 17.5, 17.5]);
+    expect([len('P1-F3'), len('P4-F3'), len('P2-F4'), len('P3-F4')]).toEqual([26, 26, 26, 26]);
+    expect(clashes(p)).toEqual([]);
   });
 
   it('la mesa no se toca: sus espigas no llegan a cruzarse', () => {
