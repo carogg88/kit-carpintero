@@ -135,7 +135,8 @@ export function AssemblyView({ project }: { project: Project }) {
       <main className={`${styles.assembly} ${styles.assemblyWide}`}>
         <div className={styles.assemblyNav}>
           {head}
-          <ol className={styles.stepRows}>
+          {/* Los pasos en su recuadro, de alto fijo: con muchos pasos se desplaza adentro y el resto queda quieto. */}
+          <ol className={styles.stepRows} aria-label={t('Pasos')}>
             {steps.map((s, i) => {
               const isDone = done.has(s.key);
               return (
@@ -159,6 +160,21 @@ export function AssemblyView({ project }: { project: Project }) {
               {pick.title}
             </h2>
             <div className={styles.stepBody}>{body(pick)}</div>
+            {/* Al pie, para pasar de un paso al otro sin volver a la lista. */}
+            <nav className={styles.stepNav} aria-label={t('Pasos')}>
+              <button type="button" disabled={pickIndex <= 0} onClick={() => setOpen(steps[pickIndex - 1]!.key)}>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M10 4 6 8l4 4" />
+                </svg>
+                {t('Paso anterior')}
+              </button>
+              <button type="button" disabled={pickIndex >= steps.length - 1} onClick={() => setOpen(steps[pickIndex + 1]!.key)}>
+                {t('Siguiente paso')}
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="m6 4 4 4-4 4" />
+                </svg>
+              </button>
+            </nav>
           </section>
         )}
       </main>

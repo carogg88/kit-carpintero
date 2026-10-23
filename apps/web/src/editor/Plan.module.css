@@ -133,15 +133,29 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .empty p { margin: 0; color: var(--muted); }
 
 @media (min-width: 900px) {
-  .plan { flex-direction: row; align-items: flex-start; gap: var(--space-4); padding: var(--space-4) var(--space-5) var(--space-5); }
-  .aside { display: flex; flex-direction: column; min-width: 0; flex: 1 1 260px; max-width: 300px; position: sticky; top: 0; gap: var(--space-4); }
+  /* Todo en una pantalla: la columna de hojas y la mesa ocupan el alto, nada se desplaza afuera. */
+  .plan { flex-direction: row; align-items: stretch; gap: var(--space-4); padding: var(--space-4) var(--space-5); overflow: hidden; }
+  .aside { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 260px; max-width: 300px; gap: var(--space-3); }
+  .plan > *, .aside > * { flex-shrink: 1; }
   .desk { order: 0; }
   .card { padding: var(--space-4); }
-  .sheetList { flex-direction: column; overflow: visible; margin: 0; padding: 0; gap: 6px; }
+  /* La lista de hojas tiene el alto que queda y se desplaza adentro: las capas y el PDF siempre a la vista. */
+  .aside > nav.card { flex: 1 1 auto; min-height: 140px; padding-bottom: var(--space-2); }
+  .sheetList { flex: 1 1 0; min-height: 0; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; margin: 0 -8px; padding: 0 8px 4px; gap: 6px; }
   .sheetList button { border-color: transparent; }
-  .desk { flex: 999 1 640px; padding: var(--space-5); }
-  /* La hoja entera entra en la pantalla, rótulo incluido: el ancho se limita también por el alto que queda. */
-  .sheet { max-width: calc(min(1040px, (100dvh - 216px) * 297 / 210) * var(--zoom)); }
+  .aside > details, .aside > .pdf, .aside > .printTpl, .aside > .note { flex-shrink: 0; }
+  /* La hoja, lo más grande que entra en la mesa; el zoom, chico y abajo a la derecha. */
+  .desk { position: relative; flex: 999 1 640px; min-height: 0; padding: var(--space-4); }
+  .zoomBox { flex: 1 1 0; min-height: 0; display: flex; container-type: size; padding: 0 64px; }
+  .zoomBox[data-zoomed] { max-height: none; }
+  .page[data-current] { margin: auto; }
+  .sheet { width: calc(min(100cqw, 100cqh * 297 / 210) * var(--zoom)); max-width: none; }
+  .zoomBar {
+    position: absolute; right: var(--space-3); bottom: var(--space-3); z-index: 1; flex-direction: column-reverse; gap: 2px; padding: 4px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 4px 14px rgb(28 35 32 / 0.12);
+  }
+  .zoomBar .zoomBtn, .zoomBar .zoomFit { min-width: 44px; padding: 0 6px; border-color: transparent; }
+  .zoomBar .zoomFit { font-size: var(--text-xs); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -157,7 +171,8 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
   .plan[data-print='plantillas'] .page:not([data-template]) { display: none; }
   .sheet { width: 297mm; height: 210mm; min-width: 0; max-width: none; box-shadow: none; }
   .zoomBar { display: none; }
-  .zoomBox, .zoomBox[data-zoomed] { overflow: visible; max-height: none; }
+  .zoomBox, .zoomBox[data-zoomed] { overflow: visible; max-height: none; container-type: normal; padding: 0; display: block; }
+  .page[data-current] { margin: 0; }
 }
 .dimDot { fill: var(--paper-accent); stroke: none; }
 .turnTpl { fill: rgba(158, 96, 39, 0.08); stroke: var(--paper-ink); stroke-width: 0.35; stroke-linejoin: round; }

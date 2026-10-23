@@ -237,22 +237,26 @@
 
   /* Dos columnas: la lista de pasos a la izquierda y el paso elegido a la derecha, cada una con su scroll. */
   .assemblyWide { flex-direction: row; align-items: stretch; justify-content: center; gap: var(--space-5); overflow: hidden; }
-  .assemblyNav { flex: 0 1 380px; min-width: 300px; display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; padding-right: 4px; }
-  .stepRows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+  .assemblyNav { flex: 0 1 380px; min-width: 300px; display: flex; flex-direction: column; gap: var(--space-4); min-height: 0; }
+  .stepRows {
+    flex: 1 1 0; min-height: 200px; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 0; padding: var(--space-2);
+    display: flex; flex-direction: column; gap: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-m);
+  }
   .stepRows button {
     width: 100%; min-height: 48px; display: flex; align-items: center; gap: var(--space-3); padding: 4px 10px; border: 1px solid transparent;
     border-radius: 12px; background: none; color: var(--ink); font: 500 var(--text-m) var(--font-ui); text-align: left; cursor: pointer;
     transition: background-color 150ms ease;
   }
   .stepRows .stepBadge { width: 32px; height: 32px; }
-  .stepRows button:hover { background: var(--surface-2); }
+  .stepRows button:hover { background: color-mix(in srgb, var(--ink) 5%, var(--surface-2)); }
   .stepRows button[aria-pressed='true'] { background: var(--surface); border-color: var(--line-strong); font-weight: 600; }
   .stepRows button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .stepRows li[aria-current='step'] .stepBadge { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .stepRows li[data-done] .stepBadge { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
   .stepRows li[data-done] .stepTitle { color: var(--muted); }
+  /* El paso elegido ocupa todo el alto, con los botones de anterior y siguiente al pie: no queda un hueco debajo. */
   .stepPanel {
-    flex: 1 1 560px; max-width: 760px; align-self: flex-start; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3);
+    flex: 1 1 560px; max-width: 760px; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3);
     padding: var(--space-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m);
   }
   .stepPanel[data-current] { border: 2px solid var(--accent); padding: calc(var(--space-5) - 1px); }
@@ -262,9 +266,28 @@
   .stepPanel[data-done] .stepPanelHead .stepBadge { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
   .stepPanel .stepBody { padding-left: 0; }
   .stepPanel .h2 { margin: 0; }
+  .stepNav {
+    position: sticky; bottom: calc(-1 * var(--space-5)); margin: auto calc(-1 * var(--space-5)) calc(-1 * var(--space-5)); padding: var(--space-3) var(--space-5);
+    display: flex; justify-content: space-between; gap: var(--space-3); border-top: 1px solid var(--line); background: var(--surface);
+    border-radius: 0 0 var(--radius-m) var(--radius-m);
+  }
+  .stepPanel[data-current] .stepNav { margin: auto calc(1px - var(--space-5)) calc(1px - var(--space-5)); bottom: calc(1px - var(--space-5)); }
+  .stepNav button {
+    display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); padding: 0 var(--space-4); border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+    transition: background-color 150ms ease;
+  }
+  .stepNav button:hover:not(:disabled) { background: var(--surface-2); }
+  .stepNav button:disabled { visibility: hidden; }
+  .stepNav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .stepNav svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+}
+/* En el celular el encabezado ya dice «Cómo armarlo»: el título no se repite. */
+@media (max-width: 899px) {
+  .assemblyHead > .h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .progressBar span, .doneToggle, .stepChevron, .stepRows button { transition: none; }
+  .progressBar span, .doneToggle, .stepChevron, .stepRows button, .stepNav button { transition: none; }
 }
 
 /* ---------- Cortes ---------- */
