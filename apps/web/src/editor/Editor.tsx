@@ -10,6 +10,7 @@ import { ShareButton } from './Share';
 import {
   IconBack,
   IconBevel,
+  IconFit,
   IconSection,
   IconTurn,
   IconDraw,
@@ -507,6 +508,10 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                   <span className={styles.mobileOnly}>{t(short)}</span>
                 </button>
               ))}
+              {/* Vuelve a poner todo el mueble a la vista, después de girar, acercar o agregar piezas lejos. */}
+              <button type="button" className={styles.fitBtn} aria-label={t('Encuadrar')} title={t('Encuadrar: todo el mueble a la vista')} onClick={() => setView(view)}>
+                <IconFit />
+              </button>
             </div>
             {empty ? <EmptyStart /> : <ToolGuide />}
             <ChangeNotice />

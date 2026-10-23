@@ -153,15 +153,79 @@ export function newPart(parts: Part[], kind: NewPartKind, wood: string): Part {
   };
 }
 
-/** Copia de una pieza corrida a su derecha, con id y nombre nuevos. */
+/** Copia de una pieza a la derecha del mueble, apoyada a la misma altura y sin atravesar otra pieza, con id y nombre nuevos. */
 export function duplicatePart(parts: Part[], part: Part): Part {
   const prefix = part.id.replace(/\d+$/, '') || 'N';
-  const width = part.base.kind === 'box' ? part.base.size[0] : 100;
+  const right = parts.reduce((x, p) => (p.base.kind === 'box' ? Math.max(x, partBox(p).max[0]) : x), part.position[0]);
   return {
     ...structuredClone(part),
     id: nextPartId(parts, prefix),
     name: part.component ? part.name : t('{name} (copia)', { name: part.name }),
-    position: [part.position[0] + width + 100, part.position[1], part.position[2]],
+    position: [right + 150, part.position[1], part.position[2]],
+  };
+}
+
+/** Palabras que cambian al pasar una pieza al otro lado del mueble. */
+const SIDE_WORDS: [string, string][] = [
+  ['izquierdo', 'derecho'],
+  ['izquierda', 'derecha'],
+  ['delantero', 'trasero'],
+  ['delantera', 'trasera'],
+  ['left', 'right'],
+  ['front', 'back'],
+];
+
+/** El nombre de la pieza del otro lado: "Travesaño medio izquierdo" pasa a "Travesaño medio derecho". */
+export function otherSideName(name: string): string {
+  return name.replace(/[\p{L}]+/gu, (w) => {
+    const lower = w.toLowerCase();
+    for (const [a, b] of SIDE_WORDS) {
+      const to = lower === a ? b : lower === b ? a : null;
+      if (to) return w[0] === w[0]!.toUpperCase() ? to[0]!.toUpperCase() + to.slice(1) : to;
+    }
+    return w;
+  });
+}
+
+export interface MirrorResult {
+  part: Part;
+  /** Sobre qué eje se reflejó: 0 de izquierda a derecha, 2 de adelante hacia atrás. */
+  axis: Axis;
+}
+
+/**
+ * La pieza gemela del otro lado del mueble: la del frente pasa atrás, la de la izquierda a la derecha, con el mismo
+ * retiro. Se refleja sobre el eje en que la pieza está más corrida del medio. null si la pieza está en el medio o si
+ * del otro lado ya hay una pieza igual.
+ */
+export function mirrorPart(parts: Part[], part: Part): MirrorResult | null {
+  if (part.base.kind !== 'box') return null;
+  const others = parts.filter((p) => p.id !== part.id && p.base.kind === 'box').map(partBox);
+  if (!others.length) return null;
+  const own = partBox(part);
+  const all = [...others, own];
+  let best: { axis: Axis; off: number } | null = null;
+  for (const axis of [0, 2] as Axis[]) {
+    const lo = Math.min(...all.map((b) => b.min[axis]));
+    const hi = Math.max(...all.map((b) => b.max[axis]));
+    const off = Math.abs((own.min[axis] + own.max[axis]) / 2 - (lo + hi) / 2) / Math.max(1, hi - lo);
+    if (off * (hi - lo) > 1 && (!best || off > best.off)) best = { axis, off };
+  }
+  if (!best) return null;
+  const { axis } = best;
+  const lo = Math.min(...all.map((b) => b.min[axis]));
+  const hi = Math.max(...all.map((b) => b.max[axis]));
+  const position: Vec3 = [...part.position];
+  position[axis] = lo + hi - own.max[axis];
+  const box: Box = { min: [...own.min], max: [...own.max] };
+  box.min[axis] = position[axis];
+  box.max[axis] = position[axis] + (own.max[axis] - own.min[axis]);
+  const same = (b: Box) => [0, 1, 2].every((k) => Math.abs(b.min[k]! - box.min[k]!) < 1 && Math.abs(b.max[k]! - box.max[k]!) < 1);
+  if (others.some(same)) return null;
+  const prefix = part.id.replace(/\d+$/, '') || 'N';
+  return {
+    axis,
+    part: { ...structuredClone(part), id: nextPartId(parts, prefix), name: otherSideName(part.name), position },
   };
 }
 

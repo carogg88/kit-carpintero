@@ -452,7 +452,7 @@
 }
 
 /* Al lado del desperdicio, la (i): si es normal o alto, y qué hacer con lo que sobra. */
-.statLabel { display: inline-flex; align-items: center; gap: 2px; }
+.statLabel { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .statLabel > span:last-child { margin: -6px 0; }
 /* La explicación se abre a lo ancho de la tarjeta, no desde el ícono: así no se sale de la columna. */
 .stats, .tiles { position: relative; }

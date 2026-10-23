@@ -325,6 +325,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
               length('depthB', t('Hondo en {id}', { id: b.id }), 5),
             ]
           : []);
+  const notes = jointNotes(project, joint, n);
   const legendB = joint.type === 'mortaja' ? t('Espiga') : joint.type === 'cola-milano' ? t('Colas') : `${b.id} ${b.name}`;
 
   return (
@@ -342,6 +343,21 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             {nameOf(joint.type, a, b)}
           </h2>
         </div>
+        {/* Los avisos arriba, antes del detalle: abajo quedaban fuera de la pantalla. */}
+        {warning && (
+          <p className={styles.warn} role="alert">
+            <IconWarn />
+            {t('El encastre no se pudo cortar del todo en el modelo. Revisá las medidas.')}
+          </p>
+        )}
+        {notes
+          .filter((note) => note.level === 'warn')
+          .map((note) => (
+            <p key={note.text} className={styles.warn} role="alert">
+              <IconWarn />
+              <span>{note.text}</span>
+            </p>
+          ))}
         <figure className={styles.detailFigure}>
           <JointDetail3D
             project={project}
@@ -366,25 +382,14 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
         </figure>
         <JointMeta type={joint.type} recommended={joint.type === recommended} />
         <p className={styles.muted}>{t(JOINT_ABOUT[joint.type] ?? 'Este encastre todavía no tiene cortes en el modelo.')}</p>
-        {warning && (
-          <p className={styles.warn} role="alert">
-            <IconWarn />
-            {t('El encastre no se pudo cortar del todo en el modelo. Revisá las medidas.')}
-          </p>
-        )}
-        {jointNotes(project, joint, n).map((note) =>
-          note.level === 'warn' ? (
-            <p key={note.text} className={styles.warn} role="alert">
-              <IconWarn />
-              <span>{note.text}</span>
-            </p>
-          ) : (
+        {notes
+          .filter((note) => note.level !== 'warn')
+          .map((note) => (
             <p key={note.text} className={`${styles.tip} ${styles.flat}`}>
               <IconInfo />
               <span>{note.text}</span>
             </p>
-          ),
-        )}
+          ))}
       </div>
 
       <div className={styles.detailSide}>
@@ -403,7 +408,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           <span>{ruleHint(joint, a, b, n)}</span>
         </p>
         {/* En el celular, el aviso queda lejos de las medidas: se repite al lado de lo que se acaba de cambiar. */}
-        {jointNotes(project, joint, n)
+        {notes
           .filter((note) => note.level === 'warn')
           .map((note) => (
             <p key={note.text} className={`${styles.warn} ${styles.mobileOnly}`}>
