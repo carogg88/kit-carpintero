@@ -556,4 +556,6 @@ export default {
   'Más información: {what}': 'More information: {what}',
   'Comparar precios de maderas': 'Compare wood prices',
   'Opcional: cuánto saldría este mueble en otra madera': 'Optional: what this piece would cost in another wood',
+  'Paso anterior': 'Previous step',
+  'Siguiente paso': 'Next step',
 } satisfies Record<string, string>;
