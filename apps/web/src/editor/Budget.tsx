@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { getLang, locale, t, tk, WOODS, type CutPlan, type HardwareRow, type HardwareUnit } from '@kitc/core';
+import { Accordion } from '../ui/Accordion';
 import { decimal, qtyLabel, sheetKey, sheetLabel, woodName, type SheetRow } from './cutsData';
 import styles from './Sections.module.css';
 
@@ -179,32 +180,32 @@ export function BudgetPanel({
 /** Cuánto saldría la madera maciza del proyecto en cada madera: los mismos pies, otro precio. */
 function WoodCompare({ feet, prices, setPrice, projectWoods }: { feet: number; prices: Record<string, string>; setPrice: (key: string, v: string) => void; projectWoods: string[] }) {
   return (
-    <section className={styles.budgetGroup} aria-labelledby="comparar-maderas">
-      <h2 id="comparar-maderas" className={styles.eyebrow}>
-        {t('Comparar maderas')}
-      </h2>
-      <p className={styles.muted}>{t('La madera maciza de este proyecto son {n} pies. Cargá el precio por pie de otras maderas para ver cuánto saldría.', { n: decimal(feet) })}</p>
-      <ul>
-        {WOODS.map((w) => {
-          const mine = projectWoods.includes(w.id);
-          // El precio por pie de antes era el de la madera del proyecto: no vale para las otras.
-          const line: BudgetLine = { key: `pie|${w.id}`, label: t(w.name), qty: '', per: t('por pie'), amount: feet, priceKey: `pie|${w.id}`, ...(mine ? { fallbackKey: 'pie|*' } : {}) };
-          const p = parsePrice(prices[line.priceKey]) ?? (mine ? parsePrice(prices['pie|*']) : null);
-          return (
-            <li key={w.id} className={`${styles.budgetRow} ${mine ? styles.budgetMine : ''}`}>
-              <span className={styles.budgetItem}>
-                <strong>{t(w.name)}</strong>
-                {mine && <span className={styles.muted}>{t('la de este proyecto')}</span>}
-              </span>
-              <span className={styles.budgetPrice}>
-                <PriceInput line={line} prices={prices} onChange={setPrice} />
-                <span className={styles.muted}>{line.per}</span>
-              </span>
-              <span className={styles.budgetAmount}>{p === null ? '—' : money(p * feet)}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+    // Aparte y plegada: es una herramienta para elegir madera, no parte de la cuenta.
+    <div className={styles.compare}>
+      <Accordion variant="card" level={2} title={t('Comparar precios de maderas')} summary={t('Opcional: cuánto saldría este mueble en otra madera')}>
+        <p className={styles.muted}>{t('La madera maciza de este proyecto son {n} pies. Cargá el precio por pie de otras maderas para ver cuánto saldría.', { n: decimal(feet) })}</p>
+        <ul>
+          {WOODS.map((w) => {
+            const mine = projectWoods.includes(w.id);
+            // El precio por pie de antes era el de la madera del proyecto: no vale para las otras.
+            const line: BudgetLine = { key: `pie|${w.id}`, label: t(w.name), qty: '', per: t('por pie'), amount: feet, priceKey: `pie|${w.id}`, ...(mine ? { fallbackKey: 'pie|*' } : {}) };
+            const p = parsePrice(prices[line.priceKey]) ?? (mine ? parsePrice(prices['pie|*']) : null);
+            return (
+              <li key={w.id} className={`${styles.budgetRow} ${mine ? styles.budgetMine : ''}`}>
+                <span className={styles.budgetItem}>
+                  <strong>{t(w.name)}</strong>
+                  {mine && <span className={styles.muted}>{t('la de este proyecto')}</span>}
+                </span>
+                <span className={styles.budgetPrice}>
+                  <PriceInput line={line} prices={prices} onChange={setPrice} />
+                  <span className={styles.muted}>{line.per}</span>
+                </span>
+                <span className={styles.budgetAmount}>{p === null ? '—' : money(p * feet)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </Accordion>
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import styles from './Accordion.module.css';
 
 /**
  * Sección que se pliega: el título y un resumen siempre a la vista, el contenido al tocar. Sirve para que una
- * pantalla larga entre entera y se abra solo lo que se está usando. `done` le pone el tilde de sección completa.
+ * pantalla larga entre entera y se abra solo lo que se está usando. `done` le pone el tilde de sección completa; sin `done`, no hay círculo.
  */
 export function Accordion({
   title,
@@ -43,7 +43,7 @@ export function Accordion({
     <section className={styles.accordion} data-variant={variant} data-open={open || undefined}>
       <Heading className={styles.head}>
         <button type="button" aria-expanded={open} aria-controls={id} onClick={toggle}>
-          <span className={styles.mark} data-done={done || undefined} aria-hidden="true">
+          <span className={styles.mark} data-done={done || undefined} data-none={done === undefined || undefined} aria-hidden="true">
             {done && (
               <svg viewBox="0 0 16 16">
                 <path d="m3.5 8.5 3 3 6-6.5" />

@@ -66,18 +66,24 @@
 .jointItems button[aria-current='true'] .typeName { color: var(--ink); }
 .more {
   align-self: flex-start; min-height: var(--tap); padding: 0 var(--space-3); border: 0; background: none; color: var(--accent);
-  font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+  font: 500 var(--text-s) var(--font-ui); text-underline-offset: 3px; cursor: pointer;
 }
+.more:hover { text-decoration: underline; }
+/* Los grupos se pliegan: con muchas uniones se ve la lista entera de grupos y se abre el que se está mirando. */
+.groups { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.groups > section > h2 button { min-height: 52px; }
+.groupMeta { display: inline-flex; align-items: center; gap: 6px; }
+.groups .jointItems { margin-top: -4px; }
 
 .detailGrid { display: flex; flex-wrap: wrap; gap: var(--space-5); }
-.detailMain { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-.detailSide { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.detailMain { flex: 3 1 420px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.detailSide { flex: 2 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
 .backLink {
   align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--tap); margin: -6px 0 0 -6px;
   padding: 0 6px; border: 0; background: none; color: var(--accent); font: 500 var(--text-s) var(--font-ui); cursor: pointer;
 }
 .detailFigure {
-  position: relative; margin: 0; height: clamp(220px, 34dvh, 420px); background: var(--surface-2);
+  position: relative; margin: 0; height: clamp(240px, 38dvh, 420px); background: var(--surface-2);
   border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
 }
 .detailFigure canvas { display: block; }
@@ -115,7 +121,17 @@
 .radio input { flex: none; margin: 0; width: 18px; height: 18px; accent-color: var(--forest); }
 .radio:has(.radioText) { padding-top: 8px; padding-bottom: 8px; }
 .radio:has(.radioText):has(input:checked) { padding-top: 7px; padding-bottom: 7px; }
-.radioText { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.radioText { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* La explicación de cada tipo, con su dibujo grande, al pasar por la (i). */
+/* La (i) en la esquina, para que el nombre y la dificultad usen todo el ancho. */
+.typeGrid .radio { position: relative; padding-right: 8px; }
+.typeGrid .radio:has(input:checked) { padding-right: 7px; }
+.radioName { padding-right: 22px; }
+.radio > span:last-child:not(.radioText) { position: absolute; top: 2px; right: 2px; }
+.tipDrawing { display: block; margin-bottom: var(--space-2); padding: 6px; border-radius: 8px; background: var(--surface-2); }
+.tipDrawing svg { display: block; width: 100%; height: auto; max-height: 150px; }
+.tipTitle { display: block; margin-bottom: 4px; font: 500 var(--text-m) var(--font-display); }
+.tipText { display: block; margin-top: 6px; }
 .radio:has(input:checked) { border: 2px solid var(--forest); padding: 0 11px; background: var(--accent-soft); font-weight: 600; }
 .radio:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .note { font-size: var(--text-s); color: var(--muted); line-height: 1.45; }
@@ -386,12 +402,15 @@
   /* Lista y detalle lado a lado, cada uno con su propio scroll: nada se desplaza adentro de otra cosa que también se desplaza. */
   .joints { flex-direction: row; align-items: stretch; gap: var(--space-4); padding: var(--space-4) var(--space-5) var(--space-5); overflow: hidden; }
   .jointList { flex: 1 1 300px; max-width: 360px; overflow-y: auto; }
+  /* El detalle en grande: es lo que se mira para entender el encastre. */
+  .detailFigure { height: clamp(300px, 52dvh, 600px); }
   .jointDetail, .joints[data-detail] .jointDetail { display: block; flex: 999 1 560px; min-width: 0; padding: 20px; overflow-y: auto; }
   .joints[data-detail] .jointList { display: flex; }
 
-  .cuts { flex-direction: row; align-items: flex-start; padding: var(--space-4) var(--space-5) var(--space-5); }
-  .cutsMain { flex: 999 1 560px; padding: 20px; }
-  .cutsAside { order: 0; flex: 1 1 320px; max-width: 400px; gap: var(--space-4); }
+  /* Cada columna con su propio scroll, de arriba abajo: no queda espacio en blanco debajo de la más corta. */
+  .cuts { flex-direction: row; align-items: stretch; padding: var(--space-4) var(--space-5) var(--space-5); overflow: hidden; }
+  .cutsMain { flex: 999 1 560px; padding: 20px; overflow-y: auto; }
+  .cutsAside { order: 0; flex: 1 1 320px; max-width: 400px; gap: var(--space-4); overflow-y: auto; padding-bottom: 2px; }
   .card { padding: 20px; }
   .tableWrap { display: block; }
   .cutCards { display: none; }
@@ -405,11 +424,20 @@
 @media print {
   .actionBar, .cutTabs { display: none; }
   .cutPanel[hidden] { display: flex; }
+  .cuts, .cutsMain, .cutsAside { overflow: visible; }
   .boardBar, .piece, .waste, .swatchPiece, .swatchWaste { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 
-/* Debajo del desperdicio: si es normal o alto, y qué hacer con lo que sobra. */
-.wasteNote { margin: calc(-1 * var(--space-2)) 0 0; font-size: var(--text-s); line-height: 1.45; color: var(--muted); }
+/* Al lado del desperdicio, la (i): si es normal o alto, y qué hacer con lo que sobra. */
+.statLabel { display: inline-flex; align-items: center; gap: 2px; }
+.statLabel > span:last-child { margin: -6px 0; }
+/* La explicación se abre a lo ancho de la tarjeta, no desde el ícono: así no se sale de la columna. */
+.stats, .tiles { position: relative; }
+.stats .statLabel > span:last-child, .tiles .statLabel > span:last-child { position: static; }
+/* Tablas, placas y herrajes, cada uno plegable dentro de la misma tarjeta. */
+.foldCard { gap: 0; padding-top: var(--space-1); padding-bottom: var(--space-1); }
+.foldCard > section:last-child { border-bottom: 0; }
+.foldCard .plainList { padding-bottom: var(--space-1); }
 
 /* Placas: vistas de frente, a escala. */
 .sheets { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: var(--space-4); }
@@ -436,6 +464,13 @@
 }
 .budgetRow + .budgetRow { border-top: 1px solid var(--line); }
 .budgetMine { background: var(--surface-2); }
+/* Comparar maderas: en su recuadro, separado del presupuesto. */
+.compare { margin-top: var(--space-2); }
+.compare > section { background: var(--surface-2); border-style: dashed; }
+.compare > section[data-open] { border-style: solid; }
+.compare ul { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.compare .budgetMine { background: var(--accent-soft); }
+@media (max-width: 899px) { .compare > section > div { padding: 4px var(--space-2) var(--space-2); } }
 .budgetItem { display: flex; flex-direction: column; min-width: 0; font-size: var(--text-s); }
 .budgetItem strong { font-weight: 500; }
 .budgetPrice { display: flex; align-items: center; gap: var(--space-2); }
