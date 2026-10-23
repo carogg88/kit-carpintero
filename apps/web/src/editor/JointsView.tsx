@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { produce, type Draft } from 'immer';
 import {
   BISCUITS,
   defaultJointParams,
@@ -229,6 +230,8 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   const typeListId = useId();
   // La lista de tipos se abre a pedido: lo que más se toca son las medidas.
   const [choosing, setChoosing] = useState(false);
+  // Un cambio que va a todo el grupo espera confirmación, con lo que cambia en los cortes a la vista.
+  const [pendingAll, setPendingAll] = useState<{ title: string; recipe: (d: Draft<Project>) => void } | null>(null);
   const a = project.parts.find((p) => p.id === joint.partA);
   const b = project.parts.find((p) => p.id === joint.partB);
   if (!a || !b) return null;
@@ -242,12 +245,20 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   // El recomendado va primero, con su marca.
   const recommended = recommendedJoint(ba, bb);
   if (recommended) options.sort((x, y) => Number(y === recommended) - Number(x === recommended));
-  const params = { ...defaultJointParams(joint.type, ba, bb), ...joint.params };
+  // Con un cambio esperando, los campos y lo que cambia en los cortes muestran cómo quedaría.
+  const preview = pendingAll ? produce(project, pendingAll.recipe) : null;
+  const shown = preview?.joints.find((j) => j.id === joint.id) ?? joint;
+  const params = { ...defaultJointParams(joint.type, ba, bb), ...(shown.type === joint.type ? shown.params : joint.params) };
   const targets = applyAll ? group.joints : [joint];
   const warning = meshes.get(a.id)?.warning ?? meshes.get(b.id)?.warning;
 
+  // Con varias uniones, primero la vista previa; con una sola, directo.
+  const change = (title: string, recipe: (d: Draft<Project>) => void) => {
+    if (targets.length > 1) setPendingAll({ title, recipe });
+    else commit(recipe);
+  };
   const setType = (type: JointType) =>
-    commit((d) => {
+    change(t('Pasar a {joint}', { joint: nameOf(type, a, b).toLocaleLowerCase(locale()) }), (d) => {
       for (const target of targets) {
         const j = d.joints.find((x) => x.id === target.id);
         const pa = d.parts.find((p) => p.id === target.partA);
@@ -261,8 +272,8 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
       // Con las medidas de siempre, la espiga nueva puede cruzarse adentro de la pieza con otra: se acorta sola.
       fitJointDepths(d, new Set(targets.map((x) => x.id)));
     });
-  const setParam = (key: string, value: number) =>
-    commit((d) => {
+  const setParam = (key: string, value: number, label: string) =>
+    change(t('{field}: {value}', { field: label, value: key === 'count' || key === 'slope' || key === 'size' || key === 'diameter' ? String(value) : n(value) }), (d) => {
       for (const target of targets) {
         const j = d.joints.find((x) => x.id === target.id);
         if (j && j.type === joint.type) j.params[key] = value;
@@ -270,12 +281,12 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
     });
 
   const length = (key: string, label: string, min = 1) => (
-    <LengthField key={`${joint.id}-${key}`} label={label} mm={params[key] ?? 0} units={units} min={min} onCommit={(v) => setParam(key, v)} />
+    <LengthField key={`${joint.id}-${key}`} label={label} mm={params[key] ?? 0} units={units} min={min} onCommit={(v) => setParam(key, v, label)} />
   );
   const choose = (key: string, label: string, values: number[], text: (v: number) => string = String) => (
     <label key={key} className={styles.field}>
       {label}
-      <select value={params[key] ?? values[0]} onChange={(e) => setParam(key, Number(e.target.value))}>
+      <select value={params[key] ?? values[0]} onChange={(e) => setParam(key, Number(e.target.value), label)}>
         {values.map((v) => (
           <option key={v} value={v}>
             {text(v)}
@@ -303,7 +314,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           ? [
               <label key="d" className={styles.field}>
                 {t('Diámetro')}
-                <select value={params.diameter ?? 8} onChange={(e) => setParam('diameter', Number(e.target.value))}>
+                <select value={params.diameter ?? 8} onChange={(e) => setParam('diameter', Number(e.target.value), t('Diámetro'))}>
                   {DOWEL_SIZES.map((d) => (
                     <option key={d} value={d}>
                       {d} mm
@@ -313,7 +324,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
               </label>,
               <label key="c" className={styles.field}>
                 {t('Cantidad')}
-                <select value={params.count ?? 2} onChange={(e) => setParam('count', Number(e.target.value))}>
+                <select value={params.count ?? 2} onChange={(e) => setParam('count', Number(e.target.value), t('Cantidad'))}>
                   {Array.from({ length: 8 }, (_, i) => i + 1).map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -402,6 +413,34 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             </legend>
             {fields}
           </fieldset>
+        )}
+        {pendingAll && preview && (
+          <div className={styles.pendingAll} role="group" aria-labelledby={`${joint.id}-pend`}>
+            <span className={styles.eyebrow} id={`${joint.id}-pend`}>
+              {t('Vista previa · {n} uniones de {group}', { n: targets.length, group: group.label.toLocaleLowerCase(locale()) })}
+            </span>
+            <strong>{pendingAll.title}</strong>
+            {cutChanges(shown, a, b, preview, n).map((line) => (
+              <span key={line} className={styles.pendingLine}>
+                {line}
+              </span>
+            ))}
+            <div className={styles.pendingActions}>
+              <button type="button" className={styles.pendingCancel} onClick={() => setPendingAll(null)}>
+                {t('Cancelar')}
+              </button>
+              <button
+                type="button"
+                className={styles.pendingOk}
+                onClick={() => {
+                  commit(pendingAll.recipe);
+                  setPendingAll(null);
+                }}
+              >
+                {t('Aplicar a las {n}', { n: targets.length })}
+              </button>
+            </div>
+          </div>
         )}
         <p className={styles.tip}>
           <IconInfo />

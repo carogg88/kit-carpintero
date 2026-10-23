@@ -180,6 +180,31 @@
   .notice { padding: 4px 4px 4px 12px; font-size: var(--text-s); border-radius: 12px; }
   .notice button { height: 36px; padding: 0 12px; }
 }
+/* Vista previa de un cambio grande: abajo en la vista, con Cancelar y Aplicar. Mientras está, la guía y el aviso se esconden. */
+.previewBar {
+  position: absolute; z-index: 4; left: var(--space-2); right: var(--space-2); bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-3);
+  padding: 10px 10px 10px 16px; border: 1px solid var(--accent); border-radius: 16px; background: var(--surface); box-shadow: 0 10px 28px rgb(43 54 40 / 0.22);
+  animation: noticeIn 180ms ease-out;
+}
+.previewText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: var(--text-s); line-height: 1.3; }
+.previewText strong { font-weight: 600; color: var(--ink); }
+.previewEyebrow { font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--accent); }
+.previewSummary { color: var(--muted); }
+.previewActions { display: flex; gap: var(--space-2); flex: none; }
+.previewActions button { height: 44px; padding: 0 18px; border-radius: var(--radius-pill); font: 600 var(--text-s) var(--font-ui); cursor: pointer; }
+.previewCancel { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.previewOk { border: 0; background: var(--forest); color: var(--forest-ink); }
+.previewDanger { border: 0; background: var(--danger); color: #fff; }
+.previewActions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stage:has(.previewBar) .notice, .stage:has(.previewBar) .guide, .stage:has(.previewBar) .chip { display: none; }
+@media (min-width: 900px) {
+  .previewBar { left: 50%; right: auto; bottom: var(--space-3); transform: translateX(-50%); width: min(620px, calc(100% - 140px)); }
+}
+@media (max-width: 899px) {
+  .previewBar { flex-wrap: wrap; }
+  .previewActions { width: 100%; }
+  .previewActions button { flex: 1; }
+}
 /* Medida exacta junto a la pieza, donde se soltó el arrastre. */
 .bubble {
   position: absolute; z-index: 2; width: 220px; display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 10px 12px;

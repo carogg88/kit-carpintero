@@ -34,6 +34,7 @@ import { ADD_OPTIONS, FITTING_OPTIONS, PartPanel, UnitsToggle, useAddPart } from
 import { useEditor, useSelectedPart, type DragHint, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
+import { PreviewBar } from './PreviewBar';
 import { MeasureBubble } from './MeasureBubble';
 import { NextSteps, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
@@ -199,12 +200,14 @@ function useShortcuts(modelo: boolean) {
       else if (k === 'r') s.setTool('turn');
       else if (k === 'x') s.setXray(!s.xray);
       else if (k === 'escape') {
-        if (s.drawFace) s.setDrawFace(null);
+        if (s.pending) s.cancelPending();
+        else if (s.drawFace) s.setDrawFace(null);
         else s.select(null);
       }
       else if ((k === 'delete' || k === 'backspace') && s.selectedId) {
         const id = s.selectedId;
-        s.commit((d) => void (d.parts = d.parts.filter((p) => p.id !== id)), t('Borraste {id}', { id }));
+        const name = s.project?.parts.find((p) => p.id === id)?.name ?? '';
+        s.propose((d) => void (d.parts = d.parts.filter((p) => p.id !== id)), t('Borraste {id}', { id }), { title: t('¿Borrar {id} {name}?', { id, name }) });
       } else if (/^[0-9]$/.test(k) && s.bubble) {
         document.getElementById('medida')?.focus();
       }
@@ -515,6 +518,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             </div>
             {empty ? <EmptyStart /> : <ToolGuide />}
             <ChangeNotice />
+            <PreviewBar />
             <div className={styles.desktopOnly}>
               <MeasureBubble />
             </div>

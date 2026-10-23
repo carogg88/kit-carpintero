@@ -171,6 +171,14 @@
 .rowWarn { display: inline-flex; color: var(--danger); }
 .rowWarn svg { width: 16px; height: 16px; }
 .changes { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 6px; font-size: var(--text-s); }
+/* Cambio para todo el grupo de uniones: se ve qué cambia en los cortes y se confirma. */
+.pendingAll { display: flex; flex-direction: column; gap: 4px; padding: var(--space-3); border: 1px solid var(--accent); border-radius: var(--radius-m); background: var(--accent-soft); font-size: var(--text-s); }
+.pendingAll .eyebrow { color: var(--accent); }
+.pendingLine { color: var(--ink); }
+.pendingActions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+.pendingActions button { height: 40px; padding: 0 16px; border-radius: var(--radius-pill); font: 600 var(--text-s) var(--font-ui); cursor: pointer; }
+.pendingCancel { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.pendingOk { border: 0; background: var(--forest); color: var(--forest-ink); }
 .check { display: flex; align-items: center; gap: 10px; min-height: var(--tap); font-size: var(--text-s); cursor: pointer; }
 .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex-shrink: 0; }
 

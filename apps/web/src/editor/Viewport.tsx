@@ -42,6 +42,7 @@ import {
   type Section,
 } from '@kitc/core';
 import { DEAD_PX, gentle, roundMeasure } from './gesture';
+import { ghostDiff } from './ghost';
 import { useEditor, type DrawFace, type View } from './store';
 import type { ExactMesh } from './useGeometry';
 
@@ -131,8 +132,8 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   });
 
   // Encuadra la vista pedida (3D, Frente, Costado, Arriba) con todo el mueble adentro.
-  const frame = useEffectEvent((instant: boolean) => {
-    const p = useEditor.getState().project;
+  const frame = useEffectEvent((instant: boolean, with_?: Project) => {
+    const p = with_ ?? useEditor.getState().project;
     if (!p || !(camera instanceof THREE.PerspectiveCamera)) return;
     const b = bounds(p);
     const center = b.getCenter(new THREE.Vector3());
@@ -198,22 +199,30 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   useEffect(() => {
     if (!userOrbited.current) frame(true);
   }, [size.width, size.height]);
-  // Una pieza nueva que cae fuera de la vista (una copia al costado, la gemela del otro lado): se encuadra todo.
+  // Una pieza nueva que cae fuera de la vista (una copia al costado, la gemela del otro lado), o la vista previa de
+  // un cambio que se sale de la pantalla: se encuadra todo, con el fantasma adentro.
+  const outOfView = (p: Project) => {
+    const b = bounds(p);
+    camera.updateMatrixWorld();
+    return [0, 1, 2, 3, 4, 5, 6, 7].some((i) => {
+      const q = new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(camera);
+      return Math.abs(q.x) > 0.98 || Math.abs(q.y) > 0.98;
+    });
+  };
   const partCount = project?.parts.length ?? 0;
   const lastCount = useRef(partCount);
   useEffect(() => {
     const grew = partCount > lastCount.current;
     lastCount.current = partCount;
     const p = useEditor.getState().project;
-    if (!grew || !p) return;
-    const b = bounds(p);
-    camera.updateMatrixWorld();
-    const out = [0, 1, 2, 3, 4, 5, 6, 7].some((i) => {
-      const q = new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(camera);
-      return Math.abs(q.x) > 0.98 || Math.abs(q.y) > 0.98;
-    });
-    if (out) frame(false);
+    if (grew && p && outOfView(p)) frame(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partCount, camera]);
+  const pendingGhost = useEditor((s) => (s.pending ? s.ghost : null));
+  useEffect(() => {
+    if (pendingGhost && outOfView(pendingGhost)) frame(false, pendingGhost);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingGhost]);
 
   useFrame(() => {
     if (!anim.current) return;
@@ -422,6 +431,42 @@ function SectionDraft({ accent }: { accent: string }) {
   return lines ? <primitive object={lines} renderOrder={2} /> : null;
 }
 
+/** El fantasma: lo nuevo o cambiado, en el color de acento; lo que se borraría, en rojo. */
+function ChangeGhost({ accent, danger }: { accent: string; danger: string }) {
+  const project = useEditor((s) => s.project);
+  const ghost = useEditor((s) => s.ghost);
+  const invalidate = useThree((s) => s.invalidate);
+  const objects = useMemo(() => {
+    if (!project || !ghost) return [];
+    const { changed, removed } = ghostDiff(project, ghost);
+    const make = (b: Box, color: string, opacity: number) => {
+      const geo = new THREE.BoxGeometry(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
+      geo.translate((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
+      const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color, depthTest: false }));
+      return [fill, edges];
+    };
+    return [...changed.flatMap((b) => make(b, accent, 0.22)), ...removed.flatMap((b) => make(b, danger, 0.3))];
+  }, [project, ghost, accent, danger]);
+  useEffect(
+    () => () => {
+      for (const o of objects) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    },
+    [objects],
+  );
+  useEffect(() => invalidate(), [objects, invalidate]);
+  return (
+    <>
+      {objects.map((o) => (
+        <primitive key={o.uuid} object={o} renderOrder={3} />
+      ))}
+    </>
+  );
+}
+
 /** Cajón o puerta por agregar: el hueco elegido, sombreado, y las piezas que van a ir, en líneas. */
 function FittingPreview({ accent }: { accent: string }) {
   const preview = useEditor((s) => s.fittingPreview);
@@ -591,6 +636,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
   const xray = useEditor((s) => s.xray);
+  const ghost = useEditor((s) => s.ghost);
   const dragging = useEditor((s) => s.dragging);
   const drawFace = useEditor((s) => s.drawFace);
   const { camera, gl, invalidate } = useThree();
@@ -1119,6 +1165,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   };
 
   if (!project) return null;
+  // Lo que cambiaría queda en rayos X, para ver el fantasma de cómo queda.
+  const faded = ghostDiff(project, ghost).faded;
   const b = bounds(project);
   const span = Math.max(2000, Math.ceil(Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 1000) * 1000 + 1000);
   return (
@@ -1136,7 +1184,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
             part={p}
             exact={dragging ? undefined : exact}
             selected={p.id === selectedId}
-            xray={xray}
+            xray={xray || faded.has(p.id)}
             edgeColor={colors.edge}
             accent={colors.accent}
             onPointerDown={startDrag}
@@ -1147,6 +1195,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       <BevelDraft accent={colors.accent} />
       <SectionDraft accent={colors.accent} />
       <FittingPreview accent={colors.accent} />
+      <ChangeGhost accent={colors.accent} danger={colors.danger} />
       {drawFace &&
         (() => {
           const part = project.parts.find((p) => p.id === drawFace.partId);

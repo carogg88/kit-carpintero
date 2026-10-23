@@ -36,3 +36,30 @@ describe('aviso de cambios', () => {
     expect(changeNotice(p, after, `Borraste ${leg.id}`)).toBe(`Borraste ${leg.id}`);
   });
 });
+
+describe('vista previa', () => {
+  it('un cambio propuesto no toca el proyecto hasta aplicarlo, y se puede deshacer en un paso', () => {
+    useEditor.getState().open(mesa());
+    const before = useEditor.getState().project!;
+    const leg = before.parts.find((x) => x.name.startsWith('Pata'))!;
+    useEditor.getState().propose((d) => void (d.parts = d.parts.filter((x) => x.id !== leg.id)), `Borraste ${leg.id}`);
+    let s = useEditor.getState();
+    expect(s.project).toBe(before);
+    expect(s.ghost!.parts.some((x) => x.id === leg.id)).toBe(false);
+    s.applyPending();
+    s = useEditor.getState();
+    expect(s.project!.parts.some((x) => x.id === leg.id)).toBe(false);
+    expect([s.pending, s.ghost]).toEqual([null, null]);
+    s.undo();
+    expect(useEditor.getState().project).toBe(before);
+  });
+
+  it('cancelar deja todo como estaba', () => {
+    useEditor.getState().open(mesa());
+    const before = useEditor.getState().project!;
+    useEditor.getState().propose((d) => void (d.parts[0]!.position[1] += 100), 'Moviste');
+    useEditor.getState().cancelPending();
+    const s = useEditor.getState();
+    expect([s.project, s.pending, s.ghost, s.past.length]).toEqual([before, null, null, 0]);
+  });
+});
