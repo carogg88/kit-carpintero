@@ -24,6 +24,8 @@ import {
   type Project,
 } from '@kitc/core';
 import { JointMeta } from '../help/Help';
+import { Accordion } from '../ui/Accordion';
+import { InfoTip } from '../ui/InfoTip';
 import { JOINT_ABOUT, JOINT_DRAWING } from '../help/terms';
 import { sectionHref } from '../routes';
 import { IconBack, IconInfo, IconWarn } from './icons';
@@ -71,54 +73,74 @@ function JointList({
   onPick: (j: Joint) => void;
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [more, setMore] = useState<Record<string, boolean>>({});
   return (
     <aside className={styles.jointList} aria-labelledby="uniones-titulo">
       <h1 id="uniones-titulo" className={styles.h1}>
         {t('Uniones del mueble')}
       </h1>
       <p className={styles.muted}>{t('La app encuentra dónde se tocan las piezas y te ofrece solo los encastres posibles en cada lugar.')}</p>
-      {groups.map((g) => {
-        const at = g.joints.findIndex((j) => j.id === current.id);
-        const all = open[g.key] || g.joints.length <= SHOWN + 1 || at >= SHOWN;
-        const shown = all ? g.joints : g.joints.slice(0, SHOWN);
-        return (
-          <section key={g.key} className={styles.group} aria-label={t('{group}, {n} uniones', { group: g.label, n: g.joints.length })}>
-            <h2 className={styles.eyebrow}>
-              {g.label} · {g.joints.length}
-            </h2>
-            <ul className={styles.jointItems}>
-              {shown.map((j) => (
-                <li key={j.id}>
-                  <button type="button" aria-current={j.id === current.id ? 'true' : undefined} onClick={() => onPick(j)}>
-                    <span className={styles.thumb} data-plain={j.type === 'tope' || undefined} aria-hidden="true">
-                      {JOINT_DRAWING[j.type]}
+      <div className={styles.groups}>
+        {groups.map((g) => {
+          const at = g.joints.findIndex((j) => j.id === current.id);
+          const all = more[g.key] || g.joints.length <= SHOWN + 1 || at >= SHOWN;
+          const shown = all ? g.joints : g.joints.slice(0, SHOWN);
+          const warns = g.joints.some((j) => warned.has(j.id));
+          return (
+            <Accordion
+              key={g.key}
+              variant="line"
+              level={2}
+              title={g.label}
+              summary={[...new Set(g.joints.map((j) => nameOf(j.type)))].join(' · ')}
+              meta={
+                <span className={styles.groupMeta}>
+                  {warns && (
+                    <span className={styles.rowWarn} role="img" aria-label={t('Tiene un aviso')}>
+                      <IconWarn />
                     </span>
-                    <span className={styles.pair}>
-                      <span className={styles.pairTop}>
-                        <span className={styles.pairCodes}>
-                          {j.partA} ↔ {j.partB}
-                        </span>
-                        {warned.has(j.id) && (
-                          <span className={styles.rowWarn} role="img" aria-label={t('Tiene un aviso')}>
-                            <IconWarn />
-                          </span>
-                        )}
-                        <span className={styles.typeName}>{nameOf(j.type, parts.find((x) => x.id === j.partA), parts.find((x) => x.id === j.partB))}</span>
+                  )}
+                  {g.joints.length}
+                </span>
+              }
+              // El grupo de la unión elegida arranca abierto; los demás, plegados.
+              open={open[g.key] ?? at >= 0}
+              onToggle={(on) => setOpen({ ...open, [g.key]: on })}
+            >
+              <ul className={styles.jointItems} aria-label={t('{group}, {n} uniones', { group: g.label, n: g.joints.length })}>
+                {shown.map((j) => (
+                  <li key={j.id}>
+                    <button type="button" aria-current={j.id === current.id ? 'true' : undefined} onClick={() => onPick(j)}>
+                      <span className={styles.thumb} data-plain={j.type === 'tope' || undefined} aria-hidden="true">
+                        {JOINT_DRAWING[j.type]}
                       </span>
-                      <span className={styles.pairNames}>{pairNames(parts, j)}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {!all && (
-              <button type="button" className={styles.more} onClick={() => setOpen({ ...open, [g.key]: true })}>
-                {t('Ver {n} más', { n: g.joints.length - SHOWN })}
-              </button>
-            )}
-          </section>
-        );
-      })}
+                      <span className={styles.pair}>
+                        <span className={styles.pairTop}>
+                          <span className={styles.pairCodes}>
+                            {j.partA} ↔ {j.partB}
+                          </span>
+                          {warned.has(j.id) && (
+                            <span className={styles.rowWarn} role="img" aria-label={t('Tiene un aviso')}>
+                              <IconWarn />
+                            </span>
+                          )}
+                          <span className={styles.typeName}>{nameOf(j.type, parts.find((x) => x.id === j.partA), parts.find((x) => x.id === j.partB))}</span>
+                        </span>
+                        <span className={styles.pairNames}>{pairNames(parts, j)}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {!all && (
+                <button type="button" className={styles.more} onClick={() => setMore({ ...more, [g.key]: true })}>
+                  {t('Ver {n} más', { n: g.joints.length - SHOWN })}
+                </button>
+              )}
+            </Accordion>
+          );
+        })}
+      </div>
     </aside>
   );
 }
@@ -414,9 +436,15 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
                   }}
                 />
                 <span className={styles.radioText}>
-                  {nameOf(type, a, b)}
+                  <span className={styles.radioName}>{nameOf(type, a, b)}</span>
                   <JointMeta type={type} recommended={type === recommended} short />
                 </span>
+                <InfoTip label={nameOf(type, a, b)} align="end" side="top" wide card>
+                  <span className={styles.tipDrawing}>{JOINT_DRAWING[type]}</span>
+                  <strong className={styles.tipTitle}>{nameOf(type, a, b)}</strong>
+                  <JointMeta type={type} />
+                  {JOINT_ABOUT[type] && <span className={styles.tipText}>{t(JOINT_ABOUT[type])}</span>}
+                </InfoTip>
               </label>
             ))}
           </fieldset>

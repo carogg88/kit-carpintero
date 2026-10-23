@@ -22,6 +22,8 @@ import {
   type StockBoard,
 } from '@kitc/core';
 import { HelpTip } from '../help/Help';
+import { Accordion } from '../ui/Accordion';
+import { InfoTip } from '../ui/InfoTip';
 import { BudgetPanel, budgetGroups, budgetTotal, money, usePrices } from './Budget';
 import { IconDownload } from './icons';
 import {
@@ -360,9 +362,9 @@ export function CutsView({ project }: { project: Project }) {
   const exportCsv = () => download(`${fileSlug(project.name)}-${t('cortes')}.csv`, cutsCsv(project, rows, shop, plan, hardware));
   const plansTab = shop.length === 0 ? t('Cómo cortar cada placa') : sheets.length ? t('Cómo cortar tablas y placas') : t('Cómo cortar cada tabla');
 
+  // Los herrajes son una lista larga que se mira al final: arrancan plegados.
   const hardwareBlock = (
-    <>
-      <h2 className={styles.h3}>{t('Herrajes y otros')}</h2>
+    <Accordion variant="line" level={2} title={t('Herrajes y otros')} meta={hardware.length}>
       <ul className={styles.plainList}>
         {hardware.map((h) => (
           <li key={h.id}>
@@ -372,7 +374,12 @@ export function CutsView({ project }: { project: Project }) {
         ))}
         {hardware.length === 0 && <li className={styles.muted}>{t('Nada más por ahora.')}</li>}
       </ul>
-    </>
+    </Accordion>
+  );
+  const wasteTip = (
+    <InfoTip label={t('desperdicio')} card>
+      {wasteNote(plan.waste, shop.length === 0)}
+    </InfoTip>
   );
 
   return (
@@ -479,7 +486,10 @@ export function CutsView({ project }: { project: Project }) {
               )}
               <div>
                 <span className={styles.bigNum}>{Math.round(plan.waste * 100)}%</span>
-                <span>{t('de desperdicio')}</span>
+                <span className={styles.statLabel}>
+                  {t('de desperdicio')}
+                  {wasteTip}
+                </span>
               </div>
             </div>
             <p className={styles.total}>
@@ -514,16 +524,16 @@ export function CutsView({ project }: { project: Project }) {
             )}
             <div className={styles.tile}>
               <span className={styles.tileNum}>{Math.round(plan.waste * 100)}%</span>
-              <span>{t('desperdicio')}</span>
+              <span className={styles.statLabel}>
+                {t('desperdicio')}
+                {wasteTip}
+              </span>
             </div>
           </div>
 
-          <p className={styles.wasteNote}>{wasteNote(plan.waste, shop.length === 0)}</p>
-
-          <div className={`${styles.card} ${styles.desktopOnly}`}>
+          <div className={`${styles.card} ${styles.foldCard} ${styles.desktopOnly}`}>
             {shop.length > 0 && (
-              <>
-                <h2 className={styles.h3}>{t('Tablas')}</h2>
+              <Accordion variant="line" level={2} title={t('Tablas')} meta={boardCount} defaultOpen>
                 <ul className={styles.plainList}>
                   {shop.map((s) => (
                     <li key={shopKey(s)}>
@@ -535,11 +545,10 @@ export function CutsView({ project }: { project: Project }) {
                     </li>
                   ))}
                 </ul>
-              </>
+              </Accordion>
             )}
             {sheets.length > 0 && (
-              <>
-                <h2 className={styles.h3}>{t('Placas')}</h2>
+              <Accordion variant="line" level={2} title={t('Placas')} meta={sheetCount} defaultOpen>
                 <ul className={styles.plainList}>
                   {sheets.map((s) => (
                     <li key={sheetKey(s)}>
@@ -548,7 +557,7 @@ export function CutsView({ project }: { project: Project }) {
                     </li>
                   ))}
                 </ul>
-              </>
+              </Accordion>
             )}
             {hardwareBlock}
           </div>

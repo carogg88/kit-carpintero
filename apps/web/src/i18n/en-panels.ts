@@ -445,7 +445,6 @@ export default {
   "Falta el precio de {n} cosas: el total no las cuenta.": "{n} items have no price: the total leaves them out.",
   "Están todos los precios.": "Every item has a price.",
   "Los precios quedan guardados en este dispositivo para tus próximos proyectos.": "Prices are saved on this device for your next projects.",
-  "Comparar maderas": "Compare woods",
   "La madera maciza de este proyecto son {n} pies. Cargá el precio por pie de otras maderas para ver cuánto saldría.": "This project uses {n} board feet of solid wood. Enter the price per board foot of other woods to see what it would cost.",
   "la de este proyecto": "used in this project",
   // Compartir (tanda 22)
@@ -554,4 +553,7 @@ export default {
   "Ocultar el panel de detalles": "Hide the details panel",
   "Mostrar el panel de detalles": "Show the details panel",
   "Detalles": "Details",
+  'Más información: {what}': 'More information: {what}',
+  'Comparar precios de maderas': 'Compare wood prices',
+  'Opcional: cuánto saldría este mueble en otra madera': 'Optional: what this piece would cost in another wood',
 } satisfies Record<string, string>;
