@@ -472,7 +472,7 @@ export function CutsView({ project }: { project: Project }) {
               {shop.length > 0 && (
                 <div>
                   <span className={styles.bigNum}>{decimal(feet)}</span>
-                  <span>
+                  <span className={styles.statLabel}>
                     {feetLabel}
                     <HelpTip term="pie" />
                   </span>
@@ -516,7 +516,7 @@ export function CutsView({ project }: { project: Project }) {
             {shop.length > 0 && (
               <div className={styles.tile}>
                 <span className={styles.tileNum}>{decimal(feet)}</span>
-                <span>
+                <span className={styles.statLabel}>
                   {feetLabel}
                   <HelpTip term="pie" />
                 </span>

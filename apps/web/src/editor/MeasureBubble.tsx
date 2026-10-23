@@ -68,6 +68,12 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   const shape = pocket?.shape.kind === 'arc' ? undefined : pocket?.shape;
   const face = pocket ? faceSize(part, pocket.axis) : undefined;
   const extent = (i: 0 | 1) => (!shape ? 0 : shape.kind === 'rect' ? (i === 0 ? shape.w : shape.h) : 0);
+  // El tamaño de lo dibujado, para dejarlo justo: el diámetro del círculo, o el ancho y el alto del rectángulo.
+  const sizes: { key: 'd' | 'w' | 'h'; mm: number; label: string }[] = !shape
+    ? []
+    : shape.kind === 'circle'
+      ? [{ key: 'd', mm: shape.d, label: t('Diámetro') }]
+      : ([0, 1] as const).map((i) => ({ key: i === 0 ? 'w' : 'h', mm: extent(i), label: t(AXIS_LABELS[face!.axes[i]]) }));
   const at = (i: 0 | 1) => (!shape ? 0 : i === 0 ? shape.u : shape.v);
   const centered = (i: 0 | 1) => (face!.size[i] - extent(i)) / 2;
   const isCentered = !!shape && [0, 1].every((i) => Math.abs(at(i as 0 | 1) - centered(i as 0 | 1)) < 0.5);
@@ -75,17 +81,20 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
 
   const shown = (key: string, mm: number) => texts[key] ?? formatNumber(mm, units);
   const edited = (key: string, mm: number) => texts[key] !== undefined && texts[key].trim() !== formatNumber(mm, units);
-  const dirty = edited('main', current) || (!!shape && (edited('u', at(0)) || edited('v', at(1))));
+  const dirty = edited('main', current) || (!!shape && (edited('u', at(0)) || edited('v', at(1)) || sizes.some((f) => edited(f.key, f.mm))));
   const type = (key: string, value: string) => {
     setTexts((x) => ({ ...x, [key]: value }));
     setError(null);
   };
 
   const setThrough = (through: boolean) =>
-    commit((d) => {
-      const q = d.parts.find((p) => p.id === target.id)?.pockets.find((p) => target.kind === 'pocket' && p.id === target.pocketId);
-      if (q) q.through = through;
-    });
+    commit(
+      (d) => {
+        const q = d.parts.find((p) => p.id === target.id)?.pockets.find((p) => target.kind === 'pocket' && p.id === target.pocketId);
+        if (q) q.through = through;
+      },
+      through ? t('{id} ahora es un calado', { id: pocket?.id ?? '' }) : t('{id} ahora es un vaciado', { id: pocket?.id ?? '' }),
+    );
 
   const center = () => {
     setTexts((x) => ({ ...x, u: formatNumber(centered(0), units), v: formatNumber(centered(1), units) }));
@@ -126,15 +135,28 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
       });
     } else {
       if (!pocket!.through && v >= thick) return setError({ field: 'main', text: t('Tiene que ser menos que el espesor ({size})', { size: formatLength(thick, units) }) });
-      const u = shape ? read('u', at(0), 0, face!.size[0] - extent(0)) : 0;
+      // Primero el tamaño: de él depende hasta dónde se puede correr la figura.
+      const next: Partial<Record<'d' | 'w' | 'h', number>> = {};
+      for (const f of sizes) {
+        const max = f.key === 'd' ? Math.min(...face!.size) : face!.size[f.key === 'w' ? 0 : 1];
+        const mm = read(f.key, f.mm, 3, max);
+        if (mm === null) return;
+        next[f.key] = mm;
+      }
+      const room = (i: 0 | 1) => face!.size[i] - (shape?.kind === 'rect' ? (next[i === 0 ? 'w' : 'h'] ?? extent(i)) : 0);
+      // Un círculo más grande corre el centro hacia adentro si hace falta, para que no se salga de la cara.
+      const keep = (i: 0 | 1, mm: number) => (shape?.kind === 'circle' && next.d !== undefined ? Math.min(Math.max(mm, next.d / 2), face!.size[i] - next.d / 2) : mm);
+      const u = shape ? read('u', at(0), 0, room(0)) : 0;
       if (u === null) return;
-      const w = shape ? read('v', at(1), 0, face!.size[1] - extent(1)) : 0;
+      const w = shape ? read('v', at(1), 0, room(1)) : 0;
       if (w === null) return;
       commit((d) => {
         const q = d.parts.find((p) => p.id === target.id)?.pockets.find((p) => p.id === target.pocketId);
         if (!q) return;
         q.depth = v;
-        if (shape && q.shape.kind !== 'arc') [q.shape.u, q.shape.v] = [u, w];
+        if (q.shape.kind === 'circle' && next.d !== undefined) q.shape.d = next.d;
+        if (q.shape.kind === 'rect') [q.shape.w, q.shape.h] = [next.w ?? q.shape.w, next.h ?? q.shape.h];
+        if (shape && q.shape.kind !== 'arc') [q.shape.u, q.shape.v] = [keep(0, u), keep(1, w)];
       });
     }
     setBubble(null);
@@ -213,6 +235,16 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
         // En el celular, todo junto en poco alto: la profundidad y las dos distancias en una fila, y abajo Centrar y Listo.
         <>
           {pocket?.through && <span className={styles.bubbleHint}>{t('Atraviesa los {size} de la pieza', { size: formatLength(thick, units) })}</span>}
+          <div className={styles.bubbleFields} data-count={sizes.length}>
+            {sizes.map((f) => (
+              <label key={f.key} className={styles.bubbleSmall}>
+                <span>
+                  {f.label} {unit}
+                </span>
+                {field(f.key, f.mm, `${id}-${f.key}`)}
+              </label>
+            ))}
+          </div>
           <div className={styles.bubbleFields} data-count={pocket?.through ? 2 : 3}>
             {!pocket?.through && (
               <label className={styles.bubbleSmall}>
@@ -251,6 +283,19 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
                 {!shape && closeButton}
               </div>
             </>
+          )}
+          {shape && (
+            <div className={styles.bubblePlace} role="group" aria-labelledby={`${id}-size`}>
+              <span id={`${id}-size`} className={styles.bubblePlaceTitle}>
+                {t('Tamaño')} {unit}
+              </span>
+              {sizes.map((f) => (
+                <label key={f.key} className={styles.bubbleSmall}>
+                  <span>{f.label}</span>
+                  {field(f.key, f.mm, `${id}-${f.key}`)}
+                </label>
+              ))}
+            </div>
           )}
           {shape && (
             <div className={styles.bubblePlace} role="group" aria-labelledby={`${id}-place`}>

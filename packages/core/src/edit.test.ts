@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duplicatePart, namePrefix, newPart, nextPartId, partAxesBySize, partPlace, renamePart, setPlace, snapCoord, snapMove, syncJoints } from './edit';
+import { duplicatePart, mirrorPart, otherSideName, namePrefix, newPart, nextPartId, partAxesBySize, partPlace, renamePart, setPlace, snapCoord, snapMove, syncJoints } from './edit';
 import { partBox } from './geometry';
 import type { Part } from './project';
 import { createTable } from './templates/table';
@@ -40,7 +40,8 @@ describe('piezas nuevas', () => {
   });
 
   it('duplicar corre la copia a la derecha', () => {
-    expect(duplicatePart(table.parts, legs)).toMatchObject({ id: 'P5', name: 'Pata trasera izquierda (copia)', position: [200, 0, 30] });
+    const right = Math.max(...table.parts.map((p) => partBox(p).max[0]));
+    expect(duplicatePart(table.parts, legs)).toMatchObject({ id: 'P5', name: 'Pata trasera izquierda (copia)', position: [right + 150, 0, 30] });
   });
 
   it('largo, ancho y espesor de una pata son Y, X y Z', () => {
@@ -173,5 +174,32 @@ describe('componente al renombrar', () => {
     expect(project.components[1]!.name).toBe('Travesaño 2');
     renamePart(project, 'F4', 'Travesaño superior derecho');
     expect(project.components[1]!.name).toBe('Travesaño 2');
+  });
+});
+
+describe('copia del otro lado', () => {
+  it('el nombre cambia de lado', () => {
+    expect(otherSideName('Travesaño medio izquierdo')).toBe('Travesaño medio derecho');
+    expect(otherSideName('Faldón delantero')).toBe('Faldón trasero');
+    expect(otherSideName('Pata Trasera derecha')).toBe('Pata Delantera izquierda');
+  });
+
+  it('un travesaño de la izquierda pasa a la derecha con el mismo retiro', async () => {
+    const { buildTemplate, templateById } = await import('./templates');
+    const p = buildTemplate(templateById('taburete')!, { width: 450, depth: 340, height: 450, leg: 45, seatType: 2, apronHeight: 80, rung: 100 }, 'guatambu', 'mortaja', '2026-10-23T00:00:00Z');
+    const r4 = p.parts.find((x) => x.id === 'R4')!;
+    const r3 = p.parts.find((x) => x.id === 'R3')!;
+    // Del otro lado ya está R4: no se repite.
+    expect(mirrorPart(p.parts, r3)).toBeNull();
+    const parts = p.parts.filter((x) => x.id !== 'R4');
+    const m = mirrorPart(parts, r3)!;
+    expect(m.axis).toBe(0);
+    expect(m.part.position).toEqual(r4.position);
+    expect(m.part.name).toBe('Travesaño derecho');
+  });
+
+  it('una pieza en el medio no tiene otro lado', () => {
+    const top = table.parts.find((p) => p.id === 'T1')!;
+    expect(mirrorPart(table.parts, top)).toBeNull();
   });
 });

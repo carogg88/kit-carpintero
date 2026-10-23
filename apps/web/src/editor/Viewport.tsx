@@ -198,6 +198,22 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   useEffect(() => {
     if (!userOrbited.current) frame(true);
   }, [size.width, size.height]);
+  // Una pieza nueva que cae fuera de la vista (una copia al costado, la gemela del otro lado): se encuadra todo.
+  const partCount = project?.parts.length ?? 0;
+  const lastCount = useRef(partCount);
+  useEffect(() => {
+    const grew = partCount > lastCount.current;
+    lastCount.current = partCount;
+    const p = useEditor.getState().project;
+    if (!grew || !p) return;
+    const b = bounds(p);
+    camera.updateMatrixWorld();
+    const out = [0, 1, 2, 3, 4, 5, 6, 7].some((i) => {
+      const q = new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(camera);
+      return Math.abs(q.x) > 0.98 || Math.abs(q.y) > 0.98;
+    });
+    if (out) frame(false);
+  }, [partCount, camera]);
 
   useFrame(() => {
     if (!anim.current) return;
@@ -903,7 +919,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       commit((d) => {
         const q = d.parts.find((x) => x.id === part.id);
         if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
-      }, s.kind === 'arc' ? t('Hiciste un corte en arco en {id}', { id: part.id }) : t('Hiciste un vaciado en {id}', { id: part.id }));
+      }, s.kind === 'arc' ? t('Hiciste un corte en arco en {id}', { id: part.id }) : s.kind === 'rect' ? t('Hiciste un vaciado en {id}', { id: part.id }) : t('Hiciste un calado en {id}', { id: part.id }));
       // Al soltar: vaciado o calado, y cuánto de hondo, ahí mismo. Al costado de la figura, para no taparla.
       const rect = gl.domElement.getBoundingClientRect();
       const around = outline(box, face, s).map((p) => {

@@ -27,6 +27,7 @@ import {
   makeComponent,
   makeUnique,
   MEASURED_FROM,
+  mirrorPart,
   newPart,
   overlapBox,
   parseLength,
@@ -212,7 +213,7 @@ function JointRow({ joint, partId, project }: { joint: Joint; partId: string; pr
 }
 
 /** Qué bloques del panel quedan abiertos: se recuerda al pasar de una pieza a otra. */
-const foldOpen = { posicion: false, forma: false, uniones: false };
+const foldOpen = { forma: false, uniones: false };
 
 /** Un bloque del panel que se pliega: el título y un resumen de una línea siempre a la vista. */
 function Fold({ title, summary, open, onToggle, children }: { title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode }) {
@@ -486,8 +487,6 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
     : t('Ninguna todavía');
   // Dónde está: desde la izquierda, desde el piso y desde atrás. Así se sube o se baja una pieza escribiendo.
   const place = partPlace(project.parts, part);
-  const num = (mm: number) => formatNumber(mm, units);
-  const placeSummary = t('Del piso {y} · izquierda {x} · atrás {z}', { x: num(place[0]), y: num(place[1]), z: n(place[2]) });
   const tools: [Parameters<typeof setTool>[0], string][] = [
     ['draw', tk('Dibujar')],
     ['bevel', tk('Biselar')],
@@ -499,9 +498,19 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
     <>
       <div className={styles.partHead}>
         <div className={styles.panelHead}>
-          <span className={styles.eyebrow}>{t('{id} · pieza seleccionada', { id: part.id })}</span>
+          {/* Siempre a mano, arriba: cambiar de pieza sin buscar la lista ni tocar piezas finas en el modelo. */}
+          <label className={styles.partPick}>
+            <span className={styles.srOnly}>{t('Pieza elegida')}</span>
+            <select value={part.id} onChange={(e) => select(e.target.value)}>
+              {project.parts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.id} · {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button type="button" className={styles.link} onClick={() => select(null)}>
-            {t('Ver todas las piezas')}
+            {t('Ver el mueble')}
           </button>
         </div>
         <label className={styles.srOnly} htmlFor={nameId}>
@@ -548,6 +557,20 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           />
         ))}
       </fieldset>
+      {/* Dónde está, a la vista junto a las medidas: así se sube, se baja o se corre una pieza escribiendo. */}
+      <fieldset className={styles.dims}>
+        <legend className={styles.legend}>{t('Posición ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}</legend>
+        {([1, 0, 2] as const).map((axis) => (
+          <LengthField
+            key={axis}
+            label={t(PLACE_LABELS[axis])}
+            mm={place[axis]}
+            units={units}
+            min={0}
+            onCommit={(v) => commit((d) => setPlace(d.parts as Part[], part.id, axis, v), t('Moviste {id}', { id: part.id }))}
+          />
+        ))}
+      </fieldset>
       {/* Girar pasa también los vaciados, biseles, tramos y torneado: cambiar las medidas a mano los dejaría en otra cara. */}
       <div className={styles.rotateRow} role="group" aria-label={t('Girar 90°')}>
         <span className={styles.rotateTitle}>
@@ -584,20 +607,6 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       </label>
       {component && <ComponentNote project={project} part={part} name={component.name} />}
       <div className={styles.folds}>
-        <Fold title={t('Posición')} summary={placeSummary} open={open.posicion} onToggle={() => toggle('posicion')}>
-          <div className={styles.dims}>
-            {([1, 0, 2] as const).map((axis) => (
-              <LengthField
-                key={axis}
-                label={t(PLACE_LABELS[axis])}
-                mm={place[axis]}
-                units={units}
-                min={0}
-                onCommit={(v) => commit((d) => setPlace(d.parts as Part[], part.id, axis, v), t('Moviste {id}', { id: part.id }))}
-              />
-            ))}
-          </div>
-        </Fold>
         <Fold title={t('Forma')} summary={shape} open={open.forma} onToggle={() => toggle('forma')}>
           <fieldset className={styles.plainFieldset}>
             <legend className={styles.legend}>
@@ -749,6 +758,23 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           }}
         >
           {t('Duplicar')}
+        </button>
+        {/* La gemela del otro lado (pata trasera, faldón derecho), con el mismo retiro: no hay que medir dónde va. */}
+        <button
+          type="button"
+          className={styles.btn}
+          title={t('Hace la misma pieza del otro lado del mueble, a la misma distancia del borde.')}
+          onClick={() => {
+            const res = mirrorPart(project.parts, part);
+            if (!res) {
+              useEditor.getState().warn(t('Del otro lado ya hay una pieza igual, o esta pieza está en el medio.'));
+              return;
+            }
+            commit((d) => void d.parts.push(res.part), t('Agregaste {id} del otro lado', { id: res.part.id }));
+            select(res.part.id);
+          }}
+        >
+          {t('Del otro lado')}
         </button>
         {component ? (
           <button type="button" className={styles.btn} onClick={() => commit((d) => makeUnique(d as Project, part.id))}>
