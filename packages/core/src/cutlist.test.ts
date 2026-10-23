@@ -77,3 +77,16 @@ describe('plan de corte', () => {
     expect(dowelsNeeded(t)).toEqual([{ diameter: 8, length: 60, count: 16 }]);
   });
 });
+
+describe('piezas finas del sobrante de una tabla gruesa', () => {
+  it('los listones del asiento salen del tirante de las patas, no de otro listón', async () => {
+    const { buildTemplate, templateById } = await import('./templates');
+    const p = buildTemplate(templateById('taburete')!, { width: 450, depth: 340, height: 450, leg: 45, seatType: 2, apronHeight: 80, rung: 100 }, 'guatambu', 'mortaja', '2026-10-23T00:00:00Z');
+    const slat = (id: string, x: number) => ({ ...structuredClone(p.parts[0]!), id, name: 'Listón del asiento', base: { kind: 'box' as const, size: [25, 25, 340] as [number, number, number] }, position: [x, 437.5, 0] as [number, number, number], ops: [] });
+    p.parts.push(slat('L1', 137.5), slat('L2', 287.5));
+    const plan = cutPlan(p);
+    const host = plan.boards.find((b) => b.slots.some((s) => s.id === 'L1'))!;
+    expect(host.thicknessIn).toBe(2);
+    expect(plan.boards.some((b) => b.thicknessIn === 1.5)).toBe(false);
+  });
+});

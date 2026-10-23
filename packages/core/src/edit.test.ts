@@ -149,3 +149,29 @@ describe('cruce apoyado en una muesca', () => {
     expect(joints.map((j) => [j.type, j.params])).toEqual([['tope', {}]]);
   });
 });
+
+describe('espigas que se reajustan al achicar una pieza', () => {
+  it('un faldón de 8 cm que pasa a 3 cm recupera hombros de taller', async () => {
+    const { buildTemplate, templateById } = await import('./templates');
+    const p = buildTemplate(templateById('taburete')!, { width: 450, depth: 340, height: 450, leg: 45, seatType: 2, apronHeight: 80 }, 'guatambu', 'mortaja', '2026-10-23T00:00:00Z');
+    const f3 = p.parts.find((x) => x.id === 'F3')!;
+    expect(p.joints.find((j) => j.id === 'P1-F3')!.params.shoulder).toBe(10);
+    if (f3.base.kind === 'box') f3.base.size[1] = 30;
+    const joints = syncJoints(p.parts, p.joints);
+    const j = joints.find((x) => x.id === 'P1-F3')!;
+    expect(j.params.shoulder).toBe(5);
+    // El largo que tenía queda como estaba.
+    expect(j.params.length).toBe(p.joints.find((x) => x.id === 'P1-F3')!.params.length);
+  });
+});
+
+describe('componente al renombrar', () => {
+  it('toma la palabra del nombre nuevo', () => {
+    const parts = [{ id: 'F3', name: 'Faldón izquierdo', component: 'C2' }, { id: 'F4', name: 'Faldón derecho', component: 'C2' }] as Part[];
+    const project = { parts, joints: [], components: [{ id: 'C1', name: 'Travesaño' }, { id: 'C2', name: 'Faldón 2' }] };
+    renamePart(project, 'F3', 'Travesaño superior izquierdo');
+    expect(project.components[1]!.name).toBe('Travesaño 2');
+    renamePart(project, 'F4', 'Travesaño superior derecho');
+    expect(project.components[1]!.name).toBe('Travesaño 2');
+  });
+});

@@ -80,7 +80,7 @@ export function ToolGuide() {
       active = bubble?.target.kind === 'push' ? 1 : 0;
       break;
     case 'move':
-      steps = [{ text: copyMove ? t('Arrastrá la pieza: queda una copia') : t('Arrastrá la pieza por el piso') }, { text: t('Soltala donde va: se pega a las otras') }];
+      steps = [{ text: copyMove ? t('Arrastrá la pieza: queda una copia') : t('Arrastrá la pieza: en Frente o Costado también sube y baja') }, { text: t('Soltala donde va: se pega a las otras') }];
       active = dragging ? 1 : 0;
       controls = (
         <button type="button" className={styles.guideToggle} aria-pressed={copyMove} onClick={() => setCopyMove(!copyMove)}>
