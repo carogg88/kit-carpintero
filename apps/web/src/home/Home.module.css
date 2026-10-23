@@ -24,7 +24,6 @@
 
 /* En la compu: una grilla que entra entera y queda centrada en pantallas altas; solo la lista de proyectos se desplaza si se abren todos. */
 @media (min-width: 1000px) {
-  .shell { height: 100dvh; overflow: hidden; }
   .main {
     display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr); grid-template-rows: auto auto minmax(0, auto); align-content: center;
     grid-template-areas: 'create last' 'quick quick' 'mine mine'; column-gap: var(--space-5); row-gap: var(--space-3); padding-top: var(--space-3); padding-bottom: var(--space-2);
@@ -258,4 +257,50 @@
 .footer a { color: var(--accent); display: inline-flex; min-height: var(--tap); align-items: center; }
 @media (prefers-reduced-motion: reduce) {
   .start, .quickItem, .moreCard, .primaryBtn, .install, .smallBtn { transition: none; }
+}
+
+/* La pantalla fija (sin scroll de página) solo cuando hay alto para todo; en ventanas más bajas, la página se desplaza y no se corta nada. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .shell { height: 100dvh; overflow: hidden; }
+}
+@media (min-width: 1000px) and (max-height: 599px) {
+  .main { grid-template-rows: auto auto auto; }
+  .projectsScroll { overflow: visible; }
+}
+/* Pantallas bajas (una notebook de 13" con la barra del navegador, unos 650 px de alto): todo más compacto para que entre sin cortar. */
+@media (min-width: 1000px) and (max-height: 759px) {
+  .headerInner { min-height: 52px; padding-block: 4px; }
+  .main { padding-top: var(--space-2); row-gap: 10px; }
+  .create, .last, .quick, .mine { gap: 6px; }
+  .title { font-size: var(--text-xl); min-height: 36px; display: flex; align-items: center; }
+  .last > .sectionHead { min-height: 36px; }
+  .sectionHead { min-height: 36px; }
+  .sectionHead .h2 { font-size: var(--text-l); }
+  .createCard { padding: 10px var(--space-3) var(--space-3); gap: var(--space-2); }
+  .createCard .h3 { font-size: var(--text-m); }
+  .starts .start { min-height: 64px; padding-block: var(--space-2); }
+  .starts .startIcon { width: 38px; height: 38px; }
+  .lastCard { padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); gap: var(--space-2); }
+  .lastName { font-size: var(--text-l); }
+  .lastThumb { width: 56px; height: 56px; }
+  .cardActions .primaryBtn, .cardActions .smallBtn { min-height: 36px; }
+  /* Plantillas en fila baja: el ícono a la izquierda del nombre. */
+  .quickList .quickItem, .quickList .quickMore {
+    min-height: 60px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; justify-items: start;
+    column-gap: 10px; row-gap: 0; padding: 8px 10px; text-align: left;
+  }
+  .quickList .quickArt, .quickList .plus { grid-row: span 2; width: 36px; height: 36px; margin: 0; }
+  .quickList .plus { font-size: 24px; }
+  .quickName { font-size: var(--text-xs); }
+  .projects .project { gap: 6px; padding: 10px var(--space-3); }
+  .projects .projectName { font-size: var(--text-m); }
+  .projects .moreCard { min-height: 120px; }
+  .footer { padding-bottom: var(--space-2); }
+}
+@media (min-width: 1000px) and (max-height: 700px) {
+  .headerInner { min-height: 48px; }
+  .main { padding-top: 4px; row-gap: 6px; }
+  .lastCard { gap: 6px; padding-top: 10px; padding-bottom: 10px; }
+  .lastThumb { width: 48px; height: 48px; }
+  .footer { padding-bottom: 6px; }
 }
