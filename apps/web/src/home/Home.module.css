@@ -1,49 +1,53 @@
-/* Inicio: todo en una pantalla. Arriba la barra con la marca; abajo crear un proyecto y mis proyectos (que se desplazan solos si son muchos). */
+/* Inicio: todo en una pantalla en la compu. Arriba crear un proyecto y el último proyecto; en el medio las plantillas rápidas; abajo mis proyectos (que se desplazan solos si son muchos). */
 .shell { width: 100%; min-height: 100dvh; display: flex; flex-direction: column; }
 .header { background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: 0 1px 0 rgb(43 54 40 / 0.03), 0 4px 16px rgb(43 54 40 / 0.05); }
-.headerInner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--gutter); min-height: 64px; }
+.headerInner { max-width: 1280px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--gutter); min-height: 60px; }
 .brand { display: flex; align-items: center; gap: var(--space-3); }
 .brand svg { display: block; flex-shrink: 0; }
-.headerActions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; }
-.main { flex: 1; min-height: 0; width: 100%; max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) var(--gutter) var(--space-4); }
-.create { display: flex; flex-direction: column; gap: var(--space-3); }
+.headerActions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; justify-content: flex-end; }
+.main {
+  flex: 1; min-height: 0; width: 100%; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-5);
+  padding: var(--space-4) var(--gutter) var(--space-3);
+}
+.create, .last, .quick, .mine { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 .createCard { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); }
-.mine { flex: 1; min-height: 280px; display: flex; flex-direction: column; gap: var(--space-3); }
-.projectsScroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(-1 * var(--space-1)); padding: 2px var(--space-1) var(--space-2); }
+.mine { flex: 1; }
+.projectsScroll { flex: 1; min-height: 0; margin: -4px; padding: 4px; }
 .count { margin-left: var(--space-2); padding: 1px 9px; border-radius: var(--radius-pill); background: var(--surface-2); font: 500 var(--text-s) var(--font-num); color: var(--muted); vertical-align: 3px; }
-.empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-4); text-align: center; border: 1.5px dashed var(--line-strong); border-radius: var(--radius-m); color: var(--accent); }
+.empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); padding: var(--space-5) var(--space-4); text-align: center;
+  border: 1.5px dashed var(--line-strong); border-radius: var(--radius-m); color: var(--accent);
+}
 .empty p { margin: 0; max-width: 34ch; font-size: var(--text-s); color: var(--muted); }
-/* En la compu, crear a la izquierda y mis proyectos a la derecha, y la pantalla no se desplaza: la lista sí. */
+.none { margin: 0; padding: var(--space-4); border: 1.5px dashed var(--line-strong); border-radius: var(--radius-m); font-size: var(--text-s); color: var(--muted); text-align: center; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* En la compu: una grilla que entra entera y queda centrada en pantallas altas; solo la lista de proyectos se desplaza si se abren todos. */
 @media (min-width: 1000px) {
   .shell { height: 100dvh; overflow: hidden; }
-  .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: stretch; gap: var(--space-5); padding-top: var(--space-5); }
-  .create { min-height: 0; }
-  .mine { min-height: 0; }
+  .main {
+    display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr); grid-template-rows: auto auto minmax(0, auto); align-content: center;
+    grid-template-areas: 'create last' 'quick quick' 'mine mine'; column-gap: var(--space-5); row-gap: var(--space-3); padding-top: var(--space-3); padding-bottom: var(--space-2);
+  }
+  .create { grid-area: create; }
+  .last { grid-area: last; }
+  .quick { grid-area: quick; }
+  .mine { grid-area: mine; min-height: 0; }
+  .projectsScroll { overflow-y: auto; overscroll-behavior: contain; }
+    .starts > * { flex: 1 1 0; min-width: 0; }
+  .lastCard { flex: 1; }
 }
+/* El título grande y el de "Último proyecto" quedan en la misma línea. */
+.title, .last > .sectionHead { min-height: 44px; }
 .lang { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); }
-.lang button {
-  min-height: 38px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--muted);
-  font: inherit; font-size: var(--text-s); font-weight: 600; cursor: pointer;
-}
 .lang button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
 .lang button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.install {
-  display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4);
-  border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); color: var(--ink);
-  font: inherit; font-size: var(--text-s); font-weight: 600; cursor: pointer;
-}
 .install:hover { border-color: var(--forest); }
 .install:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .title { margin: 0; font: 500 var(--text-display)/1.1 var(--font-display); }
-.h2 { margin: 0; font: 500 var(--text-xl)/1.2 var(--font-display); color: var(--ink); }
 .muted { font-size: var(--text-s); color: var(--muted); }
 .starts { display: flex; flex-direction: column; gap: var(--space-2); }
 .sub { margin: calc(-1 * var(--space-1)) 0 0; font-size: var(--text-m); color: var(--muted); }
-.start {
-  font: inherit; text-align: left; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease;
-  display: flex; gap: 14px; align-items: center; min-height: 72px; padding: var(--space-3); background: var(--surface); color: var(--ink);
-  border: 1px solid var(--line); border-radius: var(--radius-m); text-decoration: none;
-}
 .start:hover { border-color: var(--forest); background: var(--surface-2); }
 .startMain { border-color: var(--line-strong); }
 .startArrow { margin-left: auto; flex-shrink: 0; color: var(--muted); display: flex; }
@@ -95,49 +99,163 @@
 .smallBtn:hover { border-color: var(--forest); background: var(--surface-2); }
 .smallBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .smallBtn svg { color: var(--accent); }
-.link { min-height: var(--tap); padding: 0; border: 0; background: none; color: var(--accent); font: 500 var(--text-s) var(--font-ui); cursor: pointer; }
 .error { margin: 0; color: var(--danger); font-size: var(--text-s); }
-.projects { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.project {
-  position: relative; display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; background: var(--surface);
-  border: 1px solid var(--line); border-radius: var(--radius-m); padding: 10px;
-}
-.projectMain { flex: 1; min-width: 0; display: flex; gap: var(--space-3); align-items: center; padding: 0; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
-.thumb { width: 72px; height: 64px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .projectText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .projectName { font: 500 var(--text-l)/1.25 var(--font-display); }
 .projectSize { font-family: var(--font-num); font-size: var(--text-s); color: var(--muted); }
-.backup {
-  flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3);
-  margin: calc(-1 * var(--space-1)) 0 -2px; padding: 8px 0 0 var(--space-2); border-top: 1px solid var(--line);
-  font-size: var(--text-s); color: var(--muted);
-}
-.backup span { padding: 4px 0; }
 .more { width: var(--tap); height: var(--tap); flex-shrink: 0; border: 0; background: transparent; color: var(--ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.menu {
-  position: absolute; right: 10px; top: calc(100% - 6px); z-index: 2; display: flex; flex-direction: column; min-width: 180px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: var(--space-1); box-shadow: 0 8px 24px rgb(43 54 40 / 0.12);
-}
 .menu button { min-height: var(--tap); padding: 0 var(--space-3); border: 0; border-radius: 8px; background: none; color: var(--ink); text-align: left; font: 500 var(--text-s) var(--font-ui); cursor: pointer; }
 .menu button:hover { background: var(--bg); }
 .dangerItem { color: var(--danger) !important; }
-.foot { margin: var(--space-3) 0 0; font-size: var(--text-xs); line-height: 1.5; color: var(--muted); }
-.foot a { color: var(--accent); display: inline-flex; min-height: var(--tap); align-items: center; }
-/* En el celular también entra todo: las formas de empezar en filas compactas y la lista de proyectos con su propio desplazamiento. */
+/* En el celular: una columna que se desplaza; las plantillas rápidas, en una fila que se corre de costado. */
+@media (max-width: 999px) {
+  .quick .quickList { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 calc(-1 * var(--gutter)); padding: 2px var(--gutter) 6px; scroll-padding-inline: var(--gutter); }
+  .quick .quickList > li { flex: 0 0 140px; scroll-snap-align: start; }
+}
 @media (max-width: 699px) {
-  .shell { height: 100dvh; overflow: hidden; }
   .headerInner { min-height: 56px; }
-  .main { gap: var(--space-3); padding-top: var(--space-3); }
-  .title { font-size: var(--text-xl); }
+  .main { gap: var(--space-4); padding-top: var(--space-3); }
+  .title { font-size: var(--text-xl); min-height: 0; }
+  .last > .sectionHead { min-height: 0; }
   .createCard { padding: var(--space-3); gap: var(--space-2); }
-  .createCard .h2 { font-size: var(--text-l); }
+  .createCard .h3 { font-size: var(--text-l); }
   .start { min-height: 60px; padding: var(--space-2) var(--space-3); gap: var(--space-3); }
   .startIcon { width: 40px; height: 40px; }
   .startText strong { font-size: var(--text-m); }
   .startText span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .startText { min-width: 0; }
-  .mine { min-height: 0; gap: var(--space-2); }
+  .sectionHead { flex-wrap: wrap; }
+  .mineTools { width: 100%; }
+  .mineTools .search { flex: 1; width: auto; min-width: 0; }
+  .projects .moreCard { min-height: 88px; flex-direction: row; gap: var(--space-3); }
+  .projects .moreCard .plus { margin: 0; }
+  .projects .moreCard > span:last-child { display: none; }
 }
 @media (max-width: 699px) {
   .pickerHead { top: calc(-1 * var(--space-4)); margin: calc(-1 * var(--space-4)) calc(-1 * var(--gutter)) 0; padding: var(--space-4) var(--gutter) var(--space-2); }
+}
+
+.h2 { margin: 0; font: 500 var(--text-xl)/1.2 var(--font-display); color: var(--ink); }
+.h3 { margin: 0; font: 500 var(--text-l)/1.25 var(--font-display); color: var(--ink); }
+.lang button {
+  min-width: 40px; min-height: 34px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--muted);
+  font: 600 var(--text-s) var(--font-ui); cursor: pointer;
+}
+.install {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4);
+  border: 0; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-ink);
+  font: 600 var(--text-s) var(--font-ui); cursor: pointer; transition: background-color 150ms ease;
+}
+.install:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
+.install svg { color: currentColor; }
+
+/* Crear: tres formas de empezar, en fila en la compu. */
+.starts { display: flex; flex-direction: column; gap: var(--space-2); }
+.start {
+  font: inherit; text-align: left; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease;
+  display: flex; gap: var(--space-3); align-items: center; min-height: 72px; padding: var(--space-3); background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius-m); text-decoration: none;
+}
+@media (min-width: 1000px) {
+  .starts { flex-direction: row; }
+  .starts > * { flex: 1 1 0; min-width: 0; }
+  .start { align-items: center; padding: var(--space-3) var(--space-2) var(--space-3) var(--space-3); }
+  .startIcon { width: 44px; height: 44px; }
+  .startText span { font-size: var(--text-xs); line-height: 1.4; }
+  .startText strong { font-size: var(--text-m); }
+  .start .startArrow { display: none; }
+  .create, .last, .quick, .mine { gap: var(--space-2); }
+  .createCard { padding: var(--space-3) var(--space-4) var(--space-4); }
+  .project .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .quickList .quickItem { min-height: 88px; padding: 10px var(--space-3); }
+  .quickList .quickArt, .quickList .plus { width: 36px; height: 36px; margin-bottom: 6px; }
+  .quickList .quickArt svg { width: 24px; height: 24px; }
+  .projects .project { gap: 8px; }
+  .projects .thumb { width: 44px; height: 44px; }
+}
+
+/* Último proyecto: para seguir donde se dejó. */
+.lastCard { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m); }
+.lastTop { display: flex; align-items: center; gap: var(--space-2); margin: -6px -6px -4px 0; }
+.lastTop .tag { margin-left: auto; }
+.live { display: inline-flex; align-items: center; gap: 6px; font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--muted); }
+.live > span { width: 8px; height: 8px; border-radius: 50%; background: var(--forest); box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest) 18%, transparent); }
+.lastBody { display: flex; align-items: center; gap: var(--space-3); }
+.lastText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lastName { margin: 0; font: 500 var(--text-xl)/1.2 var(--font-display); overflow-wrap: anywhere; }
+.lastThumb { width: 72px; height: 72px; }
+.cardActions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: auto; }
+.primaryBtn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill);
+  background: var(--accent); color: var(--accent-ink); font: 600 var(--text-s) var(--font-ui); cursor: pointer; white-space: nowrap; transition: background-color 150ms ease;
+}
+.primaryBtn:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
+.primaryBtn:focus-visible, .install:focus-visible, .quickItem:focus-visible, .moreCard:focus-visible, .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lastCard .cardActions > * { flex: 1 1 auto; }
+.tag {
+  align-self: flex-start; display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: var(--radius-pill);
+  background: var(--surface-2); color: var(--muted); font: 500 var(--text-xs) var(--font-ui); white-space: nowrap;
+}
+.tag[data-warn] { background: var(--accent-soft); color: var(--ink); }
+
+/* Plantillas rápidas: cinco a un toque y una para ver todas. */
+.link {
+  display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap); padding: 0; border: 0; background: none; color: var(--ink);
+  font: 500 var(--text-s) var(--font-ui); cursor: pointer; text-underline-offset: 3px;
+}
+.link:hover { color: var(--accent); text-decoration: underline; }
+.quickList { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-3); }
+.quickItem {
+  width: 100%; height: 100%; min-height: 104px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--space-3);
+  border: 1px solid transparent; border-radius: 18px 18px 18px 40px / 18px 18px 18px 28px; background: var(--accent-soft); color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer; transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.quickItem:hover { border-color: var(--accent); box-shadow: 0 6px 18px rgb(43 54 40 / 0.1); }
+.quickArt { width: 44px; height: 44px; margin-bottom: var(--space-2); border-radius: 12px; background: var(--surface); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.quickArt svg { width: 28px; height: 28px; }
+.quickName { font: 500 var(--text-s) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; }
+.quickSize { font: 400 var(--text-xs) var(--font-num); color: var(--muted); }
+.quickMore { align-items: center; justify-content: center; text-align: center; background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface)); }
+.plus {
+  width: 44px; height: 44px; margin-bottom: var(--space-2); border-radius: 50%; background: var(--surface); color: var(--accent); display: flex; align-items: center; justify-content: center;
+  font: 300 28px/1 var(--font-display);
+}
+
+/* Mis proyectos: tarjetas en fila, con buscador. */
+.mineTools { display: inline-flex; align-items: center; gap: var(--space-2); }
+.search {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; width: min(300px, 100%); padding: 0 12px; border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill); background: var(--surface); color: var(--muted);
+}
+.search:focus-within { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.search input { flex: 1; min-width: 0; border: 0; background: none; color: var(--ink); font: 400 var(--text-s) var(--font-ui); outline: none; }
+.projects { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
+@media (min-width: 1000px) { .projects { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.project {
+  position: relative; display: flex; flex-direction: column; gap: 10px; padding: var(--space-3); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-m); box-shadow: inset 3px 0 0 var(--forest);
+}
+.projectTop { display: flex; align-items: flex-start; gap: var(--space-3); }
+.projectTop .projectText { flex: 1; }
+.project .cardActions > .primaryBtn { flex: 1; }
+.thumb { width: 52px; height: 52px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.projectName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.moreCard {
+  width: 100%; height: 100%; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: var(--space-3);
+  border: 1.5px dashed var(--line-strong); border-radius: var(--radius-m); background: transparent; color: var(--ink); font: inherit; cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.moreCard:hover { border-color: var(--forest); background: var(--surface); }
+.moreCard strong { font: 500 var(--text-m) var(--font-display); }
+.moreCard > span:last-child { font-size: var(--text-xs); color: var(--muted); }
+.menuWrap { position: relative; flex-shrink: 0; margin: -6px -6px 0 0; }
+.menu {
+  position: absolute; right: 0; top: 100%; z-index: 5; display: flex; flex-direction: column; min-width: 180px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: var(--space-1); box-shadow: 0 8px 24px rgb(43 54 40 / 0.12);
+}
+.footer { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter) var(--space-3); text-align: center; font-size: var(--text-xs); line-height: 1.5; color: var(--muted); }
+.footer p { margin: 0; }
+.footer a { color: var(--accent); display: inline-flex; min-height: var(--tap); align-items: center; }
+@media (prefers-reduced-motion: reduce) {
+  .start, .quickItem, .moreCard, .primaryBtn, .install, .smallBtn { transition: none; }
 }

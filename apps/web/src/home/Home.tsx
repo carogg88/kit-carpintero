@@ -218,41 +218,32 @@ function download(p: Project) {
   return at;
 }
 
-function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: (id: string) => void; onChanged: () => void }) {
-  const [menu, setMenu] = useState(false);
-  const { size, meta } = summary(project);
-  const [exportedAt, setExportedAt] = useState(() => readExported(project.id));
-  const backup = project.parts.length > 0 && (!exportedAt || exportedAt < project.updatedAt);
+/** El ⋮ de un proyecto: ir al plano, exportar o eliminar. */
+function ProjectMenu({ project, onExported, onChanged, align = 'end' }: { project: Project; onExported: (at: string) => void; onChanged: () => void; align?: 'end' | 'start' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('pointerdown', away);
+    window.addEventListener('keydown', esc);
+    return () => {
+      window.removeEventListener('pointerdown', away);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [open]);
   return (
-    <li className={styles.project}>
-      <button type="button" className={styles.projectMain} onClick={() => onOpen(project.id)}>
-        <span className={styles.thumb} aria-hidden="true">
-          <BrandMark height={30} />
-        </span>
-        <span className={styles.projectText}>
-          <span className={styles.projectName}>{projectName(project.name)}</span>
-          <span className={styles.projectSize}>{size}</span>
-          <span className={styles.muted}>{meta}</span>
-        </span>
-      </button>
-      <button type="button" className={styles.more} aria-label={t('Más opciones de {name}', { name: projectName(project.name) })} aria-expanded={menu} onClick={() => setMenu(!menu)}>
+    <div ref={ref} className={styles.menuWrap}>
+      <button type="button" className={styles.more} aria-label={t('Más opciones de {name}', { name: projectName(project.name) })} aria-expanded={open} onClick={() => setOpen(!open)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
           <circle cx="12" cy="12" r="2" />
           <circle cx="12" cy="19" r="2" />
         </svg>
       </button>
-      {backup && (
-        <div className={styles.backup}>
-          <span>{exportedAt ? t('Cambió desde la última copia en archivo.') : t('Todavía no tiene copia en archivo.')}</span>
-          <button type="button" className={styles.smallBtn} onClick={() => setExportedAt(download(project))}>
-            <IconSave />
-            {t('Guardar copia')}
-          </button>
-        </div>
-      )}
-      {menu && (
-        <div className={styles.menu} role="menu">
+      {open && (
+        <div className={styles.menu} role="menu" data-align={align}>
           <button type="button" role="menuitem" onClick={() => navigate(sectionHref(project.id, 'plano'))}>
             {t('Ir al plano')}
           </button>
@@ -260,8 +251,8 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
             type="button"
             role="menuitem"
             onClick={() => {
-              setExportedAt(download(project));
-              setMenu(false);
+              onExported(download(project));
+              setOpen(false);
             }}
           >
             {t('Exportar archivo')}
@@ -271,7 +262,7 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
             role="menuitem"
             className={styles.dangerItem}
             onClick={async () => {
-              setMenu(false);
+              setOpen(false);
               if (!confirm(t('¿Eliminar "{name}" de este dispositivo? No se puede deshacer.', { name: projectName(project.name) }))) return;
               await deleteProject(project.id);
               onChanged();
@@ -281,9 +272,98 @@ function ProjectRow({ project, onOpen, onChanged }: { project: Project; onOpen: 
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Si el proyecto tiene una copia en archivo al día: los proyectos viven solo en el navegador. */
+function useBackup(project: Project) {
+  const [exportedAt, setExportedAt] = useState(() => readExported(project.id));
+  const pending = project.parts.length > 0 && (!exportedAt || exportedAt < project.updatedAt);
+  return { exportedAt, setExportedAt, pending };
+}
+
+function BackupTag({ pending, exportedAt }: { pending: boolean; exportedAt: string | null }) {
+  return (
+    <span className={styles.tag} data-warn={pending || undefined}>
+      {pending ? (exportedAt ? t('Cambió desde la copia') : t('Sin copia en archivo')) : t('Copia al día')}
+    </span>
+  );
+}
+
+/** El último proyecto que se tocó, grande, para seguir donde se dejó. */
+function LastProject({ project, onOpen, onChanged }: { project: Project; onOpen: (id: string) => void; onChanged: () => void }) {
+  const { size, meta } = summary(project);
+  const { exportedAt, setExportedAt, pending } = useBackup(project);
+  return (
+    <article className={styles.lastCard} aria-labelledby="ultimo-nombre">
+      <div className={styles.lastTop}>
+        <span className={styles.live}>
+          <span aria-hidden="true" />
+          {t('Seguí donde lo dejaste')}
+        </span>
+        <BackupTag pending={pending} exportedAt={exportedAt} />
+        <ProjectMenu project={project} onExported={setExportedAt} onChanged={onChanged} />
+      </div>
+      <div className={styles.lastBody}>
+        <div className={styles.lastText}>
+          <h3 id="ultimo-nombre" className={styles.lastName}>
+            {projectName(project.name)}
+          </h3>
+          <span className={styles.projectSize}>{size}</span>
+          <span className={styles.muted}>{meta}</span>
+        </div>
+        <span className={`${styles.thumb} ${styles.lastThumb}`} aria-hidden="true">
+          <BrandMark height={34} />
+        </span>
+      </div>
+      <div className={styles.cardActions}>
+        <button type="button" className={styles.primaryBtn} onClick={() => onOpen(project.id)}>
+          {t('Continuar diseño')}
+        </button>
+        <button type="button" className={styles.smallBtn} onClick={() => setExportedAt(download(project))}>
+          <IconSave />
+          {t('Guardar copia')}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ProjectCard({ project, onOpen, onChanged }: { project: Project; onOpen: (id: string) => void; onChanged: () => void }) {
+  const { size, meta } = summary(project);
+  const { exportedAt, setExportedAt, pending } = useBackup(project);
+  return (
+    <li className={styles.project}>
+      <div className={styles.projectTop}>
+        <span className={styles.thumb} aria-hidden="true">
+          <BrandMark height={26} />
+        </span>
+        <span className={styles.projectText}>
+          <span className={styles.projectName}>{projectName(project.name)}</span>
+          <span className={styles.projectSize}>{size}</span>
+          <span className={styles.muted}>{meta}</span>
+        </span>
+        <ProjectMenu project={project} onExported={setExportedAt} onChanged={onChanged} />
+      </div>
+      <BackupTag pending={pending} exportedAt={exportedAt} />
+      <div className={styles.cardActions}>
+        <button type="button" className={styles.primaryBtn} onClick={() => onOpen(project.id)}>
+          {t('Abrir diseño')}
+        </button>
+        <button type="button" className={styles.smallBtn} onClick={() => setExportedAt(download(project))}>
+          <IconSave />
+          {t('Guardar copia')}
+        </button>
+      </div>
     </li>
   );
 }
+
+/** Las plantillas que más se usan, a un toque; el resto en la ventana de todas. */
+const QUICK = ['mesa', 'estante', 'cajonera', 'alacena', 'banco'];
+/** Cuántas tarjetas de proyectos entran en una fila antes de "Ver más". */
+const SHOWN = 3;
 
 export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   const [projects, setProjects] = useState<Project[] | null>(null);
@@ -292,6 +372,8 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
   const refresh = () => void listProjects().then(setProjects, () => setProjects([]));
   const install = useInstall();
   const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState('');
+  const [all, setAll] = useState(false);
 
   useEffect(() => {
     refresh();
@@ -323,28 +405,37 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
     }
   };
 
+  // El más reciente va arriba, en grande; los demás, en tarjetas.
+  const sorted = [...(projects ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const [last, ...rest] = sorted;
+  const q = query.trim().toLocaleLowerCase(locale());
+  const found = q ? sorted.filter((p) => projectName(p.name).toLocaleLowerCase(locale()).includes(q)) : rest;
+  const shown = all || q ? found : found.slice(0, SHOWN);
+  const hidden = found.length - shown.length;
+  const quick = QUICK.map((id) => TEMPLATES.find((x) => x.id === id)!);
+
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <span className={styles.brand}>
-            <BrandMark height={44} />
-            <BrandWordmark height={30} />
+            <BrandMark height={40} />
+            <BrandWordmark height={26} />
           </span>
           <span className={styles.headerActions}>
+            <span className={styles.lang} role="group" aria-label="Idioma · Language">
+              {(['es', 'en'] as const).map((l) => (
+                <button key={l} type="button" lang={l} aria-pressed={getLang() === l} aria-label={l === 'es' ? 'Español' : 'English'} onClick={() => getLang() !== l && switchLang(l)}>
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </span>
             {install && (
               <button type="button" className={styles.install} onClick={install}>
                 <IconSave />
                 {t('Instalar la app')}
               </button>
             )}
-            <span className={styles.lang} role="group" aria-label="Idioma · Language">
-              {(['es', 'en'] as const).map((l) => (
-                <button key={l} type="button" lang={l} aria-pressed={getLang() === l} onClick={() => getLang() !== l && switchLang(l)}>
-                  {l === 'es' ? 'Español' : 'English'}
-                </button>
-              ))}
-            </span>
           </span>
         </div>
       </header>
@@ -353,7 +444,7 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
         <section className={styles.create} aria-labelledby="nuevo">
           <h1 className={styles.title}>{t('¿Qué mueble vas a hacer?')}</h1>
           <div className={styles.createCard}>
-            <h2 id="nuevo" className={styles.h2}>
+            <h2 id="nuevo" className={styles.h3}>
               {t('Crear un proyecto nuevo')}
             </h2>
             <div className={styles.starts}>
@@ -396,16 +487,78 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
           </div>
         </section>
 
+        <section className={styles.last} aria-labelledby="ultimo">
+          <div className={styles.sectionHead}>
+            <h2 id="ultimo" className={styles.h2}>
+              {t('Último proyecto')}
+            </h2>
+          </div>
+          {last ? (
+            <LastProject key={last.id} project={last} onOpen={onOpen} onChanged={refresh} />
+          ) : (
+            projects && (
+              <div className={styles.empty}>
+                <BrandMark height={36} />
+                <p>{t('Todavía no hay proyectos. Empezá con una plantilla: en un minuto tenés el mueble armado.')}</p>
+              </div>
+            )
+          )}
+        </section>
+
+        <section className={styles.quick} aria-labelledby="rapidas">
+          <div className={styles.sectionHead}>
+            <h2 id="rapidas" className={styles.h2}>
+              {t('Plantillas rápidas')}
+            </h2>
+            <button type="button" className={styles.link} onClick={() => setPicking(true)} aria-haspopup="dialog">
+              {t('Ver todas las plantillas')}
+              <IconArrow />
+            </button>
+          </div>
+          <ul className={styles.quickList}>
+            {quick.map((tpl) => (
+              <li key={tpl.id}>
+                <button type="button" className={styles.quickItem} onClick={() => void create(tpl.id)}>
+                  <span className={styles.quickArt}>{tpl.icon}</span>
+                  <span className={styles.quickName}>{t(tpl.name)}</span>
+                  <span className={styles.quickSize}>{templateSize(tpl.id)}</span>
+                </button>
+              </li>
+            ))}
+            <li>
+              <button type="button" className={`${styles.quickItem} ${styles.quickMore}`} onClick={() => setPicking(true)} aria-haspopup="dialog">
+                <span className={styles.plus} aria-hidden="true">
+                  +
+                </span>
+                <span className={styles.quickName}>{t('Explorar')}</span>
+                <span className={styles.quickSize}>{t('{n} plantillas más', { n: TEMPLATES.length - QUICK.length })}</span>
+              </button>
+            </li>
+          </ul>
+        </section>
+
         <section className={styles.mine} aria-labelledby="mis">
           <div className={styles.sectionHead}>
             <h2 id="mis" className={styles.h2}>
               {t('Mis proyectos')}
               {projects && projects.length > 0 && <span className={styles.count}>{projects.length}</span>}
             </h2>
-            <button type="button" className={styles.smallBtn} onClick={() => fileRef.current?.click()}>
-              <IconOpen />
-              {t('Abrir archivo')}
-            </button>
+            <span className={styles.mineTools}>
+              {sorted.length > 1 && (
+                <label className={styles.search}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="6" />
+                    <path d="m20 20-4.5-4.5" />
+                  </svg>
+                  <span className={styles.srOnly}>{t('Buscar proyectos')}</span>
+                  <input type="search" placeholder={t('Buscar proyectos…')} value={query} onChange={(e) => setQuery(e.target.value)} />
+                </label>
+              )}
+              <button type="button" className={styles.smallBtn} onClick={() => fileRef.current?.click()}>
+                <IconOpen />
+                {t('Abrir archivo')}
+              </button>
+            </span>
             <input
               ref={fileRef}
               type="file"
@@ -423,27 +576,35 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
               {fileError}
             </p>
           )}
-          <div className={styles.projectsScroll}>
-            {projects && projects.length === 0 && (
-              <div className={styles.empty}>
-                <BrandMark height={40} />
-                <p>{t('Todavía no hay proyectos. Empezá con una plantilla: en un minuto tenés el mueble armado.')}</p>
-              </div>
-            )}
-            <ul className={styles.projects}>
-              {projects?.map((p) => (
-                <ProjectRow key={p.id} project={p} onOpen={onOpen} onChanged={refresh} />
-              ))}
-            </ul>
-            <p className={styles.foot}>{t('Los proyectos se guardan solo en este navegador. Si borrás los datos de navegación, se pierden: guardá una copia en archivo de vez en cuando.')}</p>
-            {import.meta.env.DEV && (
-              <p className={styles.foot}>
-                <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>
+          <div className={styles.projectsScroll} data-all={all || undefined}>
+            {projects && found.length === 0 && (
+              <p className={styles.none}>
+                {q ? t('Ningún proyecto se llama así.') : sorted.length ? t('Acá aparecen los demás proyectos cuando tengas más de uno.') : t('Tus proyectos van a aparecer acá.')}
               </p>
             )}
+            <ul className={styles.projects}>
+              {shown.map((p) => (
+                <ProjectCard key={p.id} project={p} onOpen={onOpen} onChanged={refresh} />
+              ))}
+              {hidden > 0 && (
+                <li>
+                  <button type="button" className={styles.moreCard} onClick={() => setAll(true)}>
+                    <span className={styles.plus} aria-hidden="true">
+                      +
+                    </span>
+                    <strong>{hidden === 1 ? t('Ver 1 proyecto más') : t('Ver {n} proyectos más', { n: hidden })}</strong>
+                    <span>{t('Del más nuevo al más viejo')}</span>
+                  </button>
+                </li>
+              )}
+            </ul>
           </div>
         </section>
       </main>
+      <footer className={styles.footer}>
+        <p>{t('Los proyectos se guardan solo en este navegador. Si borrás los datos de navegación, se pierden: guardá una copia en archivo de vez en cuando.')}</p>
+        {import.meta.env.DEV && <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>}
+      </footer>
       <TemplatePicker open={picking} onClose={() => setPicking(false)} onPick={(id) => void create(id)} />
     </div>
   );
