@@ -137,4 +137,8 @@ export default {
   'Elegí una pieza y abrí Uniones en su panel. La lupa de cada unión la abre de cerca.': 'Select a part and open Joints in its panel. The magnifier on each joint opens it up close.',
   'Separar piezas saca la espiga de la caja para ver las dos.': 'Pull apart slides the tenon out of the mortise so you can see both.',
   'Mientras escribís el largo o el espesor, el detalle ya muestra cómo queda.': 'As you type the length or thickness, the detail already shows the result.',
+  'Biselar las patas por afuera': 'Bevel the legs on the outside',
+  'Las patas iguales son un componente: lo que le hacés a una les llega a todas.': 'Matching legs are a component: what you do to one reaches all of them.',
+  'Para que el bisel quede afuera en cada una, girá la copia que corresponda con Girar 90°: gira solo esa.': 'To keep the bevel on the outside of each, turn the right copy with Rotate 90°: only that one turns.',
+  'Del otro lado ya hace la gemela reflejada. Desde ahí, un bisel nuevo en cualquier pata llega a cada una en su arista de afuera.': 'Other side already makes the mirrored twin. From then on, a new bevel on any leg reaches each one on its outer edge.',
 } satisfies Record<string, string>;

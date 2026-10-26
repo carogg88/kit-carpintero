@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -129,6 +129,11 @@ export const Part = z.object({
   turning: Turning.optional(),
   /** Componente al que pertenece: todas sus copias comparten forma, madera y operaciones. */
   component: z.string().optional(),
+  /**
+   * Cómo está girada o reflejada esta copia respecto de la forma común del componente (ver `Orient`). Sin esto, igual
+   * que la forma común.
+   */
+  orient: z.tuple([z.number().int(), z.number().int(), z.number().int()]).optional(),
 });
 export type Part = z.infer<typeof Part>;
 
@@ -192,6 +197,8 @@ const migrations: Record<number, Migration> = {
   7: (d) => d,
   // v9 suma los grupos; los proyectos viejos no tienen.
   8: (d) => d,
+  // v10 suma el giro propio de cada copia de un componente; las viejas van todas iguales.
+  9: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

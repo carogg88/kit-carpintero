@@ -4,6 +4,7 @@ import type { Component, Joint, Part } from './project';
 import { t, tk } from './i18n';
 import { fitJointDepths } from './jointfit';
 import { crossingInNotch } from './pockets';
+import { mirrorOrient, mirrorShape, setOrient } from './rotate';
 
 /**
  * Herramientas de edición que no dependen de la pantalla: imán a caras cercanas, piezas nuevas
@@ -223,10 +224,12 @@ export function mirrorPart(parts: Part[], part: Part): MirrorResult | null {
   const same = (b: Box) => [0, 1, 2].every((k) => Math.abs(b.min[k]! - box.min[k]!) < 1 && Math.abs(b.max[k]! - box.max[k]!) < 1);
   if (others.some(same)) return null;
   const prefix = part.id.replace(/\d+$/, '') || 'N';
-  return {
-    axis,
-    part: { ...structuredClone(part), id: nextPartId(parts, prefix), name: otherSideName(part.name), position },
-  };
+  // La gemela va reflejada: un bisel en la arista de afuera de la pata izquierda queda afuera también en la derecha.
+  const twin: Part = { ...structuredClone(part), id: nextPartId(parts, prefix), name: otherSideName(part.name) };
+  mirrorShape(twin, axis);
+  setOrient(twin, mirrorOrient(axis));
+  twin.position = position;
+  return { axis, part: twin };
 }
 
 /**

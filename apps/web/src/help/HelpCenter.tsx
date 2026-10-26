@@ -83,6 +83,15 @@ const RECIPES: Recipe[] = [
     show: { target: 'part-actions', title: tk('Del otro lado está acá'), text: tk('Al lado de Duplicar, en el panel de la pieza.'), before: pickFirst },
   },
   {
+    id: 'girada',
+    title: tk('Biselar las patas por afuera'),
+    steps: [
+      tk('Las patas iguales son un componente: lo que le hacés a una les llega a todas.'),
+      tk('Para que el bisel quede afuera en cada una, girá la copia que corresponda con Girar 90°: gira solo esa.'),
+      tk('Del otro lado ya hace la gemela reflejada. Desde ahí, un bisel nuevo en cualquier pata llega a cada una en su arista de afuera.'),
+    ],
+  },
+  {
     id: 'altura',
     title: tk('Subir o bajar una pieza exacto'),
     steps: [tk('Elegí la pieza.'), tk('En Posición, escribí cuánto queda Del piso y apretá Enter.'), tk('Mientras escribís, el fantasma muestra dónde va a quedar.')],

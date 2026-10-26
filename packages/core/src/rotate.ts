@@ -25,9 +25,55 @@ function axisMap(about: Axis): { to: Axis; flip: boolean }[] {
 
 /** Gira la pieza en el lugar, 90° sobre el eje `about`. */
 export function rotatePart(part: Part, about: Axis): void {
+  remapPart(part, axisMap(about));
+}
+
+/**
+ * Orientación de una copia de un componente respecto de la forma común: para cada eje de la forma común, a qué eje
+ * de la pieza va (1, 2 o 3) y con signo menos si queda dado vuelta. [1, 2, 3] es la forma tal cual; [-1, 2, 3], la
+ * misma reflejada de izquierda a derecha. Así cada pata lleva el bisel en su arista de afuera.
+ */
+export type Orient = [number, number, number];
+export const SAME_ORIENT: Orient = [1, 2, 3];
+
+type AxisMap = { to: Axis; flip: boolean }[];
+const toMap = (o: Orient): AxisMap => o.map((v) => ({ to: (Math.abs(v) - 1) as Axis, flip: v < 0 }));
+const fromMap = (m: AxisMap): Orient => m.map((x) => (x.to + 1) * (x.flip ? -1 : 1)) as Orient;
+
+/** Primero `first` y después `then`. */
+export function composeOrient(then: Orient, first: Orient): Orient {
+  return first.map((v) => {
+    const w = then[Math.abs(v) - 1]!;
+    return Math.sign(v) * Math.sign(w) * Math.abs(w);
+  }) as Orient;
+}
+
+export function invertOrient(o: Orient): Orient {
+  const out = [0, 0, 0] as Orient;
+  o.forEach((v, i) => (out[Math.abs(v) - 1] = Math.sign(v) * (i + 1)));
+  return out;
+}
+
+export const isSameOrient = (o?: Orient) => !o || o.every((v, i) => v === i + 1);
+
+/** La orientación de girar 90° sobre `about`, y la de reflejar sobre `axis`. */
+export const rotationOrient = (about: Axis): Orient => fromMap(axisMap(about));
+export const mirrorOrient = (axis: Axis): Orient => SAME_ORIENT.map((v, i) => (i === axis ? -v : v)) as Orient;
+
+/** Lleva la forma de la pieza por esa orientación, en el lugar y por su centro. */
+export function orientPart(part: Part, o: Orient): void {
+  if (!isSameOrient(o)) remapPart(part, toMap(o));
+}
+
+/** Refleja la forma de la pieza sobre un eje, en el lugar: lo de la izquierda pasa a la derecha. */
+export function mirrorShape(part: Part, axis: Axis): void {
+  remapPart(part, toMap(mirrorOrient(axis)));
+}
+
+/** Pasa la forma por un cambio de ejes (giro o reflejo), por el centro de la pieza. */
+function remapPart(part: Part, map: AxisMap): void {
   if (part.base.kind !== 'box') return;
   const size = [...part.base.size] as Vec3;
-  const map = axisMap(about);
   const next = [0, 0, 0] as Vec3;
   for (const k of [0, 1, 2] as Axis[]) next[map[k]!.to] = size[k]!;
   const point = (p: Vec3): Vec3 => {
@@ -101,4 +147,21 @@ function mapShape(shape: PocketShape, from: Axis, to: Axis, point: (p: Vec3) => 
   const [y0, y1] = at(0, 1);
   const det = (x0 - o0) * (y1 - o1) - (x1 - o1) * (y0 - o0);
   return { ...shape, u, v, u2, v2, bulge: det < 0 ? -shape.bulge : shape.bulge };
+}
+
+/**
+ * Girar una pieza desde el panel: si es copia de un componente, gira solo esa copia (las demás quedan como
+ * estaban) y guarda el giro, para que lo que se le haga después a cualquier copia le llegue en su lugar.
+ */
+export function turnPart(part: Part, about: Axis): void {
+  rotatePart(part, about);
+  setOrient(part, rotationOrient(about));
+}
+
+/** Suma un giro o un reflejo a la orientación de la copia (solo en componentes). */
+export function setOrient(part: Part, change: Orient): void {
+  if (!part.component) return void delete part.orient;
+  const o = composeOrient(change, (part.orient as Orient | undefined) ?? SAME_ORIENT);
+  if (isSameOrient(o)) delete part.orient;
+  else part.orient = o;
 }

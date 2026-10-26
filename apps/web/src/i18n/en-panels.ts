@@ -561,4 +561,6 @@ export default {
   'Separa las dos piezas para ver la espiga afuera y la caja vacía': 'Pulls the two parts apart to show the tenon and the empty mortise',
   'Juntar': 'Put together',
   'Separar piezas': 'Pull apart',
+  'Giraste {id}, solo esta copia: lo que le hagas a cualquier copia le llega a cada una en su lugar': 'You rotated {id}, only this copy: whatever you do to any copy reaches each one in its place',
+  'Esta copia va girada: los biseles y vaciados le llegan en su lugar.': 'This copy is rotated: bevels and pockets reach it in its place.',
 } satisfies Record<string, string>;
