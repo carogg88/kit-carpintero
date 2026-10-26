@@ -13,6 +13,9 @@ import {
   boxSize,
   copyPart,
   cornerNear,
+  dimensions,
+  neighbors,
+  furnitureBox,
   formatLength,
   edgeNear,
   isAngleCut,
@@ -656,6 +659,83 @@ function ContactFace({ face, accent }: { face: Box; accent: string }) {
   );
 }
 
+/** "ancho: P1 35 cm ⟷ 50 cm P2", por cada eje: a cuánto quedan las vecinas enfrentadas. A lo alto, sin nada abajo, el piso. */
+function neighborText(moving: Box, others: { id: string; box: Box }[], axes: Axis[], units: Project['units']): string {
+  return axes
+    .map((k) => {
+      const { before, after } = neighbors(moving, others, k);
+      const low = before ? `${before.id} ${formatLength(before.gap, units)}` : k === 1 ? `${t('piso')} ${formatLength(moving.min[1], units)}` : '';
+      const high = after ? `${formatLength(after.gap, units)} ${after.id}` : '';
+      if (!low && !high) return '';
+      return `${t(AXIS_NAMES[k])}: ${low || '—'} ⟷ ${high || '—'}`;
+    })
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** Contorno de una caja, por encima de todo: las piezas que se están midiendo. */
+function BoxOutline({ box, color }: { box: Box; color: string }) {
+  const geo = useMemo(() => {
+    const size = [0, 1, 2].map((k) => box.max[k]! - box.min[k]!) as [number, number, number];
+    const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(...size));
+    g.translate(...([0, 1, 2].map((k) => (box.min[k]! + box.max[k]!) / 2) as [number, number, number]));
+    return g;
+  }, [box]);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <lineSegments geometry={geo} renderOrder={6}>
+      <lineBasicMaterial color={color} depthTest={false} transparent opacity={0.9} />
+    </lineSegments>
+  );
+}
+
+/** Cotas de Medir: las líneas entre las dos piezas (o entre la pieza y el mueble), con topes en las puntas. */
+function MeasureMarks({ accent, ink }: { accent: string; ink: string }) {
+  const project = useEditor((s) => s.project);
+  const measure = useEditor((s) => s.measure);
+  const tool = useEditor((s) => s.tool);
+  const parts = project?.parts;
+  const a = parts?.find((p) => p.id === measure.a?.partId);
+  const b = parts?.find((p) => p.id === measure.b?.partId);
+  const boxA = a?.base.kind === 'box' ? partBox(a) : null;
+  const boxB = b?.base.kind === 'box' ? partBox(b) : !b && parts ? furnitureBox(parts) : null;
+  // Por valor: las cajas se arman de nuevo en cada render.
+  const key = boxA && boxB ? JSON.stringify([boxA, boxB]) : '';
+  const geo = useMemo(() => {
+    if (!key) return null;
+    const [ba, bb] = JSON.parse(key) as [Box, Box];
+    const pts: number[] = [];
+    for (const d of dimensions(ba, bb)) {
+      pts.push(...d.from, ...d.to);
+      // Topes: una rayita cruzada en cada punta.
+      const across = otherAxes(d.axis)[d.axis === 1 ? 0 : 1];
+      for (const end of [d.from, d.to]) {
+        const p = [...end];
+        const q = [...end];
+        p[across] = p[across]! - 20;
+        q[across] = q[across]! + 20;
+        pts.push(...p, ...q);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    return g;
+  }, [key]);
+  useEffect(() => () => geo?.dispose(), [geo]);
+  if (tool !== 'measure' || !boxA) return null;
+  return (
+    <>
+      <BoxOutline box={boxA} color={accent} />
+      {b && boxB && <BoxOutline box={boxB} color={ink} />}
+      {geo && (
+        <lineSegments geometry={geo} renderOrder={7}>
+          <lineBasicMaterial color={accent} depthTest={false} />
+        </lineSegments>
+      )}
+    </>
+  );
+}
+
 const ARROWS: Record<string, { dir: [number, number]; arrow: string }> = {
   ArrowRight: { dir: [1, 0], arrow: '→' },
   ArrowLeft: { dir: [-1, 0], arrow: '←' },
@@ -772,6 +852,15 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       }
       return select(original.id);
     }
+    if (tool === 'measure') {
+      // Medir: la cara tocada; la distancia entre caras paralelas sale de ahí.
+      const n = e.face.normal;
+      const abs = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
+      const axis = abs.indexOf(Math.max(...abs)) as Axis;
+      useEditor.getState().pickMeasure({ partId: original.id, axis, side: ([n.x, n.y, n.z][axis] ?? 0) > 0 ? 1 : -1 });
+      invalidate();
+      return;
+    }
     // Copiar al mover: se arrastra una copia y la pieza original queda en su lugar.
     const copying = tool === 'move' && (copyMove || e.nativeEvent.ctrlKey || e.nativeEvent.altKey);
     const part = copying ? copyPart(current.parts, original) : original;
@@ -856,7 +945,20 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           if (ay !== ax) q.position[ay] = drag.start.min[ay] + sy;
         });
         const who = copying ? t('Copia {id}', { id: part.id }) : part.id;
+        // Cotas a las vecinas: la más cercana de cada lado sobre cada eje en que se mueve.
+        const now = useEditor.getState().project?.parts;
+        const moving = now?.find((q) => q.id === part.id);
+        const dims =
+          now && moving?.base.kind === 'box'
+            ? neighborText(
+                partBox(moving),
+                now.filter((q) => q.id !== part.id && q.base.kind === 'box').map((q) => ({ id: q.id, box: partBox(q) })),
+                ay === ax ? [ax] : [ax, ay],
+                units,
+              )
+            : '';
         setHint({
+          dims: dims || undefined,
           ...hintAt,
           text:
             ay === ax
@@ -1266,6 +1368,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const click = (e: ThreeEvent<MouseEvent>, part: Part) => {
     if (e.delta > 6) return;
     e.stopPropagation();
+    // Midiendo, tocar una pieza la mide: no cambia la pieza elegida en el panel.
+    if (useEditor.getState().tool === 'measure') return;
     useEditor.getState().select(part.id);
   };
 
@@ -1301,6 +1405,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       {contact.map((f, i) => (
         <ContactFace key={i} face={f} accent={colors.accent} />
       ))}
+      <MeasureMarks accent={colors.accent} ink={colors.edge} />
       <BevelDraft accent={colors.accent} />
       <SectionDraft accent={colors.accent} />
       <FittingPreview accent={colors.accent} />

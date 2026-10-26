@@ -118,4 +118,13 @@ export default {
   'Tocá el nombre arriba, al lado del logo, y escribí el nuevo.': 'Tap the name at the top, next to the logo, and type the new one.',
   'Apretá Enter para guardarlo, o Esc para dejarlo como estaba.': 'Press Enter to save it, or Esc to keep the old one.',
   'En el inicio, el menú ⋮ de cada proyecto también tiene Cambiar nombre.': 'On the home screen, each project\'s ⋮ menu also has Rename.',
+
+  'Medir entre piezas y centrar': 'Measure between parts and center',
+  'Elegí Medir (tecla C; en el celular está en Más).': 'Choose Measure (C key; on a phone it is under More).',
+  'Tocá una pieza: ves cuánto le queda a cada lado dentro del mueble.': 'Tap a part: you see how much room it has on each side within the piece.',
+  'Tocá otra: ves cuánto las separa a lo ancho, a lo alto y de fondo. Si tocaste dos caras enfrentadas, también la distancia entre ellas.':
+    'Tap another: you see how far apart they are across, up and in depth. If you tapped two facing faces, also the distance between them.',
+  'Si una quedó corrida, Centrar la deja al medio.': 'If one is off center, Center puts it in the middle.',
+  'Medir está acá': 'Measure is here',
+  'Es la última herramienta. También se elige con la tecla C.': 'It is the last tool. You can also pick it with the C key.',
 } satisfies Record<string, string>;

@@ -34,6 +34,17 @@ const RECIPES: Recipe[] = [
     show: { target: 'tools', title: tk('Mover está acá'), text: tk('Es la tercera herramienta. También se elige con la tecla M.') },
   },
   {
+    id: 'medir',
+    title: tk('Medir entre piezas y centrar'),
+    steps: [
+      tk('Elegí Medir (tecla C; en el celular está en Más).'),
+      tk('Tocá una pieza: ves cuánto le queda a cada lado dentro del mueble.'),
+      tk('Tocá otra: ves cuánto las separa a lo ancho, a lo alto y de fondo. Si tocaste dos caras enfrentadas, también la distancia entre ellas.'),
+      tk('Si una quedó corrida, Centrar la deja al medio.'),
+    ],
+    show: { target: 'tools', title: tk('Medir está acá'), text: tk('Es la última herramienta. También se elige con la tecla C.') },
+  },
+  {
     id: 'flechas',
     title: tk('Correr una pieza de a milímetro'),
     steps: [

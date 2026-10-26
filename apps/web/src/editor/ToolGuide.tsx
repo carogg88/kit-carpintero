@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { faceLabel, t, tk } from '@kitc/core';
 import { IconArc, IconChamfer, IconCircle, IconCopy, IconRect, IconRound } from './icons';
 import { MeasureBubble } from './MeasureBubble';
+import { MeasureCard } from './MeasureCard';
 import { useEditor, useSelectedPart } from './store';
 import styles from './Editor.module.css';
 
@@ -56,7 +57,8 @@ export function ToolGuide() {
   const copyMove = useEditor((s) => s.copyMove);
   const dragging = useEditor((s) => s.dragging);
   const bubble = useEditor((s) => s.bubble);
-  const { setDrawFace, setDrawShape, setBevelRound, setCopyMove } = useEditor.getState();
+  const measure = useEditor((s) => s.measure);
+  const { setDrawFace, setDrawShape, setBevelRound, setCopyMove, pickMeasure } = useEditor.getState();
   const selected = useSelectedPart();
   const [showHint, dismissHint] = useSelectHint(!!selected);
 
@@ -148,6 +150,20 @@ export function ToolGuide() {
       steps = [{ text: t('Tocá una pieza larga, como una pata') }, { text: t('Elegí un modelo y ajustalo en el panel') }];
       active = selected?.turning ? 1 : 0;
       break;
+    case 'measure':
+      steps = [
+        { text: t('Tocá una pieza'), done: measure.a && <strong>{measure.a.partId}</strong> },
+        { text: t('Tocá otra para medir entre las dos'), done: measure.b && <strong>{measure.b.partId}</strong> },
+        { text: t('Centrar la deja al medio') },
+      ];
+      active = measure.b ? 2 : measure.a ? 1 : 0;
+      if (measure.a)
+        action = (
+          <button type="button" className={styles.done} onClick={() => pickMeasure(null)}>
+            {t('Borrar')}
+          </button>
+        );
+      break;
   }
 
   const numbered = steps.length > 1;
@@ -179,6 +195,11 @@ export function ToolGuide() {
       {bubble && (
         <div className={styles.mobileOnly}>
           <MeasureBubble docked />
+        </div>
+      )}
+      {tool === 'measure' && (
+        <div className={styles.mobileOnly}>
+          <MeasureCard docked />
         </div>
       )}
     </div>

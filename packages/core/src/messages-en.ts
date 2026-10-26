@@ -492,4 +492,9 @@ export const MESSAGES_EN: Record<string, string> = {
   'Iguales': 'Equal',
   'Graduados': 'Graduated',
   'a {x} de {ex} y a {y} de {ey}': '{x} from {ex} and {y} from {ey}',
+  '{a} y {b} se meten una en otra': '{a} and {b} run into each other',
+  'Ocupan el mismo lugar ({mm}) y no hay un encastre que lo resuelva: así no se pueden armar.':
+    'They take up the same space ({mm}) and no joint accounts for it: they cannot be assembled like this.',
+  'Corré una hasta que solo se toquen, o acortala. Con Rayos X (tecla X) se ve dónde se cruzan.':
+    'Move one until they only touch, or shorten it. X-ray (X key) shows where they overlap.',
 };

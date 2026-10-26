@@ -1,4 +1,4 @@
-import { boxSize, partBox, type Axis, type Box } from './geometry';
+import { boxSize, overlapBox, partBox, type Axis, type Box } from './geometry';
 import { defaultMortiseParams, endJoint, JOINT_NAMES, mortiseAndTenon, type MortiseParams } from './joints';
 import { furnitureBox } from './resize';
 import { formatLength } from './units';
@@ -11,7 +11,7 @@ import { locale, t, tk } from './i18n';
  * marcada, por qué pasa y qué hacer. Son cuentas de taller sobre las medidas, no un cálculo de estructuras.
  */
 
-export type ReviewKind = 'veta' | 'estante' | 'espiga' | 'vuelco';
+export type ReviewKind = 'cruce' | 'veta' | 'estante' | 'espiga' | 'vuelco';
 
 export interface ReviewNote {
   /** Estable mientras no cambie lo que lo provoca: sirve de clave en la lista. */
@@ -237,9 +237,38 @@ function tipping(project: Project): ReviewNote | null {
   };
 }
 
+/**
+ * Dos piezas que ocupan el mismo lugar sin un encastre que lo resuelva: así no se pueden armar. Pasa al correr una
+ * pieza a mano hasta meterla en otra de una forma que ninguna unión admite (una tapa hundida en una pata).
+ */
+function crossings(project: Project): ReviewNote[] {
+  const boxes = project.parts.filter((p) => p.base.kind === 'box').map((p) => ({ p, box: partBox(p) }));
+  const joined = new Set(project.joints.map((j) => [j.partA, j.partB].sort().join('|')));
+  const notes: ReviewNote[] = [];
+  for (let i = 0; i < boxes.length; i++) {
+    for (let k = i + 1; k < boxes.length; k++) {
+      const a = boxes[i]!;
+      const b = boxes[k]!;
+      if (joined.has([a.p.id, b.p.id].sort().join('|'))) continue;
+      const o = overlapBox(a.box, b.box, 0.5);
+      if (!o) continue;
+      const depth = Math.min(...boxSize(o));
+      notes.push({
+        id: `cruce:${a.p.id}|${b.p.id}`,
+        kind: 'cruce',
+        parts: [b.p.id, a.p.id],
+        title: t('{a} y {b} se meten una en otra', { a: a.p.id, b: b.p.id }),
+        text: t('Ocupan el mismo lugar ({mm}) y no hay un encastre que lo resuelva: así no se pueden armar.', { mm: mm(depth) }),
+        fix: t('Corré una hasta que solo se toquen, o acortala. Con Rayos X (tecla X) se ve dónde se cruzan.'),
+      });
+    }
+  }
+  return notes;
+}
+
 /** Todos los avisos del diseño, del más grave al más leve. */
 export function reviewDesign(project: Project): ReviewNote[] {
-  const notes: ReviewNote[] = [];
+  const notes: ReviewNote[] = [...crossings(project)];
   const tip = tipping(project);
   if (tip) notes.push(tip);
   const seen = new Set<string>();

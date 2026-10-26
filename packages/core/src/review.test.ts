@@ -3,7 +3,7 @@ import { hardwareList } from './hardware';
 import { cutPlan } from './cutlist';
 import { partBox } from './geometry';
 import { reviewDesign, shelfSag } from './review';
-import { buildTemplate, templateById } from './templates';
+import { buildTemplate, TEMPLATES, templateById, templateDefaults } from './templates';
 import type { Project } from './project';
 
 const now = '2026-10-22T00:00:00Z';
@@ -60,5 +60,20 @@ describe('revisión del diseño', () => {
     const m = build('mesa', 'guatambu');
     expect(kinds(m)).not.toContain('vuelco');
     expect(hardwareList(m, cutPlan(m)).some((r) => r.id === 'antivuelco')).toBe(false);
+  });
+
+  it('ninguna plantilla trae piezas metidas una en otra sin unión', () => {
+    for (const def of TEMPLATES) expect([def.id, kinds(buildTemplate(def, templateDefaults(def), 'guatambu', undefined, now)).filter((k) => k === 'cruce')]).toEqual([def.id, []]);
+  });
+
+  it('una tapa hundida en las patas sin unión avisa', () => {
+    const p = build('mesa', 'guatambu');
+    const top = [...p.parts].sort((a, b) => partBox(b).max[1] - partBox(a).max[1])[0]!;
+    top.position[1] -= 30;
+    p.joints = p.joints.filter((j) => j.partA !== top.id && j.partB !== top.id);
+    const notes = reviewDesign(p).filter((n) => n.kind === 'cruce');
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes[0]!.parts).toContain(top.id);
+    expect(notes[0]!.text).toMatch(/^Ocupan el mismo lugar/);
   });
 });

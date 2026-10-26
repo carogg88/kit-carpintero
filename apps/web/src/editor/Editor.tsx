@@ -17,6 +17,7 @@ import {
   IconCuts,
   IconJoints,
   IconModel,
+  IconMeasure,
   IconMore,
   IconMove,
   IconPlan,
@@ -39,6 +40,7 @@ import { PreviewBar } from './PreviewBar';
 import { HelpButton } from '../help/HelpCenter';
 import { EDITOR_TOUR, TourOverlay, useTour } from '../help/Tour';
 import { MeasureBubble } from './MeasureBubble';
+import { MeasureCard } from './MeasureCard';
 import { NextSteps, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
 import { Workshop, workshopFrom } from './Workshop';
@@ -58,13 +60,15 @@ const TOOLS: [Tool, string, string, string, () => React.JSX.Element][] = [
   ['bevel', tk('Biselar o redondear'), tk('Biselar'), 'B', IconBevel],
   ['section', tk('Agrandar o achicar un tramo'), tk('Tramo'), 'T', IconSection],
   ['turn', tk('Tornear'), tk('Tornear'), 'R', IconTurn],
+  ['measure', tk('Medir entre piezas'), tk('Medir'), 'C', IconMeasure],
 ];
-const ADVANCED = new Set<Tool>(['bevel', 'section', 'turn']);
+const ADVANCED = new Set<Tool>(['bevel', 'section', 'turn', 'measure']);
 /** Qué hace cada herramienta de "Más", en una línea, para elegir sin probar. */
 const ADVANCED_USES: Partial<Record<Tool, string>> = {
   bevel: tk('Bisel o canto redondeado en una arista'),
   section: tk('Una parte más gruesa o más fina, como en una pata'),
   turn: tk('Pata o barrote torneado, con modelos'),
+  measure: tk('Distancia entre piezas y si una quedó centrada'),
 };
 
 /** En el celular: las herramientas de terminación y Rayos X, en un menú. Si una está en uso, el botón la muestra. */
@@ -151,6 +155,7 @@ function HintLabel({ hint }: { hint: DragHint }) {
   return (
     <span ref={ref} className={styles.hint} style={{ left: hint.x, top: hint.y }}>
       {hint.text}
+      {hint.dims && <span className={styles.hintDims}>{hint.dims}</span>}
       {hint.warn && <span className={styles.hintWarn}>{hint.warn}</span>}
       {!hint.warn && hint.snap && <span className={styles.snap}>{t('Imán: {snap}', { snap: hint.snap })}</span>}
     </span>
@@ -234,18 +239,20 @@ function useShortcuts(modelo: boolean) {
       // Sin piezas, las herramientas no tienen sobre qué trabajar: solo queda Elegir.
       const none = !s.project?.parts.length;
       if (k === 'v') s.setTool('select');
-      else if (none && 'pmdbtr'.includes(k)) return;
+      else if (none && 'pmdbtrc'.includes(k)) return;
       else if (k === 'p') s.setTool('push');
       else if (k === 'm') s.setTool('move');
       else if (k === 'd') s.setTool('draw');
       else if (k === 'b') s.setTool('bevel');
       else if (k === 't') s.setTool('section');
       else if (k === 'r') s.setTool('turn');
+      else if (k === 'c') s.setTool('measure');
       else if (k === 'x') s.setXray(!s.xray);
       else if (k === 'h' && s.selectedId) hidePart(s.selectedId);
       else if (k === 's' && s.selectedId) soloPart(s.selectedId);
       else if (k === 'escape') {
         if (s.pending) s.cancelPending();
+        else if (s.measure.a) s.pickMeasure(null);
         else if (s.drawFace) s.setDrawFace(null);
         else s.select(null);
       }
@@ -575,6 +582,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             <PreviewBar />
             <div className={styles.desktopOnly}>
               <MeasureBubble />
+              <MeasureCard />
             </div>
             {selected && selDims && (
               <span className={`${styles.chip} ${styles.desktopOnly}`}>
