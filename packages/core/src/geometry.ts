@@ -66,5 +66,7 @@ export function partKey(project: Project, id: string): string {
       const other = project.parts.find((p) => p.id === (j.partA === id ? j.partB : j.partA));
       return [j.type, j.partA, j.partB, j.params, other && other.base.kind === 'box' ? partBox(other) : null, other?.lean ?? null];
     });
-  return JSON.stringify([part.base, part.position, part.rotation, part.lean ?? null, part.ops, part.pockets, part.bevels, part.sections, part.turning ?? null, joints]);
+  // Las patas inclinadas mueven los faldones y travesaños que entran en ellas, y con ellos las mortajas de las otras patas.
+  const leans = project.parts.filter((p) => p.lean).map((p) => [p.id, p.lean]);
+  return JSON.stringify([leans, part.base, part.position, part.rotation, part.lean ?? null, part.ops, part.pockets, part.bevels, part.sections, part.turning ?? null, joints]);
 }

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
 import { mirrorPart } from './edit';
 import { isLeaning, leanedBox, leanFrame, leanPoint } from './lean';
-import { leanTestStool } from './templates/leanTest';
+import { createSplayedStool, leanTestStool } from './templates/leanTest';
+import { leanFollow } from './follow';
 import type { Part } from './project';
 
 const leg = (lean?: [number, number]): Part => ({
@@ -87,5 +88,50 @@ describe('patas inclinadas', () => {
       expect(Math.sign(cx)).toBe(Math.sign(p.lean![0]));
       expect(Math.sign(cz)).toBe(Math.sign(p.lean![1]));
     }
+  });
+});
+
+describe('travesaños entre patas inclinadas', () => {
+  const stool = createSplayedStool({ splay: 3 }, 'guatambu', '2026-10-26T00:00:00Z');
+
+  it('el travesaño de adelante se corre hacia adelante y se estira hasta las patas', () => {
+    const r1 = stool.parts.find((p) => p.id === 'R1')!;
+    const f = leanFollow(stool, r1)!;
+    expect(f.ends).toHaveLength(2);
+    expect(f.axis).toBe(0);
+    const a = rad(10);
+    const legTop = 450 - 40;
+    const y = 150 + 15;
+    // A la altura del travesaño, cada pata se corrió (alto que falta hasta arriba) × tan(ángulo).
+    const drop = legTop - y;
+    expect(f.shift[2]).toBeCloseTo(drop * Math.tan(a), 6);
+    expect(f.shift[0]).toBe(0);
+    // Sobre el eje del travesaño la cara de la pata inclinada (en dos sentidos) queda un poco más afuera que la derecha.
+    const straight = 360 - 2 * (60 + 40);
+    const center = f.ends[0]!.face - f.ends[1]!.face;
+    expect(Math.abs(center)).toBeGreaterThan(straight + 2 * drop * Math.tan(a) - 1);
+    // De punta larga a punta larga suma el hombro en ángulo de cada lado.
+    expect(f.length).toBeGreaterThan(Math.abs(center));
+    for (const e of f.ends) {
+      expect(e.shoulder[0]).toBeGreaterThan(9);
+      expect(e.shoulder[0]).toBeLessThan(11);
+      expect(e.shoulder[1]).toBeGreaterThan(0);
+    }
+  });
+
+  it('la lista de cortes pide el largo nuevo, las espigas y los hombros en ángulo', () => {
+    const r1 = stool.parts.find((p) => p.id === 'R1')!;
+    const f = leanFollow(stool, r1)!;
+    const c = cutPiece(r1, stool);
+    expect(c.tongues).toBe(2);
+    expect(c.cut[0]).toBeGreaterThan(f.length);
+    expect(c.work.some((w) => w.startsWith('hombros en ángulo'))).toBe(true);
+  });
+
+  it('una pieza que no entra en patas inclinadas no se mueve', () => {
+    const straight = createSplayedStool({ splay: 0 }, 'guatambu', '2026-10-26T00:00:00Z');
+    const flat = { ...straight, parts: straight.parts.map((p) => ({ ...p, lean: undefined })) };
+    expect(leanFollow(flat, flat.parts.find((p) => p.id === 'R1')!)).toBeNull();
+    expect(leanFollow(stool, stool.parts.find((p) => p.id === 'S1')!)).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { boxSize, partBox, type Box, type Vec3 } from './geometry';
 import type { Part } from './project';
 import { t } from './i18n';
+import { formatAngle } from './bevels';
 
 /**
  * Patas inclinadas (prueba técnica): una pata derecha que se abre hacia afuera, como en un taburete de patas
@@ -129,6 +130,6 @@ export function leanedBox(part: Part): Box {
 export function leanWork(f: LeanFrame): string {
   const half = (a: number) => Math.round(a * 2) / 2;
   const [a, b] = f.cut.map(half) as [number, number];
-  if (!a || !b) return t('puntas cortadas paralelas, a {a}°', { a: Math.max(a, b) });
-  return t('puntas cortadas paralelas, a {a}° sobre una cara y {b}° sobre la otra', { a, b });
+  if (!a || !b) return t('puntas cortadas paralelas, a {a}', { a: formatAngle(Math.max(a, b)) });
+  return t('puntas cortadas paralelas, a {a} sobre una cara y {b} sobre la otra', { a: formatAngle(a), b: formatAngle(b) });
 }

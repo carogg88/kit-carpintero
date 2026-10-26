@@ -34,3 +34,4 @@ export * from './groups';
 export * from './explode';
 export * from './profile';
 export * from './lean';
+export * from './follow';
