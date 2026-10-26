@@ -2,6 +2,7 @@ import { getLang, t } from '@kitc/core';
 import { RECIPES } from '../help/recipes';
 import { EN } from './en';
 import { ES } from './es';
+import { SHOW } from './show';
 import { steps, type Article, type HelpContent } from './types';
 
 const RECIPE_TOPIC = 'como-hacer';
@@ -26,7 +27,8 @@ export function helpContent(): HelpContent {
   const lang = getLang();
   if (cache?.lang === lang) return cache.content;
   const base = lang === 'en' ? EN : ES;
-  const content = { ...base, articles: [...base.articles, ...recipeArticles()] };
+  const articles = base.articles.map((a) => (a.show || !SHOW[a.id] ? a : { ...a, show: SHOW[a.id] }));
+  const content = { ...base, articles: [...articles, ...recipeArticles()] };
   cache = { lang, content };
   return content;
 }

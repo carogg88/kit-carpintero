@@ -1,13 +1,15 @@
+import { EN_TOOLS } from './en-herramientas';
 import { img, key, list, note, p, steps, table, tip, type HelpContent } from './types';
 
 /** Help Center in English: the same topics, articles and sections as es.ts. */
 export const EN: HelpContent = {
   topics: [
     { id: 'empezar', icon: 'start', title: 'Getting started', summary: 'Create a project, get to know the editor screen and save your work.' },
+    { id: 'herramientas', icon: 'tools', title: 'Model tools', summary: 'Step by step for every editor tool: select, stretch, move, draw, bevel, turn and more.' },
     { id: 'como-hacer', icon: 'recipe', title: 'How to…', summary: 'Short recipes for what people look for most while building a piece.' },
     { id: 'atajos', icon: 'keys', title: 'Keyboard shortcuts', summary: 'Every editor key in one table.' },
   ],
-  popular: ['crear-proyecto', 'pantalla-editor', 'unir', 'altura', 'guardar'],
+  popular: ['crear-proyecto', 'pantalla-editor', 'mover', 'unir', 'estirar', 'guardar'],
   suggestions: ['Raise a part', 'Add a drawer', 'Save a backup', 'Inches'],
   articles: [
     {
@@ -314,6 +316,7 @@ export const EN: HelpContent = {
       faq: [{ q: 'Does the installed app have my projects?', a: 'Yes, if you installed it from the same browser where you created them.' }],
       related: ['guardar', 'que-es'],
     },
+    ...EN_TOOLS,
     {
       id: 'atajos-teclado',
       topic: 'atajos',

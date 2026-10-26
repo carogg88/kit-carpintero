@@ -19,7 +19,7 @@ export interface Section {
   blocks: Block[];
 }
 
-export type TopicIcon = 'start' | 'keys' | 'recipe';
+export type TopicIcon = 'start' | 'tools' | 'keys' | 'recipe';
 
 export interface Topic {
   id: string;

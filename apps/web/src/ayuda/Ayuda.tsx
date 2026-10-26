@@ -492,6 +492,12 @@ function TopicGlyph({ icon }: { icon: TopicIcon }) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       {icon === 'start' && <path d="M8 5.5v13l10-6.5z" />}
+      {icon === 'tools' && (
+        <>
+          <path d="M14.5 5.5a3.5 3.5 0 0 0 4.6 4.6L20 11l-9 9-3-3 9-9z" />
+          <path d="M4 20l3-3M5 6l3 3M3.5 4.5l2-1 2 2-1 2z" />
+        </>
+      )}
       {icon === 'recipe' && (
         <>
           <path d="M9 6h11M9 12h11M9 18h11" />

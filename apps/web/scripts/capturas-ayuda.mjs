@@ -98,6 +98,102 @@ async function createTable(page) {
   await page.context().close();
 }
 
+// Compu: cada herramienta del Modelo sobre la mesa, en la vista Frente (las patas delanteras quedan a los costados).
+{
+  const page = await open(desktop);
+  const tool = (name) => page.locator('[data-tour="tools"]').getByRole('button', { name: new RegExp(`^${name}`) }).click();
+  const view = (name) => page.locator('[data-tour="views"]').getByRole('button', { name, exact: true }).click();
+  const drag = async (x1, y1, x2, y2) => {
+    await page.mouse.move(x1, y1);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(x1 + ((x2 - x1) * i) / 10, y1 + ((y2 - y1) * i) / 10);
+    await page.waitForTimeout(300);
+    await page.mouse.up();
+  };
+  const undo = async (times = 1) => {
+    for (let i = 0; i < times; i++) await page.keyboard.press('Control+z');
+    await page.waitForTimeout(400);
+  };
+  const leftLeg = [140, 400];
+  const rightLeg = [925, 400];
+  await createTable(page);
+  await page.getByRole('button', { name: 'Crear mesa' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3000);
+  await view('Frente');
+  await page.waitForTimeout(1200);
+  await page.mouse.click(...leftLeg);
+  await page.waitForTimeout(800);
+  await shot(page, 'elegir');
+  await page.keyboard.down('Shift');
+  await page.mouse.click(...rightLeg);
+  await page.keyboard.up('Shift');
+  await page.waitForTimeout(800);
+  await shot(page, 'elegir-varias');
+  await page.mouse.click(...leftLeg);
+  await tool('Empujar');
+  await page.waitForTimeout(600);
+  await shot(page, 'estirar');
+  await tool('Mover');
+  await drag(...leftLeg, leftLeg[0] + 60, leftLeg[1]);
+  await page.waitForTimeout(1500);
+  await shot(page, 'mover');
+  await page.keyboard.press('Escape');
+  await undo();
+  // Dibujar: se toca el faldón (la vista se pone de frente) y se arrastra un rectángulo.
+  await tool('Dibujar');
+  await page.mouse.click(540, 235);
+  await page.waitForTimeout(1500);
+  await drag(470, 355, 610, 383);
+  await page.waitForTimeout(800);
+  await shot(page, 'dibujar');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await undo();
+  await tool('Seleccionar');
+  await view('Frente');
+  await page.waitForTimeout(1200);
+  await page.mouse.click(...leftLeg);
+  await tool('Biselar');
+  await page.waitForTimeout(600);
+  await shot(page, 'biselar');
+  await tool('Agrandar');
+  await drag(leftLeg[0], 330, leftLeg[0], 450);
+  await page.waitForTimeout(1200);
+  await page.getByText(/^Tramos \(/).scrollIntoViewIfNeeded();
+  await shot(page, 'tramo');
+  await undo();
+  await tool('Tornear');
+  await page.mouse.click(...leftLeg);
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: 'Pata de mesa' }).click();
+  await page.waitForTimeout(1500);
+  await page.getByRole('img', { name: 'Perfil del torneado' }).scrollIntoViewIfNeeded();
+  await shot(page, 'tornear');
+  await undo(2);
+  await tool('Medir');
+  await page.mouse.click(...leftLeg);
+  await page.waitForTimeout(600);
+  await page.mouse.click(...rightLeg);
+  await page.waitForTimeout(1000);
+  await shot(page, 'medir');
+  await page.keyboard.press('Escape');
+  await tool('Seleccionar');
+  await view('3D');
+  await page.waitForTimeout(800);
+  // Sin nada elegido y un poco más cerca, para que se vean las espigas adentro de las patas.
+  await page.mouse.click(700, 600);
+  await page.keyboard.press('x');
+  await page.mouse.move(660, 420);
+  for (let i = 0; i < 3; i++) {
+    await page.mouse.wheel(0, -200);
+    await page.waitForTimeout(100);
+  }
+  await page.waitForTimeout(1500);
+  await shot(page, 'rayos-x');
+  await page.context().close();
+}
+
 // Celular: el editor con la mesa.
 {
   const page = await open(phone);
