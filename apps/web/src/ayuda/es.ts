@@ -1,13 +1,15 @@
+import { ES_TOOLS } from './es-herramientas';
 import { img, key, list, note, p, steps, table, tip, type HelpContent } from './types';
 
 /** Centro de ayuda en español. Cada artículo tiene su par en en.ts, con las mismas secciones y los mismos pasos. */
 export const ES: HelpContent = {
   topics: [
     { id: 'empezar', icon: 'start', title: 'Empezar', summary: 'Crear un proyecto, conocer la pantalla del editor y guardar tu trabajo.' },
+    { id: 'herramientas', icon: 'tools', title: 'Herramientas del Modelo', summary: 'Paso a paso de cada herramienta del editor: elegir, estirar, mover, dibujar, biselar, tornear y más.' },
     { id: 'como-hacer', icon: 'recipe', title: 'Cómo hacer…', summary: 'Recetas cortas para lo que más se busca al armar un mueble.' },
     { id: 'atajos', icon: 'keys', title: 'Atajos de teclado', summary: 'Todas las teclas del editor en una tabla.' },
   ],
-  popular: ['crear-proyecto', 'pantalla-editor', 'unir', 'altura', 'guardar'],
+  popular: ['crear-proyecto', 'pantalla-editor', 'mover', 'unir', 'estirar', 'guardar'],
   suggestions: ['Subir una pieza', 'Agregar un cajón', 'Guardar una copia', 'Pulgadas'],
   articles: [
     {
@@ -318,6 +320,7 @@ export const ES: HelpContent = {
       faq: [{ q: '¿La app instalada tiene mis proyectos?', a: 'Sí, si la instalaste desde el mismo navegador donde los creaste.' }],
       related: ['guardar', 'que-es'],
     },
+    ...ES_TOOLS,
     {
       id: 'atajos-teclado',
       topic: 'atajos',
