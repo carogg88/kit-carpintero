@@ -339,4 +339,6 @@ export default {
   '{who} ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}': '{who} now measures {mm} in {axis}: {s} parts stretched and {m} moved',
   '{who} pasa a medir {mm} de {axis}': '{who} becomes {mm} in {axis}',
   'Medidas del grupo': 'Group size',
+  'Ver de cerca la unión con {id}': 'See the joint with {id} up close',
+  'Ver de cerca': 'See up close',
 } satisfies Record<string, string>;

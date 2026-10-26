@@ -111,6 +111,20 @@
 }
 .swatchSolid { width: 12px; height: 12px; border-radius: 3px; background: var(--signal); }
 .swatchXray { width: 12px; height: 12px; border-radius: 3px; border: 1.5px dashed var(--xray-edge); }
+.swatchWood { width: 12px; height: 12px; border-radius: 3px; background: var(--locator-wood, #d9bc8c); border: 1px solid var(--xray-edge); }
+/* Separar piezas: arriba a la derecha del detalle. */
+.apartBtn {
+  position: absolute; top: 12px; right: 12px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--ink); font: 500 var(--text-s) var(--font-ui); box-shadow: var(--shadow-card); cursor: pointer;
+}
+.apartBtn:hover { background: var(--bg); }
+.apartBtn[aria-pressed='true'] { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
+.apartBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* En el celular el mueble en chico va arriba a la derecha: el botón baja a la izquierda y la ayuda de girar se va. */
+@media (max-width: 899px) {
+  .apartBtn { top: auto; right: auto; left: 10px; bottom: 10px; }
+  .detailFigure:has(.apartBtn) figcaption { display: none; }
+}
 
 .fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .fieldset legend { margin-bottom: var(--space-2); }

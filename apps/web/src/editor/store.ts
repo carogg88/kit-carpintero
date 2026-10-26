@@ -103,6 +103,8 @@ interface EditorState {
   pending: Pending | null;
   /** Piezas ocultas en la vista 3D, para trabajar con las demás. Es solo de la vista: el proyecto no cambia. */
   hidden: string[];
+  /** Unión que se pidió ver de cerca desde el Modelo: Uniones la abre al entrar. */
+  jointFocus: string | null;
   /** Las dos piezas que se están midiendo: la segunda falta hasta el segundo toque. */
   measure: { a: MeasurePick | null; b: MeasurePick | null };
 
@@ -127,6 +129,7 @@ interface EditorState {
    */
   tapPart: (id: string, add: boolean) => void;
   setAddMode: (on: boolean) => void;
+  setJointFocus: (id: string | null) => void;
   setTool: (t: Tool) => void;
   setXray: (on: boolean) => void;
   setCopyMove: (on: boolean) => void;
@@ -255,6 +258,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   selectedId: null,
   picked: [],
   addMode: false,
+  jointFocus: null,
   tool: 'select',
   xray: false,
   copyMove: false,
@@ -280,7 +284,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+    set({ jointFocus: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -370,6 +374,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     pick(unit);
   },
   setAddMode: (addMode) => set({ addMode }),
+  setJointFocus: (jointFocus) => set({ jointFocus }),
   setTool: (tool) =>
     set((s) => ({
       ...(tool === 'draw' ? { tool, arcChord: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, bubble: null }),

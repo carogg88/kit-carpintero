@@ -558,4 +558,7 @@ export default {
   'Opcional: cuánto saldría este mueble en otra madera': 'Optional: what this piece would cost in another wood',
   'Paso anterior': 'Previous step',
   'Siguiente paso': 'Next step',
+  'Separa las dos piezas para ver la espiga afuera y la caja vacía': 'Pulls the two parts apart to show the tenon and the empty mortise',
+  'Juntar': 'Put together',
+  'Separar piezas': 'Pull apart',
 } satisfies Record<string, string>;
