@@ -506,8 +506,8 @@ export const MESSAGES_EN: Record<string, string> = {
   'Corré una hasta que solo se toquen, o acortala. Con Rayos X (tecla X) se ve dónde se cruzan.':
     'Move one until they only touch, or shorten it. X-ray (X key) shows where they overlap.',
   'Grupo {n}': 'Group {n}',
-  'puntas cortadas paralelas, a {a}°': 'ends cut parallel, at {a}°',
-  'puntas cortadas paralelas, a {a}° sobre una cara y {b}° sobre la otra': 'ends cut parallel, at {a}° on one face and {b}° on the other',
+  'puntas cortadas paralelas, a {a}': 'ends cut parallel, at {a}',
+  'puntas cortadas paralelas, a {a} sobre una cara y {b} sobre la otra': 'ends cut parallel, at {a} on one face and {b} on the other',
   'Taburete de patas abiertas (prueba)': 'Splayed-leg stool (test)',
   'Taburete de patas abiertas': 'Splayed-leg stool',
   'De lado a lado del asiento.': 'From side to side of the seat.',
@@ -515,4 +515,10 @@ export const MESSAGES_EN: Record<string, string> = {
   'Apertura de las patas': 'Leg splay',
   'Cuánto se abre cada pata hacia su esquina, visto de frente y de costado.': 'How far each leg opens toward its corner, seen from the front and from the side.',
   'Lo grueso de la tabla donde te sentás: la espiga de cada pata entra en él.': "How thick the seat board is: each leg's tenon goes into it.",
+  'hombros en ángulo, a {a}': 'angled shoulders, at {a}',
+  'hombros en ángulo compuesto: {a} contra el alto y {b} de costado': 'compound-angle shoulders: {a} against the height and {b} sideways',
+  'Travesaños': 'Rungs',
+  'Barras entre las patas, donde se apoyan los pies: siguen la apertura de las patas.': 'Bars between the legs, where your feet rest: they follow the leg splay.',
+  'Sin travesaños': 'No rungs',
+  'Con travesaños': 'With rungs',
 };

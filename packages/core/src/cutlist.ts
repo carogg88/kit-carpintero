@@ -2,6 +2,7 @@ import { boardFeet, LENGTHS_M, planedMm, stockFor, stockKind, type StockKind } f
 import { boxSize, partBox, type Box } from './geometry';
 import { isAngleCut } from './bevels';
 import { leanFrame, leanWork } from './lean';
+import { followMortise, followWork, leanFollow } from './follow';
 import { arcInfo } from './pockets';
 import { describeSection, sectionBox } from './sections';
 import { describeTurning } from './turning';
@@ -88,9 +89,19 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   const straight = partBox(part);
   // Una pata inclinada sale de una madera más larga que su altura: de punta larga a punta larga.
   const lean = leanFrame(part);
-  const box: Box = lean
+  let box: Box = lean
     ? { min: [straight.min[0], straight.max[1] - lean.length + lean.rise, straight.min[2]], max: [straight.max[0], straight.max[1] + lean.rise, straight.max[2]] }
     : straight;
+  // Un faldón o travesaño entre patas inclinadas se estira o se acorta hasta ellas: de punta larga a punta larga.
+  const follow = leanFollow(project, part);
+  if (follow) {
+    const k = follow.axis;
+    const hi = follow.ends.find((e) => e.dir > 0)?.tip;
+    const lo = follow.ends.find((e) => e.dir < 0)?.tip;
+    box = { min: [...follow.box.min], max: [...follow.box.max] };
+    box.min[k] = lo ?? straight.min[k]! + follow.shift[k]!;
+    box.max[k] = hi ?? straight.max[k]! + follow.shift[k]!;
+  }
   let outer = box;
   // Un tramo más grueso pide una tabla más gruesa: la pieza se corta del tamaño mayor y se rebaja el resto.
   for (const sec of part.sections) outer = unionBox(outer, sectionBox(part, sec));
@@ -105,7 +116,15 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     if (!a || !b || a.base.kind !== 'box' || b.base.kind !== 'box') continue;
     const g = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     const isA = j.partA === part.id;
-    if (g && !isA) {
+    const end = !isA ? follow?.ends.find((e) => e.joint.id === j.id) : undefined;
+    if (end && follow) {
+      // La espiga sale derecha desde la cara de la pata inclinada.
+      const m = j.type === 'mortaja' ? followMortise(follow, end, part) : null;
+      if (m) {
+        outer = unionBox(outer, m.tenon);
+        tongues += 1;
+      }
+    } else if (g && !isA) {
       for (const s of g.addB) outer = unionBox(outer, solidBox(s));
       if (g.addB.length) tongues += 1;
     }
@@ -181,6 +200,8 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   const angled = part.bevels.filter((b) => isAngleCut(part, b)).length;
   if (angled) work.push(plural(angled, tk('{n} corte en ángulo'), tk('{n} cortes en ángulo')));
   if (lean) work.push(leanWork(lean));
+  const shoulders = follow && followWork(follow);
+  if (shoulders) work.push(shoulders);
   const rounded = part.bevels.filter((b) => b.round);
   const flat = part.bevels.length - angled - rounded.length;
   if (flat) work.push(plural(flat, tk('{n} bisel'), tk('{n} biseles')));

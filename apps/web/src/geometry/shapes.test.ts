@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import opencascade from 'replicad-opencascadejs';
 import { measureVolume, setOC } from 'replicad';
-import { buildTemplate, leanedBox, leanFrame, leanTestStool, cutList, presetTurning, TURN_PRESETS, type TurnPreset, defaultJointParams, drawJointDetail, partBox, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type JointType, type Line2, type Part, type Project } from '@kitc/core';
+import { buildTemplate, leanFollow, leanedBox, leanFrame, leanTestStool, cutList, presetTurning, TURN_PRESETS, type TurnPreset, defaultJointParams, drawJointDetail, partBox, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type JointType, type Line2, type Part, type Project } from '@kitc/core';
 import { partShape, projectShapes } from './shapes';
 
 beforeAll(async () => {
@@ -314,5 +314,40 @@ describe('patas inclinadas (prueba técnica)', () => {
     // Sin la espiga, el volumen crece como el largo inclinado: alto / coseno del ángulo.
     expect(a / b).toBeGreaterThan(1);
     expect(a / b).toBeLessThan(1 / -f.dir[1] + 0.01);
+  });
+});
+
+describe('faldones y travesaños entre patas inclinadas', () => {
+  /** Ningún par de piezas unidas se pisa: cada espiga entra en su mortaja y cada hombro apoya en la cara de la pata. */
+  function noClashes(project: Project) {
+    const built = new Map(project.parts.map((p) => [p.id, partShape(p, project)]));
+    for (const [id, b] of built) expect([id, b.warning]).toEqual([id, undefined]);
+    for (const j of project.joints) {
+      const both = built.get(j.partA)!.shape.intersect(built.get(j.partB)!.shape);
+      expect([j.id, Math.round(measureVolume(both))]).toEqual([j.id, 0]);
+      both.delete();
+    }
+    return built;
+  }
+
+  it('el taburete de patas abiertas con travesaños se arma sin choques', () => {
+    const stool = leanTestStool('guatambu', '2026-10-26T00:00:00Z');
+    expect(stool.parts.filter((p) => p.id.startsWith('R'))).toHaveLength(4);
+    const built = noClashes(stool);
+    // Cada travesaño lleva sus dos espigas: pesa más que el tramo entre las patas.
+    const r1 = stool.parts.find((p) => p.id === 'R1')!;
+    const f = leanFollow(stool, r1)!;
+    const [, max] = built.get('R1')!.shape.boundingBox.bounds;
+    expect(max[0]).toBeGreaterThan(f.ends.find((e) => e.dir > 0)!.tip + 10);
+    for (const b of built.values()) b.shape.delete();
+  });
+
+  it('el taburete común con las patas abiertas: faldones y travesaños siguen a las patas', () => {
+    const def = TEMPLATES.find((t) => t.id === 'taburete')!;
+    const stool = buildTemplate(def, templateDefaults(def), 'guatambu', undefined, '2026-10-26T00:00:00Z');
+    const out: Record<string, [number, number]> = { P1: [-6, -6], P2: [6, -6], P3: [6, 6], P4: [-6, 6] };
+    for (const p of stool.parts) if (out[p.id]) p.lean = out[p.id];
+    const built = noClashes(stool);
+    for (const b of built.values()) b.shape.delete();
   });
 });

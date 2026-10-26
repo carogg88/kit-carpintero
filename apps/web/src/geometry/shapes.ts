@@ -1,5 +1,5 @@
 import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, revolution, Vector, type Shape3D } from 'replicad';
-import { bevelSolid, engineCamera, leanFrame, leanStock, otherAxes, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, turnSegments, type Box, type EngineView, type LeanFrame, type Part, type Project, type Solid, type Turning } from '@kitc/core';
+import { bevelSolid, engineCamera, FOLLOW_JOINTS, followMortise, leanFollow, leanFrame, leanStock, otherAxes, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, turnSegments, type Box, type Vec3, type EngineView, isLeaning, type LeanFrame, type Part, type Project, type Solid, type Turning } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -120,14 +120,34 @@ function jointSolid(s: Solid, f: LeanFrame | null): Shape3D {
   return leaned(solid(b), f);
 }
 
+/** La pata inclinada recortada a la altura de la pieza derecha: corta las puntas de una forma ya girada. */
+function trimLean(shape: Shape3D, part: Part, f: LeanFrame): Shape3D {
+  const box = partBox(part);
+  const reach = f.length + 100;
+  const slab: Box = { min: [box.min[0] - reach, box.min[1], box.min[2] - reach], max: [box.max[0] + reach, box.max[1], box.max[2] + reach] };
+  return shape.intersect(solid(slab));
+}
+
+/** El cuerpo de una pata inclinada, sin encastres: lo que recorta la punta de un travesaño que entra en ella. */
+const leanBody = (leg: Part, f: LeanFrame): Shape3D => trimLean(leaned(solid(leanStock(leg, f)), f), leg, f);
+
 /**
  * Arma una pieza exacta: forma base (el taco, o torneada), redondeos, espigas sumadas y mortajas restadas.
  * Una pata inclinada se arma derecha y más larga, se gira y se le cortan las puntas horizontales; los encastres
  * que entran con ella en otra pieza se giran igual, así la mortaja sigue el ángulo de la espiga.
+ * Un faldón o travesaño que entra en patas inclinadas se corre con ellas, se estira hasta adentro de cada pata y
+ * la pata le recorta el hombro; la espiga y la mortaja van derechas, a lo largo de la pieza.
  */
 export function partShape(part: Part, project: Project): { shape: Shape3D; warning?: string } {
   const lean = leanFrame(part);
-  let shape = solid(lean ? leanStock(part, lean) : partBox(part));
+  const follow = leanFollow(project, part);
+  // La pieza que sigue a las patas se arma en su lugar de siempre, estirada, y se corre al final.
+  const base = follow
+    ? { min: follow.box.min.map((v, k) => v - follow.shift[k]!) as Vec3, max: follow.box.max.map((v, k) => v - follow.shift[k]!) as Vec3 }
+    : lean
+      ? leanStock(part, lean)
+      : partBox(part);
+  let shape = solid(base);
   let warning: string | undefined;
 
   if (part.turning) {
@@ -174,11 +194,16 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     }
   }
 
-  if (lean) {
-    const box = partBox(part);
-    const reach = lean.length + 100;
-    const slab: Box = { min: [box.min[0] - reach, box.min[1], box.min[2] - reach], max: [box.max[0] + reach, box.max[1], box.max[2] + reach] };
-    shape = leaned(shape, lean).intersect(solid(slab));
+  if (lean) shape = trimLean(leaned(shape, lean), part, lean);
+  if (follow) {
+    if (follow.shift.some((d) => Math.abs(d) > 1e-6)) shape = shape.translate(follow.shift) as Shape3D;
+    for (const end of follow.ends) {
+      try {
+        shape = shape.cut(leanBody(end.leg, end.frame));
+      } catch {
+        warning = t('No se pudo cortar el encastre con {id}', { id: end.leg.id });
+      }
+    }
   }
 
   for (const j of project.joints) {
@@ -189,11 +214,22 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     const geo = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     if (!geo) continue;
     const isA = part.id === j.partA;
-    const mine = isA ? [...geo.cutA] : [...geo.addB, ...geo.cutB];
-    // Por ahora solo sigue el ángulo la pieza que entra inclinada (la pata en el asiento). Si la que recibe está
-    // inclinada (un travesaño que entra en la pata), el encastre todavía no se corta.
-    if (leanFrame(a) && mine.length) {
-      warning = t('El encastre con {id} todavía no sigue la pata inclinada', { id: isA ? j.partB : j.partA });
+    const other = isA ? j.partB : j.partA;
+    // Un faldón o travesaño que entra en una pata inclinada: espiga y mortaja derechas, a lo largo de la pieza.
+    if (leanFrame(a)) {
+      const f = isLeaning(b) ? null : leanFollow(project, b);
+      const end = f?.ends.find((e) => e.joint.id === j.id);
+      if (!f || !end || !FOLLOW_JOINTS.has(j.type)) {
+        if (geo.cutA.length + geo.addB.length + geo.cutB.length) warning = t('El encastre con {id} todavía no sigue la pata inclinada', { id: other });
+        continue;
+      }
+      const m = j.type === 'mortaja' ? followMortise(f, end, b) : null;
+      if (!m) continue;
+      try {
+        shape = isA ? shape.cut(solid(m.mortise)) : shape.fuse(solid(m.tenon));
+      } catch {
+        warning = t('No se pudo cortar el encastre con {id}', { id: other });
+      }
       continue;
     }
     const tilt = leanFrame(b);
@@ -201,7 +237,7 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
       for (const s of isA ? [] : geo.addB) shape = shape.fuse(jointSolid(s, tilt));
       for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(jointSolid(s, tilt));
     } catch {
-      warning = t('No se pudo cortar el encastre con {id}', { id: isA ? j.partB : j.partA });
+      warning = t('No se pudo cortar el encastre con {id}', { id: other });
     }
   }
   return warning ? { shape, warning } : { shape };
