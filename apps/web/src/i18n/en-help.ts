@@ -1,4 +1,4 @@
-/** Ayuda: el recorrido guiado y las recetas. */
+/** Ayuda: el recorrido guiado, las recetas y el Centro de ayuda. */
 export default {
   // Inicio
   'Taburete de práctica': 'Practice stool',
@@ -34,16 +34,9 @@ export default {
     'Joints has every joint with its sizes. Cuts has the parts list, which boards to buy and the budget. Plan is for printing. Assembly is the step by step.',
   'Cualquier cambio vuelve atrás con esta flecha o con Ctrl+Z. El proyecto se guarda solo en este dispositivo.':
     'Any change can be undone with this arrow or Ctrl+Z. The project saves itself on this device.',
-  'Ayuda y recetas': 'Help and recipes',
-  'Acá volvés a este recorrido y encontrás recetas cortas: unir dos piezas, hacer la pata gemela, un calado redondo, agregar un cajón.':
-    'Come back here for this tour and short recipes: joining two parts, making the twin leg, a round through cut, adding a drawer.',
   // Centro de ayuda
   Ayuda: 'Help',
-  'Ayuda: recorrido y recetas': 'Help: tour and recipes',
   'Recorrido guiado': 'Guided tour',
-  '{n} pasos por el editor: dónde está cada cosa y para qué sirve': '{n} steps through the editor: where everything is and what it does',
-  Recetas: 'Recipes',
-  'Mostrame dónde': 'Show me where',
   'Unir dos piezas': 'Join two parts',
   'Elegí la herramienta Mover.': 'Pick the Move tool.',
   'Arrastrá la pieza hasta que toque la otra: se pega sola al borde y aparece la unión.': 'Drag the part until it touches the other one: it snaps to the edge and the joint appears.',
@@ -141,4 +134,37 @@ export default {
   'Las patas iguales son un componente: lo que le hacés a una les llega a todas.': 'Matching legs are a component: what you do to one reaches all of them.',
   'Para que el bisel quede afuera en cada una, girá la copia que corresponda con Girar 90°: gira solo esa.': 'To keep the bevel on the outside of each, turn the right copy with Rotate 90°: only that one turns.',
   'Del otro lado ya hace la gemela reflejada. Desde ahí, un bisel nuevo en cualquier pata llega a cada una en su arista de afuera.': 'Other side already makes the mirrored twin. From then on, a new bevel on any leg reaches each one on its outer edge.',
+  // Centro de ayuda
+  'Centro de ayuda': 'Help Center',
+  'Acá encontrás cómo funciona cada herramienta, paso a paso, y recetas cortas: unir dos piezas, hacer la pata gemela, agregar un cajón. Desde ahí también volvés a este recorrido.':
+    'Here you find how each tool works, step by step, and short recipes: join two parts, make the twin leg, add a drawer. From there you can also come back to this tour.',
+  'Calibre Studio: ir al inicio': 'Calibre Studio: go home',
+  'Volver al proyecto': 'Back to the project',
+  '¿En qué te ayudamos?': 'How can we help?',
+  'Buscá una herramienta o lo que querés hacer, o elegí un tema.': 'Search for a tool or what you want to do, or pick a topic.',
+  'Buscar en la ayuda': 'Search the help',
+  'Por ejemplo: subir una pieza': 'For example: raise a part',
+  'Probá con:': 'Try:',
+  '1 resultado': '1 result',
+  '{n} resultados': '{n} results',
+  'No encontramos nada con esas palabras. Probá con otras, o mirá los temas.': 'Nothing matches those words. Try others, or browse the topics.',
+  'Ver todos los temas': 'See all topics',
+  Temas: 'Topics',
+  '1 artículo': '1 article',
+  '{n} artículos': '{n} articles',
+  'Lo más leído': 'Most read',
+  '¿Primera vez?': 'First time?',
+  'Un recorrido de {n} pasos por el editor te muestra dónde está cada cosa y para qué sirve.': 'A {n}-step tour of the editor shows you where everything is and what it does.',
+  'Estás en': 'You are in',
+  'No encontramos ese artículo': 'We could not find that article',
+  'Ir al Centro de ayuda': 'Go to the Help Center',
+  'Preguntas frecuentes': 'Frequently asked questions',
+  'Otros artículos de {topic}': 'Other articles in {topic}',
+  'En este artículo': 'In this article',
+  'Mostrame dónde está': 'Show me where it is',
+  'Artículos relacionados': 'Related articles',
+  Nota: 'Note',
+  Consejo: 'Tip',
+  Atajo: 'Shortcut',
+  'Paso a paso': 'Step by step',
 } satisfies Record<string, string>;

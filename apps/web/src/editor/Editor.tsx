@@ -38,7 +38,7 @@ import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
 import { PreviewBar } from './PreviewBar';
 import { HelpButton } from '../help/HelpCenter';
-import { EDITOR_TOUR, TourOverlay, useTour } from '../help/Tour';
+import { TourOverlay, useTour } from '../help/Tour';
 import { MeasureBubble } from './MeasureBubble';
 import { MeasureCard } from './MeasureCard';
 import { NextSteps, useVisitSection } from './NextSteps';
@@ -443,11 +443,12 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   useEffect(() => {
     if (noParts && tool !== 'select') setTool('select');
   }, [noParts, tool, setTool]);
-  // El recorrido pedido desde el inicio arranca cuando el modelo ya se ve.
+  // El recorrido pedido desde el inicio, o lo que pidió mostrar la ayuda, arranca cuando el modelo ya se ve.
   const hasProject = !!project;
   useEffect(() => {
-    if (!hasProject || section !== 'modelo' || !useTour.getState().queued) return;
-    const timer = setTimeout(() => useTour.getState().start(EDITOR_TOUR), 900);
+    const queued = useTour.getState().queued;
+    if (!hasProject || section !== 'modelo' || !queued) return;
+    const timer = setTimeout(() => useTour.getState().start(queued), 900);
     return () => clearTimeout(timer);
   }, [hasProject, section]);
   if (!project) return null;

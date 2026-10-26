@@ -5,7 +5,6 @@ import {
   loadProject,
   locale,
   partBox,
-  buildTemplate,
   SCHEMA_VERSION,
   t,
   templateById,
@@ -17,11 +16,11 @@ import {
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { warmUpEngine } from '../editor/useGeometry';
 import { BrandMark, BrandWordmark } from '../brand/Brand';
-import { navigate, sectionHref } from '../routes';
+import { HELP_ROUTE, navigate, sectionHref } from '../routes';
 import { useInstall } from '../pwa';
 import { projectName, switchLang } from '../i18n';
 import { JointMeta } from '../help/Help';
-import { useTour } from '../help/Tour';
+import { startPracticeStool } from '../help/practice';
 import styles from './Home.module.css';
 
 const icon = { width: 40, height: 40, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true } as const;
@@ -428,12 +427,8 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
 
   // Para quien entra por primera vez: un taburete armado y el recorrido por el editor encima.
   const learn = async () => {
-    const def = templateById('taburete');
-    if (!def) return;
-    const p = { ...buildTemplate(def, templateDefaults(def), 'guatambu', def.joints?.default), name: t('Taburete de práctica') };
-    await saveProject(p);
-    useTour.getState().queue();
-    onOpen(p.id);
+    const id = await startPracticeStool();
+    if (id) onOpen(id);
   };
 
   const openFile = async (file: File) => {
@@ -474,6 +469,13 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
                 </button>
               ))}
             </span>
+            <a className={`${styles.learn} ${styles.helpLink}`} href={HELP_ROUTE} aria-label={t('Ayuda')} title={t('Centro de ayuda')}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6M12 17.2v.1" />
+              </svg>
+              <span className={styles.learnLong}>{t('Ayuda')}</span>
+            </a>
             <button type="button" className={styles.learn} onClick={() => void learn()}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5.5v13l10-6.5z" />
@@ -654,6 +656,10 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
       </main>
       <footer className={styles.footer}>
         <p>{t('Los proyectos se guardan solo en este navegador. Si borrás los datos de navegación, se pierden: guardá una copia en archivo de vez en cuando.')}</p>
+        {/* En el celular el encabezado no tiene lugar para Ayuda: va acá. */}
+        <a className={styles.footHelp} href={HELP_ROUTE}>
+          {t('Centro de ayuda')}
+        </a>
         {import.meta.env.DEV && <a href={`${import.meta.env.BASE_URL}geometria.html`}>{t('Probar el motor de geometría en este dispositivo')}</a>}
       </footer>
       <TemplatePicker open={picking} onClose={() => setPicking(false)} onPick={(id) => void create(id)} />
