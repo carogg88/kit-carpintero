@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
 import { facePattern, patternDetails } from './patterns';
 import { describePocket, faceSize, newPocket, pocketRegion, pocketSolid, pointInPocket } from './pockets';
-import { pathCrosses, pathCurve, pathReady, pathRegion, type PathShape } from './profile';
+import { insertPathPoint, pathCrosses, pathCurve, pathNearest, pathReady, pathRegion, segmentMiddle, type PathShape } from './profile';
 import { loadProject, SCHEMA_VERSION, type Part } from './project';
 import { rotatePart } from './rotate';
 import { createTable } from './templates/table';
@@ -90,6 +90,26 @@ describe('perfil a mano', () => {
     const q = part.pockets[0]!;
     expect(q.shape.kind).toBe('path');
     if (q.shape.kind === 'path') expect(q.shape.points).toHaveLength(3);
+  });
+
+  it('encuentra el tramo más cercano y agrega un punto ahí, sin cambiar la forma', () => {
+    const s = path([[0, 20], [400, 50], [800, 20]]);
+    const near = pathNearest(s, 600, 45)!;
+    expect(near.segment).toBe(1);
+    expect(near.distance).toBeLessThan(10);
+    const more = insertPathPoint(s, near.segment, near.at[0], near.at[1]);
+    expect(more.points.map((p) => p.u)).toEqual([0, 400, near.at[0], 800]);
+    // El punto nuevo está sobre la curva: la línea casi no se mueve.
+    const gap = Math.max(...pathCurve(more.points, false).map(([u, v]) => pathNearest(s, u, v)!.distance));
+    expect(gap).toBeLessThan(3);
+  });
+
+  it('en un tramo recto el punto nuevo va en esquina, al medio', () => {
+    const s = path([[0, 0, true], [100, 0, true], [100, 80, true]], true);
+    expect(segmentMiddle(s, 0)).toEqual([50, 0]);
+    expect(insertPathPoint(s, 2, 50, 40).points[3]).toEqual({ u: 50, v: 40, corner: true });
+    // El tramo que cierra el lazo va del último al primero.
+    expect(pathNearest(s, 40, 35)?.segment).toBe(2);
   });
 
   it('se guarda y se abre', () => {

@@ -9,9 +9,12 @@ import {
   arcPoints,
   arcTouchesEdge,
   nextPocketId,
+  insertPathPoint,
   onFaceEdge,
   pathCrosses,
   pathCurve,
+  pathNearest,
+  pathReady,
   pocketRegion,
   bevelSolid,
   boxSize,
@@ -47,6 +50,7 @@ import {
   type Box,
   type Part,
   type PathPoint,
+  type PathShape,
   type PocketShape,
   type Project,
   type Section,
@@ -595,6 +599,36 @@ function Draft({ part, accent, danger }: { part: Part; accent: string; danger: s
   );
 }
 
+/**
+ * Los puntos de los perfiles a mano ya hechos en la cara elegida: un cuadradito con el centro claro, para
+ * arrastrarlos. Mientras se marca un perfil nuevo no se muestran, para no confundirlos con los nuevos.
+ */
+function PathHandles({ part, face, accent }: { part: Part; face: DrawFace; accent: string }) {
+  const placing = useEditor((s) => s.pathPoints.length > 0);
+  const handles = useMemo(() => {
+    const pts = part.pockets.flatMap((pk) => (pk.shape.kind === 'path' && pk.axis === face.axis ? pk.shape.points : []));
+    if (placing || !pts.length) return null;
+    const box = partBox(part);
+    const geo = new THREE.BufferGeometry().setFromPoints(pts.map((p) => facePoint(box, face, p.u, p.v, 0.8)));
+    const dot = (color: string, size: number) => new THREE.Points(geo, new THREE.PointsMaterial({ color, size, sizeAttenuation: false, depthTest: false }));
+    return [dot(accent, 11), dot('#ffffff', 5)];
+  }, [part, face, accent, placing]);
+  useEffect(
+    () => () => {
+      handles?.[0]!.geometry.dispose();
+      handles?.forEach((d) => (d.material as THREE.Material).dispose());
+    },
+    [handles],
+  );
+  return handles ? (
+    <>
+      {handles.map((d, i) => (
+        <primitive key={i} object={d} renderOrder={3 + i} />
+      ))}
+    </>
+  ) : null;
+}
+
 /** Los puntos ya marcados del perfil a mano. El primero va más grande: tocándolo se cierra el perfil. */
 function PathDots({ part, accent }: { part: Part; accent: string }) {
   const placed = useEditor((s) => s.pathPoints);
@@ -870,6 +904,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   // Caras donde la pieza que se arrastra apoya en otras: se iluminan al encajar y un momento después de soltar.
   const [contact, setContact] = useState<Box[]>([]);
   const contactTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Hay un cartel de "arrastrá el punto" o "tocá la línea" a la vista, puesto al pasar el mouse. */
+  const hovering = useRef(false);
   const showContact = (ids: string[]) => {
     const p = useEditor.getState().project;
     if (!p) return setContact([]);
@@ -1167,30 +1203,153 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
    */
   const pathStep = (part: Part, face: DrawFace, pt: THREE.Vector3) => {
     const { pathPoints: placed, pathCorner: corner } = useEditor.getState();
-    const box = partBox(part);
-    const [ua, va] = otherAxes(face.axis);
-    const size = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]] as const;
-    // El imán de cada eje según lo que mide ese lado: en un faldón angosto, uno parejo pegaría todo al borde.
-    const tol = (i: 0 | 1) => Math.max(1.5, Math.min(Math.max(3, Math.max(...size) * 0.02), size[i] * 0.06));
-    const su = snapOnFace(pt.getComponent(ua) - box.min[ua], size[0], tol(0));
-    const sv = snapOnFace(pt.getComponent(va) - box.min[va], size[1], tol(1));
-    const point: PathPoint = { u: su.value, v: sv.value, corner };
+    const { u, v, size, reach, snap } = faceSnap(part, face, pt);
+    const point: PathPoint = { u, v, corner };
     const first = placed[0];
-    const closes = !!first && placed.length >= 3 && Math.hypot(point.u - first.u, point.v - first.v) <= Math.max(tol(0), tol(1)) * 1.5;
+    const closes = !!first && placed.length >= 3 && Math.hypot(point.u - first.u, point.v - first.v) <= reach * 1.5;
     const ends = !!first && !closes && placed.length >= 1 && onFaceEdge(first, size[0], size[1]) && onFaceEdge(point, size[0], size[1]);
     const shape: PocketShape = closes
       ? { kind: 'path', points: placed, closed: true, flip: false }
       : { kind: 'path', points: [...placed, point], closed: false, flip: false };
+    return { point, shape, closes, ends, snap: closes ? t('primer punto') : snap };
+  };
+
+  /** Dónde cae `pt` en la cara, pegado a bordes, centro y grilla de 5 mm. */
+  const faceSnap = (part: Part, face: DrawFace, pt: THREE.Vector3) => {
+    const box = partBox(part);
+    const [ua, va] = otherAxes(face.axis);
+    const size = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]] as [number, number];
+    // El imán de cada eje según lo que mide ese lado: en un faldón angosto, uno parejo pegaría todo al borde.
+    const tol = (i: 0 | 1) => Math.max(1.5, Math.min(Math.max(3, Math.max(...size) * 0.02), size[i] * 0.06));
+    const su = snapOnFace(pt.getComponent(ua) - box.min[ua], size[0], tol(0));
+    const sv = snapOnFace(pt.getComponent(va) - box.min[va], size[1], tol(1));
     const snaps = [...new Set([snapName(su.to), snapName(sv.to)].filter(Boolean))] as string[];
-    return { point, shape, closes, ends, snap: closes ? t('primer punto') : snaps.join(' · ') || null };
+    return { u: su.value, v: sv.value, size, reach: Math.max(tol(0), tol(1)), snap: snaps.join(' · ') || null };
+  };
+
+  /** En la pantalla, a cuántos píxeles queda (u, v) de la cara del punto (x, y) del canvas. */
+  const pixelsTo = (box: Box, face: DrawFace, u: number, v: number, x: number, y: number) => {
+    const rect = gl.domElement.getBoundingClientRect();
+    const q = facePoint(box, face, u, v).project(camera);
+    return Math.hypot(((q.x + 1) / 2) * rect.width - x, ((1 - q.y) / 2) * rect.height - y);
+  };
+
+  /**
+   * Lo que hay bajo el puntero de los perfiles ya hechos en esta cara: un punto (para arrastrarlo) o, con el perfil
+   * a mano elegido, la línea (para agregar un punto ahí). Con el dedo se busca más lejos.
+   */
+  const pathHit = (part: Part, face: DrawFace, ev: PointerEvent, point: THREE.Vector3) => {
+    const { drawShape, pathPoints } = useEditor.getState();
+    if (pathPoints.length) return null;
+    const rect = gl.domElement.getBoundingClientRect();
+    const [x, y] = [ev.clientX - rect.left, ev.clientY - rect.top];
+    const reach = ev.pointerType === 'mouse' ? 10 : 22;
+    const box = partBox(part);
+    let best: { pocketId: string; index: number; insert: boolean; shape: PathShape; d: number } | null = null;
+    for (const pk of part.pockets) {
+      if (pk.shape.kind !== 'path' || pk.axis !== face.axis) continue;
+      const shape = pk.shape;
+      shape.points.forEach((p, index) => {
+        const d = pixelsTo(box, face, p.u, p.v, x, y);
+        if (d <= reach && (!best || d < best.d)) best = { pocketId: pk.id, index, insert: false, shape, d };
+      });
+    }
+    if (best || drawShape !== 'path') return best;
+    const [ua, va] = otherAxes(face.axis);
+    for (const pk of part.pockets) {
+      if (pk.shape.kind !== 'path' || pk.axis !== face.axis) continue;
+      const near = pathNearest(pk.shape, point.getComponent(ua) - box.min[ua], point.getComponent(va) - box.min[va]);
+      if (!near) continue;
+      const d = pixelsTo(box, face, near.at[0], near.at[1], x, y);
+      if (d > reach || (best && d >= best.d)) continue;
+      const at = near.at.map((c) => Math.round(c * 2) / 2) as [number, number];
+      best = { pocketId: pk.id, index: near.segment + 1, insert: true, shape: insertPathPoint(pk.shape, near.segment, at[0], at[1]), d };
+    }
+    return best;
+  };
+
+  /**
+   * Arrastra un punto de un perfil ya hecho (o el que se acaba de agregar tocando la línea). Se ve en vivo y al
+   * soltar queda, si el perfil sigue teniendo forma. Las puntas de un perfil abierto corren por el borde.
+   */
+  const dragPathPoint = (part: Part, face: DrawFace, hit: NonNullable<ReturnType<typeof pathHit>>, nativeEvent: PointerEvent) => {
+    if (controlsRef.current) controlsRef.current.enabled = false;
+    const box = partBox(part);
+    const normal = new THREE.Vector3();
+    normal.setComponent(face.axis, 1);
+    const plane = new THREE.Plane(normal, -(face.side > 0 ? box.max[face.axis] : box.min[face.axis]));
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const [x0, y0] = [nativeEvent.clientX, nativeEvent.clientY];
+    const n = hit.index + 1;
+    const end = !hit.shape.closed && (hit.index === 0 || hit.index === hit.shape.points.length - 1);
+    let next = hit.shape;
+    let moved = false;
+    useEditor.getState().setDraft({ ...face, shape: next });
+    invalidate();
+    const onMove = (ev: PointerEvent) => {
+      if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) <= DEAD_PX) return;
+      moved = true;
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const pt = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(plane, pt)) return;
+      const at = faceSnap(part, face, pt);
+      let { u, v } = at;
+      if (end) {
+        // La punta queda sobre el borde más cercano.
+        const [w, h] = at.size;
+        const d = [u, w - u, v, h - v];
+        const k = d.indexOf(Math.min(...d));
+        if (k === 0) u = 0;
+        else if (k === 1) u = w;
+        else if (k === 2) v = 0;
+        else v = h;
+      }
+      next = { ...hit.shape, points: hit.shape.points.map((p, i) => (i === hit.index ? { ...p, u, v } : p)) };
+      const { setDraft, setHint } = useEditor.getState();
+      setDraft({ ...face, shape: next });
+      setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text: t('Punto {n}', { n }), snap: at.snap });
+      invalidate();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      const { setDraft, setHint, commit, warn } = useEditor.getState();
+      setDraft(null);
+      setHint(null);
+      if (!moved && !hit.insert) return;
+      const [ua, va] = otherAxes(face.axis);
+      if (!pathReady(next, box.max[ua] - box.min[ua], box.max[va] - box.min[va])) return warn(t('Ahí el perfil se cruza consigo mismo: el punto volvió a donde estaba'));
+      commit((d) => {
+        const q = d.parts.find((x) => x.id === part.id)?.pockets.find((x) => x.id === hit.pocketId);
+        if (q) q.shape = next;
+      }, moved ? t('Moviste el punto {n} de {id}', { n, id: hit.pocketId }) : t('Agregaste el punto {n} a {id}', { n, id: hit.pocketId }));
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   };
 
   /** Con el mouse, sin apretar: la línea va del último punto hasta el puntero. */
   const hoverPath = (e: ThreeEvent<PointerEvent>) => {
     const { drawFace: face, drawShape, pathPoints, project: current, setDraft, setHint } = useEditor.getState();
-    if (drawShape !== 'path' || !face || !pathPoints.length || e.nativeEvent.pointerType !== 'mouse' || e.nativeEvent.buttons) return;
+    if (!face || e.nativeEvent.pointerType !== 'mouse' || e.nativeEvent.buttons) return;
     const part = current?.parts.find((q) => q.id === face.partId);
     if (!part) return;
+    if (!pathPoints.length) {
+      // Sobre un perfil ya hecho: qué se puede hacer ahí.
+      const hit = pathHit(part, face, e.nativeEvent, e.point);
+      const rect = gl.domElement.getBoundingClientRect();
+      const text = hit && (hit.insert ? t('Tocá para agregar un punto, o arrastrá') : t('Arrastrá para mover el punto {n}', { n: hit.index + 1 }));
+      if (text || hovering.current) setHint(text ? { x: e.nativeEvent.clientX - rect.left, y: e.nativeEvent.clientY - rect.top, text, snap: null } : null);
+      hovering.current = !!text;
+      return;
+    }
+    if (drawShape !== 'path') return;
     const step = pathStep(part, face, e.point);
     setDraft({ ...face, shape: step.shape });
     const rect = gl.domElement.getBoundingClientRect();
@@ -1200,6 +1359,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   };
   const leavePath = () => {
     const { drawFace: face, drawShape, pathPoints, setDraft, setHint } = useEditor.getState();
+    if (hovering.current) setHint(null);
+    hovering.current = false;
     if (drawShape !== 'path' || !face) return;
     setHint(null);
     setDraft(pathPoints.length ? { ...face, shape: { kind: 'path', points: pathPoints, closed: false, flip: false } } : null);
@@ -1261,6 +1422,14 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   // Dibujar, segundo paso: arrastrar sobre la cara elegida. Rectángulo de esquina a esquina; círculo desde el centro.
   const startSketch = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    const { drawFace: face, project: current } = useEditor.getState();
+    const part = current?.parts.find((q) => q.id === face?.partId);
+    const hit = face && part ? pathHit(part, face, e.nativeEvent, e.point) : null;
+    if (face && part && hit) {
+      hovering.current = false;
+      useEditor.getState().setBubble(null);
+      return dragPathPoint(part, face, hit, e.nativeEvent);
+    }
     beginSketch(e.point, e.nativeEvent);
   };
   /** Arranca el trazo en `point` (sobre la cara elegida). `moving`: el dedo ya se está moviendo. */
@@ -1610,6 +1779,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
             <>
               <FaceOverlay part={part} face={drawFace} accent={colors.accent} onPointerDown={startSketch} onPointerMove={hoverPath} onPointerOut={leavePath} />
               <Draft part={part} accent={colors.accent} danger={colors.danger} />
+              <PathHandles part={part} face={drawFace} accent={colors.accent} />
             </>
           ) : null;
         })()}

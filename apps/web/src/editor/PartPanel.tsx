@@ -41,7 +41,9 @@ import {
   parseLength,
   partBox,
   partPlace,
+  insertPathPoint,
   pathReady,
+  segmentMiddle,
   pocketTakesWholePart,
   renamePart,
   turnPart,
@@ -340,6 +342,11 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
         <input id={throughId} type="checkbox" checked={pocket.through} onChange={(e) => onChange((p) => void (p.through = e.target.checked))} />
         {t('Atraviesa la pieza')}
       </label>
+      {s.kind === 'path' && (
+        <button type="button" className={styles.link} onClick={() => editInModel(part, pocket)}>
+          {t('Mover los puntos en el modelo')}
+        </button>
+      )}
       {s.kind === 'path' && <PathPoints shape={s} part={part} axisLabels={[side(0), side(1)]} size={size} units={units} onChange={onChange} />}
       {s.kind === 'path' && !s.closed && (
         <label className={styles.check} htmlFor={otherId}>
@@ -355,6 +362,14 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
       )}
     </div>
   );
+}
+
+/** Abre Dibujar en la cara del perfil, de frente, con sus puntos listos para arrastrar. */
+function editInModel(part: Part, pocket: Pocket) {
+  const { setTool, setDrawShape, setDrawFace } = useEditor.getState();
+  setTool('draw');
+  setDrawShape('path');
+  setDrawFace({ partId: part.id, axis: pocket.axis, side: pocket.side });
 }
 
 /**
@@ -426,6 +441,19 @@ function PathPoints({
               onClick={() => change((pts) => pts.map((q, k) => (k === i ? { ...q, corner: !q.corner } : q)))}
             >
               {p.corner ? <IconCornerPoint /> : <IconCurvePoint />}
+            </button>
+            <button
+              type="button"
+              className={styles.iconBtnSmall}
+              aria-label={t('Agregar un punto entre el {a} y el {b}', { a: n, b: (i + 1) % shape.points.length + 1 })}
+              title={t('Agregar un punto después')}
+              disabled={!shape.closed && i === shape.points.length - 1}
+              onClick={() => {
+                const [u, v] = segmentMiddle(shape, i).map((c) => Math.round(c * 2) / 2) as [number, number];
+                onChange((q) => void (q.shape = insertPathPoint(shape, i, u, v)));
+              }}
+            >
+              <IconPlus />
             </button>
             <button
               type="button"

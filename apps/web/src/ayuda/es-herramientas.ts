@@ -248,7 +248,12 @@ export const ES_TOOLS: Article[] = [
         title: 'Cambiarlo después',
         blocks: [
           p('En el panel de la pieza, abrí **Vaciados y calados**: cada uno tiene sus medidas y el botón para borrarlo.'),
-          p('En un perfil a mano, cada punto tiene su medida desde los bordes, el botón para pasarlo de curva a esquina y el de borrarlo. **Sacar el otro lado del perfil** deja la parte chica y saca la grande.'),
+          p('En un perfil a mano, cada punto tiene su medida desde los bordes y botones para pasarlo de curva a esquina, agregar otro después y borrarlo. **Sacar el otro lado del perfil** deja la parte chica y saca la grande.'),
+          steps(
+            'Para moverlos a ojo, tocá **Mover los puntos en el modelo**: se abre Dibujar en esa cara y cada punto se ve como un cuadradito.',
+            'Arrastrá un punto hasta donde va. Las puntas de un perfil abierto corren por el borde.',
+            'Con **Perfil a mano** elegido, tocá la línea entre dos puntos para agregar uno ahí, y arrastralo si querés.',
+          ),
         ],
       },
     ],

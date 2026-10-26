@@ -245,7 +245,12 @@ export const EN_TOOLS: Article[] = [
         title: 'Change it later',
         blocks: [
           p('In the part panel, open **Pockets and through cuts**: each one has its sizes and a button to delete it.'),
-          p('In a freehand profile, each point has its distance from the edges, a button to switch it between curve and corner, and one to delete it. **Remove the other side of the profile** keeps the small part and removes the big one.'),
+          p('In a freehand profile, each point has its distance from the edges and buttons to switch it between curve and corner, add another after it and delete it. **Remove the other side of the profile** keeps the small part and removes the big one.'),
+          steps(
+            'To move them by eye, tap **Move the points in the model**: Draw opens on that face and each point shows as a small square.',
+            'Drag a point to where it goes. The ends of an open profile slide along the edge.',
+            'With **Freehand profile** picked, tap the line between two points to add one there, and drag it if you want.',
+          ),
         ],
       },
     ],
