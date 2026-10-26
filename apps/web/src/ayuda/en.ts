@@ -1,3 +1,5 @@
+import { EN_PARTS } from './en-piezas';
+import { EN_REST } from './en-resto';
 import { EN_TOOLS } from './en-herramientas';
 import { img, key, list, note, p, steps, table, tip, type HelpContent } from './types';
 
@@ -6,6 +8,11 @@ export const EN: HelpContent = {
   topics: [
     { id: 'empezar', icon: 'start', title: 'Getting started', summary: 'Create a project, get to know the editor screen and save your work.' },
     { id: 'herramientas', icon: 'tools', title: 'Model tools', summary: 'Step by step for every editor tool: select, stretch, move, draw, bevel, turn and more.' },
+    { id: 'piezas', icon: 'parts', title: 'Parts and the whole piece', summary: 'The part panel, drawers and doors, copies, groups, overall size and the design review.' },
+    { id: 'encastres', icon: 'joints', title: 'Joints', summary: 'The joint types, their sizes and how to see them up close.' },
+    { id: 'compras', icon: 'cuts', title: 'Cuts and shopping', summary: 'The cut list, sheet goods, hardware and the budget.' },
+    { id: 'plano-armado', icon: 'plans', title: 'Plans and assembly', summary: 'Printable plans, 1:1 templates, the assembly order and workshop mode.' },
+    { id: 'compartir', icon: 'share', title: 'Share and export', summary: 'Send the project as a link and take it out as a file, spreadsheet or PDF.' },
     { id: 'como-hacer', icon: 'recipe', title: 'How to…', summary: 'Short recipes for what people look for most while building a piece.' },
     { id: 'atajos', icon: 'keys', title: 'Keyboard shortcuts', summary: 'Every editor key in one table.' },
   ],
@@ -317,6 +324,8 @@ export const EN: HelpContent = {
       related: ['guardar', 'que-es'],
     },
     ...EN_TOOLS,
+    ...EN_PARTS,
+    ...EN_REST,
     {
       id: 'atajos-teclado',
       topic: 'atajos',

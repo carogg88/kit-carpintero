@@ -194,7 +194,124 @@ async function createTable(page) {
   await page.context().close();
 }
 
-// Celular: el editor con la mesa.
+// Compu: piezas y mueble, y las demás secciones, sobre una mesa nueva.
+{
+  const page = await open(desktop);
+  const view = (name) => page.locator('[data-tour="views"]').getByRole('button', { name, exact: true }).click();
+  const accordion = (name) => page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+  const leftLeg = [140, 400];
+  const rightLeg = [925, 400];
+  await createTable(page);
+  await page.getByRole('button', { name: 'Crear mesa' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3000);
+  await view('Frente');
+  await page.waitForTimeout(1200);
+  await page.mouse.click(...leftLeg);
+  await page.waitForTimeout(800);
+  await shot(page, 'panel-pieza');
+  await page.keyboard.press('s');
+  await page.waitForTimeout(1200);
+  await shot(page, 'ocultar');
+  await page.keyboard.press('s');
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Duplicar', exact: true }).click();
+  await page.waitForTimeout(1500);
+  await shot(page, 'duplicar');
+  // La vista previa reencuadra: se cancela y se vuelve al frente antes de elegir las dos patas.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Escape');
+  await view('Frente');
+  await page.waitForTimeout(1200);
+  await page.mouse.click(...leftLeg);
+  await page.waitForTimeout(300);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(...rightLeg);
+  await page.keyboard.up('Shift');
+  await page.getByRole('button', { name: 'Agrupar', exact: true }).click();
+  await page.waitForTimeout(1000);
+  await shot(page, 'grupo');
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  await view('3D');
+  await page.waitForTimeout(1000);
+  const width = page.locator('[data-tour="panel"] input').first();
+  await width.fill('200');
+  await page.waitForTimeout(1200);
+  await shot(page, 'medidas-mueble');
+  await width.press('Enter');
+  await page.waitForTimeout(1500);
+  await shot(page, 'vista-previa');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  await accordion('Medidas del mueble');
+  await accordion('Piezas');
+  await accordion('Proporción áurea');
+  await page.waitForTimeout(600);
+  await shot(page, 'aurea');
+  await accordion('Proporción áurea');
+  await accordion('Medidas del mueble');
+  await accordion('Piezas');
+  await page.locator('[data-tour="add"]').click();
+  await page.waitForTimeout(500);
+  await shot(page, 'agregar-pieza');
+  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: /^Uniones/ }).first().click();
+  await page.waitForTimeout(3000);
+  await shot(page, 'uniones');
+  const length = page.getByLabel('Largo', { exact: true }).first();
+  await length.fill('5');
+  await length.press('Tab');
+  await page.waitForTimeout(1500);
+  await shot(page, 'uniones-medidas');
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await page.getByRole('button', { name: 'Separar piezas' }).click();
+  await page.waitForTimeout(1500);
+  await shot(page, 'uniones-cerca');
+  await page.getByRole('button', { name: 'Juntar' }).click();
+  await page.getByRole('link', { name: 'Cortes' }).first().click();
+  await page.waitForTimeout(1500);
+  await shot(page, 'cortes');
+  await page.getByRole('tab', { name: 'Presupuesto' }).click();
+  await page.waitForTimeout(600);
+  await shot(page, 'presupuesto');
+  await page.getByRole('link', { name: 'Plano' }).first().click();
+  await page.waitForTimeout(4000);
+  await shot(page, 'plano');
+  await page.getByRole('link', { name: 'Armado' }).first().click();
+  await page.waitForTimeout(1500);
+  await shot(page, 'armado');
+  await page.locator('[data-tour="share"]').click();
+  await page.waitForTimeout(1500);
+  await shot(page, 'compartir');
+  await page.context().close();
+}
+
+// Compu: la biblioteca, que tiene un aviso en la revisión, y un cajón nuevo.
+{
+  const page = await open(desktop);
+  await page.goto(`${BASE}#/nuevo/biblioteca`);
+  await page.getByRole('button', { name: /^Crear/ }).first().click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3000);
+  await page.getByRole('button', { name: /^Revisión del diseño/ }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: /^Medidas del mueble/ }).click();
+  await page.getByRole('button', { name: 'Se puede volcar' }).click();
+  await page.waitForTimeout(600);
+  await shot(page, 'revision');
+  await page.locator('[data-tour="add"]').click();
+  await page.waitForTimeout(400);
+  await page.getByRole('menuitem', { name: /^Cajón/ }).click();
+  await page.waitForTimeout(2000);
+  await shot(page, 'cajon');
+  await page.context().close();
+}
+
+// Celular: el editor con la mesa y el modo taller.
 {
   const page = await open(phone);
   await createTable(page);
@@ -202,6 +319,9 @@ async function createTable(page) {
   await page.locator('[data-tour="tools"]').waitFor();
   await page.waitForTimeout(3500);
   await shot(page, 'editor-celular');
+  await page.goto(page.url().replace(/#\/proyecto\/([^/]+).*/, '#/proyecto/$1/taller'));
+  await page.waitForTimeout(2000);
+  await shot(page, 'taller');
   await page.context().close();
 }
 

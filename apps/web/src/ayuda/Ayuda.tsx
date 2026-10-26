@@ -498,6 +498,38 @@ function TopicGlyph({ icon }: { icon: TopicIcon }) {
           <path d="M4 20l3-3M5 6l3 3M3.5 4.5l2-1 2 2-1 2z" />
         </>
       )}
+      {icon === 'parts' && (
+        <>
+          <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+          <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+        </>
+      )}
+      {icon === 'joints' && (
+        <>
+          <path d="M4 10h6v4H4zM14 6h6v12h-6z" />
+          <path d="M10 11h4v2h-4z" />
+        </>
+      )}
+      {icon === 'cuts' && (
+        <>
+          <path d="M3 8h18v8H3z" />
+          <path d="M9 8v8M15 8v8" strokeDasharray="1.5 2" />
+        </>
+      )}
+      {icon === 'plans' && (
+        <>
+          <path d="M4 5h16v14H4z" />
+          <path d="M8 9h8M8 12h8M8 15h5" />
+        </>
+      )}
+      {icon === 'share' && (
+        <>
+          <circle cx="17" cy="6" r="2.5" />
+          <circle cx="7" cy="12" r="2.5" />
+          <circle cx="17" cy="18" r="2.5" />
+          <path d="M9.2 10.8l5.6-3.4M9.2 13.2l5.6 3.4" />
+        </>
+      )}
       {icon === 'recipe' && (
         <>
           <path d="M9 6h11M9 12h11M9 18h11" />

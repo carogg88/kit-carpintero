@@ -1,3 +1,5 @@
+import { ES_PARTS } from './es-piezas';
+import { ES_REST } from './es-resto';
 import { ES_TOOLS } from './es-herramientas';
 import { img, key, list, note, p, steps, table, tip, type HelpContent } from './types';
 
@@ -6,6 +8,11 @@ export const ES: HelpContent = {
   topics: [
     { id: 'empezar', icon: 'start', title: 'Empezar', summary: 'Crear un proyecto, conocer la pantalla del editor y guardar tu trabajo.' },
     { id: 'herramientas', icon: 'tools', title: 'Herramientas del Modelo', summary: 'Paso a paso de cada herramienta del editor: elegir, estirar, mover, dibujar, biselar, tornear y más.' },
+    { id: 'piezas', icon: 'parts', title: 'Piezas y mueble', summary: 'El panel de la pieza, cajones y puertas, copias, grupos, medidas del mueble y la revisión del diseño.' },
+    { id: 'encastres', icon: 'joints', title: 'Uniones', summary: 'Los tipos de encastre, sus medidas y cómo verlos de cerca.' },
+    { id: 'compras', icon: 'cuts', title: 'Cortes y compras', summary: 'La lista de cortes, las placas, los herrajes y el presupuesto.' },
+    { id: 'plano-armado', icon: 'plans', title: 'Plano y armado', summary: 'El plano para imprimir, las plantillas 1:1, el orden de armado y el modo taller.' },
+    { id: 'compartir', icon: 'share', title: 'Compartir y exportar', summary: 'Mandar el proyecto en un enlace y sacarlo en archivo, planilla o PDF.' },
     { id: 'como-hacer', icon: 'recipe', title: 'Cómo hacer…', summary: 'Recetas cortas para lo que más se busca al armar un mueble.' },
     { id: 'atajos', icon: 'keys', title: 'Atajos de teclado', summary: 'Todas las teclas del editor en una tabla.' },
   ],
@@ -321,6 +328,8 @@ export const ES: HelpContent = {
       related: ['guardar', 'que-es'],
     },
     ...ES_TOOLS,
+    ...ES_PARTS,
+    ...ES_REST,
     {
       id: 'atajos-teclado',
       topic: 'atajos',

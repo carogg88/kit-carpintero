@@ -11,7 +11,7 @@ export interface Recipe {
   show?: TourStep;
 }
 
-const pickFirst = () => {
+export const pickFirst = () => {
   const s = useEditor.getState();
   const id = s.selectedId ?? s.project?.parts[0]?.id;
   if (id) s.select(id);
