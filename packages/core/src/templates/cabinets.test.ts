@@ -10,8 +10,8 @@ const build = (id: string, v: Record<string, number> = {}) => buildTemplate(temp
 const ids = (p: ReturnType<typeof build>, prefix: string) => p.parts.filter((x) => x.id.startsWith(prefix));
 
 describe('plantillas nuevas', () => {
-  it('hay diez plantillas y todas se arman con uniones y lista de cortes', () => {
-    expect(TEMPLATES.map((t) => t.id)).toEqual(['mesa', 'taburete', 'estante', 'caja', 'mesa-luz', 'cajonera', 'biblioteca', 'alacena', 'mesa-ratona', 'banco']);
+  it('hay once plantillas (con la de prueba de patas abiertas) y todas se arman con uniones y lista de cortes', () => {
+    expect(TEMPLATES.map((t) => t.id)).toEqual(['mesa', 'taburete', 'estante', 'caja', 'mesa-luz', 'cajonera', 'biblioteca', 'alacena', 'mesa-ratona', 'banco', 'patas-abiertas']);
     for (const t of TEMPLATES) {
       const p = build(t.id);
       expect(p.template).toBe(t.id);

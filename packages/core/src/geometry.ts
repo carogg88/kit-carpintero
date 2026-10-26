@@ -64,7 +64,7 @@ export function partKey(project: Project, id: string): string {
     .filter((j) => j.partA === id || j.partB === id)
     .map((j) => {
       const other = project.parts.find((p) => p.id === (j.partA === id ? j.partB : j.partA));
-      return [j.type, j.partA, j.partB, j.params, other && other.base.kind === 'box' ? partBox(other) : null];
+      return [j.type, j.partA, j.partB, j.params, other && other.base.kind === 'box' ? partBox(other) : null, other?.lean ?? null];
     });
-  return JSON.stringify([part.base, part.position, part.rotation, part.ops, part.pockets, part.bevels, part.sections, part.turning ?? null, joints]);
+  return JSON.stringify([part.base, part.position, part.rotation, part.lean ?? null, part.ops, part.pockets, part.bevels, part.sections, part.turning ?? null, joints]);
 }

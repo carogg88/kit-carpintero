@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   acrossFace,
+  leanable,
   addCopies,
   arcInfo,
   bevelAngle,
@@ -516,6 +517,49 @@ function AngleField({ label, deg, max, onCommit }: { label: string; deg: number;
   );
 }
 
+/** Grados que se abre una pata, de -20° a 20°: con signo, porque se abre hacia un lado o hacia el otro. */
+function LeanField({ label, deg, onCommit }: { label: string; deg: number; onCommit: (deg: number) => void }) {
+  const id = useId();
+  const show = (d: number) => (Math.round(d * 10) / 10).toLocaleString(locale(), { maximumFractionDigits: 1, useGrouping: false });
+  const [text, setText] = useState(() => show(deg));
+  const [error, setError] = useState<string | null>(null);
+  const [shown, setShown] = useState(deg);
+  if (Math.abs(shown - deg) > 1e-6) {
+    setShown(deg);
+    setText(show(deg));
+    setError(null);
+  }
+  const commit = () => {
+    const v = Number(text.replace(',', '.').replace('°', '').trim() || '0');
+    if (!Number.isFinite(v) || Math.abs(v) > 20) return setError(t('Entre -20° y 20°'));
+    setError(null);
+    if (Math.abs(v - deg) > 0.05) onCommit(v);
+    else setText(show(deg));
+  };
+  return (
+    <label className={styles.field} htmlFor={id}>
+      {label}
+      <input
+        id={id}
+        className={styles.num}
+        inputMode="decimal"
+        value={text}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-e` : undefined}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      {error && (
+        <span id={`${id}-e`} className={styles.error} role="alert">
+          <IconWarn />
+          {error}
+        </span>
+      )}
+    </label>
+  );
+}
+
 /** Un bisel o corte en ángulo (cuánto entra en cada cara y el ángulo que forma con la cara marcada) o un redondeo (su radio). */
 function BevelCard({ bevel, part, units, onChange, onRemove }: { bevel: Bevel; part: Part; units: Units; onChange: (recipe: (b: Bevel) => void) => void; onRemove: () => void }) {
   const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
@@ -761,6 +805,35 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           </button>
         ))}
       </div>
+      {/* Prueba técnica de patas inclinadas: la pata gira sobre su punta de arriba y las puntas quedan horizontales. */}
+      {leanable(part) && (
+        <fieldset className={styles.dims}>
+          <legend className={styles.legend}>{t('Inclinar la pata (prueba)')}</legend>
+          {(
+            [
+              [0, tk('De frente (°)')],
+              [1, tk('De costado (°)')],
+            ] as const
+          ).map(([k, label]) => (
+            <LeanField
+              key={k}
+              label={t(label)}
+              deg={part.lean?.[k] ?? 0}
+              onCommit={(v) =>
+                commit((d) => {
+                  const q = d.parts.find((x) => x.id === part.id);
+                  if (!q) return;
+                  const lean: [number, number] = [...(q.lean ?? [0, 0])];
+                  lean[k] = v;
+                  if (lean.every((a) => a === 0)) delete q.lean;
+                  else q.lean = lean;
+                }, t('Inclinaste {id}', { id: part.id }))
+              }
+            />
+          ))}
+          <span className={styles.fieldNote}>{t('Positivo: la punta de abajo va hacia la derecha (de frente) o hacia adelante (de costado).')}</span>
+        </fieldset>
+      )}
       <label className={styles.field} htmlFor={woodId}>
         {t('Madera')}
         <select

@@ -5,6 +5,7 @@ import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../proj
 import { createTable, TABLE_DEFAULTS } from './table';
 import { COFFEE_DEFAULTS, createBookcase, createCoffeeTable, createDresser, createNightstand, createWallCabinet } from './cabinets';
 import { autoComponents } from '../components';
+import { createSplayedStool, SPLAY_ANGLES, SPLAYED_DEFAULTS } from './leanTest';
 import { fitJointDepths } from '../jointfit';
 import { t, tk } from '../i18n';
 
@@ -430,6 +431,34 @@ TEMPLATES.push(
     },
   },
 );
+
+// Prueba técnica de piezas inclinadas: la plantilla definitiva llega con las patas abiertas (tandas 44 a 47).
+TEMPLATES.push({
+  id: 'patas-abiertas',
+  name: tk('Taburete de patas abiertas (prueba)'),
+  projectName: tk('Taburete de patas abiertas'),
+  createLabel: tk('Crear taburete'),
+  fields: [
+    { key: 'width', label: tk('Ancho'), hint: tk('De lado a lado del asiento.'), shows: { parts: 'S1', measure: 'S1', axis: 0 }, group: 'general', default: SPLAYED_DEFAULTS.width, min: 250, max: 600 },
+    { key: 'depth', label: tk('Fondo'), hint: tk('De adelante hacia atrás del asiento.'), shows: { parts: 'S1', measure: 'S1', axis: 2 }, group: 'general', default: SPLAYED_DEFAULTS.depth, min: 250, max: 600 },
+    { key: 'height', label: tk('Alto'), hint: tk('Desde el piso hasta arriba del asiento.'), shows: { parts: 'P', measure: 'all', axis: 1 }, group: 'general', default: SPLAYED_DEFAULTS.height, min: 300, max: 700 },
+    {
+      key: 'splay',
+      label: tk('Apertura de las patas'),
+      hint: tk('Cuánto se abre cada pata hacia su esquina, visto de frente y de costado.'),
+      shows: { parts: 'P' },
+      group: 'general',
+      default: SPLAYED_DEFAULTS.splay,
+      min: 0,
+      max: SPLAY_ANGLES.length - 1,
+      choices: SPLAY_ANGLES.map((a) => `${a}°`),
+    },
+    { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: SPLAYED_DEFAULTS.leg, min: 30, max: 60 },
+    { key: 'seat', label: tk('Espesor del asiento'), hint: tk('Lo grueso de la tabla donde te sentás: la espiga de cada pata entra en él.'), shows: { parts: 'S1', measure: 'S1', axis: 1 }, group: 'piezas', default: SPLAYED_DEFAULTS.seat, min: 30, max: 60 },
+  ],
+  joints: null,
+  build: createSplayedStool,
+});
 
 export const templateById = (id: string) => TEMPLATES.find((t) => t.id === id);
 

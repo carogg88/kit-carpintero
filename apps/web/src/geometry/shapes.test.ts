@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import opencascade from 'replicad-opencascadejs';
 import { measureVolume, setOC } from 'replicad';
-import { buildTemplate, presetTurning, TURN_PRESETS, type TurnPreset, defaultJointParams, drawJointDetail, partBox, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type JointType, type Line2, type Part, type Project } from '@kitc/core';
+import { buildTemplate, leanedBox, leanFrame, leanTestStool, cutList, presetTurning, TURN_PRESETS, type TurnPreset, defaultJointParams, drawJointDetail, partBox, drawPart, drawView, TEMPLATES, templateDefaults, withEngineLines, type Drawing, type JointType, type Line2, type Part, type Project } from '@kitc/core';
 import { partShape, projectShapes } from './shapes';
 
 beforeAll(async () => {
@@ -258,4 +258,61 @@ it('las mismas piezas se proyectan varias veces sin rearmarlas', () => {
     expect(projectShapes(shapes, drawView(table, view).engine!).segments.length).toBeGreaterThan(0);
   }
   shapes.forEach((s) => s.delete());
+});
+
+describe('patas inclinadas (prueba técnica)', () => {
+  const stool = leanTestStool('guatambu', '2026-10-26T00:00:00Z');
+  const straight: Project = { ...stool, parts: stool.parts.map((p) => ({ ...p, lean: undefined })) };
+  const shape = (project: Project, id: string) => partShape(project.parts.find((p) => p.id === id)!, project);
+
+  it('cada pata llega al piso plana, corrida hacia su esquina', () => {
+    for (const leg of stool.parts.filter((p) => p.lean)) {
+      const { shape: s, warning } = shape(stool, leg.id);
+      expect(warning).toBeUndefined();
+      const [min, max] = s.boundingBox.bounds;
+      const want = leanedBox(leg);
+      expect(min[1]).toBeCloseTo(0, 0);
+      // Arriba sobresale la espiga, metida en el asiento.
+      expect(max[1]).toBeGreaterThan(want.max[1] + 20);
+      for (const k of [0, 2] as const) {
+        // Lo más afuera es el pie (la espiga queda adentro): coincide con la caja calculada sin el motor.
+        const out = Math.sign(leg.lean![k === 0 ? 0 : 1]) > 0 ? max[k] - want.max[k] : want.min[k] - min[k];
+        expect(Math.abs(out)).toBeLessThan(1);
+      }
+      s.delete();
+    }
+  });
+
+  it('la espiga inclinada entra justo en la mortaja inclinada del asiento', () => {
+    const seat = shape(stool, 'S1').shape;
+    const seatStraight = shape(straight, 'S1').shape;
+    // La mortaja girada saca lo mismo que la derecha: no rompe la cara de arriba del asiento.
+    expect(measureVolume(seat)).toBeCloseTo(measureVolume(seatStraight), -1);
+    for (const id of ['P1', 'P2', 'P3', 'P4']) {
+      const leg = shape(stool, id).shape;
+      const both = leg.intersect(seat);
+      // Nada de la pata se mete en la madera del asiento: la espiga ocupa el hueco de la mortaja.
+      expect(measureVolume(both)).toBeLessThan(1);
+      both.delete();
+      // Con la mortaja derecha, la espiga inclinada sí chocaría con la madera.
+      const wrong = shape(stool, id).shape.intersect(seatStraight);
+      expect(measureVolume(wrong)).toBeGreaterThan(100);
+      wrong.delete();
+      leg.delete();
+    }
+    seat.delete();
+    seatStraight.delete();
+  });
+
+  it('la pata inclinada tiene el volumen de la derecha estirada a lo largo', () => {
+    const leg = stool.parts.find((p) => p.id === 'P3')!;
+    const f = leanFrame(leg)!;
+    const a = measureVolume(shape(stool, 'P3').shape);
+    const b = measureVolume(shape(straight, 'P3').shape);
+    const tenon = cutList(stool).find((r) => r.ids.includes('P3'))!.extraLength;
+    expect(tenon).toBeGreaterThan(0);
+    // Sin la espiga, el volumen crece como el largo inclinado: alto / coseno del ángulo.
+    expect(a / b).toBeGreaterThan(1);
+    expect(a / b).toBeLessThan(1 / -f.dir[1] + 0.01);
+  });
 });
