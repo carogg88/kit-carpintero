@@ -778,3 +778,62 @@
   .stage:has(.panelToggle[aria-expanded='false']) .views { right: calc(var(--space-3) + 128px + var(--space-2)); }
   .main[data-panel='closed'] .panel { display: none; }
 }
+
+/* Nombre del proyecto: se toca y se escribe en la barra. */
+.titleBlock h1 { display: flex; min-width: 0; }
+.titleBtn {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 32px; margin-left: -6px; padding: 0 6px;
+  border: 1px solid transparent; border-radius: var(--radius-s); background: transparent; color: inherit; font: inherit; cursor: text;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.titleBlock .titleBtn span { font-size: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.titleBtn svg { flex: none; color: var(--muted); opacity: 0; transition: opacity 150ms ease; }
+.titleBtn:hover, .titleBtn:focus-visible { border-color: var(--line-strong); background: var(--surface); }
+.titleBtn:hover svg, .titleBtn:focus-visible svg { opacity: 1; }
+.titleBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (hover: none) { .titleBtn svg { opacity: 0.7; } }
+.titleInput {
+  width: min(360px, 100%); height: 32px; margin-left: -6px; padding: 0 6px; border: 1px solid var(--accent); border-radius: var(--radius-s);
+  background: var(--surface); color: var(--ink); font: 500 var(--text-l) var(--font-display);
+}
+.titleInput:focus { outline: 2px solid var(--accent-soft, var(--accent)); outline-offset: 1px; }
+
+/* Ocultar y Ver sola, junto a la pieza elegida. */
+.viewBtns { display: inline-flex; gap: 2px; flex: none; }
+.viewBtns button, .eye {
+  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  border: 1px solid transparent; border-radius: var(--radius-s); background: transparent; color: var(--muted); cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.viewBtns button:hover, .eye:hover { background: var(--bg); color: var(--ink); border-color: var(--line); }
+.viewBtns button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
+.viewBtns button:focus-visible, .eye:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.viewBtns svg, .eye svg { width: 18px; height: 18px; }
+.partList li { display: flex; align-items: center; gap: var(--space-1); }
+.partList li > button:first-child { flex: 1; min-width: 0; }
+.partList li:has(.eye[aria-pressed='true']) > button:first-child { color: var(--muted); border-style: dashed; background: transparent; }
+.eye[aria-pressed='true'] { color: var(--ink); }
+
+/* Piezas ocultas: se dice en la vista, con Mostrar todo a mano. */
+.hiddenPill {
+  min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 4px 0 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card);
+  font: 500 var(--text-s) var(--font-ui);
+}
+.hiddenPill svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.hiddenPill button {
+  min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--radius-pill); background: var(--forest); color: var(--forest-ink);
+  font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+}
+.hiddenPill button:hover { filter: brightness(1.08); }
+.hiddenPill button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.partList[data-many] { max-height: calc(6 * (var(--tap) + var(--space-1))); overflow-y: auto; padding-right: 2px; }
+.partList .eye { width: 40px; min-height: 40px; padding: 0; justify-content: center; border-color: transparent; background: transparent; color: var(--muted); }
+.partList .eye:hover { background: var(--bg); color: var(--ink); border-color: var(--line); }
+.partList .eye[aria-pressed='true'] { color: var(--ink); }
+.hiddenPill span, .hiddenPill button { white-space: nowrap; }
+@media (max-width: 899px) {
+  .hiddenPill { gap: 6px; padding-left: 10px; font-size: var(--text-xs); }
+  .hiddenPill svg { display: none; }
+  .hiddenPill button { padding: 0 10px; font-size: var(--text-xs); }
+}

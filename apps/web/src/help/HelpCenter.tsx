@@ -34,6 +34,27 @@ const RECIPES: Recipe[] = [
     show: { target: 'tools', title: tk('Mover está acá'), text: tk('Es la tercera herramienta. También se elige con la tecla M.') },
   },
   {
+    id: 'flechas',
+    title: tk('Correr una pieza de a milímetro'),
+    steps: [
+      tk('Elegí la pieza.'),
+      tk('Usá las flechas del teclado: cada toque la corre 1 mm, y con Shift, 10 mm.'),
+      tk('Las flechas siguen la vista: en Frente corren a lo ancho y a lo alto; en Arriba, a lo ancho y hacia atrás o adelante.'),
+      tk('Cuando apoya en otra pieza, la cara que se toca se ilumina.'),
+    ],
+  },
+  {
+    id: 'sola',
+    title: tk('Trabajar una pieza sola'),
+    steps: [
+      tk('Elegí la pieza.'),
+      tk('Arriba en el panel, tocá Ver sola (o la tecla S). Ocultar (o la tecla H) esconde solo esa.'),
+      tk('En la lista de Piezas, el ojo de cada una la oculta o la muestra.'),
+      tk('Para ver todo de nuevo, tocá Mostrar todo en la vista. Los cortes y el plano siempre llevan todas las piezas.'),
+    ],
+    show: { target: 'part-view', title: tk('Ver sola está acá'), text: tk('Al lado de la pieza elegida, arriba en el panel.'), before: pickFirst },
+  },
+  {
     id: 'gemela',
     title: tk('Hacer la pata gemela del otro lado'),
     steps: [tk('Elegí la pieza que ya está bien.'), tk('Tocá Del otro lado.'), tk('Mirá la vista previa y tocá Aplicar. La copia cambia de nombre sola: de izquierda a derecha, de delantera a trasera.')],
@@ -78,6 +99,11 @@ const RECIPES: Recipe[] = [
     title: tk('Llevar la lista a la maderera'),
     steps: [tk('Andá a Cortes.'), tk('Arriba a la derecha dice cuántos pies de madera comprar y qué tablas.'), tk('Exportá la planilla o abrí el Modo taller en el celular para ir pieza por pieza.')],
     show: { target: 'sections', title: tk('Cortes está acá'), text: tk('En las pestañas de arriba.') },
+  },
+  {
+    id: 'nombre',
+    title: tk('Cambiar el nombre del proyecto'),
+    steps: [tk('Tocá el nombre arriba, al lado del logo, y escribí el nuevo.'), tk('Apretá Enter para guardarlo, o Esc para dejarlo como estaba.'), tk('En el inicio, el menú ⋮ de cada proyecto también tiene Cambiar nombre.')],
   },
   {
     id: 'deshacer',

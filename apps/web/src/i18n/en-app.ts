@@ -134,4 +134,7 @@ export default {
   'Ver 1 proyecto más': 'See 1 more project',
   'Ver {n} proyectos más': 'See {n} more projects',
   'Del más nuevo al más viejo': 'Newest first',
+
+  'Cambiar nombre': 'Rename',
+  Guardar: 'Save',
 } satisfies Record<string, string>;

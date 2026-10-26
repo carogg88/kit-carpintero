@@ -100,4 +100,22 @@ export default {
   'Rehacer vuelve a aplicar lo que deshiciste.': 'Redo brings back what you undid.',
   'Deshacer está acá': 'Undo is here',
   'Arriba a la derecha.': 'At the top right.',
+
+  'Correr una pieza de a milímetro': 'Nudge a part one millimeter at a time',
+  'Usá las flechas del teclado: cada toque la corre 1 mm, y con Shift, 10 mm.': 'Use the arrow keys: each press moves it 1 mm, or 10 mm with Shift.',
+  'Las flechas siguen la vista: en Frente corren a lo ancho y a lo alto; en Arriba, a lo ancho y hacia atrás o adelante.':
+    'The arrows follow the view: in Front they move across and up or down; in Top, across and back or forward.',
+  'Cuando apoya en otra pieza, la cara que se toca se ilumina.': 'When it rests against another part, the touching face lights up.',
+  'Trabajar una pieza sola': 'Work on one part alone',
+  'Arriba en el panel, tocá Ver sola (o la tecla S). Ocultar (o la tecla H) esconde solo esa.':
+    'At the top of the panel, tap Show only (or press S). Hide (or H) hides just that part.',
+  'En la lista de Piezas, el ojo de cada una la oculta o la muestra.': 'In the Parts list, the eye on each one hides or shows it.',
+  'Para ver todo de nuevo, tocá Mostrar todo en la vista. Los cortes y el plano siempre llevan todas las piezas.':
+    'To see everything again, tap Show all in the view. Cuts and plans always include every part.',
+  'Ver sola está acá': 'Show only is here',
+  'Al lado de la pieza elegida, arriba en el panel.': 'Next to the selected part, at the top of the panel.',
+  'Cambiar el nombre del proyecto': 'Rename the project',
+  'Tocá el nombre arriba, al lado del logo, y escribí el nuevo.': 'Tap the name at the top, next to the logo, and type the new one.',
+  'Apretá Enter para guardarlo, o Esc para dejarlo como estaba.': 'Press Enter to save it, or Esc to keep the old one.',
+  'En el inicio, el menú ⋮ de cada proyecto también tiene Cambiar nombre.': 'On the home screen, each project\'s ⋮ menu also has Rename.',
 } satisfies Record<string, string>;

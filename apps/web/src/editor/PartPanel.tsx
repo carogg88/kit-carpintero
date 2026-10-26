@@ -61,6 +61,7 @@ import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
 import { useEditor, type FittingKind } from './store';
+import { EyeToggle, PartViewButtons } from './visibility';
 import styles from './Editor.module.css';
 
 
@@ -521,6 +522,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
               ))}
             </select>
           </label>
+          <PartViewButtons id={part.id} />
           <button type="button" className={styles.link} onClick={() => select(null)}>
             {t('Ver el mueble')}
           </button>
@@ -942,6 +944,7 @@ type OverviewFold = 'medidas' | 'revision' | 'aurea' | 'piezas';
 let overviewOpen = new Set<OverviewFold>(['medidas', 'piezas']);
 
 /** Con más piezas que estas, la lista pasa a ser una lista desplegable para que el panel entre sin desplazar. */
+/** Con más piezas que estas, la lista se desplaza adentro y el panel no crece. */
 const PART_LIST_MAX = 6;
 
 function ProjectOverview({ project }: { project: Project }) {
@@ -1011,32 +1014,17 @@ function ProjectOverview({ project }: { project: Project }) {
             open={open.has('piezas')}
             onToggle={(on) => toggle('piezas', on)}
           >
-            {many ? (
-              <label className={styles.field}>
-                {t('Elegí una pieza para editarla')}
-                <select value="" onChange={(e) => e.target.value && select(e.target.value)}>
-                  <option value="" disabled>
-                    {t('{n} piezas · elegí una', { n: project.parts.length })}
-                  </option>
-                  {project.parts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id} · {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <ul className={styles.partList}>
-                {project.parts.map((p) => (
-                  <li key={p.id}>
-                    <button type="button" onClick={() => select(p.id)}>
-                      <strong>{p.id}</strong>
-                      <span>{p.name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ul className={styles.partList} data-many={many || undefined}>
+              {project.parts.map((p) => (
+                <li key={p.id}>
+                  <button type="button" onClick={() => select(p.id)}>
+                    <strong>{p.id}</strong>
+                    <span>{p.name}</span>
+                  </button>
+                  <EyeToggle id={p.id} />
+                </li>
+              ))}
+            </ul>
           </Accordion>
         </div>
       )}

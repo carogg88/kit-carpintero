@@ -211,3 +211,28 @@ export const IconShare = () => (
     <path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4" />
   </svg>
 );
+export const IconEye = () => (
+  <svg {...base} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+export const IconEyeOff = () => (
+  <svg {...base} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.6 3.4M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+  </svg>
+);
+/** Ver sola: la pieza en el centro y lo demás afuera. */
+export const IconSolo = () => (
+  <svg {...base} strokeLinecap="round" strokeLinejoin="round">
+    <rect x="8" y="8" width="8" height="8" rx="1" />
+    <path d="M3 7V4a1 1 0 0 1 1-1h3M17 3h3a1 1 0 0 1 1 1v3M21 17v3a1 1 0 0 1-1 1h-3M7 21H4a1 1 0 0 1-1-1v-3" />
+  </svg>
+);
+export const IconPencil = () => (
+  <svg {...base} width={16} height={16} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 20h4L19 9l-4-4L4 16z" />
+    <path d="m13.5 6.5 4 4" />
+  </svg>
+);
