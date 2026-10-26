@@ -2,6 +2,7 @@ import { nextPartId } from './edit';
 import { partWord } from './jointinfo';
 import type { Component, Part, Project } from './project';
 import { t } from './i18n';
+import { invertOrient, isSameOrient, orientPart, SAME_ORIENT, type Orient } from './rotate';
 
 /**
  * Componentes: piezas iguales vinculadas, como en SketchUp. Cada copia guarda su propia forma
@@ -10,14 +11,25 @@ import { t } from './i18n';
 
 const json = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const shape = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, bevels: p.bevels, sections: p.sections, turning: p.turning, wood: p.wood });
+const shapeOf = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, bevels: p.bevels, sections: p.sections, turning: p.turning, wood: p.wood });
+
+/**
+ * La forma común del componente vista desde esta copia: la forma de la pieza, desgirada. Dos copias giradas
+ * distinto tienen la misma forma común aunque sus biseles estén en aristas distintas.
+ */
+function commonShape(p: Part) {
+  if (isSameOrient(p.orient as Orient | undefined)) return shapeOf(p);
+  const q = json(p);
+  orientPart(q, invertOrient(p.orient as Orient));
+  return shapeOf(q);
+}
 
 /**
  * Después de un cambio, pasa la forma, las operaciones y la madera de la copia que cambió a las demás
- * copias de su componente. Si la copia creció hacia el lado negativo de un eje, las demás también:
- * se corren lo mismo sobre ese eje. Saca los componentes que se quedaron sin copias, y desvincula la
- * última que queda cuando se borraron las demás: un "componente de 1 copia" no le dice nada a nadie.
- * Trabaja sobre `next` en el lugar (sirve también con un borrador de Immer).
+ * copias de su componente, cada una con su giro. Si la copia creció hacia el lado negativo de un eje, las demás
+ * crecen hacia el lado que les corresponde. Girar o reflejar una copia no es un cambio de forma: las demás quedan.
+ * Saca los componentes que se quedaron sin copias, y desvincula la última que queda cuando se borraron las demás:
+ * un "componente de 1 copia" no le dice nada a nadie. Trabaja sobre `next` en el lugar (sirve con un borrador de Immer).
  */
 export function syncComponents(prev: Project | null, next: Project): void {
   const before = new Map(prev?.parts.map((p) => [p.id, p]));
@@ -27,35 +39,53 @@ export function syncComponents(prev: Project | null, next: Project): void {
     const had = prev?.parts.filter((p) => p.component === id).length ?? 0;
     if (copies.length === 1 && had > 1) {
       delete copies[0]!.component;
+      delete copies[0]!.orient;
       groups.delete(id);
     }
   }
 
   for (const copies of groups.values()) {
     // Si todas las copias cambiaron igual (se estiró el mueble entero), ya están iguales: no hay nada que pasar.
-    if (copies.every((p) => same(shape(p), shape(copies[0]!)))) continue;
+    const commons = new Map(copies.map((p) => [p, commonShape(p)]));
+    if (copies.every((p) => same(commons.get(p), commons.get(copies[0]!)))) continue;
     const source = copies.find((p) => {
       const old = before.get(p.id);
-      return old && old.component === p.component && !same(shape(old), shape(p));
+      return old && old.component === p.component && !same(commonShape(old), commons.get(p));
     });
     if (!source) continue;
     const old = before.get(source.id)!;
-    const shift = [0, 1, 2].map((k) => {
-      const grew = old.base.kind === 'box' && source.base.kind === 'box' && old.base.size[k] !== source.base.size[k];
-      return grew ? source.position[k]! - old.position[k]! : 0;
+    const common = json(commons.get(source)!);
+    // Cuánto creció la forma común hacia el lado negativo de cada eje (y cuánto en total).
+    const srcMap = (source.orient as Orient | undefined) ?? SAME_ORIENT;
+    const grewNeg = [0, 0, 0];
+    const grew = [0, 0, 0];
+    srcMap.forEach((v, c) => {
+      const k = Math.abs(v) - 1;
+      if (old.base.kind !== 'box' || source.base.kind !== 'box' || old.base.size[k] === source.base.size[k]) return;
+      const total = source.base.size[k]! - old.base.size[k]!;
+      const neg = old.position[k]! - source.position[k]!;
+      grew[c] = total;
+      grewNeg[c] = v < 0 ? total - neg : neg;
     });
-    const s = json(shape(source));
     for (const p of copies) {
       if (p === source) continue;
-      p.base = json(s.base);
-      p.ops = json(s.ops);
-      p.pockets = json(s.pockets);
-      p.bevels = json(s.bevels);
-      p.sections = json(s.sections);
-      if (s.turning) p.turning = json(s.turning);
+      const o = (p.orient as Orient | undefined) ?? SAME_ORIENT;
+      const shaped = { ...json(p), ...json(common) } as Part;
+      // Solo se toma la forma girada: la pieza se queda donde está (salvo lo que creció, abajo).
+      orientPart(shaped, o);
+      p.base = shaped.base;
+      p.ops = shaped.ops;
+      p.pockets = shaped.pockets;
+      p.bevels = shaped.bevels;
+      p.sections = shaped.sections;
+      if (shaped.turning) p.turning = shaped.turning;
       else delete p.turning;
-      p.wood = s.wood;
-      for (const k of [0, 1, 2]) p.position[k] = p.position[k]! + shift[k]!;
+      p.wood = shaped.wood;
+      o.forEach((v, c) => {
+        if (!grew[c]) return;
+        const k = Math.abs(v) - 1;
+        p.position[k] = p.position[k]! - (v < 0 ? grew[c]! - grewNeg[c]! : grewNeg[c]!);
+      });
     }
   }
   if (next.components.some((c) => !groups.has(c.id))) next.components = next.components.filter((c) => groups.has(c.id));
@@ -88,6 +118,7 @@ export function makeUnique(project: Project, partId: string): void {
   const part = project.parts.find((p) => p.id === partId);
   if (!part) return;
   delete part.component;
+  delete part.orient;
   syncComponents(null, project);
 }
 
@@ -112,7 +143,7 @@ export function autoComponents(project: Project): void {
   const groups = new Map<string, Part[]>();
   for (const p of project.parts) {
     if (p.component) continue;
-    const key = JSON.stringify([partWord(p), shape(p)]);
+    const key = JSON.stringify([partWord(p), shapeOf(p)]);
     groups.set(key, [...(groups.get(key) ?? []), p]);
   }
   for (const copies of groups.values()) {

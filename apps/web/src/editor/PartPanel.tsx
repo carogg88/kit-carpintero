@@ -43,7 +43,7 @@ import {
   partPlace,
   pocketTakesWholePart,
   renamePart,
-  rotatePart,
+  turnPart,
   setPlace,
   t,
   tk,
@@ -496,8 +496,8 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
   const rotate = (axis: Axis) =>
     commit((d) => {
       const q = d.parts.find((x) => x.id === part.id);
-      if (q) rotatePart(q as Part, axis);
-    }, t('Giraste {id}', { id: part.id }));
+      if (q) turnPart(q as Part, axis);
+    }, component ? t('Giraste {id}, solo esta copia: lo que le hagas a cualquier copia le llega a cada una en su lugar', { id: part.id }) : t('Giraste {id}', { id: part.id }));
   const setEdges = (kind: EdgeKind, mm = edgeSize) =>
     update((q) => {
       q.ops = kind === 'rectos' ? [] : kind === 'round' ? [{ kind: 'round', edges: 'all', radius: mm }] : [{ kind: 'chamfer', edges: 'all', size: mm }];
@@ -996,6 +996,7 @@ function ComponentNote({ project, part, name }: { project: Project; part: Part; 
       </span>
       <p className={styles.muted}>
         {others.length ? t('Medidas, madera y cantos cambian junto con {ids}.', { ids: others.join(', ') }) : t('Duplicala o copiala al mover y las copias quedan vinculadas.')}
+        {part.orient && ` ${t('Esta copia va girada: los biseles y vaciados le llegan en su lugar.')}`}
       </p>
     </div>
   );
