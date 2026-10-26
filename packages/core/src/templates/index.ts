@@ -76,7 +76,7 @@ const project = (id: string, name: string, now: string, parts: Part[], force: (a
     const params = defaultJointParams(type, partBox(a), partBox(b));
     return params ? { ...j, type, params: { ...params } } : j;
   });
-  return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [] };
+  return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [], groups: [] };
 };
 
 const boxPart = (wood: string, ops: Part['ops']) => (id: string, name: string, min: [number, number, number], max: [number, number, number]): Part => ({

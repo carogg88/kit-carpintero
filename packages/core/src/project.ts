@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -136,6 +136,10 @@ export type Part = z.infer<typeof Part>;
 export const Component = z.object({ id: z.string(), name: z.string() });
 export type Component = z.infer<typeof Component>;
 
+/** Grupo: piezas que se mueven, se copian, se ocultan y se borran juntas. Una pieza está a lo sumo en un grupo. */
+export const Group = z.object({ id: z.string(), name: z.string(), parts: z.array(z.string()) });
+export type Group = z.infer<typeof Group>;
+
 export const JOINT_TYPES = [
   // P1
   'tope', 'mortaja', 'media-madera', 'canal', 'rebaje', 'clavija',
@@ -167,6 +171,7 @@ export const Project = z.object({
   parts: z.array(Part),
   joints: z.array(Joint),
   components: z.array(Component).default([]),
+  groups: z.array(Group).default([]),
 });
 export type Project = z.infer<typeof Project>;
 
@@ -185,6 +190,8 @@ const migrations: Record<number, Migration> = {
   6: (d) => d,
   // v8 suma el torneado; las piezas viejas no tienen.
   7: (d) => d,
+  // v9 suma los grupos; los proyectos viejos no tienen.
+  8: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

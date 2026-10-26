@@ -10,8 +10,10 @@ import { t } from './i18n';
 export const SHARE_ROUTE = '#/compartido/';
 
 function slim(project: Project): unknown {
+  const { groups, ...rest } = project;
   return {
-    ...project,
+    ...rest,
+    ...(groups.length ? { groups } : {}),
     parts: project.parts.map((p) => {
       const out: Record<string, unknown> = { ...p };
       for (const k of ['ops', 'pockets', 'bevels', 'sections'] as const) if (!p[k].length) delete out[k];

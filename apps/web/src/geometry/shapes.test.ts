@@ -103,7 +103,7 @@ describe('encastres finos en el motor', () => {
 
   it.each(cases)('%s se arma sin avisos', (type, parts) => {
     const [a, b] = parts as [Part, Part];
-    const project: Project = { ...table, parts, joints: [{ id: 'J', type, partA: 'A', partB: 'B', params: {} }], components: [] };
+    const project: Project = { ...table, parts, joints: [{ id: 'J', type, partA: 'A', partB: 'B', params: {} }], components: [], groups: [] };
     expect(defaultJointParams(type, partBox(a), partBox(b))).not.toBeNull();
     const built = parts.map((p) => partShape(p, project));
     expect(built.map((x) => x.warning)).toEqual([undefined, undefined]);

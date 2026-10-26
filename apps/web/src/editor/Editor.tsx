@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { formatLength, t, tk } from '@kitc/core';
+import { formatLength, groupOf, isWholeGroup, makeGroup, t, tk, type Project } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { projectName } from '../i18n';
 import { saveProject } from '../storage/db';
@@ -33,7 +33,7 @@ import {
 import { JointsView } from './JointsView';
 import { PlanView } from './PlanView';
 import { ADD_OPTIONS, FITTING_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
-import { useEditor, useSelectedPart, type DragHint, type Tool, type View } from './store';
+import { partsLabel, useEditor, useSelectedPart, type DragHint, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
 import { PreviewBar } from './PreviewBar';
@@ -45,7 +45,7 @@ import { NextSteps, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
 import { Workshop, workshopFrom } from './Workshop';
 import { Viewport } from './Viewport';
-import { HiddenPill, hidePart, soloPart } from './visibility';
+import { HiddenPill, hidePart, PickPill, soloPart } from './visibility';
 import styles from './Editor.module.css';
 
 /**
@@ -248,15 +248,24 @@ function useShortcuts(modelo: boolean) {
       else if (k === 'r') s.setTool('turn');
       else if (k === 'c') s.setTool('measure');
       else if (k === 'x') s.setXray(!s.xray);
-      else if (k === 'h' && s.selectedId) hidePart(s.selectedId);
-      else if (k === 's' && s.selectedId) soloPart(s.selectedId);
-      else if (k === 'escape') {
+      else if (k === 'h' && (s.selectedId || s.picked.length)) hidePart(s.selectedId ?? s.picked);
+      else if (k === 's' && (s.selectedId || s.picked.length)) soloPart(s.selectedId ?? s.picked);
+      else if (k === 'g' && s.picked.length > 1 && s.project && !isWholeGroup(groupOf(s.project, s.picked[0]!), s.picked)) {
+        const ids = s.picked;
+        s.commit((d) => void makeGroup(d as Project, ids), t('Agrupaste {ids}', { ids: [...ids].sort().join(', ') }));
+        s.pick(ids);
+      } else if (k === 'escape') {
         if (s.pending) s.cancelPending();
+        else if (s.addMode) s.setAddMode(false);
         else if (s.measure.a) s.pickMeasure(null);
         else if (s.drawFace) s.setDrawFace(null);
         else s.select(null);
       }
-      else if ((k === 'delete' || k === 'backspace') && s.selectedId) {
+      else if ((k === 'delete' || k === 'backspace') && s.picked.length > 1 && s.project) {
+        const ids = s.picked;
+        const label = partsLabel(s.project, ids);
+        s.propose((d) => void (d.parts = d.parts.filter((p) => !ids.includes(p.id))), t('Borraste {id}', { id: label }), { title: t('¿Borrar {id}? Son {n} piezas.', { id: label, n: ids.length }) });
+      } else if ((k === 'delete' || k === 'backspace') && s.selectedId) {
         const id = s.selectedId;
         const name = s.project?.parts.find((p) => p.id === id)?.name ?? '';
         s.propose((d) => void (d.parts = d.parts.filter((p) => p.id !== id)), t('Borraste {id}', { id }), { title: t('¿Borrar {id} {name}?', { id, name }) });
@@ -399,10 +408,11 @@ function usePanelOpen(): [boolean, (open: boolean) => void] {
   };
   const selectedId = useEditor((s) => s.selectedId);
   const fitting = useEditor((s) => s.fitting);
-  const [seen, setSeen] = useState({ selectedId, fitting });
-  if (seen.selectedId !== selectedId || seen.fitting !== fitting) {
-    setSeen({ selectedId, fitting });
-    if ((selectedId || fitting) && !open) setOpen(true);
+  const picked = useEditor((s) => s.picked.join());
+  const [seen, setSeen] = useState({ selectedId, fitting, picked });
+  if (seen.selectedId !== selectedId || seen.fitting !== fitting || seen.picked !== picked) {
+    setSeen({ selectedId, fitting, picked });
+    if ((selectedId || fitting || picked) && !open) setOpen(true);
   }
   return [open, set];
 }
@@ -422,6 +432,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const canRedo = useEditor((s) => s.future.length > 0);
   const { undo, redo, setTool, setXray, setView } = useEditor.getState();
   const selected = useSelectedPart();
+  const picked = useEditor((s) => s.picked);
   const [panelOpen, setPanelOpen] = usePanelOpen();
   const saveState = useAutosave();
   const { engineStatus, meshes } = useExactMeshes(project, dragging);
@@ -584,6 +595,11 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
               <MeasureBubble />
               <MeasureCard />
             </div>
+            {picked.length > 1 && (
+              <span className={`${styles.chip} ${styles.desktopOnly}`}>
+                <strong>{partsLabel(project, picked)}</strong> {picked.join(', ')}
+              </span>
+            )}
             {selected && selDims && (
               <span className={`${styles.chip} ${styles.desktopOnly}`}>
                 <strong>{selected.id}</strong> {selected.name}
@@ -598,6 +614,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
               )}
               {tool === 'select' && <ReviewPill project={project} />}
               <HiddenPill />
+              {tool === 'select' && <PickPill />}
             </div>
             {hint && <HintLabel hint={hint} />}
             {tool === 'select' && !empty && (

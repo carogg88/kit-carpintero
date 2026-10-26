@@ -91,5 +91,6 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
     parts,
     joints,
     components: [],
+    groups: [],
   };
 }
