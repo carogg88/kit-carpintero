@@ -41,6 +41,7 @@ import {
   parseLength,
   partBox,
   partPlace,
+  pathReady,
   pocketTakesWholePart,
   renamePart,
   turnPart,
@@ -54,6 +55,8 @@ import {
   type Joint,
   type NewPartKind,
   type Part,
+  type PathPoint,
+  type PathShape,
   type Pocket,
   type Project,
   type Section,
@@ -64,7 +67,7 @@ import { GoldenCard, goldenCount } from './Golden';
 import { Accordion } from '../ui/Accordion';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
-import { IconGroup, IconLink, IconPlus, IconRotate, IconTrash, IconWarn, IconZoomIn } from './icons';
+import { IconCornerPoint, IconCurvePoint, IconGroup, IconLink, IconPlus, IconRotate, IconTrash, IconWarn, IconZoomIn } from './icons';
 import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
@@ -74,7 +77,7 @@ import styles from './Editor.module.css';
 
 
 interface LengthFieldProps {
-  label: string;
+  label: ReactNode;
   mm: number;
   units: Units;
   min?: number;
@@ -302,8 +305,8 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
       <div className={styles.pocketFields}>
         {s.kind === 'arc' ? (
           <>
-            <LengthField label={t('Inicio desde {side}', { side: side(0) })} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
-            <LengthField label={t('Inicio desde {side}', { side: side(1) })} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
+            <LengthField label={t('Inicio desde {side}', { side: side(0) })} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind !== 'path' && (p.shape.u = v))} />
+            <LengthField label={t('Inicio desde {side}', { side: side(1) })} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind !== 'path' && (p.shape.v = v))} />
             <LengthField label={t('Fin desde {side}', { side: side(0) })} mm={s.u2} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.u2 = v))} />
             <LengthField label={t('Fin desde {side}', { side: side(1) })} mm={s.v2} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.v2 = v))} />
             <LengthField
@@ -315,7 +318,7 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
               onCommit={(v) => onChange((p) => p.shape.kind === 'arc' && (p.shape.bulge = Math.sign(p.shape.bulge) * v))}
             />
           </>
-        ) : (
+        ) : s.kind === 'path' ? null : (
           <>
             {s.kind === 'rect' ? (
               <>
@@ -325,8 +328,8 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
             ) : (
               <LengthField label={t('Diámetro')} mm={s.d} units={units} max={Math.max(...size)} onCommit={(v) => onChange((p) => p.shape.kind === 'circle' && (p.shape.d = v))} />
             )}
-            <LengthField label={from(0)} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => void (p.shape.u = v))} />
-            <LengthField label={from(1)} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => void (p.shape.v = v))} />
+            <LengthField label={from(0)} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind !== 'path' && (p.shape.u = v))} />
+            <LengthField label={from(1)} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind !== 'path' && (p.shape.v = v))} />
           </>
         )}
         {!pocket.through && (
@@ -337,12 +340,106 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
         <input id={throughId} type="checkbox" checked={pocket.through} onChange={(e) => onChange((p) => void (p.through = e.target.checked))} />
         {t('Atraviesa la pieza')}
       </label>
+      {s.kind === 'path' && <PathPoints shape={s} part={part} axisLabels={[side(0), side(1)]} size={size} units={units} onChange={onChange} />}
+      {s.kind === 'path' && !s.closed && (
+        <label className={styles.check} htmlFor={otherId}>
+          <input id={otherId} type="checkbox" checked={s.flip} onChange={(e) => onChange((p) => p.shape.kind === 'path' && (p.shape.flip = e.target.checked))} />
+          {t('Sacar el otro lado del perfil')}
+        </label>
+      )}
       {s.kind === 'arc' && (
         <label className={styles.check} htmlFor={otherId}>
           <input id={otherId} type="checkbox" checked={s.outside} onChange={(e) => onChange((p) => p.shape.kind === 'arc' && (p.shape.outside = e.target.checked))} />
           {t('Sacar lo de afuera del arco (esquina redondeada)')}
         </label>
       )}
+    </div>
+  );
+}
+
+/**
+ * Los puntos de un perfil a mano: dónde está cada uno y si la línea pasa curva o quiebra. Un cambio que deja el perfil
+ * sin forma (las puntas fuera de los bordes, o la línea cruzada) no se aplica: se avisa.
+ */
+function PathPoints({
+  shape,
+  part,
+  axisLabels,
+  size,
+  units,
+  onChange,
+}: {
+  shape: PathShape;
+  part: Part;
+  axisLabels: [string, string];
+  size: [number, number];
+  units: Units;
+  onChange: (recipe: (p: Pocket) => void) => void;
+}) {
+  const warn = useEditor((s) => s.warn);
+  const fewest = shape.closed ? 3 : 2;
+  const change = (edit: (points: PathPoint[]) => PathPoint[]) => {
+    const next = { ...shape, points: edit(shape.points.map((p) => ({ ...p }))) };
+    if (!pathReady(next, size[0], size[1])) {
+      return warn(shape.closed ? t('Así el perfil se cruza consigo mismo: probá otra medida') : t('Así el perfil no queda de borde a borde: las puntas van sobre un borde de la pieza'));
+    }
+    onChange((p) => void (p.shape = next));
+  };
+  return (
+    <div className={styles.pathPoints} role="group" aria-label={t('Puntos del perfil de {id}', { id: part.id })}>
+      <div className={styles.pathHead} aria-hidden="true">
+        <span>#</span>
+        <span>{t('Desde {side}', { side: axisLabels[0] })}</span>
+        <span>{t('Desde {side}', { side: axisLabels[1] })}</span>
+      </div>
+      {shape.points.map((p, i) => {
+        const n = i + 1;
+        // Las puntas de un perfil abierto lo atan a los bordes: se mueven, pero no se borran.
+        const end = !shape.closed && (i === 0 || i === shape.points.length - 1);
+        return (
+          <div key={i} className={styles.pathRow}>
+            <span className={styles.pathNum}>{n}</span>
+            <LengthField
+              compact
+              label={<span className={styles.srOnly}>{t('Punto {n}, desde {side}', { n, side: axisLabels[0] })}</span>}
+              mm={p.u}
+              units={units}
+              min={0}
+              max={size[0]}
+              onCommit={(v) => change((pts) => pts.map((q, k) => (k === i ? { ...q, u: v } : q)))}
+            />
+            <LengthField
+              compact
+              label={<span className={styles.srOnly}>{t('Punto {n}, desde {side}', { n, side: axisLabels[1] })}</span>}
+              mm={p.v}
+              units={units}
+              min={0}
+              max={size[1]}
+              onCommit={(v) => change((pts) => pts.map((q, k) => (k === i ? { ...q, v } : q)))}
+            />
+            <button
+              type="button"
+              className={styles.iconBtnSmall}
+              aria-pressed={!p.corner}
+              aria-label={p.corner ? t('Punto {n} en esquina: pasarlo a curva', { n }) : t('Punto {n} en curva: pasarlo a esquina', { n })}
+              title={p.corner ? t('Esquina') : t('Curva')}
+              onClick={() => change((pts) => pts.map((q, k) => (k === i ? { ...q, corner: !q.corner } : q)))}
+            >
+              {p.corner ? <IconCornerPoint /> : <IconCurvePoint />}
+            </button>
+            <button
+              type="button"
+              className={styles.iconBtnSmall}
+              aria-label={t('Borrar el punto {n}', { n })}
+              title={t('Borrar')}
+              disabled={end || shape.points.length <= fewest}
+              onClick={() => change((pts) => pts.filter((_, k) => k !== i))}
+            >
+              <IconTrash />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

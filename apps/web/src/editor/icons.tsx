@@ -186,6 +186,29 @@ export const IconArc = () => (
     <path d="M3 18h2M19 18h2" />
   </svg>
 );
+/** Perfil a mano: una línea que ondula entre puntos. */
+export const IconPath = () => (
+  <svg {...base}>
+    <path d="M3 17c3-9 6-9 9-4s6 5 9-4" />
+    <circle cx="3" cy="17" r="1.6" fill="currentColor" />
+    <circle cx="12" cy="13" r="1.6" fill="currentColor" />
+    <circle cx="21" cy="9" r="1.6" fill="currentColor" />
+  </svg>
+);
+/** Punto en curva: la línea pasa redondeada. */
+export const IconCurvePoint = () => (
+  <svg {...base}>
+    <path d="M4 18c2-8 14-8 16 0" />
+    <circle cx="12" cy="12" r="2" fill="currentColor" />
+  </svg>
+);
+/** Punto en esquina: la línea quiebra. */
+export const IconCornerPoint = () => (
+  <svg {...base}>
+    <path d="M4 18 12 8l8 10" />
+    <circle cx="12" cy="8" r="2" fill="currentColor" />
+  </svg>
+);
 export const IconFit = () => (
   <svg {...base} width={18} height={18}>
     <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />

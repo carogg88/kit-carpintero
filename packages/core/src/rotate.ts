@@ -134,6 +134,13 @@ function mapShape(shape: PocketShape, from: Axis, to: Axis, point: (p: Vec3) => 
     const [u, v] = at(shape.u, shape.v);
     return { ...shape, u, v };
   }
+  if (shape.kind === 'path') {
+    const points = shape.points.map((p) => {
+      const [u, v] = at(p.u, p.v);
+      return { ...p, u, v };
+    });
+    return { ...shape, points };
+  }
   if (shape.kind === 'rect') {
     const [u1, v1] = at(shape.u, shape.v);
     const [u2, v2] = at(shape.u + shape.w, shape.v + shape.h);

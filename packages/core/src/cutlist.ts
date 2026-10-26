@@ -5,7 +5,7 @@ import { arcInfo } from './pockets';
 import { describeSection, sectionBox } from './sections';
 import { describeTurning } from './turning';
 import { jointGeometry, solidBox } from './joints';
-import type { Joint, Part, Project } from './project';
+import type { Joint, Part, Pocket, Project } from './project';
 import { t, tk } from './i18n';
 import { sheetById } from './woods';
 import { BANDING_MIN_MM, bandingWidth, exposedEdges, packSheets, sheetThicknessFor, type SheetBoard, type SheetPiece } from './sheets';
@@ -156,7 +156,9 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     }
   }
   const jointWork = [...work];
-  const plain = part.pockets.filter((p) => p.shape.kind !== 'arc');
+  // Los arcos y los perfiles abiertos le dan forma a un borde: van aparte, no como calados.
+  const edgeShape = (p: Pocket) => p.shape.kind === 'arc' || (p.shape.kind === 'path' && !p.shape.closed);
+  const plain = part.pockets.filter((p) => !edgeShape(p));
   const through = plain.filter((p) => p.through).length;
   if (through) work.push(plural(through, tk('{n} calado'), tk('{n} calados')));
   if (plain.length - through) work.push(plural(plain.length - through, tk('{n} vaciado'), tk('{n} vaciados')));
@@ -165,6 +167,10 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     if (p.shape.kind !== 'arc') continue;
     const r = Math.round(arcInfo(p.shape).radius);
     work.push(p.through ? t('corte en arco R {r} mm', { r }) : t('rebaje en arco R {r} mm', { r }));
+  }
+  for (const p of part.pockets) {
+    if (p.shape.kind !== 'path' || p.shape.closed) continue;
+    work.push(p.through ? t('corte con perfil a mano (plantilla 1:1)') : t('rebaje con perfil a mano (plantilla 1:1)'));
   }
   const angled = part.bevels.filter((b) => isAngleCut(part, b)).length;
   if (angled) work.push(plural(angled, tk('{n} corte en ángulo'), tk('{n} cortes en ángulo')));

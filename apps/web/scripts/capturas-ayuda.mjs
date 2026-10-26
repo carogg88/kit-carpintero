@@ -150,6 +150,25 @@ async function createTable(page) {
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await undo();
+  // Perfil a mano en el mismo faldón: cuatro puntos y el último siguiendo al puntero, sobre el otro borde.
+  await tool('Dibujar');
+  await page.mouse.click(540, 235);
+  await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: 'Perfil a mano' }).click();
+  for (const [x, y] of [
+    [129, 378],
+    [330, 372],
+    [530, 365],
+    [730, 372],
+  ]) {
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(250);
+  }
+  await page.mouse.move(937, 378);
+  await page.waitForTimeout(600);
+  await shot(page, 'perfil');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
   await tool('Seleccionar');
   await view('Frente');
   await page.waitForTimeout(1200);

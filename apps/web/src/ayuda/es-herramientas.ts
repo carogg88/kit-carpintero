@@ -177,9 +177,9 @@ export const ES_TOOLS: Article[] = [
     id: 'dibujar',
     topic: 'herramientas',
     title: 'Dibujar agujeros, vaciados y calados',
-    summary: 'Dibujar un rectángulo, un círculo o un arco en una cara y sacarlo de la pieza.',
+    summary: 'Dibujar un rectángulo, un círculo, un arco o un perfil a mano en una cara y sacarlo de la pieza.',
     intro: [
-      p('**Dibujar** saca material de una cara: un **vaciado** tiene una profundidad, como una muesca o un rebaje, y un **calado** atraviesa la pieza, como un agujero o una manija. Se dibuja con rectángulo, círculo o arco.'),
+      p('**Dibujar** saca material de una cara: un **vaciado** tiene una profundidad, como una muesca o un rebaje, y un **calado** atraviesa la pieza, como un agujero o una manija. Se dibuja con rectángulo, círculo, arco o perfil a mano.'),
       img('dibujar', 'Un rectángulo dibujado en el faldón, con la burbuja de vaciado o calado'),
     ],
     sections: [
@@ -205,7 +205,29 @@ export const ES_TOOLS: Article[] = [
             ['Rectángulo', 'Arrastrá de una esquina a la opuesta'],
             ['Círculo', 'Arrastrá desde el centro hacia afuera'],
             ['Arco', 'Arrastrá de punta a punta y después tocá hasta dónde se curva. Sirve para el arco de un faldón'],
+            ['Perfil a mano', 'Tocá punto por punto. Sirve para un borde con varias curvas, la silueta de una pata o un calado con forma'],
           ),
+        ],
+      },
+      {
+        id: 'perfil',
+        title: 'Perfil a mano',
+        blocks: [
+          p('El perfil es una línea de puntos que vos marcás, con curvas suaves entre ellos. Según dónde empieza, hace dos cosas distintas:'),
+          img('perfil', 'Un perfil a mano en el faldón: cuatro puntos y la línea que sigue al puntero hasta el otro borde'),
+          table(
+            ['Empezás', 'Qué saca'],
+            ['En un borde de la cara', 'Terminás tocando otro borde (o el mismo) y saca el lado más chico: el borde curvo de un faldón, la silueta de una pata, la forma de un respaldo'],
+            ['Adentro de la cara', 'Cerrás tocando el primer punto, que se ve más grande, y saca lo de adentro: un calado con forma, como una manija o un corazón'],
+          ),
+          steps(
+            'En la guía elegí **Perfil a mano**.',
+            'Arriba de la guía elegí si el próximo punto va en **Curva** o en **Esquina**. Podés cambiarlo entre punto y punto.',
+            'Tocá la cara punto por punto. Con el mouse, la línea sigue al puntero para que veas cómo queda.',
+            'Para corregir, tocá **Sacar punto** o apretá `Borrar`. `Esc` empieza de nuevo.',
+          ),
+          tip('Con pocos puntos sale una curva más pareja. Para la silueta de una pata de cabra, dibujá el perfil en el frente y otro igual en el costado.'),
+          note('Si la línea se cruza consigo misma no se puede cortar: se ve en rojo y hay que marcarla de nuevo.'),
         ],
       },
       {
@@ -224,12 +246,16 @@ export const ES_TOOLS: Article[] = [
       {
         id: 'editar',
         title: 'Cambiarlo después',
-        blocks: [p('En el panel de la pieza, abrí **Vaciados y calados**: cada uno tiene sus medidas y el botón para borrarlo.')],
+        blocks: [
+          p('En el panel de la pieza, abrí **Vaciados y calados**: cada uno tiene sus medidas y el botón para borrarlo.'),
+          p('En un perfil a mano, cada punto tiene su medida desde los bordes, el botón para pasarlo de curva a esquina y el de borrarlo. **Sacar el otro lado del perfil** deja la parte chica y saca la grande.'),
+        ],
       },
     ],
     faq: [
       { q: '¿Cómo hago una muesca para que encastre otra pieza?', a: 'No hace falta: cuando dos piezas se cruzan, la unión ya hace el corte. Dibujá solo lo que no es una unión, como un agujero o una manija.' },
       { q: 'El rectángulo salió como una raya', a: 'Pasa cuando se arrastra siguiendo un solo borde. Arrastrá en diagonal, de esquina a esquina.' },
+      { q: '¿Cómo imprimo el perfil para calcarlo en la madera?', a: 'En **Plano**, la pieza con el perfil tiene su plantilla 1:1. Tocá **Imprimir solo la plantilla 1:1** (si son varias hojas, el botón dice cuántas), pegá la hoja y calcala.' },
     ],
     related: ['calado', 'biselar', 'elegir'],
   },

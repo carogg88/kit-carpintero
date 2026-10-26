@@ -481,6 +481,14 @@
 .pocketHead { display: flex; align-items: flex-start; gap: var(--space-2); }
 .pocketTitle { flex: 1; font-size: var(--text-s); line-height: 1.4; padding-top: 10px; }
 .pocketFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
+.pathPoints { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+.pathHead, .pathRow { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+.pathHead { font-size: var(--text-xs); color: var(--muted); }
+.pathHead span:nth-child(n + 2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pathRow .inlineField input { width: 100%; height: 38px; }
+.pathNum { font: 500 var(--text-xs) var(--font-num); color: var(--muted); text-align: center; }
+.pathRow button[aria-pressed]:hover { color: var(--ink); }
+.pathRow button[aria-pressed='true'], .pathRow button[aria-pressed='true']:hover { color: var(--accent); }
 .iconBtnSmall {
   width: var(--tap); height: var(--tap); flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0;
   border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; transition: background-color 150ms ease, color 150ms ease;
@@ -912,3 +920,4 @@
 .jointLook:hover { color: var(--ink); background: var(--bg); border-color: var(--line); }
 .jointLook:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .jointLook svg { width: 18px; height: 18px; }
+.pathRow button:disabled { opacity: 0.35; cursor: default; background: transparent; }

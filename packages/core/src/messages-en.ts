@@ -24,6 +24,12 @@ export const MESSAGES_EN: Record<string, string> = {
   'vaciado Ø {d}, {depth} de hondo en {face}': 'round pocket Ø {d}, {depth} deep, in {face}',
   'calado {w} × {h} en {face}': 'through cutout {w} × {h} in {face}',
   'vaciado {w} × {h}, {depth} de hondo en {face}': 'pocket {w} × {h}, {depth} deep, in {face}',
+  'corte con perfil a mano en {face}': 'freehand profile cut on {face}',
+  'rebaje con perfil a mano, {depth} de hondo en {face}': 'freehand profile recess, {depth} deep, on {face}',
+  'calado con perfil a mano en {face}': 'freehand cutout in {face}',
+  'vaciado con perfil a mano, {depth} de hondo en {face}': 'freehand pocket, {depth} deep, in {face}',
+  'calado de lados rectos en {face}': 'straight-sided cutout in {face}',
+  'vaciado de lados rectos, {depth} de hondo en {face}': 'straight-sided pocket, {depth} deep, in {face}',
 
   // Biseles (bevels.ts)
   'redondeo R {r} entre {a} y {b}': 'round-over R {r} between {a} and {b}',
@@ -76,6 +82,8 @@ export const MESSAGES_EN: Record<string, string> = {
   '{n} vaciado': '{n} pocket',
   '{n} vaciados': '{n} pockets',
   'corte en arco R {r} mm': 'arc cut R {r} mm',
+  'corte con perfil a mano (plantilla 1:1)': 'freehand profile cut (1:1 template)',
+  'rebaje con perfil a mano (plantilla 1:1)': 'freehand profile recess (1:1 template)',
   'rebaje en arco R {r} mm': 'arc recess R {r} mm',
   '{n} corte en ángulo': '{n} angled cut',
   '{n} cortes en ángulo': '{n} angled cuts',

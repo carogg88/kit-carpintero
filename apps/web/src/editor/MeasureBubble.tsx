@@ -65,7 +65,7 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   const label =
     target.kind === 'push' ? t(AXIS_LABELS[target.axis]) : bevel ? (bevel.round ? t('Radio') : t('Bisel')) : t('Profundidad');
   // Rectángulos y círculos: la distancia a dos bordes de la cara, para ubicarlos justo (o centrarlos).
-  const shape = pocket?.shape.kind === 'arc' ? undefined : pocket?.shape;
+  const shape = pocket?.shape.kind === 'arc' || pocket?.shape.kind === 'path' ? undefined : pocket?.shape;
   const face = pocket ? faceSize(part, pocket.axis) : undefined;
   const extent = (i: 0 | 1) => (!shape ? 0 : shape.kind === 'rect' ? (i === 0 ? shape.w : shape.h) : 0);
   // El tamaño de lo dibujado, para dejarlo justo: el diámetro del círculo, o el ancho y el alto del rectángulo.
@@ -156,7 +156,7 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
         q.depth = v;
         if (q.shape.kind === 'circle' && next.d !== undefined) q.shape.d = next.d;
         if (q.shape.kind === 'rect') [q.shape.w, q.shape.h] = [next.w ?? q.shape.w, next.h ?? q.shape.h];
-        if (shape && q.shape.kind !== 'arc') [q.shape.u, q.shape.v] = [keep(0, u), keep(1, w)];
+        if (shape && (q.shape.kind === 'rect' || q.shape.kind === 'circle')) [q.shape.u, q.shape.v] = [keep(0, u), keep(1, w)];
       });
     }
     setBubble(null);

@@ -177,9 +177,9 @@ export const EN_TOOLS: Article[] = [
     id: 'dibujar',
     topic: 'herramientas',
     title: 'Draw holes, pockets and through cuts',
-    summary: 'Draw a rectangle, a circle or an arc on a face and remove it from the part.',
+    summary: 'Draw a rectangle, a circle, an arc or a freehand profile on a face and remove it from the part.',
     intro: [
-      p('**Draw** removes material from a face: a **pocket** has a depth, like a notch or a rabbet, and a **through cut** goes all the way through, like a hole or a handle. You draw with a rectangle, a circle or an arc.'),
+      p('**Draw** removes material from a face: a **pocket** has a depth, like a notch or a rabbet, and a **through cut** goes all the way through, like a hole or a handle. You draw with a rectangle, a circle, an arc or a freehand profile.'),
       img('dibujar', 'A rectangle drawn on the apron, with the pocket or through cut bubble'),
     ],
     sections: [
@@ -202,7 +202,29 @@ export const EN_TOOLS: Article[] = [
             ['Rectangle', 'Drag from one corner to the opposite one'],
             ['Circle', 'Drag from the center outward'],
             ['Arc', 'Drag from end to end, then tap how far it curves. Use it for an arched apron'],
+            ['Freehand profile', 'Tap point by point. Use it for an edge with several curves, the outline of a leg or a shaped cutout'],
           ),
+        ],
+      },
+      {
+        id: 'perfil',
+        title: 'Freehand profile',
+        blocks: [
+          p('The profile is a line of points you mark, with smooth curves between them. Depending on where it starts, it does two different things:'),
+          img('perfil', 'A freehand profile on the apron: four points and the line following the pointer to the other edge'),
+          table(
+            ['You start', 'What it removes'],
+            ['On an edge of the face', 'You finish by tapping another edge (or the same one) and it removes the smaller side: the curved edge of an apron, the outline of a leg, the shape of a backrest'],
+            ['Inside the face', 'You close it by tapping the first point, which looks bigger, and it removes what is inside: a shaped cutout, like a handle or a heart'],
+          ),
+          steps(
+            'In the guide, pick **Freehand profile**.',
+            'Above the guide, pick whether the next point is a **Curve** or a **Corner**. You can change it between points.',
+            'Tap the face point by point. With a mouse, the line follows the pointer so you can see how it looks.',
+            'To fix a mistake, tap **Remove point** or press `Backspace`. `Esc` starts over.',
+          ),
+          tip('Fewer points give a smoother curve. For the outline of a cabriole leg, draw the profile on the front and the same one on the side.'),
+          note('If the line crosses itself it can’t be cut: it turns red and you have to mark it again.'),
         ],
       },
       {
@@ -221,12 +243,16 @@ export const EN_TOOLS: Article[] = [
       {
         id: 'editar',
         title: 'Change it later',
-        blocks: [p('In the part panel, open **Pockets and through cuts**: each one has its sizes and a button to delete it.')],
+        blocks: [
+          p('In the part panel, open **Pockets and through cuts**: each one has its sizes and a button to delete it.'),
+          p('In a freehand profile, each point has its distance from the edges, a button to switch it between curve and corner, and one to delete it. **Remove the other side of the profile** keeps the small part and removes the big one.'),
+        ],
       },
     ],
     faq: [
       { q: 'How do I make a notch for another part to fit in?', a: 'No need: when two parts cross, the joint already makes the cut. Only draw what is not a joint, like a hole or a handle.' },
       { q: 'The rectangle came out as a line', a: 'That happens when you drag along a single edge. Drag diagonally, from corner to corner.' },
+      { q: 'How do I print the profile to trace it on the wood?', a: 'In **Plans**, the part with the profile has its 1:1 template. Tap **Print only the 1:1 template** (if there are several sheets, the button says how many), tape the sheet down and trace it.' },
     ],
     related: ['calado', 'biselar', 'elegir'],
   },
