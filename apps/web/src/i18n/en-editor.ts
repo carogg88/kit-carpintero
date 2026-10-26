@@ -366,4 +366,12 @@ export default {
   'El perfil se cruza consigo mismo. Marcalo de nuevo sin cruzar la línea': 'The profile crosses itself. Mark it again without crossing the line',
   'Hiciste un calado con perfil a mano en {id}': 'You made a freehand cutout in {id}',
   'Hiciste un perfil a mano en {id}': 'You made a freehand profile on {id}',
+  'Ahí el perfil se cruza consigo mismo: el punto volvió a donde estaba': 'There the profile crosses itself: the point went back where it was',
+  'Moviste el punto {n} de {id}': 'You moved point {n} of {id}',
+  'Agregaste el punto {n} a {id}': 'You added point {n} to {id}',
+  'Tocá para agregar un punto, o arrastrá': 'Tap to add a point, or drag',
+  'Arrastrá para mover el punto {n}': 'Drag to move point {n}',
+  'Agregar un punto entre el {a} y el {b}': 'Add a point between {a} and {b}',
+  'Agregar un punto después': 'Add a point after',
+  'Mover los puntos en el modelo': 'Move the points in the model',
 } satisfies Record<string, string>;
