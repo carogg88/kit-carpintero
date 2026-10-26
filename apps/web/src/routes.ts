@@ -7,3 +7,7 @@ export const sectionHref = (id: string, section: Section) =>
 export const navigate = (hash: string) => {
   window.location.hash = hash;
 };
+
+/** Centro de ayuda: #/ayuda, #/ayuda/<tema> y #/ayuda/<tema>/<artículo>. */
+export const HELP_ROUTE = '#/ayuda';
+export const helpHref = (topic?: string, article?: string) => [HELP_ROUTE, topic, article].filter(Boolean).join('/');

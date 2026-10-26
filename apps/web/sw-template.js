@@ -3,6 +3,7 @@
 const CACHE = 'kit-__VERSION__';
 const FILES = [/* __FILES__ */];
 const FONTS = 'kit-fuentes';
+const HELP = 'kit-ayuda';
 
 self.addEventListener('install', (event) => {
   // Todo o nada: si falta un archivo, la versión vieja sigue andando.
@@ -13,7 +14,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== FONTS).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== FONTS && k !== HELP).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -22,10 +23,12 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // Las fuentes de Google: la copia guardada al toque y se renueva por detrás.
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+  // Las fuentes de Google y las capturas de la ayuda (que no van en el paquete): la copia guardada al toque y se
+  // renueva por detrás.
+  const help = url.origin === self.location.origin && url.pathname.includes('/ayuda/');
+  if (help || url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     event.respondWith(
-      caches.open(FONTS).then(async (c) => {
+      caches.open(help ? HELP : FONTS).then(async (c) => {
         const hit = await c.match(req);
         const fresh = fetch(req)
           .then((res) => {

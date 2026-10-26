@@ -19,22 +19,22 @@ export interface TourStep {
 interface TourState {
   steps: TourStep[] | null;
   index: number;
-  /** El recorrido arranca cuando se abra el editor: se pidió desde el inicio, con el taburete de práctica. */
-  queued: boolean;
+  /** Lo que arranca cuando se abra el editor: el recorrido pedido desde el inicio, o un "Mostrame dónde está" de la ayuda. */
+  queued: TourStep[] | null;
   start: (steps: TourStep[]) => void;
   go: (index: number) => void;
   end: () => void;
-  queue: () => void;
+  queue: (steps: TourStep[]) => void;
 }
 
 export const useTour = create<TourState>()((set) => ({
   steps: null,
   index: 0,
-  queued: false,
-  start: (steps) => set({ steps, index: 0, queued: false }),
+  queued: null,
+  start: (steps) => set({ steps, index: 0, queued: null }),
   go: (index) => set({ index }),
   end: () => set({ steps: null, index: 0 }),
-  queue: () => set({ queued: true }),
+  queue: (queued) => set({ queued }),
 }));
 
 const firstPart = () => useEditor.getState().project?.parts[0]?.id ?? null;
@@ -98,8 +98,8 @@ export const EDITOR_TOUR: TourStep[] = [
   },
   {
     target: 'help',
-    title: tk('Ayuda y recetas'),
-    text: tk('Acá volvés a este recorrido y encontrás recetas cortas: unir dos piezas, hacer la pata gemela, un calado redondo, agregar un cajón.'),
+    title: tk('Centro de ayuda'),
+    text: tk('Acá encontrás cómo funciona cada herramienta, paso a paso, y recetas cortas: unir dos piezas, hacer la pata gemela, agregar un cajón. Desde ahí también volvés a este recorrido.'),
   },
 ];
 
