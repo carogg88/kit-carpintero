@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { formatLength, groupOf, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
+import { formatLength, groupOf, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type PathPoint, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
 export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn' | 'measure';
 export type View = 'iso' | 'front' | 'side' | 'top';
@@ -36,7 +36,7 @@ export interface Bubble {
   avoid?: { x0: number; y0: number; x1: number; y1: number };
 }
 
-export type DrawShape = 'rect' | 'circle' | 'arc';
+export type DrawShape = 'rect' | 'circle' | 'arc' | 'path';
 
 /** Cuerda de un arco ya marcada: falta decir cuánto se curva. */
 export type ArcChord = DrawFace & { u: number; v: number; u2: number; v2: number };
@@ -87,6 +87,9 @@ interface EditorState {
   /** Tramo que se está marcando con el dedo o el mouse. */
   sectionDraft: { partId: string; section: Section } | null;
   arcChord: ArcChord | null;
+  /** Perfil a mano: los puntos ya marcados sobre la cara elegida, y si el próximo va en curva o en esquina. */
+  pathPoints: PathPoint[];
+  pathCorner: boolean;
   /** Aviso de lo que acaba de cambiar, con la opción de deshacerlo. `key` cambia con cada aviso nuevo. */
   notice: Notice | null;
   bubble: Bubble | null;
@@ -143,6 +146,8 @@ interface EditorState {
   setBevelDraft: (d: EditorState['bevelDraft']) => void;
   setSectionDraft: (d: EditorState['sectionDraft']) => void;
   setArcChord: (c: ArcChord | null) => void;
+  setPathPoints: (points: PathPoint[]) => void;
+  setPathCorner: (corner: boolean) => void;
   dismissNotice: () => void;
   /** Aviso sin cambio que deshacer: algo no se pudo hacer y por qué. */
   warn: (text: string) => void;
@@ -274,6 +279,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   bevelDraft: null,
   sectionDraft: null,
   arcChord: null,
+  pathPoints: [],
+  pathCorner: false,
   notice: null,
   bubble: null,
   fitting: null,
@@ -284,7 +291,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ jointFocus: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+    set({ jointFocus: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -377,7 +384,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setJointFocus: (jointFocus) => set({ jointFocus }),
   setTool: (tool) =>
     set((s) => ({
-      ...(tool === 'draw' ? { tool, arcChord: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, bubble: null }),
+      ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], bubble: null }),
       ...(tool !== 'measure' && (s.measure.a || s.measure.b) ? { measure: { a: null, b: null } } : {}),
     })),
   pickMeasure: (pick) =>
@@ -396,16 +403,19 @@ export const useEditor = create<EditorState>()((set, get) => ({
       drawFace,
       drawFramed: !!drawFace && frame,
       arcChord: null,
+      pathPoints: [],
       draft: null,
       // Al terminar, la vista vuelve a como estaba si se había puesto de frente.
       ...(!drawFace && s.drawFramed ? { viewNonce: s.viewNonce + 1 } : {}),
     })),
-  setDrawShape: (drawShape) => set({ drawShape, arcChord: null, draft: null }),
+  setDrawShape: (drawShape) => set({ drawShape, arcChord: null, pathPoints: [], draft: null }),
   setBevelRound: (bevelRound) => set({ bevelRound }),
   setDraft: (draft) => set({ draft }),
   setBevelDraft: (bevelDraft) => set({ bevelDraft }),
   setSectionDraft: (sectionDraft) => set({ sectionDraft }),
   setArcChord: (arcChord) => set({ arcChord }),
+  setPathPoints: (pathPoints) => set({ pathPoints }),
+  setPathCorner: (pathCorner) => set({ pathCorner }),
   dismissNotice: () => set({ notice: null }),
   warn: (text) => set({ notice: { text, key: ++noticeKey, undo: false } }),
   setBubble: (bubble) => set({ bubble }),

@@ -31,3 +31,4 @@ export * from './patterns';
 export * from './measure';
 export * from './groups';
 export * from './explode';
+export * from './profile';

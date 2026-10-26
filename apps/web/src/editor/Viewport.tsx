@@ -9,6 +9,9 @@ import {
   arcPoints,
   arcTouchesEdge,
   nextPocketId,
+  onFaceEdge,
+  pathCrosses,
+  pathCurve,
   pocketRegion,
   bevelSolid,
   boxSize,
@@ -43,6 +46,7 @@ import {
   type Bevel,
   type Box,
   type Part,
+  type PathPoint,
   type PocketShape,
   type Project,
   type Section,
@@ -316,6 +320,7 @@ function facePoint(box: Box, f: DrawFace, u: number, v: number, lift = 0.4): THR
 }
 
 function outline(box: Box, f: DrawFace, shape: PocketShape): THREE.Vector3[] {
+  if (shape.kind === 'path') return pathCurve(shape.points, shape.closed).map(([u, v]) => facePoint(box, f, u, v, 0.6));
   if (shape.kind === 'arc') {
     const a: [number, number] = [shape.u, shape.v];
     const b: [number, number] = [shape.u2, shape.v2];
@@ -335,11 +340,13 @@ function outline(box: Box, f: DrawFace, shape: PocketShape): THREE.Vector3[] {
 }
 
 /** Lazo cerrado de puntos: borde de la cara elegida o figura que se está dibujando. */
-function Loop({ points, color, opacity = 1 }: { points: THREE.Vector3[]; color: string; opacity?: number }) {
+function Loop({ points, color, opacity = 1, open = false }: { points: THREE.Vector3[]; color: string; opacity?: number; open?: boolean }) {
   const line = useMemo(() => {
     const geo = new THREE.BufferGeometry().setFromPoints(points);
-    return new THREE.LineLoop(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthTest: false }));
-  }, [points, color, opacity]);
+    const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthTest: false });
+    // Abierto: un perfil a mano que todavía no se cerró ni llegó a otro borde.
+    return open ? new THREE.Line(geo, material) : new THREE.LineLoop(geo, material);
+  }, [points, color, opacity, open]);
   useEffect(() => () => {
     line.geometry.dispose();
     (line.material as THREE.Material).dispose();
@@ -352,10 +359,12 @@ interface FaceOverlayProps {
   face: DrawFace;
   accent: string;
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerMove?: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerOut?: () => void;
 }
 
 /** Cara elegida para dibujar: un velo del color de acento que recibe el dedo o el puntero. */
-function FaceOverlay({ part, face, accent, onPointerDown }: FaceOverlayProps) {
+function FaceOverlay({ part, face, accent, onPointerDown, onPointerMove, onPointerOut }: FaceOverlayProps) {
   const box = partBox(part);
   const [ua, va] = otherAxes(face.axis);
   const w = box.max[ua] - box.min[ua];
@@ -370,7 +379,7 @@ function FaceOverlay({ part, face, accent, onPointerDown }: FaceOverlayProps) {
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group>
-      <mesh geometry={geo} onPointerDown={onPointerDown}>
+      <mesh geometry={geo} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerOut={onPointerOut}>
         <meshBasicMaterial color={accent} transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <Loop points={corners} color={accent} />
@@ -534,7 +543,9 @@ function Draft({ part, accent, danger }: { part: Part; accent: string; danger: s
   const points = useMemo(() => (draft ? outline(partBox(part), draft, draft.shape) : null), [draft, part]);
   const framed = useEditor((s) => s.drawFramed);
   const invalid =
-    (draft?.shape.kind === 'arc' && !arcTouchesEdge(part, draft.axis, draft.shape, 1)) || (draft?.shape.kind === 'rect' && isSliver(draft.shape.w, draft.shape.h, framed));
+    (draft?.shape.kind === 'arc' && !arcTouchesEdge(part, draft.axis, draft.shape, 1)) ||
+    (draft?.shape.kind === 'rect' && isSliver(draft.shape.w, draft.shape.h, framed)) ||
+    (draft?.shape.kind === 'path' && pathCrosses(draft.shape));
   const fill = useMemo(() => {
     if (!draft) return null;
     const region = pocketRegion(part, draft.axis, draft.shape);
@@ -578,9 +589,41 @@ function Draft({ part, accent, danger }: { part: Part; accent: string; danger: s
           <meshBasicMaterial color={accent} transparent opacity={0.38} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
         </mesh>
       )}
-      {points && <Loop points={points} color={invalid ? danger : accent} />}
+      {points && <Loop points={points} color={invalid ? danger : accent} open={draft?.shape.kind === 'path' && !draft.shape.closed} />}
+      <PathDots part={part} accent={accent} />
     </>
   );
+}
+
+/** Los puntos ya marcados del perfil a mano. El primero va más grande: tocándolo se cierra el perfil. */
+function PathDots({ part, accent }: { part: Part; accent: string }) {
+  const placed = useEditor((s) => s.pathPoints);
+  const face = useEditor((s) => s.drawFace);
+  const dots = useMemo(() => {
+    if (!face || !placed.length) return null;
+    const box = partBox(part);
+    const make = (pts: PathPoint[], size: number) =>
+      new THREE.Points(
+        new THREE.BufferGeometry().setFromPoints(pts.map((p) => facePoint(box, face, p.u, p.v, 0.8))),
+        new THREE.PointsMaterial({ color: accent, size, sizeAttenuation: false, depthTest: false }),
+      );
+    return [make(placed.slice(0, 1), 13), make(placed.slice(1), 8)];
+  }, [placed, face, part, accent]);
+  useEffect(
+    () => () =>
+      dots?.forEach((d) => {
+        d.geometry.dispose();
+        (d.material as THREE.Material).dispose();
+      }),
+    [dots],
+  );
+  return dots ? (
+    <>
+      {dots.map((d, i) => (
+        <primitive key={i} object={d} renderOrder={3} />
+      ))}
+    </>
+  ) : null;
 }
 
 interface Drag {
@@ -1092,6 +1135,129 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     window.addEventListener('pointercancel', onUp);
   };
 
+  /** Deja la figura en la pieza y abre al costado la burbuja de vaciado o calado y cuánto de hondo. */
+  const placePocket = (part: Part, face: DrawFace, s: PocketShape, ev: { clientX: number; clientY: number }, label: string) => {
+    const pocketId = nextPocketId(part);
+    useEditor.getState().commit((d) => {
+      const q = d.parts.find((x) => x.id === part.id);
+      if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
+    }, label);
+    // Al costado de la figura, para no taparla.
+    const rect = gl.domElement.getBoundingClientRect();
+    const around = outline(partBox(part), face, s).map((p) => {
+      const q = p.clone().project(camera);
+      return { x: ((q.x + 1) / 2) * rect.width, y: ((1 - q.y) / 2) * rect.height };
+    });
+    useEditor.getState().setBubble({
+      target: { kind: 'pocket', id: part.id, pocketId },
+      x: ev.clientX - rect.left,
+      y: ev.clientY - rect.top,
+      avoid: {
+        x0: Math.min(...around.map((p) => p.x)),
+        y0: Math.min(...around.map((p) => p.y)),
+        x1: Math.max(...around.map((p) => p.x)),
+        y1: Math.max(...around.map((p) => p.y)),
+      },
+    });
+  };
+
+  /**
+   * Perfil a mano: el punto que cae en `pt` de la cara, pegado a bordes, centro y grilla, y qué pasaría si se
+   * marca ahí: cerrar tocando el primero, o terminar al llegar a un borde si se empezó en otro.
+   */
+  const pathStep = (part: Part, face: DrawFace, pt: THREE.Vector3) => {
+    const { pathPoints: placed, pathCorner: corner } = useEditor.getState();
+    const box = partBox(part);
+    const [ua, va] = otherAxes(face.axis);
+    const size = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]] as const;
+    // El imán de cada eje según lo que mide ese lado: en un faldón angosto, uno parejo pegaría todo al borde.
+    const tol = (i: 0 | 1) => Math.max(1.5, Math.min(Math.max(3, Math.max(...size) * 0.02), size[i] * 0.06));
+    const su = snapOnFace(pt.getComponent(ua) - box.min[ua], size[0], tol(0));
+    const sv = snapOnFace(pt.getComponent(va) - box.min[va], size[1], tol(1));
+    const point: PathPoint = { u: su.value, v: sv.value, corner };
+    const first = placed[0];
+    const closes = !!first && placed.length >= 3 && Math.hypot(point.u - first.u, point.v - first.v) <= Math.max(tol(0), tol(1)) * 1.5;
+    const ends = !!first && !closes && placed.length >= 1 && onFaceEdge(first, size[0], size[1]) && onFaceEdge(point, size[0], size[1]);
+    const shape: PocketShape = closes
+      ? { kind: 'path', points: placed, closed: true, flip: false }
+      : { kind: 'path', points: [...placed, point], closed: false, flip: false };
+    const snaps = [...new Set([snapName(su.to), snapName(sv.to)].filter(Boolean))] as string[];
+    return { point, shape, closes, ends, snap: closes ? t('primer punto') : snaps.join(' · ') || null };
+  };
+
+  /** Con el mouse, sin apretar: la línea va del último punto hasta el puntero. */
+  const hoverPath = (e: ThreeEvent<PointerEvent>) => {
+    const { drawFace: face, drawShape, pathPoints, project: current, setDraft, setHint } = useEditor.getState();
+    if (drawShape !== 'path' || !face || !pathPoints.length || e.nativeEvent.pointerType !== 'mouse' || e.nativeEvent.buttons) return;
+    const part = current?.parts.find((q) => q.id === face.partId);
+    if (!part) return;
+    const step = pathStep(part, face, e.point);
+    setDraft({ ...face, shape: step.shape });
+    const rect = gl.domElement.getBoundingClientRect();
+    const text = step.closes ? t('Tocá para cerrar el perfil') : step.ends ? t('Tocá para terminar en el borde') : t('Punto {n}', { n: pathPoints.length + 1 });
+    setHint({ x: e.nativeEvent.clientX - rect.left, y: e.nativeEvent.clientY - rect.top, text, snap: step.snap });
+    invalidate();
+  };
+  const leavePath = () => {
+    const { drawFace: face, drawShape, pathPoints, setDraft, setHint } = useEditor.getState();
+    if (drawShape !== 'path' || !face) return;
+    setHint(null);
+    setDraft(pathPoints.length ? { ...face, shape: { kind: 'path', points: pathPoints, closed: false, flip: false } } : null);
+  };
+
+  /** Perfil a mano: cada toque marca un punto. Si se arrastra, el punto sigue al dedo y queda donde se suelta. */
+  const placePathPoint = (part: Part, face: DrawFace, first: THREE.Vector3, nativeEvent: PointerEvent, moving: boolean) => {
+    const box = partBox(part);
+    const normal = new THREE.Vector3();
+    normal.setComponent(face.axis, 1);
+    const plane = new THREE.Plane(normal, -(face.side > 0 ? box.max[face.axis] : box.min[face.axis]));
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    let step = pathStep(part, face, first);
+    const show = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      useEditor.getState().setDraft({ ...face, shape: step.shape });
+      const text = step.closes ? t('Soltá para cerrar el perfil') : t('Punto {n}', { n: useEditor.getState().pathPoints.length + 1 });
+      useEditor.getState().setHint({ x: ev.clientX - rect.left, y: ev.clientY - rect.top, text, snap: step.snap });
+      invalidate();
+    };
+    const onMove = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const pt = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(plane, pt)) return;
+      step = pathStep(part, face, pt);
+      show(ev);
+    };
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      const { pathPoints, setPathPoints, setDraft, setHint, warn } = useEditor.getState();
+      setHint(null);
+      const last = pathPoints[pathPoints.length - 1];
+      // Un toque sobre el último punto no suma otro igual.
+      if (!step.closes && last && Math.hypot(last.u - step.point.u, last.v - step.point.v) < 1) return;
+      if (!step.closes && !step.ends) {
+        setPathPoints([...pathPoints, step.point]);
+        setDraft({ ...face, shape: step.shape });
+        return;
+      }
+      setPathPoints([]);
+      setDraft(null);
+      const s = step.shape;
+      if (s.kind === 'path' && pathCrosses(s)) return warn(t('El perfil se cruza consigo mismo. Marcalo de nuevo sin cruzar la línea'));
+      placePocket(part, face, s, ev, step.closes ? t('Hiciste un calado con perfil a mano en {id}', { id: part.id }) : t('Hiciste un perfil a mano en {id}', { id: part.id }));
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    show(nativeEvent);
+    if (moving) onMove(nativeEvent);
+  };
+
   // Dibujar, segundo paso: arrastrar sobre la cara elegida. Rectángulo de esquina a esquina; círculo desde el centro.
   const startSketch = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
@@ -1105,6 +1271,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     if (controlsRef.current) controlsRef.current.enabled = false;
     // Una figura nueva: la burbuja de la anterior ya quedó.
     useEditor.getState().setBubble(null);
+    if (drawShape === 'path') return placePathPoint(part, face, point, nativeEvent, moving);
     const box = partBox(part);
     const [ua, va] = otherAxes(face.axis);
     const size = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]] as const;
@@ -1184,7 +1351,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       if (controlsRef.current) controlsRef.current.enabled = true;
-      const { setDraft, setHint, commit, setArcChord, warn, setBubble } = useEditor.getState();
+      const { setDraft, setHint, setArcChord, warn } = useEditor.getState();
       setHint(null);
       const s = shape as PocketShape | null;
       if (s?.kind === 'arc' && !bending) {
@@ -1210,28 +1377,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       }
       // Un toque sin arrastrar, o una figura de menos de 3 mm, no deja nada.
       if (!s || (s.kind === 'circle' ? s.d < 3 : s.kind === 'rect' ? s.w < 3 || s.h < 3 : false)) return;
-      const pocketId = nextPocketId(part);
-      commit((d) => {
-        const q = d.parts.find((x) => x.id === part.id);
-        if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
-      }, s.kind === 'arc' ? t('Hiciste un corte en arco en {id}', { id: part.id }) : s.kind === 'rect' ? t('Hiciste un vaciado en {id}', { id: part.id }) : t('Hiciste un calado en {id}', { id: part.id }));
-      // Al soltar: vaciado o calado, y cuánto de hondo, ahí mismo. Al costado de la figura, para no taparla.
-      const rect = gl.domElement.getBoundingClientRect();
-      const around = outline(box, face, s).map((p) => {
-        const q = p.clone().project(camera);
-        return { x: ((q.x + 1) / 2) * rect.width, y: ((1 - q.y) / 2) * rect.height };
-      });
-      setBubble({
-        target: { kind: 'pocket', id: part.id, pocketId },
-        x: ev.clientX - rect.left,
-        y: ev.clientY - rect.top,
-        avoid: {
-          x0: Math.min(...around.map((p) => p.x)),
-          y0: Math.min(...around.map((p) => p.y)),
-          x1: Math.max(...around.map((p) => p.x)),
-          y1: Math.max(...around.map((p) => p.y)),
-        },
-      });
+      placePocket(part, face, s, ev, s.kind === 'arc' ? t('Hiciste un corte en arco en {id}', { id: part.id }) : s.kind === 'rect' ? t('Hiciste un vaciado en {id}', { id: part.id }) : t('Hiciste un calado en {id}', { id: part.id }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -1462,7 +1608,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           const part = project.parts.find((p) => p.id === drawFace.partId);
           return part ? (
             <>
-              <FaceOverlay part={part} face={drawFace} accent={colors.accent} onPointerDown={startSketch} />
+              <FaceOverlay part={part} face={drawFace} accent={colors.accent} onPointerDown={startSketch} onPointerMove={hoverPath} onPointerOut={leavePath} />
               <Draft part={part} accent={colors.accent} danger={colors.danger} />
             </>
           ) : null;

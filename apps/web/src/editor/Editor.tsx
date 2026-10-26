@@ -35,7 +35,7 @@ import { PlanView } from './PlanView';
 import { ADD_OPTIONS, FITTING_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
 import { partsLabel, useEditor, useSelectedPart, type DragHint, type Tool, type View } from './store';
 import { useExactMeshes } from './useGeometry';
-import { ToolGuide, ChangeNotice } from './ToolGuide';
+import { ToolGuide, ChangeNotice, dropPathPoint } from './ToolGuide';
 import { PreviewBar } from './PreviewBar';
 import { HelpButton } from '../help/HelpCenter';
 import { TourOverlay, useTour } from '../help/Tour';
@@ -258,9 +258,14 @@ function useShortcuts(modelo: boolean) {
         if (s.pending) s.cancelPending();
         else if (s.addMode) s.setAddMode(false);
         else if (s.measure.a) s.pickMeasure(null);
-        else if (s.drawFace) s.setDrawFace(null);
+        else if (s.pathPoints.length) {
+          s.setPathPoints([]);
+          s.setDraft(null);
+          s.setHint(null);
+        } else if (s.drawFace) s.setDrawFace(null);
         else s.select(null);
       }
+      else if (k === 'backspace' && s.pathPoints.length) dropPathPoint();
       else if ((k === 'delete' || k === 'backspace') && s.picked.length > 1 && s.project) {
         const ids = s.picked;
         const label = partsLabel(s.project, ids);

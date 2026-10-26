@@ -150,6 +150,37 @@ describe('vaciados en el motor', () => {
     expect((vol(board) - vol(corner)) / ((10000 - Math.PI * 2500) * 20)).toBeCloseTo(1, 3);
   });
 
+  it('un perfil a mano saca lo que encierra, o el lado chico de borde a borde', () => {
+    // Un triángulo de esquinas: medio rectángulo de 100 × 80.
+    const tri = [
+      { u: 100, v: 100, corner: true },
+      { u: 200, v: 100, corner: true },
+      { u: 200, v: 180, corner: true },
+    ];
+    const hole: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'path', points: tri, closed: true, flip: false }, depth: 10, through: true }] };
+    expect(vol(board) - vol(hole)).toBeCloseTo(((100 * 80) / 2) * 20, 0);
+    // De la izquierda a la derecha, recto a 50 del borde de atrás: se saca esa franja, o el resto con flip.
+    const line = [
+      { u: 0, v: 50, corner: true },
+      { u: 400, v: 50, corner: true },
+    ];
+    const strip: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'path', points: line, closed: false, flip: false }, depth: 10, through: true }] };
+    expect(vol(board) - vol(strip)).toBeCloseTo(400 * 50 * 20, 0);
+    const rest: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'path', points: line, closed: false, flip: true }, depth: 10, through: true }] };
+    expect(vol(rest)).toBeCloseTo(400 * 50 * 20, 0);
+    // Con curva: la pieza queda con el borde ondulado y sigue entera.
+    const wave = [
+      { u: 0, v: 40, corner: false },
+      { u: 130, v: 70, corner: false },
+      { u: 270, v: 30, corner: false },
+      { u: 400, v: 60, corner: false },
+    ];
+    const waved: Part = { ...board, pockets: [{ id: 'V1', axis: 1, side: 1, shape: { kind: 'path', points: wave, closed: false, flip: false }, depth: 10, through: true }] };
+    const cut = vol(board) - vol(waved);
+    expect(cut).toBeGreaterThan(400 * 30 * 20);
+    expect(cut).toBeLessThan(400 * 70 * 20);
+  });
+
   it('un bisel saca la cuña de la arista, y un corte en ángulo la de toda la cara', () => {
     const up = { axis: 1, side: 1 } as const;
     const front = { axis: 2, side: 1 } as const;

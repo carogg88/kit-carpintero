@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { faceLabel, t, tk } from '@kitc/core';
-import { IconArc, IconChamfer, IconCircle, IconCopy, IconRect, IconRound } from './icons';
+import { IconArc, IconChamfer, IconCircle, IconCopy, IconCornerPoint, IconCurvePoint, IconPath, IconRect, IconRound, IconUndo } from './icons';
 import { MeasureBubble } from './MeasureBubble';
 import { MeasureCard } from './MeasureCard';
 import { useEditor, useSelectedPart } from './store';
@@ -13,7 +13,12 @@ interface Step {
   done?: React.ReactNode;
 }
 
-const STEP2_DRAW = { rect: tk('Arrastrá de esquina a esquina'), circle: tk('Arrastrá desde el centro hacia afuera'), arc: tk('Arrastrá de punta a punta del arco') };
+const STEP2_DRAW = {
+  rect: tk('Arrastrá de esquina a esquina'),
+  circle: tk('Arrastrá desde el centro hacia afuera'),
+  arc: tk('Arrastrá de punta a punta del arco'),
+  path: tk('Tocá punto por punto: de un borde a otro, o cerrá en el primero'),
+};
 
 const HINT_KEY = 'kitc:ayuda-elegir';
 const hintSeen = () => {
@@ -44,6 +49,15 @@ function useSelectHint(selected: boolean): [boolean, () => void] {
   return [!seen, dismiss];
 }
 
+/** Perfil a mano: saca el último punto marcado (el primero también, y ahí se empieza de nuevo). */
+export function dropPathPoint() {
+  const { pathPoints, drawFace, setPathPoints, setDraft, setHint } = useEditor.getState();
+  const rest = pathPoints.slice(0, -1);
+  setHint(null);
+  setPathPoints(rest);
+  setDraft(drawFace && rest.length ? { ...drawFace, shape: { kind: 'path', points: rest, closed: false, flip: false } } : null);
+}
+
 /**
  * Tarjeta de pasos de la herramienta elegida: qué hacer ahora y qué viene después, con los botones propios de la
  * herramienta (figura, bisel o redondeo, dejar copia, Listo). En el celular se ve solo el paso en curso.
@@ -53,12 +67,14 @@ export function ToolGuide() {
   const drawFace = useEditor((s) => s.drawFace);
   const drawShape = useEditor((s) => s.drawShape);
   const arcChord = useEditor((s) => s.arcChord);
+  const pathPoints = useEditor((s) => s.pathPoints);
+  const pathCorner = useEditor((s) => s.pathCorner);
   const bevelRound = useEditor((s) => s.bevelRound);
   const copyMove = useEditor((s) => s.copyMove);
   const dragging = useEditor((s) => s.dragging);
   const bubble = useEditor((s) => s.bubble);
   const measure = useEditor((s) => s.measure);
-  const { setDrawFace, setDrawShape, setBevelRound, setCopyMove, pickMeasure } = useEditor.getState();
+  const { setDrawFace, setDrawShape, setBevelRound, setCopyMove, pickMeasure, setPathCorner } = useEditor.getState();
   const selected = useSelectedPart();
   const [showHint, dismissHint] = useSelectHint(!!selected);
 
@@ -101,7 +117,13 @@ export function ToolGuide() {
             </>
           ),
         },
-        { text: arcChord ? t('Tocá hasta dónde se curva') : t(STEP2_DRAW[drawShape]) },
+        {
+          text: arcChord
+            ? t('Tocá hasta dónde se curva')
+            : drawShape === 'path' && pathPoints.length
+              ? t('Seguí marcando puntos')
+              : t(STEP2_DRAW[drawShape]),
+        },
         { text: t('Elegí vaciado o calado y qué tan hondo') },
       ];
       active = bubble?.target.kind === 'pocket' ? 2 : drawFace ? 1 : 0;
@@ -116,8 +138,32 @@ export function ToolGuide() {
           <button type="button" aria-pressed={drawShape === 'arc'} aria-label={t('Arco')} title={t('Arco')} onClick={() => setDrawShape('arc')}>
             <IconArc />
           </button>
+          <button type="button" aria-pressed={drawShape === 'path'} aria-label={t('Perfil a mano')} title={t('Perfil a mano')} onClick={() => setDrawShape('path')}>
+            <IconPath />
+          </button>
         </div>
       );
+      // Perfil a mano: si el próximo punto va en curva o en esquina, y volver atrás el último.
+      if (drawShape === 'path')
+        controls = (
+          <>
+            {controls}
+            <div className={styles.shapes} role="group" aria-label={t('Próximo punto')}>
+              <button type="button" aria-pressed={!pathCorner} aria-label={t('Próximo punto en curva')} title={t('Curva')} onClick={() => setPathCorner(false)}>
+                <IconCurvePoint />
+              </button>
+              <button type="button" aria-pressed={pathCorner} aria-label={t('Próximo punto en esquina')} title={t('Esquina')} onClick={() => setPathCorner(true)}>
+                <IconCornerPoint />
+              </button>
+            </div>
+            {pathPoints.length > 0 && (
+              <button type="button" className={styles.guideToggle} onClick={dropPathPoint}>
+                <IconUndo />
+                {t('Sacar punto')}
+              </button>
+            )}
+          </>
+        );
       if (drawFace)
         action = (
           <button type="button" className={styles.done} onClick={() => setDrawFace(null)}>

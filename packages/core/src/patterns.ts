@@ -2,6 +2,7 @@ import { partAxesBySize } from './edit';
 import { boxSize, otherAxes, partBox, type Axis } from './geometry';
 import { describeBevel } from './bevels';
 import { clipToFace, describePocket, faceLabelOf, pocketRegion } from './pockets';
+import { pathCurved } from './profile';
 import type { Rect2 } from './drawing';
 import type { Bevel, Part, Pocket } from './project';
 import { t } from './i18n';
@@ -21,6 +22,8 @@ export interface PatternShape {
   curve: boolean;
   /** Lo que se saca, como polígono en coordenadas del dibujo. */
   points: [number, number][];
+  /** Un arco suelto: tiene su propia plantilla acostada sobre la cuerda. */
+  arc?: boolean;
   /** Para un círculo: el centro y el radio, para marcar con el compás o la mecha. */
   circle?: { c: [number, number]; r: number };
   /** Desde dónde se ubica: la esquina del bisel, la esquina del rectángulo, el centro del círculo o el inicio del arco. */
@@ -82,10 +85,11 @@ export function facePattern(part: Part, n: (mm: number) => string): FacePattern 
       id: pk.id,
       source: 'pocket',
       kind: pk.through ? 'cut' : 'pocket',
-      curve: sh.kind !== 'rect',
+      curve: sh.kind === 'path' ? pathCurved(sh) : sh.kind !== 'rect',
+      arc: sh.kind === 'arc' || undefined,
       points: region.map(show),
       circle: sh.kind === 'circle' ? { c: show([sh.u, sh.v]), r: sh.d / 2 } : undefined,
-      anchor: show([sh.u, sh.v]),
+      anchor: show(sh.kind === 'path' ? [sh.points[0]!.u, sh.points[0]!.v] : [sh.u, sh.v]),
       label: describePocket(pk, n),
       key: pocketKey(pk),
     });
@@ -110,7 +114,14 @@ export function facePattern(part: Part, n: (mm: number) => string): FacePattern 
 
 function pocketKey(pk: Pocket): string {
   const sh = pk.shape;
-  const size = sh.kind === 'rect' ? `${sh.w}x${sh.h}` : sh.kind === 'circle' ? `${sh.d}` : `${sh.u2 - sh.u},${sh.v2 - sh.v},${sh.bulge}`;
+  const size =
+    sh.kind === 'rect'
+      ? `${sh.w}x${sh.h}`
+      : sh.kind === 'circle'
+        ? `${sh.d}`
+        : sh.kind === 'path'
+          ? `${sh.points.map((p) => `${p.u},${p.v},${p.corner}`).join(';')}:${sh.closed}:${sh.flip}`
+          : `${sh.u2 - sh.u},${sh.v2 - sh.v},${sh.bulge}`;
   return `pocket:${sh.kind}:${size}:${pk.through}:${pk.depth}`;
 }
 
@@ -183,8 +194,7 @@ export interface PatternDetail {
 export function patternDetails(p: FacePattern, margin = 14): PatternDetail[] {
   const groups = new Map<string, { shape: PatternShape; count: number }>();
   for (const sh of p.shapes) {
-    const isArc = sh.source === 'pocket' && sh.curve && !sh.circle;
-    if (isArc) continue;
+    if (sh.arc) continue;
     const key = sh.source === 'bevel' ? sh.key : `${sh.key}:${sh.id}`;
     const g = groups.get(key);
     if (g) g.count++;

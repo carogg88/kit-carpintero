@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -24,6 +24,10 @@ export const Operation = z.discriminatedUnion('kind', [
 export type Operation = z.infer<typeof Operation>;
 
 /** Figura dibujada en una cara. u, v: medidas desde la esquina mínima de la pieza sobre los otros dos ejes. */
+/** Un punto del perfil a mano, en coordenadas de la cara. `corner`: ahí el perfil quiebra en vez de curvarse. */
+export const PathPoint = z.object({ u: z.number(), v: z.number(), corner: z.boolean().default(false) });
+export type PathPoint = z.infer<typeof PathPoint>;
+
 export const PocketShape = z.discriminatedUnion('kind', [
   /** Rectángulo: (u, v) es la esquina más cercana al origen. */
   z.object({ kind: z.literal('rect'), u: z.number(), v: z.number(), w: z.number().positive(), h: z.number().positive() }),
@@ -41,6 +45,16 @@ export const PocketShape = z.discriminatedUnion('kind', [
     v2: z.number(),
     bulge: z.number().refine((x) => x !== 0),
     outside: z.boolean().default(false),
+  }),
+  /**
+   * Perfil a mano: puntos unidos por curvas suaves (o rectas, si los dos puntos son esquina). Cerrado, saca lo de
+   * adentro; abierto, va de un borde de la cara a otro y saca el lado más chico, o el otro con `flip`.
+   */
+  z.object({
+    kind: z.literal('path'),
+    points: z.array(PathPoint).min(2),
+    closed: z.boolean().default(false),
+    flip: z.boolean().default(false),
   }),
 ]);
 export type PocketShape = z.infer<typeof PocketShape>;
@@ -199,6 +213,8 @@ const migrations: Record<number, Migration> = {
   8: (d) => d,
   // v10 suma el giro propio de cada copia de un componente; las viejas van todas iguales.
   9: (d) => d,
+  // v11 suma el perfil a mano en los vaciados; los viejos no tienen.
+  10: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

@@ -2,6 +2,7 @@ import { boxSize, otherAxes, overlapBox, partBox, type Axis, type Vec3 } from '.
 import { arcPoints, circleThrough, type Solid } from './joints';
 import type { Part, Pocket, PocketShape } from './project';
 import { t, tk } from './i18n';
+import { pathCurved, pathRegion } from './profile';
 
 const FACE_NAMES = [
   [tk('cara izquierda'), tk('cara derecha')],
@@ -189,6 +190,7 @@ export function pocketRegion(part: Part, axis: Axis, shape: PocketShape, outside
     ]);
     return clipToFace(pts, size[0], size[1]);
   }
+  if (shape.kind === 'path') return clipToFace(pathRegion(shape, size[0], size[1]), size[0], size[1]);
   if (shape.bulge === 0) return [];
   const { mid, chord } = arcInfo(shape);
   const arc = arcPoints([shape.u, shape.v], mid, [shape.u2, shape.v2], 48);
@@ -226,6 +228,15 @@ export function pocketSolid(part: Part, p: Pocket): Solid {
       ];
     }
     return { kind: 'arc', axis: p.axis, from: Math.min(inner, outer), to: Math.max(inner, outer), u: ua, v: va, a, mid: at(mid), b, rest };
+  }
+  if (p.shape.kind === 'path') {
+    const region = pocketRegion(part, p.axis, p.shape);
+    const points = region.map(([u, v]): [number, number] => [box.min[ua] + u, box.min[va] + v]);
+    // Lo que va de borde a borde se estira 1 mm afuera de la pieza, para que el corte no deje una lámina en el canto.
+    const [w, h] = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]];
+    const grow = (x: number, lo: number, len: number) => (Math.abs(x - lo) < 0.01 ? x - 1 : Math.abs(x - lo - len) < 0.01 ? x + 1 : x);
+    const out = points.map(([u, v]): [number, number] => [grow(u, box.min[ua], w), grow(v, box.min[va], h)]);
+    return { kind: 'prism', axis: p.axis, from: Math.min(inner, outer), to: Math.max(inner, outer), u: ua, v: va, points: out };
   }
   if (p.shape.kind === 'circle') {
     const start: Vec3 = [0, 0, 0];
@@ -286,6 +297,11 @@ export function describePocket(p: Pocket, n: (mm: number) => string): string {
     return p.through
       ? t('corte en arco R {r}, flecha {s} en {face}', { r, s, face })
       : t('rebaje en arco R {r}, flecha {s}, {depth} de hondo en {face}', { r, s, depth, face });
+  }
+  if (p.shape.kind === 'path') {
+    if (!p.shape.closed) return p.through ? t('corte con perfil a mano en {face}', { face }) : t('rebaje con perfil a mano, {depth} de hondo en {face}', { depth, face });
+    if (pathCurved(p.shape)) return p.through ? t('calado con perfil a mano en {face}', { face }) : t('vaciado con perfil a mano, {depth} de hondo en {face}', { depth, face });
+    return p.through ? t('calado de lados rectos en {face}', { face }) : t('vaciado de lados rectos, {depth} de hondo en {face}', { depth, face });
   }
   if (p.shape.kind === 'circle') {
     const d = n(p.shape.d);
