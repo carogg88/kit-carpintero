@@ -1,5 +1,5 @@
 import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, revolution, Vector, type Shape3D } from 'replicad';
-import { bevelSolid, engineCamera, otherAxes, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, turnSegments, type Box, type EngineView, type Part, type Project, type Solid, type Turning } from '@kitc/core';
+import { bevelSolid, engineCamera, leanFrame, leanStock, otherAxes, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, turnSegments, type Box, type EngineView, type LeanFrame, type Part, type Project, type Solid, type Turning } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -106,9 +106,28 @@ function turnedShape(part: Part, turning: Turning): Shape3D {
   return shape;
 }
 
-/** Arma una pieza exacta: forma base (el taco, o torneada), redondeos, espigas sumadas y mortajas restadas. */
+/** Gira una forma de la pieza derecha a donde queda con la pata inclinada. */
+const leaned = (shape: Shape3D, f: LeanFrame | null): Shape3D => (f ? (shape.rotate(f.angle, f.pivot, f.axis) as Shape3D) : shape);
+
+/**
+ * Espiga o mortaja de una pata inclinada: arranca en la punta de arriba y, girada, de un lado quedaría corta antes
+ * del hombro horizontal. Se alarga hacia la pata para que llegue al hombro en todo el ancho.
+ */
+function jointSolid(s: Solid, f: LeanFrame | null): Shape3D {
+  if (!f || s.kind !== 'box' || Math.abs(s.box.min[1] - f.pivot[1]) > 0.01) return leaned(toShape(s), f);
+  const b: Box = { min: [...s.box.min], max: [...s.box.max] };
+  b.min[1] -= 2 * f.rise + 1;
+  return leaned(solid(b), f);
+}
+
+/**
+ * Arma una pieza exacta: forma base (el taco, o torneada), redondeos, espigas sumadas y mortajas restadas.
+ * Una pata inclinada se arma derecha y más larga, se gira y se le cortan las puntas horizontales; los encastres
+ * que entran con ella en otra pieza se giran igual, así la mortaja sigue el ángulo de la espiga.
+ */
 export function partShape(part: Part, project: Project): { shape: Shape3D; warning?: string } {
-  let shape = solid(partBox(part));
+  const lean = leanFrame(part);
+  let shape = solid(lean ? leanStock(part, lean) : partBox(part));
   let warning: string | undefined;
 
   if (part.turning) {
@@ -155,6 +174,13 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     }
   }
 
+  if (lean) {
+    const box = partBox(part);
+    const reach = lean.length + 100;
+    const slab: Box = { min: [box.min[0] - reach, box.min[1], box.min[2] - reach], max: [box.max[0] + reach, box.max[1], box.max[2] + reach] };
+    shape = leaned(shape, lean).intersect(solid(slab));
+  }
+
   for (const j of project.joints) {
     if (j.partA !== part.id && j.partB !== part.id) continue;
     const a = project.parts.find((p) => p.id === j.partA);
@@ -163,9 +189,17 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     const geo = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     if (!geo) continue;
     const isA = part.id === j.partA;
+    const mine = isA ? [...geo.cutA] : [...geo.addB, ...geo.cutB];
+    // Por ahora solo sigue el ángulo la pieza que entra inclinada (la pata en el asiento). Si la que recibe está
+    // inclinada (un travesaño que entra en la pata), el encastre todavía no se corta.
+    if (leanFrame(a) && mine.length) {
+      warning = t('El encastre con {id} todavía no sigue la pata inclinada', { id: isA ? j.partB : j.partA });
+      continue;
+    }
+    const tilt = leanFrame(b);
     try {
-      for (const s of isA ? [] : geo.addB) shape = shape.fuse(toShape(s));
-      for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(toShape(s));
+      for (const s of isA ? [] : geo.addB) shape = shape.fuse(jointSolid(s, tilt));
+      for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(jointSolid(s, tilt));
     } catch {
       warning = t('No se pudo cortar el encastre con {id}', { id: isA ? j.partB : j.partA });
     }

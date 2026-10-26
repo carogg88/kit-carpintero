@@ -125,6 +125,16 @@ const TEMPLATES = [
       </svg>
     ),
   },
+  {
+    id: 'patas-abiertas',
+    name: tk('Taburete de patas abiertas (prueba)'),
+    icon: (
+      <svg {...icon}>
+        <rect x="7" y="7" width="18" height="4" rx="1" />
+        <path d="M10 11 5 27M22 11l5 16" />
+      </svg>
+    ),
+  },
 ] as const;
 
 const IconSave = () => (

@@ -166,6 +166,7 @@ export default {
   'No se pudo hacer el vaciado {id}': "Couldn't cut pocket {id}",
   'No se pudo hacer el bisel {id}': "Couldn't make bevel {id}",
   'No se pudo cortar el encastre con {id}': "Couldn't cut the joint with {id}",
+  'El encastre con {id} todavía no sigue la pata inclinada': 'The joint with {id} does not follow the leaning leg yet',
 
   // Inicio y rutas
   'No encontramos ese proyecto en este dispositivo.': "We couldn't find that project on this device.",
@@ -374,4 +375,10 @@ export default {
   'Agregar un punto entre el {a} y el {b}': 'Add a point between {a} and {b}',
   'Agregar un punto después': 'Add a point after',
   'Mover los puntos en el modelo': 'Move the points in the model',
+  'Entre -20° y 20°': 'Between -20° and 20°',
+  'Inclinar la pata (prueba)': 'Lean the leg (test)',
+  'De frente (°)': 'From the front (°)',
+  'De costado (°)': 'From the side (°)',
+  'Inclinaste {id}': 'You leaned {id}',
+  'Positivo: la punta de abajo va hacia la derecha (de frente) o hacia adelante (de costado).': 'Positive: the bottom end moves right (from the front) or forward (from the side).',
 } satisfies Record<string, string>;

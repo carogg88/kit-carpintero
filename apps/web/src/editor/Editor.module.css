@@ -409,6 +409,7 @@
 .inlineField .error { position: absolute; top: 100%; left: 0; white-space: nowrap; }
 .dims { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); align-items: start; }
 .dims legend { grid-column: 1 / -1; }
+.dims > .fieldNote { grid-column: 1 / -1; }
 .plainFieldset { border: 0; margin: 0; padding: 0; }
 .row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .stack { display: flex; flex-direction: column; gap: var(--space-2); }

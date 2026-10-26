@@ -1,6 +1,7 @@
 import { boardFeet, LENGTHS_M, planedMm, stockFor, stockKind, type StockKind } from './catalog/boards';
 import { boxSize, partBox, type Box } from './geometry';
 import { isAngleCut } from './bevels';
+import { leanFrame, leanWork } from './lean';
 import { arcInfo } from './pockets';
 import { describeSection, sectionBox } from './sections';
 import { describeTurning } from './turning';
@@ -84,7 +85,12 @@ const WORK_NAMES: Record<string, [string, string]> = {
 
 /** Medidas de corte y trabajos de una pieza, según sus encastres. */
 export function cutPiece(part: Part, project: Project): CutPiece {
-  const box = partBox(part);
+  const straight = partBox(part);
+  // Una pata inclinada sale de una madera más larga que su altura: de punta larga a punta larga.
+  const lean = leanFrame(part);
+  const box: Box = lean
+    ? { min: [straight.min[0], straight.max[1] - lean.length + lean.rise, straight.min[2]], max: [straight.max[0], straight.max[1] + lean.rise, straight.max[2]] }
+    : straight;
   let outer = box;
   // Un tramo más grueso pide una tabla más gruesa: la pieza se corta del tamaño mayor y se rebaja el resto.
   for (const sec of part.sections) outer = unionBox(outer, sectionBox(part, sec));
@@ -174,6 +180,7 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   }
   const angled = part.bevels.filter((b) => isAngleCut(part, b)).length;
   if (angled) work.push(plural(angled, tk('{n} corte en ángulo'), tk('{n} cortes en ángulo')));
+  if (lean) work.push(leanWork(lean));
   const rounded = part.bevels.filter((b) => b.round);
   const flat = part.bevels.length - angled - rounded.length;
   if (flat) work.push(plural(flat, tk('{n} bisel'), tk('{n} biseles')));

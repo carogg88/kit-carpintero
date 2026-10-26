@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -148,6 +148,12 @@ export const Part = z.object({
    * que la forma común.
    */
   orient: z.tuple([z.number().int(), z.number().int(), z.number().int()]).optional(),
+  /**
+   * Pata inclinada (ver `lean.ts`): cuántos grados se abre la punta de abajo, vista de frente (positivo hacia la
+   * derecha, +X) y vista de costado (positivo hacia adelante, +Z). Gira sobre el centro de la punta de arriba y
+   * las dos puntas quedan horizontales, a la misma altura que la pieza derecha.
+   */
+  lean: z.tuple([z.number(), z.number()]).optional(),
 });
 export type Part = z.infer<typeof Part>;
 
@@ -215,6 +221,8 @@ const migrations: Record<number, Migration> = {
   9: (d) => d,
   // v11 suma el perfil a mano en los vaciados; los viejos no tienen.
   10: (d) => d,
+  // v12 suma las patas inclinadas; las viejas van derechas.
+  11: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

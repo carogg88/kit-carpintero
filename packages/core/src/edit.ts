@@ -228,6 +228,8 @@ export function mirrorPart(parts: Part[], part: Part): MirrorResult | null {
   const twin: Part = { ...structuredClone(part), id: nextPartId(parts, prefix), name: otherSideName(part.name) };
   mirrorShape(twin, axis);
   setOrient(twin, mirrorOrient(axis));
+  // Una pata inclinada se abre hacia su lado: la gemela, hacia el otro.
+  if (twin.lean) twin.lean[axis === 0 ? 0 : 1] *= -1;
   twin.position = position;
   return { axis, part: twin };
 }
