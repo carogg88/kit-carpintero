@@ -55,7 +55,8 @@ describe('Centro de ayuda', () => {
   it('la búsqueda encuentra sin tildes y con plurales, el título primero', () => {
     const c = helpContent();
     expect(c.articles.filter((a) => a.topic === 'como-hacer')).toHaveLength(RECIPES.length);
-    expect(searchArticles(c, 'cajones')[0]?.id).toBe('cajon');
+    // "Cajones, puertas y estantes" por el plural tal cual, y la receta "Agregar un cajón…" por el singular.
+    expect(searchArticles(c, 'cajones').slice(0, 2).map((a) => a.id)).toEqual(expect.arrayContaining(['cajones-puertas', 'cajon']));
     expect(searchArticles(c, 'PULGADAS').map((a) => a.id)).toContain('unidades');
     expect(searchArticles(c, 'de')).toEqual([]);
     expect(searchArticles(c, 'xyzzy madera')).toEqual([]);

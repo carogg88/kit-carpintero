@@ -27,6 +27,7 @@ export function ShareButton({ project }: { project: Project }) {
       <button
         type="button"
         className={styles.iconBtn}
+        data-tour="share"
         aria-label={t('Compartir')}
         title={t('Compartir')}
         aria-haspopup="dialog"
