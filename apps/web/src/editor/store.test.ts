@@ -63,3 +63,58 @@ describe('vista previa', () => {
     expect([s.project, s.pending, s.ghost, s.past.length]).toEqual([before, null, null, 0]);
   });
 });
+
+describe('flechas del teclado', () => {
+  it('los toques seguidos sobre la misma pieza son un solo paso de deshacer', () => {
+    useEditor.getState().open(mesa());
+    const leg = useEditor.getState().project!.parts.find((p) => p.name.startsWith('Pata'))!;
+    const x0 = leg.position[0];
+    for (let i = 0; i < 3; i++) useEditor.getState().nudge(leg.id, 0, 1, '→');
+    const s = useEditor.getState();
+    expect(s.project!.parts.find((p) => p.id === leg.id)!.position[0]).toBe(x0 + 3);
+    expect(s.past).toHaveLength(1);
+    expect(s.notice?.text).toMatch(new RegExp(`^Corriste ${leg.id} 0,3 cm →`));
+    s.undo();
+    expect(useEditor.getState().project!.parts.find((p) => p.id === leg.id)!.position[0]).toBe(x0);
+  });
+
+  it('no baja de piso', () => {
+    useEditor.getState().open(mesa());
+    const leg = useEditor.getState().project!.parts.find((p) => p.position[1] === 0)!;
+    useEditor.getState().nudge(leg.id, 1, -10, '↓');
+    expect(useEditor.getState().project!.parts.find((p) => p.id === leg.id)!.position[1]).toBe(0);
+    expect(useEditor.getState().past).toHaveLength(0);
+  });
+});
+
+describe('piezas ocultas', () => {
+  it('ocultar la pieza elegida la suelta; elegirla en la lista la vuelve a mostrar', () => {
+    useEditor.getState().open(mesa());
+    const id = useEditor.getState().project!.parts[0]!.id;
+    useEditor.getState().select(id);
+    useEditor.getState().setHidden([id]);
+    expect(useEditor.getState().selectedId).toBeNull();
+    useEditor.getState().select(id);
+    expect(useEditor.getState().hidden).toEqual([]);
+    expect(useEditor.getState().project!.parts).toHaveLength(mesa().parts.length);
+  });
+
+  it('abrir otro proyecto muestra todo', () => {
+    useEditor.getState().open(mesa());
+    useEditor.getState().setHidden([useEditor.getState().project!.parts[0]!.id]);
+    useEditor.getState().open(mesa());
+    expect(useEditor.getState().hidden).toEqual([]);
+  });
+});
+
+describe('flechas: ida y vuelta', () => {
+  it('volver al lugar de partida borra el aviso', () => {
+    useEditor.getState().open(mesa());
+    const top = useEditor.getState().project!.parts.find((p) => p.name === 'Tapa')!;
+    useEditor.getState().nudge(top.id, 1, 10, '↑');
+    expect(useEditor.getState().notice?.text).toMatch(/^Corriste/);
+    useEditor.getState().nudge(top.id, 1, -10, '↓');
+    expect(useEditor.getState().notice).toBeNull();
+    expect(useEditor.getState().past).toHaveLength(1);
+  });
+});

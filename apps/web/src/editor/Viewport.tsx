@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -41,6 +41,7 @@ import {
   type Project,
   type Section,
 } from '@kitc/core';
+import { contactFaces } from './contact';
 import { DEAD_PX, gentle, roundMeasure } from './gesture';
 import { ghostDiff } from './ghost';
 import { useEditor, type DrawFace, type View } from './store';
@@ -55,10 +56,11 @@ const VIEW_DIRS: Record<View, [number, number, number]> = {
 const AXIS_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
 const snapName = (to: 'borde' | 'centro' | null) => (to === 'borde' ? t('borde') : to === 'centro' ? t('centro') : null);
 
-function bounds(project: Project): THREE.Box3 {
+/** Caja de las piezas a la vista (las ocultas no cuentan para encuadrar). */
+function bounds(project: Project, hidden: readonly string[] = []): THREE.Box3 {
   const b = new THREE.Box3();
   for (const p of project.parts) {
-    if (p.base.kind !== 'box') continue;
+    if (p.base.kind !== 'box' || hidden.includes(p.id)) continue;
     const { min, max } = partBox(p);
     b.union(new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)));
   }
@@ -135,7 +137,7 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   const frame = useEffectEvent((instant: boolean, with_?: Project) => {
     const p = with_ ?? useEditor.getState().project;
     if (!p || !(camera instanceof THREE.PerspectiveCamera)) return;
-    const b = bounds(p);
+    const b = bounds(p, useEditor.getState().hidden);
     const center = b.getCenter(new THREE.Vector3());
     const dir = new THREE.Vector3(...VIEW_DIRS[useEditor.getState().view]).normalize();
     // Prueba con una cámara igual: acerca o aleja hasta que las 8 esquinas entran con un margen (las patas
@@ -202,7 +204,7 @@ function CameraRig({ controlsRef }: { controlsRef: React.RefObject<OrbitControls
   // Una pieza nueva que cae fuera de la vista (una copia al costado, la gemela del otro lado), o la vista previa de
   // un cambio que se sale de la pantalla: se encuadra todo, con el fantasma adentro.
   const outOfView = (p: Project) => {
-    const b = bounds(p);
+    const b = bounds(p, useEditor.getState().hidden);
     camera.updateMatrixWorld();
     return [0, 1, 2, 3, 4, 5, 6, 7].some((i) => {
       const q = new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(camera);
@@ -632,6 +634,81 @@ function pointOnDrawFace(ray: THREE.Ray, part: Part, face: DrawFace): THREE.Vect
   return inside ? pt : null;
 }
 
+/** Cara de contacto iluminada: una lámina apenas más gruesa que la junta, por encima de todo. */
+function ContactFace({ face, accent }: { face: Box; accent: string }) {
+  const size = [0, 1, 2].map((k) => Math.max(face.max[k]! - face.min[k]!, 1.5)) as [number, number, number];
+  const center = [0, 1, 2].map((k) => (face.min[k]! + face.max[k]!) / 2) as [number, number, number];
+  const edges = useMemo(() => {
+    const [w, h, d] = [0, 1, 2].map((k) => Math.max(face.max[k]! - face.min[k]!, 1.5));
+    return new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d));
+  }, [face]);
+  useEffect(() => () => edges.dispose(), [edges]);
+  return (
+    <group position={center} renderOrder={4}>
+      <mesh renderOrder={4}>
+        <boxGeometry args={size} />
+        <meshBasicMaterial color={accent} transparent opacity={0.45} depthTest={false} depthWrite={false} />
+      </mesh>
+      <lineSegments geometry={edges} renderOrder={5}>
+        <lineBasicMaterial color={accent} depthTest={false} />
+      </lineSegments>
+    </group>
+  );
+}
+
+const ARROWS: Record<string, { dir: [number, number]; arrow: string }> = {
+  ArrowRight: { dir: [1, 0], arrow: '→' },
+  ArrowLeft: { dir: [-1, 0], arrow: '←' },
+  ArrowUp: { dir: [0, 1], arrow: '↑' },
+  ArrowDown: { dir: [0, -1], arrow: '↓' },
+};
+
+/**
+ * El eje del mueble que más se parece, en pantalla, a la dirección de la flecha, y hacia qué lado. Así las flechas
+ * siguen a la vista: en Frente, izquierda y derecha corren a lo ancho y arriba y abajo a lo alto; en Arriba, arriba
+ * y abajo corren hacia atrás y adelante; en 3D, arriba y abajo suben y bajan.
+ */
+function screenAxis(camera: THREE.Camera, at: THREE.Vector3, dir: [number, number], aspect: number): { axis: Axis; sign: 1 | -1 } {
+  camera.updateMatrixWorld();
+  const p0 = at.clone().project(camera);
+  let best = { axis: 0 as Axis, sign: 1 as 1 | -1, score: 0 };
+  for (const k of [0, 1, 2] as Axis[]) {
+    const step = new THREE.Vector3();
+    step.setComponent(k, 100);
+    const p1 = at.clone().add(step).project(camera);
+    const score = (p1.x - p0.x) * aspect * dir[0] + (p1.y - p0.y) * dir[1];
+    if (Math.abs(score) > Math.abs(best.score)) best = { axis: k, sign: score > 0 ? 1 : -1, score };
+  }
+  return { axis: best.axis, sign: best.sign };
+}
+
+/** Flechas del teclado: corren la pieza elegida 1 mm (con Shift, 10 mm), según la vista. */
+function useNudge(onNudged: (id: string) => void) {
+  const { camera, size } = useThree();
+  const onKey = useEffectEvent((e: KeyboardEvent) => {
+    const key = ARROWS[e.key];
+    if (!key || e.ctrlKey || e.metaKey || e.altKey) return;
+    const s = useEditor.getState();
+    const part = s.project?.parts.find((p) => p.id === s.selectedId);
+    if (!s.project || !part || part.base.kind !== 'box' || s.dragging || s.pending || s.drawFace) return;
+    // Escribiendo o recorriendo pestañas, menús y listas, las flechas son de ellos.
+    const el = e.target;
+    if (el instanceof HTMLElement && (/INPUT|SELECT|TEXTAREA/.test(el.tagName) || el.isContentEditable || el.closest('[role=tablist],[role=menu],[role=radiogroup],[role=listbox],[role=slider],dialog'))) return;
+    e.preventDefault();
+    const box = partBox(part);
+    const center = new THREE.Vector3(...box.min).add(new THREE.Vector3(...box.max)).multiplyScalar(0.5);
+    const { axis, sign } = screenAxis(camera, center, key.dir, size.width / Math.max(size.height, 1));
+    const step = s.project.units === 'in' ? (e.shiftKey ? 12.7 : 25.4 / 16) : e.shiftKey ? 10 : 1;
+    s.nudge(part.id, axis, sign * step, key.arrow);
+    onNudged(part.id);
+  });
+  useEffect(() => {
+    const listen = (e: KeyboardEvent) => onKey(e);
+    window.addEventListener('keydown', listen);
+    return () => window.removeEventListener('keydown', listen);
+  }, []);
+}
+
 function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
@@ -639,8 +716,33 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const ghost = useEditor((s) => s.ghost);
   const dragging = useEditor((s) => s.dragging);
   const drawFace = useEditor((s) => s.drawFace);
+  const hidden = useEditor((s) => s.hidden);
   const { camera, gl, invalidate } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
+  // Caras donde la pieza que se arrastra apoya en otras: se iluminan al encajar y un momento después de soltar.
+  const [contact, setContact] = useState<Box[]>([]);
+  const contactTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showContact = (id: string) => {
+    const p = useEditor.getState().project;
+    const moving = p?.parts.find((q) => q.id === id);
+    if (!p || moving?.base.kind !== 'box') return setContact([]);
+    const others = p.parts.filter((q) => q.id !== id && q.base.kind === 'box').map(partBox);
+    const faces = contactFaces(partBox(moving), others);
+    setContact((old) => (old.length === 0 && faces.length === 0 ? old : faces));
+  };
+  const fadeContact = () => {
+    clearTimeout(contactTimer.current);
+    contactTimer.current = setTimeout(() => {
+      setContact([]);
+      invalidate();
+    }, 700);
+  };
+  useEffect(() => () => clearTimeout(contactTimer.current), []);
+  useNudge((id) => {
+    showContact(id);
+    fadeContact();
+    invalidate();
+  });
   const colors = useMemo(
     () => ({ edge: cssColor('--ink', '#2B3628'), accent: cssColor('--accent', '#9E6027'), line: cssColor('--line-strong', '#C9C6BB'), danger: cssColor('--danger', '#B3261E') }),
     [],
@@ -763,6 +865,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           snap: snaps.length ? [...new Set(snaps)].join(' · ') : null,
         });
       }
+      clearTimeout(contactTimer.current);
+      showContact(part.id);
       invalidate();
     };
     const onUp = (ev: PointerEvent) => {
@@ -774,6 +878,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       if (controlsRef.current) controlsRef.current.enabled = true;
       const { endDrag, cancelDrag, setHint, setBubble } = useEditor.getState();
       setHint(null);
+      fadeContact();
       // Una copia que no se movió quedaría encima de la original: se descarta.
       if (copying && !moved) {
         cancelDrag();
@@ -1176,6 +1281,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       <directionalLight position={[1500, 2500, 1800]} intensity={1.4} />
       <gridHelper args={[span, span / 100, colors.line, colors.line]} position={[b.getCenter(new THREE.Vector3()).x, -0.5, b.getCenter(new THREE.Vector3()).z]} />
       {project.parts.map((p) => {
+        if (hidden.includes(p.id)) return null;
         const m = meshes.get(p.id);
         const exact = m && m.key === partKey(project, p.id) ? m : undefined;
         return (
@@ -1192,6 +1298,9 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           />
         );
       })}
+      {contact.map((f, i) => (
+        <ContactFace key={i} face={f} accent={colors.accent} />
+      ))}
       <BevelDraft accent={colors.accent} />
       <SectionDraft accent={colors.accent} />
       <FittingPreview accent={colors.accent} />

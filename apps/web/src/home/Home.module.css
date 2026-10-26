@@ -319,3 +319,14 @@
   .lastThumb { width: 48px; height: 48px; }
   .footer { padding-bottom: 6px; }
 }
+/* Cambiar el nombre desde el menú de la tarjeta. */
+.renameForm { min-width: 260px; gap: var(--space-2); padding: var(--space-3); }
+.renameForm label { font: 500 var(--text-xs) var(--font-ui); color: var(--muted); }
+.renameForm input {
+  height: 40px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink);
+  font: 400 var(--text-s) var(--font-ui);
+}
+.renameForm input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.renameActions { display: flex; justify-content: flex-end; gap: var(--space-1); }
+.renameForm .renameSave { background: var(--forest); color: var(--forest-ink); }
+.renameForm .renameSave:hover { background: var(--forest); filter: brightness(1.08); }

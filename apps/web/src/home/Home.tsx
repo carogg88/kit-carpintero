@@ -223,6 +223,7 @@ function download(p: Project) {
 /** El ⋮ de un proyecto: ir al plano, exportar o eliminar. */
 function ProjectMenu({ project, onExported, onChanged, align = 'end' }: { project: Project; onExported: (at: string) => void; onChanged: () => void; align?: 'end' | 'start' }) {
   const [open, setOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -237,15 +238,46 @@ function ProjectMenu({ project, onExported, onChanged, align = 'end' }: { projec
   }, [open]);
   return (
     <div ref={ref} className={styles.menuWrap}>
-      <button type="button" className={styles.more} aria-label={t('Más opciones de {name}', { name: projectName(project.name) })} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className={styles.more} aria-label={t('Más opciones de {name}', { name: projectName(project.name) })} aria-expanded={open} onClick={() => {
+        setOpen(!open);
+        setRenaming(false);
+      }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="5" r="2" />
           <circle cx="12" cy="12" r="2" />
           <circle cx="12" cy="19" r="2" />
         </svg>
       </button>
-      {open && (
+      {open && renaming && (
+        <form
+          className={`${styles.menu} ${styles.renameForm}`}
+          data-align={align}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const v = String(new FormData(e.currentTarget).get('nombre') ?? '').trim();
+            setOpen(false);
+            if (!v || v === projectName(project.name)) return;
+            await saveProject({ ...project, name: v, updatedAt: new Date().toISOString() });
+            onChanged();
+          }}
+        >
+          <label htmlFor={`nombre-${project.id}`}>{t('Nombre del proyecto')}</label>
+          <input id={`nombre-${project.id}`} name="nombre" autoFocus maxLength={80} defaultValue={projectName(project.name)} onFocus={(e) => e.currentTarget.select()} />
+          <span className={styles.renameActions}>
+            <button type="button" onClick={() => setOpen(false)}>
+              {t('Cancelar')}
+            </button>
+            <button type="submit" className={styles.renameSave}>
+              {t('Guardar')}
+            </button>
+          </span>
+        </form>
+      )}
+      {open && !renaming && (
         <div className={styles.menu} role="menu" data-align={align}>
+          <button type="button" role="menuitem" onClick={() => setRenaming(true)}>
+            {t('Cambiar nombre')}
+          </button>
           <button type="button" role="menuitem" onClick={() => navigate(sectionHref(project.id, 'plano'))}>
             {t('Ir al plano')}
           </button>

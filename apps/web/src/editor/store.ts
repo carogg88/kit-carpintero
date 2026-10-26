@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { syncComponents, syncJoints, t, type Bevel, type Box, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
+import { formatLength, syncComponents, syncJoints, t, type Bevel, type Box, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
 export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn';
 export type View = 'iso' | 'front' | 'side' | 'top';
@@ -90,6 +90,8 @@ interface EditorState {
   ghost: Project | null;
   /** Cambio grande que espera Aplicar o Cancelar. `select`: la pieza que queda elegida al aplicar. */
   pending: Pending | null;
+  /** Piezas ocultas en la vista 3D, para trabajar con las demás. Es solo de la vista: el proyecto no cambia. */
+  hidden: string[];
 
   open: (p: Project) => void;
   close: () => void;
@@ -129,6 +131,10 @@ interface EditorState {
   cancelPending: () => void;
   /** Fantasma mientras se escribe una medida; null lo borra. */
   setGhost: (recipe: ((p: Draft<Project>) => void) | null) => void;
+  /** Oculta estas piezas (y muestra las demás). */
+  setHidden: (ids: string[]) => void;
+  /** Corre la pieza unos milímetros (flechas del teclado). Los toques seguidos son un solo paso de deshacer. */
+  nudge: (id: string, axis: 0 | 1 | 2, mm: number, arrow: string) => void;
 }
 
 export interface Pending {
@@ -185,6 +191,11 @@ export function changeNotice(before: Project, after: Project, label?: string): s
 }
 
 let noticeKey = 0;
+
+/** Toques de flecha seguidos sobre la misma pieza y el mismo eje: se juntan en un paso. */
+const NUDGE_MS = 1500;
+let lastNudge: { id: string; axis: number; at: number; before: Project; after: Project } | null = null;
+const OPPOSITE: Record<string, string> = { '→': '←', '←': '→', '↑': '↓', '↓': '↑' };
 const noticeFor = (before: Project, after: Project, label?: string) => {
   const text = changeNotice(before, after, label);
   return text ? { notice: { text, key: ++noticeKey } } : {};
@@ -217,9 +228,10 @@ export const useEditor = create<EditorState>()((set, get) => ({
   fittingPreview: null,
   ghost: null,
   pending: null,
+  hidden: [],
 
   open: (project) =>
-    set({ fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+    set({ hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -272,6 +284,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   select: (selectedId) =>
     set((s) => ({
+      // Elegir una pieza oculta (en la lista) la vuelve a mostrar.
+      ...(selectedId && s.hidden.includes(selectedId) ? { hidden: s.hidden.filter((h) => h !== selectedId) } : {}),
       selectedId,
       ...(selectedId ? { fitting: null, fittingPreview: null } : {}),
       ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}),
@@ -319,6 +333,43 @@ export const useEditor = create<EditorState>()((set, get) => ({
     // Con un cambio grande esperando, el fantasma es el de ese cambio.
     if (!project || pending) return;
     set({ ghost: recipe ? apply(project, recipe, false) : null });
+  },
+  setHidden: (ids) => {
+    const { selectedId } = get();
+    set({ hidden: [...new Set(ids)], ...(selectedId && ids.includes(selectedId) ? { selectedId: null, bubble: null } : {}) });
+  },
+  nudge: (id, axis, mm, arrow) => {
+    const { project, past } = get();
+    const part = project?.parts.find((p) => p.id === id);
+    if (!project || !part) return;
+    const now = Date.now();
+    const chain = lastNudge && lastNudge.id === id && lastNudge.axis === axis && lastNudge.after === project && now - lastNudge.at < NUDGE_MS;
+    const before = chain ? lastNudge!.before : project;
+    // No se mete debajo del piso.
+    const next = apply(project, (d) => {
+      const q = d.parts.find((x) => x.id === id);
+      if (q) q.position[axis] = axis === 1 ? Math.max(0, q.position[axis] + mm) : q.position[axis] + mm;
+    }, true);
+    const from = before.parts.find((p) => p.id === id)?.position[axis] ?? 0;
+    const to = next.parts.find((p) => p.id === id)?.position[axis] ?? 0;
+    if (Math.abs(to - from) < 0.01 && !chain) return;
+    const net = to - from;
+    const label = t('Corriste {id} {d} {arrow}', {
+      id,
+      d: formatLength(Math.abs(net), project.units),
+      arrow: Math.sign(net) === Math.sign(mm) ? arrow : (OPPOSITE[arrow] ?? arrow),
+    });
+    lastNudge = { id, axis, at: now, before, after: next };
+    set({
+      project: next,
+      past: chain ? past : [...past, project].slice(-HISTORY),
+      future: [],
+      bubble: null,
+      ghost: null,
+      // De vuelta donde estaba: el aviso de antes ya no dice la verdad.
+      notice: null,
+      ...noticeFor(before, next, Math.abs(net) < 0.01 ? undefined : label),
+    });
   },
   setUnits: (units) => {
     const { project } = get();

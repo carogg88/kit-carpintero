@@ -21,6 +21,7 @@ import {
   IconMove,
   IconPlan,
   IconAssembly,
+  IconPencil,
   IconPlus,
   IconPush,
   IconRedo,
@@ -42,6 +43,7 @@ import { NextSteps, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
 import { Workshop, workshopFrom } from './Workshop';
 import { Viewport } from './Viewport';
+import { HiddenPill, hidePart, soloPart } from './visibility';
 import styles from './Editor.module.css';
 
 /**
@@ -174,6 +176,45 @@ function useAutosave(): SaveState {
   return state;
 }
 
+/** Nombre del proyecto en la barra: se toca y se escribe ahí mismo. */
+function ProjectTitle({ name }: { name: string }) {
+  const commit = useEditor((s) => s.commit);
+  const [editing, setEditing] = useState(false);
+  const shown = projectName(name);
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        className={styles.titleInput}
+        defaultValue={shown}
+        maxLength={80}
+        aria-label={t('Nombre del proyecto')}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={(e) => {
+          const v = e.target.value.trim();
+          setEditing(false);
+          if (v && v !== shown) commit((d) => void (d.name = v), t('El proyecto ahora se llama {name}', { name: v }));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            e.currentTarget.value = shown;
+            e.currentTarget.blur();
+          }
+        }}
+      />
+    );
+  }
+  return (
+    <h1>
+      <button type="button" className={styles.titleBtn} title={t('Tocá para cambiar el nombre')} onClick={() => setEditing(true)}>
+        <span>{shown}</span>
+        <IconPencil />
+      </button>
+    </h1>
+  );
+}
+
 /** Atajos de teclado. Las herramientas y borrar piezas solo valen en Modelo; deshacer, en todas. */
 function useShortcuts(modelo: boolean) {
   useEffect(() => {
@@ -201,6 +242,8 @@ function useShortcuts(modelo: boolean) {
       else if (k === 't') s.setTool('section');
       else if (k === 'r') s.setTool('turn');
       else if (k === 'x') s.setXray(!s.xray);
+      else if (k === 'h' && s.selectedId) hidePart(s.selectedId);
+      else if (k === 's' && s.selectedId) soloPart(s.selectedId);
       else if (k === 'escape') {
         if (s.pending) s.cancelPending();
         else if (s.drawFace) s.setDrawFace(null);
@@ -438,7 +481,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
         <div className={styles.titleBlock}>
           {modelo ? (
             <>
-              <h1>{projectName(project.name)}</h1>
+              <ProjectTitle name={project.name} />
               <span className={saveState === 'error' ? styles.errorText : styles.muted} role="status">
                 {saveText}
               </span>
@@ -546,6 +589,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 </span>
               )}
               {tool === 'select' && <ReviewPill project={project} />}
+              <HiddenPill />
             </div>
             {hint && <HintLabel hint={hint} />}
             {tool === 'select' && !empty && (

@@ -280,4 +280,18 @@ export default {
   '{field}: {value}': '{field}: {value}',
   'Vista previa · {n} uniones de {group}': 'Preview · {n} {group} joints',
   'Aplicar a las {n}': 'Apply to all {n}',
+
+  // Tanda 35: nombre del proyecto, piezas ocultas, flechas
+  'Nombre del proyecto': 'Project name',
+  'El proyecto ahora se llama {name}': 'The project is now called {name}',
+  'Corriste {id} {d} {arrow}': 'Moved {id} {d} {arrow}',
+  'Ocultar {id} (H)': 'Hide {id} (H)',
+  'Ver {id} sola (S)': 'Show only {id} (S)',
+  'Mostrar todo (S)': 'Show all (S)',
+  'Mostrar {id}': 'Show {id}',
+  'Ocultar {id}': 'Hide {id}',
+  'Viendo {id} sola': 'Showing only {id}',
+  '1 pieza oculta': '1 part hidden',
+  '{n} piezas ocultas': '{n} parts hidden',
+  'Mostrar todo': 'Show all',
 } satisfies Record<string, string>;
