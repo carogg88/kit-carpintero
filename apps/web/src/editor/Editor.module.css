@@ -903,3 +903,12 @@
 @media (max-width: 899px) {
   .stage:has(.notice) .fabWrap, .stage:has(.notice) .stageStatus { visibility: hidden; }
 }
+
+/* Ver una unión de cerca, en Uniones. */
+.jointLook {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--radius-s);
+  color: var(--muted); border: 1px solid transparent;
+}
+.jointLook:hover { color: var(--ink); background: var(--bg); border-color: var(--line); }
+.jointLook:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.jointLook svg { width: 18px; height: 18px; }

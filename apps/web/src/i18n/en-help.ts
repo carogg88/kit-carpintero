@@ -133,4 +133,8 @@ export default {
   'Desde ahí, un toque elige el grupo entero: se mueve, se corre con las flechas, se duplica, se oculta y se borra junto.': 'From then on, one tap selects the whole group: it moves, nudges with the arrows, duplicates, hides and deletes together.',
   'Para editar una pieza sola, tocala otra vez. Desagrupar las deja sueltas donde están.': 'To edit a single part, tap it again. Ungroup leaves them loose where they are.',
   'Con el grupo elegido, escribí el ancho, el alto o el fondo: las piezas largas se estiran, las demás se corren y el resto del mueble no se mueve.': 'With the group selected, type the width, height or depth: long parts stretch, the others move, and the rest of the piece stays put.',
+  'Ver un encastre de cerca': 'See a joint up close',
+  'Elegí una pieza y abrí Uniones en su panel. La lupa de cada unión la abre de cerca.': 'Select a part and open Joints in its panel. The magnifier on each joint opens it up close.',
+  'Separar piezas saca la espiga de la caja para ver las dos.': 'Pull apart slides the tenon out of the mortise so you can see both.',
+  'Mientras escribís el largo o el espesor, el detalle ya muestra cómo queda.': 'As you type the length or thickness, the detail already shows the result.',
 } satisfies Record<string, string>;

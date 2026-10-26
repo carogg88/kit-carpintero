@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { engineViewKey, getLang, partKey, withEngineLines, type Drawing, type EngineView, type Project } from '@kitc/core';
 import type { FromWorker, PartMesh, ViewLines } from '../geometry/protocol';
@@ -155,4 +155,63 @@ export function useEngineLines(project: Project, views: EngineView[]): (d: Drawi
     },
     [project, lines],
   );
+}
+
+/**
+ * Mallas exactas de unas pocas piezas de un proyecto que todavía no se guardó (una medida a medio escribir):
+ * se piden un rato después de la última tecla. Las ya calculadas quedan a mano por su `key`, así que al aplicar
+ * la medida la vista no vuelve a la caja mientras el motor rehace el proyecto.
+ */
+export function useDraftMeshes(draft: Project | null, ids: readonly string[]): ReadonlyMap<string, ExactMesh> {
+  const [meshes, setMeshes] = useState<ReadonlyMap<string, ExactMesh>>(new Map());
+  const [ready, setReady] = useState(status === 'ready');
+  useEffect(() => {
+    const on = (s: EngineStatus) => setReady(s === 'ready');
+    statusListeners.add(on);
+    return () => void statusListeners.delete(on);
+  }, []);
+  // Al cerrar el detalle se sueltan las mallas.
+  const held = useRef(meshes);
+  useEffect(() => {
+    held.current = meshes;
+  }, [meshes]);
+  useEffect(
+    () => () =>
+      held.current.forEach((m) => {
+        m.geometry.dispose();
+        m.edges.dispose();
+      }),
+    [],
+  );
+  const wanted = ids.join();
+  useEffect(() => {
+    if (!draft || !ready) return;
+    const only = wanted.split(',').filter((id) => draft.parts.some((p) => p.id === id) && meshes.get(id)?.key !== partKey(draft, id));
+    if (!only.length) return;
+    const keys = new Map(only.map((id) => [id, partKey(draft, id)]));
+    const req = nextReq++;
+    const onReply = (m: FromWorker) => {
+      if (m.type === 'ready' || m.req !== req) return;
+      replyListeners.delete(onReply);
+      if (m.type !== 'parts') return;
+      setMeshes((prev) => {
+        const next = new Map(prev);
+        for (const pm of m.parts) {
+          next.get(pm.id)?.geometry.dispose();
+          next.get(pm.id)?.edges.dispose();
+          next.set(pm.id, { key: keys.get(pm.id) ?? '', ...toGeometry(pm), ...(pm.warning ? { warning: pm.warning } : {}) });
+        }
+        return next;
+      });
+    };
+    const timer = setTimeout(() => {
+      replyListeners.add(onReply);
+      engine().postMessage({ type: 'build', project: draft, only, req });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      replyListeners.delete(onReply);
+    };
+  }, [draft, wanted, ready, meshes]);
+  return meshes;
 }

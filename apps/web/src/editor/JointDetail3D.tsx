@@ -1,9 +1,9 @@
 import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { partBox, partKey, woodById, type Box, type Joint, type Part, type Project } from '@kitc/core';
-import type { ExactMesh } from './useGeometry';
+import { explodeJoint, partBox, partKey, woodById, type Box, type Joint, type Part, type Project } from '@kitc/core';
+import { useDraftMeshes, type ExactMesh } from './useGeometry';
 import { cssColor } from './Viewport';
 
 const DIR = new THREE.Vector3(1, 0.72, 1.15).normalize();
@@ -94,24 +94,60 @@ function Piece({ part, exact, look }: { part: Part; exact: ExactMesh | undefined
   );
 }
 
+/** Corre la pieza que entra hasta `to`, de a poco: se ve cómo sale la espiga de la caja. */
+function Slide({ to, children }: { to: [number, number, number]; children: React.ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  const { invalidate } = useThree();
+  const target = useMemo(() => new THREE.Vector3(...to), [to[0], to[1], to[2]]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => invalidate(), [target, invalidate]);
+  useFrame(() => {
+    const g = ref.current;
+    if (!g || g.position.distanceTo(target) < 0.05) return;
+    // Con movimiento reducido, salta de una.
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) g.position.copy(target);
+    else g.position.lerp(target, 0.22);
+    if (g.position.distanceTo(target) < 0.5) g.position.copy(target);
+    invalidate();
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
 interface Props {
   project: Project;
   joint: Joint;
   meshes: ReadonlyMap<string, ExactMesh>;
   label: string;
+  /** Cómo quedaría con una medida a medio escribir (o un cambio esperando Aplicar): el detalle la muestra ya. */
+  draft?: Project | null;
+  /** Las dos piezas separadas, para ver la espiga afuera y la caja vacía. */
+  apart?: boolean;
 }
 
 /** Detalle 3D de una unión: la pieza que recibe en rayos X y la que entra, sólida, encuadradas en el encastre. */
-export function JointDetail3D({ project, joint, meshes, label }: Props) {
-  const a = project.parts.find((p) => p.id === joint.partA);
-  const b = project.parts.find((p) => p.id === joint.partB);
+export function JointDetail3D({ project, joint, meshes, label, draft = null, apart = false }: Props) {
+  const shown = draft ?? project;
+  const a = shown.parts.find((p) => p.id === joint.partA);
+  const b = shown.parts.find((p) => p.id === joint.partB);
+  const drafts = useDraftMeshes(draft, [joint.partA, joint.partB]);
+  /**
+   * La malla al día con lo que se muestra; si el motor todavía la está haciendo, mientras se escribe sigue la
+   * anterior (con la espiga de antes, mejor que una caja lisa).
+   */
   const exact = (id: string) => {
+    const key = partKey(shown, id);
     const m = meshes.get(id);
-    return m && m.key === partKey(project, id) ? m : undefined;
+    if (m?.key === key) return m;
+    const d = drafts.get(id);
+    if (d?.key === key) return d;
+    return draft ? (d ?? m) : undefined;
   };
   const colors = useMemo(() => ({ ink: cssColor('--ink', '#2B3628'), signal: cssColor('--signal', '#C98A4E'), xray: cssColor('--xray-edge', '#6B4A2B') }), []);
   if (!a || !b) return null;
+  const ex = explodeJoint(partBox(a), partBox(b));
+  const offset: [number, number, number] = apart ? ex.offset : [0, 0, 0];
+  // Separadas, el encuadre abarca las dos: la caja y la espiga que salió.
   const focus = focusBox(partBox(a), partBox(b));
+  if (apart) focus.union(focus.clone().translate(new THREE.Vector3(...ex.offset)));
   return (
     <Canvas
       frameloop="demand"
@@ -122,11 +158,14 @@ export function JointDetail3D({ project, joint, meshes, label }: Props) {
       aria-label={label}
       style={{ touchAction: 'none' }}
     >
-      <Rig focus={focus} frameKey={joint.id} />
+      <Rig focus={focus} frameKey={`${joint.id}-${apart}`} />
       <hemisphereLight args={['#ffffff', '#b9ad98', 1.7]} />
       <directionalLight position={[1500, 2500, 1800]} intensity={1.3} />
-      <Piece part={b} exact={exact(b.id)} look={{ fill: colors.signal, edge: colors.ink, xray: false }} />
-      <Piece part={a} exact={exact(a.id)} look={{ fill: woodById(a.wood)?.color ?? '#D9BC8C', edge: colors.xray, xray: true }} />
+      <Slide to={offset}>
+        <Piece part={b} exact={exact(b.id)} look={{ fill: colors.signal, edge: colors.ink, xray: false }} />
+      </Slide>
+      {/* Separadas, la que recibe va sólida: la caja vacía se ve mejor que en rayos X. */}
+      <Piece part={a} exact={exact(a.id)} look={{ fill: woodById(a.wood)?.color ?? '#D9BC8C', edge: apart ? colors.ink : colors.xray, xray: !apart }} />
     </Canvas>
   );
 }

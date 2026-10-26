@@ -111,6 +111,15 @@ const RECIPES: Recipe[] = [
     show: { target: 'sections', title: tk('Uniones está acá'), text: tk('En las pestañas de arriba, al lado de Modelo.') },
   },
   {
+    id: 'cerca',
+    title: tk('Ver un encastre de cerca'),
+    steps: [
+      tk('Elegí una pieza y abrí Uniones en su panel. La lupa de cada unión la abre de cerca.'),
+      tk('Separar piezas saca la espiga de la caja para ver las dos.'),
+      tk('Mientras escribís el largo o el espesor, el detalle ya muestra cómo queda.'),
+    ],
+  },
+  {
     id: 'cajon',
     title: tk('Agregar un cajón, una puerta o estantes'),
     steps: [tk('Con ninguna pieza elegida, tocá Agregar pieza.'), tk('Elegí Cajón, Puerta o Estantes.'), tk('Tocá el hueco donde va y revisá las opciones. Se arma con sus uniones.')],

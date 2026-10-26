@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { produce, type Draft } from 'immer';
 import {
   BISCUITS,
@@ -224,6 +224,9 @@ interface DetailProps {
   onBack: () => void;
 }
 
+/** Separar las piezas vale para todas las uniones mientras la app está abierta. */
+let apartOn = false;
+
 function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onBack }: DetailProps) {
   const commit = useEditor((s) => s.commit);
   const typeName = useId();
@@ -232,6 +235,13 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   const [choosing, setChoosing] = useState(false);
   // Un cambio que va a todo el grupo espera confirmación, con lo que cambia en los cortes a la vista.
   const [pendingAll, setPendingAll] = useState<{ title: string; recipe: (d: Draft<Project>) => void } | null>(null);
+  // Mientras se escribe una medida, el detalle 3D ya muestra cómo queda (solo esta unión).
+  const [draft, setDraft] = useState<Project | null>(null);
+  const [apart, setApartState] = useState(apartOn);
+  const setApart = (on: boolean) => {
+    apartOn = on;
+    setApartState(on);
+  };
   const a = project.parts.find((p) => p.id === joint.partA);
   const b = project.parts.find((p) => p.id === joint.partB);
   if (!a || !b) return null;
@@ -281,7 +291,24 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
     });
 
   const length = (key: string, label: string, min = 1) => (
-    <LengthField key={`${joint.id}-${key}`} label={label} mm={params[key] ?? 0} units={units} min={min} onCommit={(v) => setParam(key, v, label)} />
+    <LengthField
+      key={`${joint.id}-${key}`}
+      label={label}
+      mm={params[key] ?? 0}
+      units={units}
+      min={min}
+      onCommit={(v) => setParam(key, v, label)}
+      onDraft={(v) =>
+        setDraft(
+          v === null
+            ? null
+            : produce(project, (d) => {
+                const j = d.joints.find((x) => x.id === joint.id);
+                if (j) j.params[key] = v;
+              }),
+        )
+      }
+    />
   );
   const choose = (key: string, label: string, values: number[], text: (v: number) => string = String) => (
     <label key={key} className={styles.field}>
@@ -374,6 +401,8 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             project={project}
             joint={joint}
             meshes={meshes}
+            draft={draft ?? preview}
+            apart={apart}
             label={t('Detalle en rayos X: {b} entra en {a} con {joint}', {
               b: `${b.id} ${b.name}`,
               a: `${a.id} ${a.name}`,
@@ -385,9 +414,12 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             {legendB}
           </span>
           <span className={styles.legend} style={{ top: 44 }}>
-            <span className={styles.swatchXray} aria-hidden="true" />
-            {t('{part} en rayos X', { part: partWord(a) })}
+            <span className={apart ? styles.swatchWood : styles.swatchXray} aria-hidden="true" />
+            {apart ? partWord(a) : t('{part} en rayos X', { part: partWord(a) })}
           </span>
+          <button type="button" className={styles.apartBtn} aria-pressed={apart} title={t('Separa las dos piezas para ver la espiga afuera y la caja vacía')} onClick={() => setApart(!apart)}>
+            {apart ? t('Juntar') : t('Separar piezas')}
+          </button>
           <JointLocator project={project} joint={joint} meshes={meshes} />
           <figcaption>{t('Arrastrá para girar el detalle')}</figcaption>
         </figure>
@@ -512,8 +544,10 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
 }
 
 export function JointsView({ project, meshes }: { project: Project; meshes: ReadonlyMap<string, ExactMesh> }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  // Si se llegó desde una pieza en el Modelo, se abre esa unión.
+  const [selectedId, setSelectedId] = useState<string | null>(() => useEditor.getState().jointFocus);
+  const [detailOpen, setDetailOpen] = useState(() => !!useEditor.getState().jointFocus);
+  useEffect(() => useEditor.getState().setJointFocus(null), []);
   const [applyAll, setApplyAll] = useState(true);
   const groups = groupJoints(project);
   const joint = project.joints.find((j) => j.id === selectedId) ?? groups[0]?.joints[0];

@@ -64,7 +64,7 @@ import { GoldenCard, goldenCount } from './Golden';
 import { Accordion } from '../ui/Accordion';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
-import { IconGroup, IconLink, IconPlus, IconRotate, IconTrash, IconWarn } from './icons';
+import { IconGroup, IconLink, IconPlus, IconRotate, IconTrash, IconWarn, IconZoomIn } from './icons';
 import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
@@ -225,6 +225,16 @@ function JointRow({ joint, partId, project }: { joint: Joint; partId: string; pr
           </option>
         ))}
       </select>
+      {/* De cerca: el encastre en 3D, con las piezas separadas si se quiere, en Uniones. */}
+      <a
+        className={styles.jointLook}
+        href={sectionHref(project.id, 'uniones')}
+        aria-label={t('Ver de cerca la unión con {id}', { id: otherId })}
+        title={t('Ver de cerca')}
+        onClick={() => useEditor.getState().setJointFocus(joint.id)}
+      >
+        <IconZoomIn />
+      </a>
     </li>
   );
 }
