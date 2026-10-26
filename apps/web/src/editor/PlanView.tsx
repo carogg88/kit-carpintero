@@ -8,6 +8,7 @@ import {
   drawPart,
   drawView,
   faceLabelOf,
+  formatAngle,
   facePattern,
   faceName,
   formatNumber,
@@ -26,6 +27,7 @@ import {
   turnSegments,
   type CutRow,
   type Drawing,
+  type AngleMark,
   type ArcMark,
   type Part,
   type Turning,
@@ -242,6 +244,29 @@ function Radius({ m, at, text }: { m: ArcMark; at: Place; text: string }) {
         y={horizontal ? ey + 1 : ey + (dy > 0 ? 3 : -1.2)}
         textAnchor={horizontal ? (dx > 0 ? 'start' : 'end') : 'middle'}
       >
+        {text}
+      </text>
+    </g>
+  );
+}
+
+/** Ángulo de una punta cortada en ángulo, entre el canto y la punta: el que se toma con la falsa escuadra. */
+function AngleArc({ m, at, text }: { m: AngleMark; at: Place; text: string }) {
+  const x = px(at, m.at[0]);
+  const y = py(at, m.at[1]);
+  const r = 6;
+  // En la hoja y crece hacia abajo.
+  const a: [number, number] = [m.a[0], -m.a[1]];
+  const b: [number, number] = [m.b[0], -m.b[1]];
+  const sweep = a[0] * b[1] - a[1] * b[0] > 0 ? 1 : 0;
+  const mid = [a[0] + b[0], a[1] + b[1]];
+  const len = Math.hypot(mid[0]!, mid[1]!) || 1;
+  const tx = x + (mid[0]! / len) * (r + 4);
+  const ty = y + (mid[1]! / len) * (r + 4) + 1;
+  return (
+    <g className={styles.dim}>
+      <path d={`M ${x + a[0] * r} ${y + a[1] * r} A ${r} ${r} 0 0 ${sweep} ${x + b[0] * r} ${y + b[1] * r}`} fill="none" />
+      <text x={tx} y={ty} textAnchor="middle">
         {text}
       </text>
     </g>
@@ -602,6 +627,7 @@ function partSheets(project: Project, refine: Refine, colors: ReadonlyMap<string
       const d = refine(drawPart(project, part));
       const marks = describePartJoints(project, part, n);
       const notes = [...marks, ...(r.work.length ? [capitalize(r.work.join(' · '))] : [])];
+      if (d.angles?.length) notes.push(t('Los ángulos dibujados son los de la falsa escuadra: entre el canto y la punta larga.'));
       if (r.ids.length > 1 && marks.length) {
         notes.push(t('Medido en {id}; las otras son iguales, o en espejo donde haga falta.', { id: r.ids[0]! }));
       }
@@ -678,6 +704,7 @@ function partSheets(project: Project, refine: Refine, colors: ReadonlyMap<string
             <Dim from={px(p, d.bounds.u0)} to={px(p, d.bounds.u1)} at={py(p, d.bounds.v0)} offset={below} text={n(d.bounds.u1 - d.bounds.u0)} />
             <Dim vertical from={py(p, d.bounds.v1)} to={py(p, d.bounds.v0)} at={px(p, d.bounds.u0)} offset={d.stops?.v.length ? -11 : -5} text={n(d.bounds.v1 - d.bounds.v0)} />
             {d.arcs?.map((m) => <Radius key={m.id} m={m} at={p} text={`R ${n(m.radius)}`} />)}
+            {d.angles?.map((m, j) => <AngleArc key={`ang${j}`} m={m} at={p} text={formatAngle(Math.round(m.deg * 2) / 2)} />)}
             {lines.length > 0 && (
               <text className={`${styles.notes} ${styles.cellMeta}`}>
                 {lines.map((l, j) => (

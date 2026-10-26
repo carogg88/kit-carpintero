@@ -4,6 +4,7 @@ import { mirrorPart } from './edit';
 import { isLeaning, leanedBox, leanFrame, leanPoint } from './lean';
 import { createSplayedStool, leanTestStool } from './templates/leanTest';
 import { leanFollow } from './follow';
+import { drawPart, drawView } from './drawing';
 import type { Part } from './project';
 
 const leg = (lean?: [number, number]): Part => ({
@@ -63,7 +64,7 @@ describe('patas inclinadas', () => {
     const p = leg([10, 0]);
     const c = cutPiece(p, { parts: [p], joints: [] } as never);
     expect(c.cut[0]).toBeCloseTo(leanFrame(p)!.length, 6);
-    expect(c.work).toContain('puntas cortadas paralelas, a 10°');
+    expect(c.work).toContain('puntas cortadas paralelas, a 10°: falsa escuadra a 80° del canto');
   });
 
   it('la gemela se abre hacia el otro lado', () => {
@@ -133,5 +134,35 @@ describe('travesaños entre patas inclinadas', () => {
     const flat = { ...straight, parts: straight.parts.map((p) => ({ ...p, lean: undefined })) };
     expect(leanFollow(flat, flat.parts.find((p) => p.id === 'R1')!)).toBeNull();
     expect(leanFollow(stool, stool.parts.find((p) => p.id === 'S1')!)).toBeNull();
+  });
+});
+
+describe('despiece de piezas inclinadas', () => {
+  const stool = createSplayedStool({ splay: 3 }, 'guatambu', '2026-10-26T00:00:00Z');
+
+  it('la pata se dibuja derecha, de punta larga a punta larga, con el ángulo de la falsa escuadra', () => {
+    const leg = stool.parts.find((p) => p.id === 'P3')!;
+    const f = leanFrame(leg)!;
+    const d = drawPart(stool, leg);
+    expect(d.engine?.local).toBe('P3');
+    // El largo de la pata (sin la espiga, que sobresale arriba) va a lo ancho del dibujo.
+    expect(d.rects[0]!.rect.u1 - d.rects[0]!.rect.u0).toBeCloseTo(f.length, 6);
+    expect(d.angles).toHaveLength(2);
+    for (const m of d.angles!) expect(m.deg).toBeCloseTo(90 - f.cut[0], 6);
+  });
+
+  it('el travesaño se dibuja con los hombros en ángulo', () => {
+    const r1 = stool.parts.find((p) => p.id === 'R1')!;
+    const fl = leanFollow(stool, r1)!;
+    const d = drawPart(stool, r1);
+    expect(d.engine?.local).toBeUndefined();
+    expect(d.angles).toHaveLength(2);
+    for (const m of d.angles!) expect(m.deg).toBeCloseTo(90 - fl.ends[0]!.shoulder[0], 6);
+  });
+
+  it('en las vistas generales la pata ocupa su lugar inclinado', () => {
+    const d = drawView(stool, 'front');
+    const p3 = d.rects.find((r) => r.id === 'P3')!.rect;
+    expect(p3.u1).toBeCloseTo(leanedBox(stool.parts.find((p) => p.id === 'P3')!).max[0], 6);
   });
 });

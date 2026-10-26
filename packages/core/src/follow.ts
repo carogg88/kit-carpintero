@@ -1,6 +1,6 @@
 import { boxSize, otherAxes, partBox, type Axis, type Box, type Vec3 } from './geometry';
 import { defaultMortiseParams, endJoint } from './joints';
-import { isLeaning, leanFrame, leanPoint, rotateVec, type LeanFrame } from './lean';
+import { isLeaning, leanedBox, leanFrame, leanPoint, rotateVec, type LeanFrame } from './lean';
 import type { Joint, Part, Project } from './project';
 import { t } from './i18n';
 import { formatAngle } from './bevels';
@@ -148,12 +148,89 @@ export function followMortise(f: Follow, end: FollowEnd, part: Part): { tenon: B
 /** Encastres que ya siguen a la pata inclinada: los demás todavía no se cortan. */
 export const FOLLOW_JOINTS = new Set(['tope', 'mortaja']);
 
-/** "hombros en ángulo, a 8°" para la lista de cortes. */
+/** "hombros en ángulo, a 8°: falsa escuadra a 82° del canto" para la lista de cortes. */
 export function followWork(f: Follow): string | null {
   const half = (a: number) => Math.round(a * 2) / 2;
   const angles = f.ends.map((e) => e.shoulder.map(half) as [number, number]).filter(([a, b]) => a || b);
   if (!angles.length) return null;
   const [a, b] = angles.reduce((m, x) => [Math.max(m[0], x[0]), Math.max(m[1], x[1])], [0, 0]);
-  if (!a || !b) return t('hombros en ángulo, a {a}', { a: formatAngle(Math.max(a, b)) });
-  return t('hombros en ángulo compuesto: {a} contra el alto y {b} de costado', { a: formatAngle(a), b: formatAngle(b) });
+  if (!a || !b) {
+    const c = Math.max(a, b);
+    return t('hombros en ángulo, a {a}: falsa escuadra a {g} del canto', { a: formatAngle(c), g: formatAngle(90 - c) });
+  }
+  return t('hombros en ángulo compuesto, {a} contra el alto y {b} de costado: falsa escuadra a {ga} y {gb} del canto', {
+    a: formatAngle(a),
+    b: formatAngle(b),
+    ga: formatAngle(90 - a),
+    gb: formatAngle(90 - b),
+  });
+}
+
+/** Un plano: su normal y un punto. */
+export interface EndPlane {
+  n: Vec3;
+  p: Vec3;
+}
+
+/** Las puntas en ángulo de una pieza, para dibujarla en el despiece. */
+export interface PartEnds {
+  /** Se dibuja derecha, sin la inclinación (una pata): el motor la desgira antes de proyectarla. */
+  local: boolean;
+  /** Eje del largo, y la pieza de punta larga a punta larga en el marco del dibujo. */
+  along: Axis;
+  box: Box;
+  /** Plano de cada punta en ángulo (la del lado menor y la del mayor sobre `along`). */
+  lo?: EndPlane;
+  hi?: EndPlane;
+}
+
+/** Dónde corta un plano a la recta que pasa por `q` a lo largo de `axis`, o la punta de la caja si no hay plano. */
+export const endAt = (plane: EndPlane | undefined, q: Vec3, axis: Axis, fallback: number) => (plane ? along(plane.n, plane.p, q, axis) : fallback);
+
+/** Lleva un punto de la pata inclinada a donde estaría en la pata derecha. */
+export function unleanPoint(f: LeanFrame, p: Vec3): Vec3 {
+  const r = rotateVec([p[0] - f.pivot[0], p[1] - f.pivot[1], p[2] - f.pivot[2]], f.axis, -f.angle);
+  return [r[0] + f.pivot[0], r[1] + f.pivot[1], r[2] + f.pivot[2]];
+}
+
+/**
+ * Las puntas en ángulo de una pata inclinada (vista derecha, con las dos puntas cortadas en ángulo) o de un faldón
+ * o travesaño que la sigue (con los hombros en ángulo). null si la pieza tiene las puntas a escuadra.
+ */
+export function partEnds(project: Pick<Project, 'parts' | 'joints'>, part: Part): PartEnds | null {
+  const f = leanFrame(part);
+  if (f) {
+    // Derecha: el piso y el asiento quedan como planos inclinados que cortan las puntas.
+    const n = rotateVec([0, 1, 0], f.axis, -f.angle);
+    const s = (f.pivot[1] - f.height - f.pivot[1]) / f.dir[1];
+    const bottom: Vec3 = [f.pivot[0], f.pivot[1] - s, f.pivot[2]];
+    const b = partBox(part);
+    const box: Box = { min: [...b.min], max: [...b.max] };
+    box.min[1] = f.pivot[1] + f.rise - f.length;
+    box.max[1] = f.pivot[1] + f.rise;
+    return { local: true, along: 1, box, lo: { n, p: bottom }, hi: { n, p: [...f.pivot] } };
+  }
+  const fl = leanFollow(project, part);
+  if (!fl) return null;
+  const k = fl.axis;
+  const own = partBox(part);
+  const box: Box = { min: [...fl.box.min], max: [...fl.box.max] };
+  const hiEnd = fl.ends.find((e) => e.dir > 0);
+  const loEnd = fl.ends.find((e) => e.dir < 0);
+  box.max[k] = hiEnd?.tip ?? own.max[k] + fl.shift[k];
+  box.min[k] = loEnd?.tip ?? own.min[k] + fl.shift[k];
+  return {
+    local: false,
+    along: k,
+    box,
+    ...(loEnd ? { lo: { n: loEnd.normal, p: loEnd.point } } : {}),
+    ...(hiEnd ? { hi: { n: hiEnd.normal, p: hiEnd.point } } : {}),
+  };
+}
+
+/** La caja que ocupa la pieza en el mueble armado: inclinada, corrida o como está. */
+export function placedBox(project: Pick<Project, 'parts' | 'joints'>, part: Part): Box {
+  if (leanFrame(part)) return leanedBox(part);
+  const e = partEnds(project, part);
+  return e ? e.box : partBox(part);
 }

@@ -126,10 +126,18 @@ export function leanedBox(part: Part): Box {
   };
 }
 
-/** "puntas cortadas paralelas, a 8°": lo que hay que hacerle a la pata para la lista de cortes. */
+/** "puntas cortadas paralelas, a 8°: falsa escuadra a 82° del canto": lo que hay que hacerle a la pata, para la lista de cortes. */
 export function leanWork(f: LeanFrame): string {
   const half = (a: number) => Math.round(a * 2) / 2;
   const [a, b] = f.cut.map(half) as [number, number];
-  if (!a || !b) return t('puntas cortadas paralelas, a {a}', { a: formatAngle(Math.max(a, b)) });
-  return t('puntas cortadas paralelas, a {a} sobre una cara y {b} sobre la otra', { a: formatAngle(a), b: formatAngle(b) });
+  if (!a || !b) {
+    const c = Math.max(a, b);
+    return t('puntas cortadas paralelas, a {a}: falsa escuadra a {g} del canto', { a: formatAngle(c), g: formatAngle(90 - c) });
+  }
+  return t('puntas cortadas paralelas, a {a} sobre una cara y {b} sobre la otra: falsa escuadra a {ga} y {gb} del canto', {
+    a: formatAngle(a),
+    b: formatAngle(b),
+    ga: formatAngle(90 - a),
+    gb: formatAngle(90 - b),
+  });
 }
