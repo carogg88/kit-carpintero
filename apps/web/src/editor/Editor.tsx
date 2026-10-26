@@ -35,6 +35,8 @@ import { useEditor, useSelectedPart, type DragHint, type Tool, type View } from 
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice } from './ToolGuide';
 import { PreviewBar } from './PreviewBar';
+import { HelpButton } from '../help/HelpCenter';
+import { EDITOR_TOUR, TourOverlay, useTour } from '../help/Tour';
 import { MeasureBubble } from './MeasureBubble';
 import { NextSteps, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
@@ -380,6 +382,13 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   useEffect(() => {
     if (noParts && tool !== 'select') setTool('select');
   }, [noParts, tool, setTool]);
+  // El recorrido pedido desde el inicio arranca cuando el modelo ya se ve.
+  const hasProject = !!project;
+  useEffect(() => {
+    if (!hasProject || section !== 'modelo' || !useTour.getState().queued) return;
+    const timer = setTimeout(() => useTour.getState().start(EDITOR_TOUR), 900);
+    return () => clearTimeout(timer);
+  }, [hasProject, section]);
   if (!project) return null;
   const modelo = section === 'modelo';
   const back = modelo ? onExit : () => (location.hash = sectionHref(project.id, 'modelo'));
@@ -396,6 +405,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
 
   return (
     <div className={styles.shell}>
+      <TourOverlay />
       <header className={styles.header}>
         <span className={styles.mobileOnly}>
           <button
@@ -449,12 +459,13 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             <NextSteps key={project.id} projectId={project.id} variant="chip" />
           </span>
         )}
-        <div className={styles.desktopOnly}>
+        <div className={styles.desktopOnly} data-tour="sections">
           <SectionNav projectId={project.id} section={section} jointCount={jointCount} variant="tabs" />
         </div>
         <div className={styles.headerActions}>
+          <HelpButton className={styles.iconBtn} />
           <ShareButton project={project} />
-          <button type="button" className={styles.iconBtn} aria-label={t('Deshacer (Ctrl+Z)')} disabled={!canUndo} onClick={undo}>
+          <button type="button" className={styles.iconBtn} data-tour="undo" aria-label={t('Deshacer (Ctrl+Z)')} disabled={!canUndo} onClick={undo}>
             <IconUndo />
           </button>
           <button type="button" className={styles.iconBtn} aria-label={t('Rehacer (Ctrl+Y)')} disabled={!canRedo} onClick={redo}>
@@ -481,7 +492,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
         <main className={styles.main} data-panel={panelOpen ? 'open' : 'closed'}>
           <section className={styles.stage} aria-label={t('Vista 3D')} data-tool={tool} data-framed={framed || undefined}>
             <Viewport meshes={meshes} label={selected ? t('Modelo 3D de {name}, con {part} elegida', { name: projectName(project.name), part: selected.name }) : t('Modelo 3D de {name}', { name: projectName(project.name) })} />
-            <div className={styles.toolbar} role="toolbar" aria-label={t('Herramientas')}>
+            <div className={styles.toolbar} data-tour="tools" role="toolbar" aria-label={t('Herramientas')}>
               {TOOLS.map(([id, label, short, key, Icon]) => (
                 <button
                   key={id}
@@ -504,7 +515,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                 <span aria-hidden="true">{t('Rayos X')}</span>
               </button>
             </div>
-            <div className={styles.views} role="group" aria-label={t('Vista')}>
+            <div className={styles.views} data-tour="views" role="group" aria-label={t('Vista')}>
               {VIEWS.map(([v, label, short]) => (
                 <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
                   <span className={styles.desktopOnly}>{t(label)}</span>
@@ -560,7 +571,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             </button>
           </section>
 
-          <aside id="panel-mueble" className={styles.panel} aria-label={selected ? t('Pieza seleccionada') : t('Piezas del proyecto')}>
+          <aside id="panel-mueble" className={styles.panel} data-tour="panel" aria-label={selected ? t('Pieza seleccionada') : t('Piezas del proyecto')}>
             <span className={styles.grabber} aria-hidden="true" />
             <PartPanel />
           </aside>

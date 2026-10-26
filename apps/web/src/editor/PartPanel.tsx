@@ -511,7 +511,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       <div className={styles.partHead}>
         <div className={styles.panelHead}>
           {/* Siempre a mano, arriba: cambiar de pieza sin buscar la lista ni tocar piezas finas en el modelo. */}
-          <label className={styles.partPick}>
+          <label className={styles.partPick} data-tour="part-pick">
             <span className={styles.srOnly}>{t('Pieza elegida')}</span>
             <select value={part.id} onChange={(e) => select(e.target.value)}>
               {project.parts.map((p) => (
@@ -551,7 +551,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         />
       </div>
       <PartNotes project={project} partId={part.id} />
-      <fieldset className={styles.dims}>
+      <fieldset className={styles.dims} data-tour="part-dims">
         <legend className={styles.legend}>{t('Medidas terminadas ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}</legend>
         {/* Siempre en el mismo orden y con el nombre de la dirección: no cambian al girar la pieza con las medidas. */}
         {([0, 1, 2] as const).map((axis) => (
@@ -770,7 +770,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           )}
         </Fold>
       </div>
-      <div className={styles.panelActions}>
+      <div className={styles.panelActions} data-tour="part-actions">
         <button
           type="button"
           className={styles.btn}
@@ -1113,7 +1113,7 @@ function AddPartMenu({ fittings }: { fittings: boolean }) {
           )}
         </div>
       )}
-      <button type="button" className={styles.addDropBtn} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={() => setOpen(!open)}>
+      <button type="button" className={styles.addDropBtn} data-tour="add" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={() => setOpen(!open)}>
         <IconPlus />
         {t('Agregar pieza')}
         <svg className={styles.addDropChevron} viewBox="0 0 16 16" aria-hidden="true">

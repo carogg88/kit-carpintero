@@ -1,0 +1,29 @@
+/* Recorrido guiado: un velo con un hueco sobre lo que se explica y una tarjeta al lado. */
+.layer { position: fixed; inset: 0; z-index: 1000; }
+.veil { position: absolute; inset: 0; background: rgb(20 26 18 / 0.5); }
+.hole {
+  position: absolute; border-radius: 14px; box-shadow: 0 0 0 9999px rgb(20 26 18 / 0.5), 0 0 0 3px var(--signal);
+  transition: left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease; pointer-events: none;
+}
+.card {
+  position: absolute; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border-radius: 18px;
+  background: var(--surface); color: var(--ink); box-shadow: 0 18px 48px rgb(20 26 18 / 0.3);
+  transition: left 220ms ease, top 220ms ease;
+}
+.count { font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--accent); }
+.title { font: 500 var(--text-l) / 1.25 var(--font-display); }
+.text { margin: 0; font-size: var(--text-s); line-height: 1.5; color: var(--ink); }
+.dots { display: flex; gap: 5px; margin-top: 2px; }
+.dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); }
+.dots span[data-on] { width: 18px; border-radius: 3px; background: var(--accent); }
+.actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-1); }
+.nav { display: flex; gap: var(--space-2); }
+.actions button { height: 42px; padding: 0 16px; border-radius: var(--radius-pill); font: 600 var(--text-s) var(--font-ui); cursor: pointer; }
+.skip { border: 0; background: transparent; color: var(--muted); padding: 0 8px !important; }
+.skip:hover { color: var(--ink); }
+.back { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.next { border: 0; background: var(--forest); color: var(--forest-ink); }
+.actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .hole, .card { transition: none; }
+}
