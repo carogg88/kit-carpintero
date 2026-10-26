@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
 import { formatLength, syncComponents, syncJoints, t, type Bevel, type Box, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
-export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn';
+export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn' | 'measure';
 export type View = 'iso' | 'front' | 'side' | 'top';
 
 /** Última cara empujada: la medida que se escribe abajo se aplica a ella. */
@@ -40,6 +40,13 @@ export type DrawShape = 'rect' | 'circle' | 'arc';
 
 /** Cuerda de un arco ya marcada: falta decir cuánto se curva. */
 export type ArcChord = DrawFace & { u: number; v: number; u2: number; v2: number };
+
+/** Cara tocada con Medir: la pieza y de qué lado. */
+export interface MeasurePick {
+  partId: string;
+  axis: 0 | 1 | 2;
+  side: 1 | -1;
+}
 
 /** Panel para agregar un cajón o una puerta en un hueco del mueble. */
 export type FittingKind = 'cajon' | 'puerta' | 'estantes';
@@ -92,6 +99,8 @@ interface EditorState {
   pending: Pending | null;
   /** Piezas ocultas en la vista 3D, para trabajar con las demás. Es solo de la vista: el proyecto no cambia. */
   hidden: string[];
+  /** Las dos piezas que se están midiendo: la segunda falta hasta el segundo toque. */
+  measure: { a: MeasurePick | null; b: MeasurePick | null };
 
   open: (p: Project) => void;
   close: () => void;
@@ -133,6 +142,8 @@ interface EditorState {
   setGhost: (recipe: ((p: Draft<Project>) => void) | null) => void;
   /** Oculta estas piezas (y muestra las demás). */
   setHidden: (ids: string[]) => void;
+  /** Un toque con Medir: el primero elige A, el segundo B; uno más empieza de nuevo. null borra todo. */
+  pickMeasure: (pick: MeasurePick | null) => void;
   /** Corre la pieza unos milímetros (flechas del teclado). Los toques seguidos son un solo paso de deshacer. */
   nudge: (id: string, axis: 0 | 1 | 2, mm: number, arrow: string) => void;
 }
@@ -158,6 +169,8 @@ export interface DragHint {
   y: number;
   text: string;
   snap: string | null;
+  /** Al mover: a cuánto quedan las piezas vecinas de cada lado. */
+  dims?: string;
   /** Así no vale: se dice en lugar del imán. */
   warn?: string;
 }
@@ -229,9 +242,10 @@ export const useEditor = create<EditorState>()((set, get) => ({
   ghost: null,
   pending: null,
   hidden: [],
+  measure: { a: null, b: null },
 
   open: (project) =>
-    set({ hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+    set({ measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -291,7 +305,18 @@ export const useEditor = create<EditorState>()((set, get) => ({
       ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}),
       ...(s.bubble && s.bubble.target.id !== selectedId ? { bubble: null } : {}),
     })),
-  setTool: (tool) => set(tool === 'draw' ? { tool, arcChord: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, bubble: null }),
+  setTool: (tool) =>
+    set((s) => ({
+      ...(tool === 'draw' ? { tool, arcChord: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, bubble: null }),
+      ...(tool !== 'measure' && (s.measure.a || s.measure.b) ? { measure: { a: null, b: null } } : {}),
+    })),
+  pickMeasure: (pick) =>
+    set((s) => {
+      if (!pick) return { measure: { a: null, b: null } };
+      const { a, b } = s.measure;
+      if (a && !b && a.partId !== pick.partId) return { measure: { a, b: pick } };
+      return { measure: { a: pick, b: null } };
+    }),
   setXray: (xray) => set({ xray }),
   setCopyMove: (copyMove) => set({ copyMove }),
   setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null, bubble: null })),

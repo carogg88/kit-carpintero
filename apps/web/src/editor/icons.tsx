@@ -236,3 +236,10 @@ export const IconPencil = () => (
     <path d="m13.5 6.5 4 4" />
   </svg>
 );
+/** Medir: una regla con sus marcas. */
+export const IconMeasure = () => (
+  <svg {...base} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 15.5 15.5 3 21 8.5 8.5 21z" />
+    <path d="m7 11.5 2 2M10 8.5l1.5 1.5M13 5.5l2 2M5.5 14.5 7 16" />
+  </svg>
+);

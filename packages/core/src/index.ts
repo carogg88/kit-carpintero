@@ -28,3 +28,4 @@ export * from './share';
 export * from './review';
 export * from './golden';
 export * from './patterns';
+export * from './measure';
