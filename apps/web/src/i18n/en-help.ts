@@ -132,4 +132,5 @@ export default {
   'En el panel, tocá Agrupar (o la tecla G).': 'In the panel, tap Group (or press G).',
   'Desde ahí, un toque elige el grupo entero: se mueve, se corre con las flechas, se duplica, se oculta y se borra junto.': 'From then on, one tap selects the whole group: it moves, nudges with the arrows, duplicates, hides and deletes together.',
   'Para editar una pieza sola, tocala otra vez. Desagrupar las deja sueltas donde están.': 'To edit a single part, tap it again. Ungroup leaves them loose where they are.',
+  'Con el grupo elegido, escribí el ancho, el alto o el fondo: las piezas largas se estiran, las demás se corren y el resto del mueble no se mueve.': 'With the group selected, type the width, height or depth: long parts stretch, the others move, and the rest of the piece stays put.',
 } satisfies Record<string, string>;

@@ -1,5 +1,6 @@
 import { copyPart } from './components';
-import { partBox, type Box } from './geometry';
+import { partBox, type Axis, type Box } from './geometry';
+import { resizeFurniture, type ResizeResult } from './resize';
 import { t } from './i18n';
 import type { Group, Part, Project } from './project';
 
@@ -125,5 +126,17 @@ export function addCopies(project: Project, ids: readonly string[], copies: Part
     project,
     copies.map((c) => c.id),
     t('{name} (copia)', { name: source.name }),
+  );
+}
+
+/**
+ * Medidas del grupo: lleva estas piezas a `size` mm sobre `axis` como si fueran un mueble solo, desde su borde
+ * mínimo. Las largas se estiran y las demás se corren, sin tocar espesores; el resto del mueble queda donde está.
+ */
+export function resizeGroup(parts: Part[], ids: readonly string[], axis: Axis, size: number): ResizeResult | null {
+  return resizeFurniture(
+    parts.filter((p) => ids.includes(p.id)),
+    axis,
+    size,
   );
 }
