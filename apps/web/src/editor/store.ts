@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { formatLength, syncComponents, syncJoints, t, type Bevel, type Box, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
+import { formatLength, groupOf, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
 export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn' | 'measure';
 export type View = 'iso' | 'front' | 'side' | 'top';
@@ -60,6 +60,10 @@ interface EditorState {
   /** Hay un arrastre en curso: los cambios no pasan por el historial ni recalculan encastres. */
   dragging: boolean;
   selectedId: string | null;
+  /** Varias piezas elegidas juntas (un grupo, o Shift + clic): dos o más. Con esto, `selectedId` queda vacío. */
+  picked: string[];
+  /** Cada toque en el modelo suma o saca piezas de las elegidas, como Shift + clic (para el celular). */
+  addMode: boolean;
   tool: Tool;
   xray: boolean;
   /** Mover deja una copia en lugar de mover la pieza (botón del celular; en la compu, Ctrl u Opción). */
@@ -115,6 +119,14 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
   select: (id: string | null) => void;
+  /** Elige estas piezas juntas; con una sola, es como `select`. */
+  pick: (ids: string[]) => void;
+  /**
+   * Un toque en una pieza con Elegir. Si es de un grupo, elige el grupo entero; otro toque con el grupo ya elegido
+   * entra a esa pieza. `add` (Shift o Elegir varias) suma o saca la pieza, o el grupo, de las elegidas.
+   */
+  tapPart: (id: string, add: boolean) => void;
+  setAddMode: (on: boolean) => void;
   setTool: (t: Tool) => void;
   setXray: (on: boolean) => void;
   setCopyMove: (on: boolean) => void;
@@ -135,7 +147,7 @@ interface EditorState {
   setFitting: (f: FittingKind | null) => void;
   setFittingPreview: (p: EditorState['fittingPreview']) => void;
   /** Muestra el cambio en fantasma y espera Aplicar o Cancelar. */
-  propose: (recipe: (p: Draft<Project>) => void, label: string, opts?: { title?: string; select?: string }) => void;
+  propose: (recipe: (p: Draft<Project>) => void, label: string, opts?: { title?: string; select?: string | string[] }) => void;
   applyPending: () => void;
   cancelPending: () => void;
   /** Fantasma mientras se escribe una medida; null lo borra. */
@@ -144,8 +156,8 @@ interface EditorState {
   setHidden: (ids: string[]) => void;
   /** Un toque con Medir: el primero elige A, el segundo B; uno más empieza de nuevo. null borra todo. */
   pickMeasure: (pick: MeasurePick | null) => void;
-  /** Corre la pieza unos milímetros (flechas del teclado). Los toques seguidos son un solo paso de deshacer. */
-  nudge: (id: string, axis: 0 | 1 | 2, mm: number, arrow: string) => void;
+  /** Corre las piezas unos milímetros (flechas del teclado). Los toques seguidos son un solo paso de deshacer. */
+  nudge: (ids: string[], axis: 0 | 1 | 2, mm: number, arrow: string) => void;
 }
 
 export interface Pending {
@@ -154,7 +166,7 @@ export interface Pending {
   label: string;
   /** Lo que dice la barra de vista previa; si falta, el aviso. */
   title: string;
-  select?: string;
+  select?: string | string[];
 }
 
 export interface Notice {
@@ -184,6 +196,7 @@ const apply = (p: Project, recipe: (p: Draft<Project>) => void, sync: boolean) =
   produce(p, (d) => {
     recipe(d);
     syncComponents(p, d as Project);
+    syncGroups(d as Project);
     if (sync) d.joints = syncJoints(d.parts as Project['parts'], d.joints as Project['joints']);
     touch(d);
   });
@@ -205,6 +218,26 @@ export function changeNotice(before: Project, after: Project, label?: string): s
 
 let noticeKey = 0;
 
+/** Lo elegido, con lo que quedó después de un cambio: se va lo que se borró, y con una sola pieza deja de ser varias. */
+const keepSelection = (s: { selectedId: string | null; picked: string[] }, p: Project) => {
+  const ids = new Set(p.parts.map((x) => x.id));
+  const out: { selectedId?: null | string; picked?: string[] } = {};
+  if (s.selectedId && !ids.has(s.selectedId)) out.selectedId = null;
+  const picked = s.picked.filter((id) => ids.has(id));
+  if (picked.length !== s.picked.length) {
+    out.picked = picked.length > 1 ? picked : [];
+    if (picked.length === 1) out.selectedId = picked[0]!;
+  }
+  return out;
+};
+
+/** Cómo se nombran varias piezas en un aviso: el grupo, si son justo un grupo; si no, cuántas son. */
+export function partsLabel(p: Project, ids: readonly string[]): string {
+  if (ids.length === 1) return ids[0]!;
+  const g = groupOf(p, ids[0] ?? '');
+  return isWholeGroup(g, ids) ? g.name : t('{n} piezas', { n: ids.length });
+}
+
 /** Toques de flecha seguidos sobre la misma pieza y el mismo eje: se juntan en un paso. */
 const NUDGE_MS = 1500;
 let lastNudge: { id: string; axis: number; at: number; before: Project; after: Project } | null = null;
@@ -220,6 +253,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   future: [],
   dragging: false,
   selectedId: null,
+  picked: [],
+  addMode: false,
   tool: 'select',
   xray: false,
   copyMove: false,
@@ -245,15 +280,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
-  close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null, bubble: null }),
+    set({ picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+  close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
     const { project, past } = get();
     if (!project) return;
     const next = apply(project, recipe, true);
     set({ project: next, past: [...past, project].slice(-HISTORY), future: [], ghost: null, pending: null, ...noticeFor(project, next, label) });
-    if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
+    set(keepSelection(get(), next));
   },
 
   beginDrag: () => {
@@ -278,7 +313,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const prev = past.at(-1);
     if (!prev) return;
     set({ dragging: false, project: prev, past: past.slice(0, -1) });
-    if (get().selectedId && !prev.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
+    set(keepSelection(get(), prev));
   },
 
   undo: () => {
@@ -286,14 +321,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const prev = past.at(-1);
     if (!project || !prev) return;
     set({ project: prev, past: past.slice(0, -1), future: [project, ...future], notice: null, bubble: null, ghost: null, pending: null });
-    if (get().selectedId && !prev.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
+    set(keepSelection(get(), prev));
   },
   redo: () => {
     const { project, past, future } = get();
     const next = future[0];
     if (!project || !next) return;
     set({ project: next, past: [...past, project], future: future.slice(1), notice: null, bubble: null, ghost: null, pending: null });
-    if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
+    set(keepSelection(get(), next));
   },
 
   select: (selectedId) =>
@@ -301,10 +336,40 @@ export const useEditor = create<EditorState>()((set, get) => ({
       // Elegir una pieza oculta (en la lista) la vuelve a mostrar.
       ...(selectedId && s.hidden.includes(selectedId) ? { hidden: s.hidden.filter((h) => h !== selectedId) } : {}),
       selectedId,
-      ...(selectedId ? { fitting: null, fittingPreview: null } : {}),
+      picked: [],
+      ...(selectedId ? { fitting: null, fittingPreview: null } : { addMode: false }),
       ...(s.drawFace && s.drawFace.partId !== selectedId ? { drawFace: null } : {}),
       ...(s.bubble && s.bubble.target.id !== selectedId ? { bubble: null } : {}),
     })),
+  pick: (ids) => {
+    const list = [...new Set(ids)];
+    if (list.length < 2) return get().select(list[0] ?? null);
+    set((s) => ({
+      selectedId: null,
+      picked: list,
+      hidden: s.hidden.filter((h) => !list.includes(h)),
+      fitting: null,
+      fittingPreview: null,
+      drawFace: null,
+      bubble: null,
+    }));
+  },
+  tapPart: (id, add) => {
+    const { project, selectedId, picked, pick, select } = get();
+    if (!project) return;
+    const g = groupOf(project, id);
+    // Adentro del grupo (se está editando una de sus piezas): los toques eligen piezas sueltas.
+    const inside = !!g && !!selectedId && g.parts.includes(selectedId);
+    const unit = g && !inside ? g.parts : [id];
+    if (add) {
+      const base = picked.length ? picked : selectedId ? [selectedId] : [];
+      const has = unit.every((x) => base.includes(x));
+      return pick(has ? base.filter((x) => !unit.includes(x)) : [...base, ...unit]);
+    }
+    if (g && !inside && isWholeGroup(g, picked)) return select(id);
+    pick(unit);
+  },
+  setAddMode: (addMode) => set({ addMode }),
   setTool: (tool) =>
     set((s) => ({
       ...(tool === 'draw' ? { tool, arcChord: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, bubble: null }),
@@ -350,7 +415,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { pending, commit, select } = get();
     if (!pending) return;
     commit(pending.recipe, pending.label);
-    if (pending.select) select(pending.select);
+    if (Array.isArray(pending.select)) get().pick(pending.select);
+    else if (pending.select) select(pending.select);
   },
   cancelPending: () => set({ pending: null, ghost: null }),
   setGhost: (recipe) => {
@@ -360,31 +426,36 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set({ ghost: recipe ? apply(project, recipe, false) : null });
   },
   setHidden: (ids) => {
-    const { selectedId } = get();
-    set({ hidden: [...new Set(ids)], ...(selectedId && ids.includes(selectedId) ? { selectedId: null, bubble: null } : {}) });
+    const { selectedId, picked } = get();
+    const shown = picked.filter((id) => !ids.includes(id));
+    set({
+      hidden: [...new Set(ids)],
+      ...(selectedId && ids.includes(selectedId) ? { selectedId: null, bubble: null } : {}),
+      ...(shown.length !== picked.length ? (shown.length > 1 ? { picked: shown } : { picked: [], selectedId: shown[0] ?? null }) : {}),
+    });
   },
-  nudge: (id, axis, mm, arrow) => {
+  nudge: (ids, axis, mm, arrow) => {
     const { project, past } = get();
-    const part = project?.parts.find((p) => p.id === id);
-    if (!project || !part) return;
+    const box = project && partsBox(project.parts, ids);
+    if (!project || !box) return;
+    const key = ids.join('|');
     const now = Date.now();
-    const chain = lastNudge && lastNudge.id === id && lastNudge.axis === axis && lastNudge.after === project && now - lastNudge.at < NUDGE_MS;
+    const chain = lastNudge && lastNudge.id === key && lastNudge.axis === axis && lastNudge.after === project && now - lastNudge.at < NUDGE_MS;
     const before = chain ? lastNudge!.before : project;
-    // No se mete debajo del piso.
-    const next = apply(project, (d) => {
-      const q = d.parts.find((x) => x.id === id);
-      if (q) q.position[axis] = axis === 1 ? Math.max(0, q.position[axis] + mm) : q.position[axis] + mm;
+    // No se mete debajo del piso: un grupo baja hasta que la más baja apoya.
+    const d = axis === 1 ? Math.max(mm, -box.min[1]) : mm;
+    const next = apply(project, (p) => {
+      for (const q of p.parts) if (ids.includes(q.id)) q.position[axis] += d;
     }, true);
-    const from = before.parts.find((p) => p.id === id)?.position[axis] ?? 0;
-    const to = next.parts.find((p) => p.id === id)?.position[axis] ?? 0;
-    if (Math.abs(to - from) < 0.01 && !chain) return;
-    const net = to - from;
+    const at = (p: Project) => partsBox(p.parts, ids)?.min[axis] ?? 0;
+    const net = at(next) - at(before);
+    if (Math.abs(d) < 0.01 && !chain) return;
     const label = t('Corriste {id} {d} {arrow}', {
-      id,
+      id: partsLabel(project, ids),
       d: formatLength(Math.abs(net), project.units),
       arrow: Math.sign(net) === Math.sign(mm) ? arrow : (OPPOSITE[arrow] ?? arrow),
     });
-    lastNudge = { id, axis, at: now, before, after: next };
+    lastNudge = { id: key, axis, at: now, before, after: next };
     set({
       project: next,
       past: chain ? past : [...past, project].slice(-HISTORY),

@@ -243,3 +243,11 @@ export const IconMeasure = () => (
     <path d="m7 11.5 2 2M10 8.5l1.5 1.5M13 5.5l2 2M5.5 14.5 7 16" />
   </svg>
 );
+/** Grupo: dos piezas dentro de un contorno punteado. */
+export const IconGroup = () => (
+  <svg {...base} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 7V4a1 1 0 0 1 1-1h3M17 3h3a1 1 0 0 1 1 1v3M21 17v3a1 1 0 0 1-1 1h-3M7 21H4a1 1 0 0 1-1-1v-3" />
+    <rect x="6.5" y="6.5" width="6" height="6" rx="1" />
+    <rect x="11.5" y="11.5" width="6" height="6" rx="1" />
+  </svg>
+);

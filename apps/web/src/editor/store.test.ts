@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTemplate, TEMPLATES, templateDefaults } from '@kitc/core';
+import { buildTemplate, makeGroup, TEMPLATES, templateDefaults } from '@kitc/core';
 import { changeNotice, useEditor } from './store';
 
 const mesa = () => {
@@ -69,7 +69,7 @@ describe('flechas del teclado', () => {
     useEditor.getState().open(mesa());
     const leg = useEditor.getState().project!.parts.find((p) => p.name.startsWith('Pata'))!;
     const x0 = leg.position[0];
-    for (let i = 0; i < 3; i++) useEditor.getState().nudge(leg.id, 0, 1, '→');
+    for (let i = 0; i < 3; i++) useEditor.getState().nudge([leg.id], 0, 1, '→');
     const s = useEditor.getState();
     expect(s.project!.parts.find((p) => p.id === leg.id)!.position[0]).toBe(x0 + 3);
     expect(s.past).toHaveLength(1);
@@ -81,7 +81,7 @@ describe('flechas del teclado', () => {
   it('no baja de piso', () => {
     useEditor.getState().open(mesa());
     const leg = useEditor.getState().project!.parts.find((p) => p.position[1] === 0)!;
-    useEditor.getState().nudge(leg.id, 1, -10, '↓');
+    useEditor.getState().nudge([leg.id], 1, -10, '↓');
     expect(useEditor.getState().project!.parts.find((p) => p.id === leg.id)!.position[1]).toBe(0);
     expect(useEditor.getState().past).toHaveLength(0);
   });
@@ -111,10 +111,67 @@ describe('flechas: ida y vuelta', () => {
   it('volver al lugar de partida borra el aviso', () => {
     useEditor.getState().open(mesa());
     const top = useEditor.getState().project!.parts.find((p) => p.name === 'Tapa')!;
-    useEditor.getState().nudge(top.id, 1, 10, '↑');
+    useEditor.getState().nudge([top.id], 1, 10, '↑');
     expect(useEditor.getState().notice?.text).toMatch(/^Corriste/);
-    useEditor.getState().nudge(top.id, 1, -10, '↓');
+    useEditor.getState().nudge([top.id], 1, -10, '↓');
     expect(useEditor.getState().notice).toBeNull();
     expect(useEditor.getState().past).toHaveLength(1);
+  });
+});
+
+describe('grupos', () => {
+  const conGrupo = () => {
+    const p = structuredClone(mesa());
+    makeGroup(p, ['P1', 'P2'], 'Patas');
+    useEditor.getState().open(p);
+  };
+
+  it('tocar una pieza del grupo elige el grupo; otro toque entra a la pieza', () => {
+    conGrupo();
+    const { tapPart } = useEditor.getState();
+    tapPart('P2', false);
+    expect([useEditor.getState().picked, useEditor.getState().selectedId]).toEqual([['P1', 'P2'], null]);
+    tapPart('P2', false);
+    expect([useEditor.getState().picked, useEditor.getState().selectedId]).toEqual([[], 'P2']);
+    // Adentro del grupo, otra pieza del grupo se elige sola.
+    tapPart('P1', false);
+    expect(useEditor.getState().selectedId).toBe('P1');
+    // Una pieza de afuera sale del grupo.
+    tapPart('T1', false);
+    tapPart('P1', false);
+    expect(useEditor.getState().picked).toEqual(['P1', 'P2']);
+  });
+
+  it('Shift suma y saca piezas; con una sola deja de ser varias', () => {
+    conGrupo();
+    const { tapPart } = useEditor.getState();
+    tapPart('T1', false);
+    tapPart('P3', true);
+    expect(useEditor.getState().picked).toEqual(['T1', 'P3']);
+    tapPart('P1', true);
+    expect(useEditor.getState().picked).toEqual(['T1', 'P3', 'P1', 'P2']);
+    tapPart('P2', true);
+    tapPart('P3', true);
+    expect([useEditor.getState().picked, useEditor.getState().selectedId]).toEqual([[], 'T1']);
+  });
+
+  it('las flechas corren el grupo entero en un paso, sin meterlo bajo el piso', () => {
+    conGrupo();
+    const at = (id: string) => useEditor.getState().project!.parts.find((p) => p.id === id)!.position;
+    const [x1, x2] = [at('P1')[0], at('P2')[0]];
+    useEditor.getState().nudge(['P1', 'P2'], 0, 10, '→');
+    expect([at('P1')[0], at('P2')[0]]).toEqual([x1 + 10, x2 + 10]);
+    expect(useEditor.getState().notice?.text).toMatch(/^Corriste Patas 1 cm →/);
+    useEditor.getState().nudge(['P1', 'P2'], 1, -10, '↓');
+    expect(at('P1')[1]).toBe(0);
+  });
+
+  it('borrar las piezas elegidas deshace el grupo y suelta la selección; deshacer las trae', () => {
+    conGrupo();
+    useEditor.getState().pick(['P1', 'P2']);
+    useEditor.getState().commit((d) => void (d.parts = d.parts.filter((p) => p.id !== 'P1' && p.id !== 'P2')));
+    expect([useEditor.getState().project!.groups, useEditor.getState().picked]).toEqual([[], []]);
+    useEditor.getState().undo();
+    expect(useEditor.getState().project!.groups).toHaveLength(1);
   });
 });

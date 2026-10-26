@@ -167,7 +167,7 @@ function templateSize(id: string): string {
 
 function emptyProject(): Project {
   const now = new Date().toISOString();
-  return { schemaVersion: SCHEMA_VERSION, id: `proyecto-${now}`, name: t('Proyecto nuevo'), units: 'cm', createdAt: now, updatedAt: now, parts: [], joints: [], components: [] };
+  return { schemaVersion: SCHEMA_VERSION, id: `proyecto-${now}`, name: t('Proyecto nuevo'), units: 'cm', createdAt: now, updatedAt: now, parts: [], joints: [], components: [], groups: [] };
 }
 
 /** "hoy", "ayer" o la fecha corta. */

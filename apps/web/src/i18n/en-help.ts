@@ -127,4 +127,9 @@ export default {
   'Si una quedó corrida, Centrar la deja al medio.': 'If one is off center, Center puts it in the middle.',
   'Medir está acá': 'Measure is here',
   'Es la última herramienta. También se elige con la tecla C.': 'It is the last tool. You can also pick it with the C key.',
+  'Agrupar piezas para moverlas juntas': 'Group parts to move them together',
+  'Tocá una pieza y después las otras con Shift + clic. En el celular, tocá Elegir varias y después cada pieza.': 'Tap a part, then the others with Shift + click. On a phone, tap Select several and then each part.',
+  'En el panel, tocá Agrupar (o la tecla G).': 'In the panel, tap Group (or press G).',
+  'Desde ahí, un toque elige el grupo entero: se mueve, se corre con las flechas, se duplica, se oculta y se borra junto.': 'From then on, one tap selects the whole group: it moves, nudges with the arrows, duplicates, hides and deletes together.',
+  'Para editar una pieza sola, tocala otra vez. Desagrupar las deja sueltas donde están.': 'To edit a single part, tap it again. Ungroup leaves them loose where they are.',
 } satisfies Record<string, string>;

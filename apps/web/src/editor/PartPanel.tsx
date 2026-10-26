@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   acrossFace,
+  addCopies,
   arcInfo,
   bevelAngle,
   boxSize,
@@ -14,11 +15,17 @@ import {
   otherAxes,
   faceSize,
   duplicatePart,
+  duplicateParts,
   endJoint,
   formatLength,
   formatNumber,
   furnitureBox,
   goldenChecks,
+  groupOf,
+  isWholeGroup,
+  makeGroup,
+  partsBox,
+  ungroup,
   resizeFurniture,
   JOINT_NAMES,
   jointName,
@@ -56,11 +63,11 @@ import { GoldenCard, goldenCount } from './Golden';
 import { Accordion } from '../ui/Accordion';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
-import { IconLink, IconPlus, IconRotate, IconTrash, IconWarn } from './icons';
+import { IconGroup, IconLink, IconPlus, IconRotate, IconTrash, IconWarn } from './icons';
 import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
-import { useEditor, type FittingKind } from './store';
+import { partsLabel, useEditor, type FittingKind } from './store';
 import { EyeToggle, PartViewButtons } from './visibility';
 import styles from './Editor.module.css';
 
@@ -454,6 +461,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
   const edgeSize = op ? (op.kind === 'round' ? op.radius : op.size) : 3;
   const joints = project.joints.filter((j) => j.partA === part.id || j.partB === part.id);
   const component = project.components.find((c) => c.id === part.component);
+  const inGroup = groupOf(project, part.id);
   const n = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
 
   // Forma se abre sola cuando se le suma algo a la pieza (un vaciado recién dibujado, un bisel), para editarlo.
@@ -551,6 +559,15 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           }}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         />
+        {inGroup && (
+          <p className={styles.groupNote}>
+            <IconGroup />
+            <span>{t('Parte de {name}', { name: inGroup.name })}</span>
+            <button type="button" className={`${styles.link} ${styles.inlineLink}`} onClick={() => useEditor.getState().pick(inGroup.parts)}>
+              {t('Elegir el grupo')}
+            </button>
+          </p>
+        )}
       </div>
       <PartNotes project={project} partId={part.id} />
       <fieldset className={styles.dims} data-tour="part-dims">
@@ -838,6 +855,130 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
   );
 }
 
+/**
+ * Varias piezas elegidas juntas: un grupo (se nombra y se desagrupa) o las que se sumaron con Shift (se agrupan).
+ * Lo de abajo vale para todas: ocultar, duplicar, borrar.
+ */
+function PickedPanel({ project, ids }: { project: Project; ids: string[] }) {
+  const commit = useEditor((s) => s.commit);
+  const propose = useEditor((s) => s.propose);
+  const select = useEditor((s) => s.select);
+  const pick = useEditor((s) => s.pick);
+  const nameId = useId();
+  const group = groupOf(project, ids[0]!);
+  const whole = isWholeGroup(group, ids) ? group : undefined;
+  const label = partsLabel(project, ids);
+  const box = partsBox(project.parts, ids);
+  const size = box
+    ? [0, 1, 2].map((k) => formatLength(box.max[k]! - box.min[k]!, project.units).replace(/ cm|″/, '')).join(' × ') + (project.units === 'cm' ? ' cm' : '″')
+    : '';
+  const parts = ids.map((id) => project.parts.find((p) => p.id === id)).filter((p): p is Part => !!p);
+  return (
+    <>
+      <div className={styles.partHead}>
+        <div className={styles.panelHead}>
+          <span className={styles.eyebrow}>
+            {whole ? t('Grupo · {n} piezas', { n: ids.length }) : t('{n} piezas elegidas', { n: ids.length })}
+          </span>
+          <PartViewButtons id={ids} name={label} />
+          <button type="button" className={styles.link} onClick={() => select(null)}>
+            {t('Ver el mueble')}
+          </button>
+        </div>
+        {whole ? (
+          <>
+            <label className={styles.srOnly} htmlFor={nameId}>
+              {t('Nombre del grupo')}
+            </label>
+            <input
+              id={nameId}
+              className={styles.nameInput}
+              key={`${whole.id}-${whole.name}`}
+              defaultValue={whole.name}
+              title={t('Tocá para cambiar el nombre')}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v && v !== whole.name)
+                  commit((d) => {
+                    const g = d.groups.find((x) => x.id === whole.id);
+                    if (g) g.name = v;
+                  });
+                else e.target.value = whole.name;
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            />
+          </>
+        ) : (
+          <h2 className={styles.panelTitle}>{t('Varias piezas')}</h2>
+        )}
+        <span className={styles.eyebrow}>
+          {t('Ancho × alto × fondo')} · {size}
+        </span>
+      </div>
+      <p className={styles.muted}>
+        {whole
+          ? t('Se mueven, se copian, se ocultan y se borran juntas. Para editar una sola, tocala otra vez en el modelo o elegila en la lista.')
+          : t('Agrupalas para que se muevan juntas. Shift + clic (o Elegir varias) suma o saca piezas.')}
+      </p>
+      <ul className={styles.partList} data-many={parts.length > PART_LIST_MAX || undefined}>
+        {parts.map((p) => (
+          <li key={p.id}>
+            <button type="button" onClick={() => select(p.id)}>
+              <strong>{p.id}</strong>
+              <span>{p.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className={styles.panelActions} data-tour="part-actions">
+        {whole ? (
+          <button type="button" className={styles.btn} onClick={() => commit((d) => ungroup(d as Project, whole.id), t('Desagrupaste {name}', { name: whole.name }))}>
+            {t('Desagrupar')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`${styles.btn} ${styles.btnPrimary}`}
+            onClick={() => {
+              let made: string | undefined;
+              commit((d) => void (made = makeGroup(d as Project, ids)?.name), t('Agrupaste {ids}', { ids: [...ids].sort().join(', ') }));
+              if (made) pick(ids);
+            }}
+          >
+            {t('Agrupar')}
+          </button>
+        )}
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => {
+            const copies = duplicateParts(project.parts, ids);
+            propose((d) => void addCopies(d as Project, ids, copies), t('Duplicaste {id}', { id: label }), {
+              title: t('Copia de {id} al costado del mueble', { id: label }),
+              select: copies.map((c) => c.id),
+            });
+          }}
+        >
+          {t('Duplicar')}
+        </button>
+        <button
+          type="button"
+          className={`${styles.iconBtn} ${styles.dangerIcon}`}
+          aria-label={t('Eliminar {id}', { id: label })}
+          title={t('Eliminar')}
+          onClick={() =>
+            propose((d) => void (d.parts = d.parts.filter((x) => !ids.includes(x.id))), t('Borraste {id}', { id: label }), {
+              title: t('¿Borrar {id}? Son {n} piezas.', { id: label, n: ids.length }),
+            })
+          }
+        >
+          <IconTrash />
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** Si la pieza es parte de un componente: cuántas copias tiene y qué cambia junto. */
 function ComponentNote({ project, part, name }: { project: Project; part: Part; name: string }) {
   const copies = componentCopies(project, part);
@@ -972,7 +1113,7 @@ function ProjectOverview({ project }: { project: Project }) {
   const box = furnitureBox(project.parts);
   const unit = project.units === 'cm' ? ' cm' : '″';
   const size = box ? boxSize(box).map((mm) => formatLength(mm, project.units).replace(/ cm|″/, '')).join(' × ') + unit : '';
-  const many = project.parts.length > PART_LIST_MAX;
+  const many = project.parts.length + project.groups.length > PART_LIST_MAX;
   return (
     <>
       <div>
@@ -1010,11 +1151,28 @@ function ProjectOverview({ project }: { project: Project }) {
           <Accordion
             variant="line"
             title={t('Piezas')}
-            summary={project.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: project.parts.length })}
+            summary={[
+              project.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: project.parts.length }),
+              project.groups.length && (project.groups.length === 1 ? t('1 grupo') : t('{n} grupos', { n: project.groups.length })),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
             open={open.has('piezas')}
             onToggle={(on) => toggle('piezas', on)}
           >
             <ul className={styles.partList} data-many={many || undefined}>
+              {project.groups.map((g) => (
+                <li key={g.id} data-group>
+                  <button type="button" onClick={() => useEditor.getState().pick(g.parts)}>
+                    <IconGroup />
+                    <span className={styles.groupRow}>
+                      <span>{g.name}</span>
+                      <span className={styles.groupIds}>{g.parts.join(', ')}</span>
+                    </span>
+                  </button>
+                  <EyeToggle id={g.id} ids={g.parts} name={g.name} />
+                </li>
+              ))}
               {project.parts.map((p) => (
                 <li key={p.id}>
                   <button type="button" onClick={() => select(p.id)}>
@@ -1115,9 +1273,11 @@ function AddPartMenu({ fittings }: { fittings: boolean }) {
 export function PartPanel() {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
+  const picked = useEditor((s) => s.picked);
   const fitting = useEditor((s) => s.fitting);
   if (!project) return null;
   if (fitting) return <FittingPanel key={fitting} project={project} kind={fitting} />;
+  if (picked.length > 1) return <PickedPanel project={project} ids={picked} />;
   const part = selectedId ? project.parts.find((p) => p.id === selectedId) : undefined;
   return part ? <PartEditor key={part.id} part={part} project={project} /> : <ProjectOverview project={project} />;
 }

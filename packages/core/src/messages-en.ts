@@ -497,4 +497,5 @@ export const MESSAGES_EN: Record<string, string> = {
     'They take up the same space ({mm}) and no joint accounts for it: they cannot be assembled like this.',
   'Corré una hasta que solo se toquen, o acortala. Con Rayos X (tecla X) se ve dónde se cruzan.':
     'Move one until they only touch, or shorten it. X-ray (X key) shows where they overlap.',
+  'Grupo {n}': 'Group {n}',
 };

@@ -78,7 +78,7 @@ function carcassProject(id: string, name: string, now: string, parts: Part[]): P
     const params = defaultJointParams(type, partBox(a), partBox(b));
     return params ? { ...j, type, params: { ...params } } : j;
   });
-  return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [] };
+  return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [], groups: [] };
 }
 
 /** Suma un cajón, una puerta o un estante armado al proyecto. */

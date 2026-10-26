@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   acrossFace,
+  addCopies,
   arcInfo,
   arcPoints,
   arcTouchesEdge,
@@ -11,12 +12,13 @@ import {
   pocketRegion,
   bevelSolid,
   boxSize,
-  copyPart,
+  copyParts,
   cornerNear,
   dimensions,
   neighbors,
   furnitureBox,
   formatLength,
+  groupOf,
   edgeNear,
   isAngleCut,
   MEASURED_FROM,
@@ -29,6 +31,7 @@ import {
   newPocket,
   otherAxes,
   partBox,
+  partsBox,
   partKey,
   snapCoord,
   snapMove,
@@ -47,7 +50,7 @@ import {
 import { contactFaces } from './contact';
 import { DEAD_PX, gentle, roundMeasure } from './gesture';
 import { ghostDiff } from './ghost';
-import { useEditor, type DrawFace, type View } from './store';
+import { partsLabel, useEditor, type DrawFace, type View } from './store';
 import type { ExactMesh } from './useGeometry';
 
 const VIEW_DIRS: Record<View, [number, number, number]> = {
@@ -591,6 +594,8 @@ interface Drag {
   plane: THREE.Plane;
   /** Mover: los dos ejes que sigue el arrastre, el de la pantalla a lo ancho y el de la pantalla a lo alto. */
   axes: [Axis, Axis];
+  /** Mover un grupo (o varias elegidas): todas las piezas que van juntas y dónde estaba cada una. */
+  members: Map<string, [number, number, number]>;
 }
 
 /**
@@ -689,6 +694,25 @@ function BoxOutline({ box, color }: { box: Box; color: string }) {
   );
 }
 
+/**
+ * Contorno de las piezas elegidas juntas (un grupo o varias con Shift). Editando una pieza de un grupo, el contorno
+ * del grupo queda más tenue: se ve que se está adentro.
+ */
+function GroupOutline({ accent, ink }: { accent: string; ink: string }) {
+  const project = useEditor((s) => s.project);
+  const picked = useEditor((s) => s.picked);
+  const selectedId = useEditor((s) => s.selectedId);
+  const inside = project && selectedId ? groupOf(project, selectedId) : undefined;
+  const ids = picked.length ? picked : (inside?.parts ?? []);
+  const found = project && ids.length > 1 ? partsBox(project.parts, ids) : null;
+  const key = found ? JSON.stringify(found) : '';
+  const box = useMemo(() => (key ? (JSON.parse(key) as Box) : null), [key]);
+  if (!box) return null;
+  const pad = 6;
+  const padded = { min: box.min.map((v) => v - pad) as Box['min'], max: box.max.map((v) => v + pad) as Box['max'] };
+  return <BoxOutline box={padded} color={picked.length ? accent : ink} />;
+}
+
 /** Cotas de Medir: las líneas entre las dos piezas (o entre la pieza y el mueble), con topes en las puntas. */
 function MeasureMarks({ accent, ink }: { accent: string; ink: string }) {
   const project = useEditor((s) => s.project);
@@ -762,25 +786,25 @@ function screenAxis(camera: THREE.Camera, at: THREE.Vector3, dir: [number, numbe
   return { axis: best.axis, sign: best.sign };
 }
 
-/** Flechas del teclado: corren la pieza elegida 1 mm (con Shift, 10 mm), según la vista. */
-function useNudge(onNudged: (id: string) => void) {
+/** Flechas del teclado: corren la pieza elegida (o el grupo) 1 mm (con Shift, 10 mm), según la vista. */
+function useNudge(onNudged: (ids: string[]) => void) {
   const { camera, size } = useThree();
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     const key = ARROWS[e.key];
     if (!key || e.ctrlKey || e.metaKey || e.altKey) return;
     const s = useEditor.getState();
-    const part = s.project?.parts.find((p) => p.id === s.selectedId);
-    if (!s.project || !part || part.base.kind !== 'box' || s.dragging || s.pending || s.drawFace) return;
+    const ids = s.picked.length ? s.picked : s.selectedId ? [s.selectedId] : [];
+    const box = s.project && partsBox(s.project.parts, ids);
+    if (!s.project || !box || s.dragging || s.pending || s.drawFace) return;
     // Escribiendo o recorriendo pestañas, menús y listas, las flechas son de ellos.
     const el = e.target;
     if (el instanceof HTMLElement && (/INPUT|SELECT|TEXTAREA/.test(el.tagName) || el.isContentEditable || el.closest('[role=tablist],[role=menu],[role=radiogroup],[role=listbox],[role=slider],dialog'))) return;
     e.preventDefault();
-    const box = partBox(part);
     const center = new THREE.Vector3(...box.min).add(new THREE.Vector3(...box.max)).multiplyScalar(0.5);
     const { axis, sign } = screenAxis(camera, center, key.dir, size.width / Math.max(size.height, 1));
     const step = s.project.units === 'in' ? (e.shiftKey ? 12.7 : 25.4 / 16) : e.shiftKey ? 10 : 1;
-    s.nudge(part.id, axis, sign * step, key.arrow);
-    onNudged(part.id);
+    s.nudge(ids, axis, sign * step, key.arrow);
+    onNudged(ids);
   });
   useEffect(() => {
     const listen = (e: KeyboardEvent) => onKey(e);
@@ -792,6 +816,7 @@ function useNudge(onNudged: (id: string) => void) {
 function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const project = useEditor((s) => s.project);
   const selectedId = useEditor((s) => s.selectedId);
+  const picked = useEditor((s) => s.picked);
   const xray = useEditor((s) => s.xray);
   const ghost = useEditor((s) => s.ghost);
   const dragging = useEditor((s) => s.dragging);
@@ -802,12 +827,11 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   // Caras donde la pieza que se arrastra apoya en otras: se iluminan al encajar y un momento después de soltar.
   const [contact, setContact] = useState<Box[]>([]);
   const contactTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const showContact = (id: string) => {
+  const showContact = (ids: string[]) => {
     const p = useEditor.getState().project;
-    const moving = p?.parts.find((q) => q.id === id);
-    if (!p || moving?.base.kind !== 'box') return setContact([]);
-    const others = p.parts.filter((q) => q.id !== id && q.base.kind === 'box').map(partBox);
-    const faces = contactFaces(partBox(moving), others);
+    if (!p) return setContact([]);
+    const others = p.parts.filter((q) => !ids.includes(q.id) && q.base.kind === 'box').map(partBox);
+    const faces = p.parts.filter((q) => ids.includes(q.id) && q.base.kind === 'box').flatMap((q) => contactFaces(partBox(q), others));
     setContact((old) => (old.length === 0 && faces.length === 0 ? old : faces));
   };
   const fadeContact = () => {
@@ -818,8 +842,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     }, 700);
   };
   useEffect(() => () => clearTimeout(contactTimer.current), []);
-  useNudge((id) => {
-    showContact(id);
+  useNudge((ids) => {
+    showContact(ids);
     fadeContact();
     invalidate();
   });
@@ -831,7 +855,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const units = project?.units ?? 'cm';
 
   const startDrag = (e: ThreeEvent<PointerEvent>, original: Part) => {
-    const { tool, select, beginDrag, copyMove, commit, project: current } = useEditor.getState();
+    const { tool, select, pick, beginDrag, copyMove, commit, project: current } = useEditor.getState();
     if (tool === 'select' || !e.face || !current) return;
     e.stopPropagation();
     if (tool === 'draw') {
@@ -863,8 +887,18 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     }
     // Copiar al mover: se arrastra una copia y la pieza original queda en su lugar.
     const copying = tool === 'move' && (copyMove || e.nativeEvent.ctrlKey || e.nativeEvent.altKey);
-    const part = copying ? copyPart(current.parts, original) : original;
-    const start = partBox(part);
+    // Mover una pieza de un grupo (o de varias elegidas) mueve todas, salvo que se esté editando esa pieza sola.
+    const { picked, selectedId } = useEditor.getState();
+    const group = groupOf(current, original.id);
+    const together =
+      tool !== 'move' ? [original.id] : picked.includes(original.id) ? picked : group && !(selectedId && group.parts.includes(selectedId)) ? group.parts : [original.id];
+    const copies = copying ? copyParts(current.parts, together) : null;
+    const ids = copies ? copies.map((c) => c.id) : together;
+    const part = copies ? copies[together.indexOf(original.id)]! : original;
+    const multi = ids.length > 1;
+    const pool = copies ?? current.parts;
+    const start = multi ? partsBox(pool, ids)! : partBox(part);
+    const members = new Map(pool.filter((q) => ids.includes(q.id)).map((q) => [q.id, [...q.position] as [number, number, number]]));
     const n = e.face.normal;
     const abs = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
     const axis = abs.indexOf(Math.max(...abs)) as Axis;
@@ -881,11 +915,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       origin: e.point.clone(),
       dir,
       ...movePlane(useEditor.getState().view, e.point, camera, vertical),
+      members,
     };
     const [x0, y0] = [e.nativeEvent.clientX, e.nativeEvent.clientY];
     beginDrag();
-    if (copying) useEditor.getState().dragUpdate((d) => void d.parts.push(structuredClone(part)));
-    select(part.id);
+    if (copies) useEditor.getState().dragUpdate((d) => void addCopies(d as Project, together, structuredClone(copies)));
+    if (multi) pick(ids);
+    else select(part.id);
     let moved = false;
     if (controlsRef.current) controlsRef.current.enabled = false;
     const raycaster = new THREE.Raycaster();
@@ -931,7 +967,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           let delta = pt.getComponent(k) - drag.origin.getComponent(k);
           // No se mete debajo del piso.
           if (k === 1) delta = Math.max(delta, -drag.start.min[1]);
-          const s = snapMove(p.parts, drag.start, k, delta, part.id);
+          // Un grupo se pega por su contorno a las piezas de afuera.
+          const s = snapMove(multi ? p.parts.filter((q) => !ids.includes(q.id)) : p.parts, drag.start, k, delta, part.id);
           if (s.to) snaps.push(s.mirror ? t('mismo retiro que {id}', { id: s.to }) : t('cara de {id}', { id: s.to }));
           return k === 1 ? Math.max(s.value, -drag.start.min[1]) : s.value;
         };
@@ -939,20 +976,23 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         const sy = ay === ax ? 0 : shift(ay);
         if (sx || sy) moved = true;
         dragUpdate((d) => {
-          const q = d.parts.find((x) => x.id === part.id);
-          if (!q) return;
-          q.position[ax] = drag.start.min[ax] + sx;
-          if (ay !== ax) q.position[ay] = drag.start.min[ay] + sy;
+          for (const q of d.parts) {
+            const from = drag.members.get(q.id);
+            if (!from) continue;
+            q.position[ax] = from[ax] + sx;
+            if (ay !== ax) q.position[ay] = from[ay] + sy;
+          }
         });
-        const who = copying ? t('Copia {id}', { id: part.id }) : part.id;
+        const name = partsLabel(useEditor.getState().project ?? p, ids);
+        const who = copying ? t('Copia {id}', { id: name }) : name;
         // Cotas a las vecinas: la más cercana de cada lado sobre cada eje en que se mueve.
         const now = useEditor.getState().project?.parts;
-        const moving = now?.find((q) => q.id === part.id);
+        const moving = now && partsBox(now, ids);
         const dims =
-          now && moving?.base.kind === 'box'
+          now && moving
             ? neighborText(
-                partBox(moving),
-                now.filter((q) => q.id !== part.id && q.base.kind === 'box').map((q) => ({ id: q.id, box: partBox(q) })),
+                moving,
+                now.filter((q) => !ids.includes(q.id) && q.base.kind === 'box').map((q) => ({ id: q.id, box: partBox(q) })),
                 ay === ax ? [ax] : [ax, ay],
                 units,
               )
@@ -968,7 +1008,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         });
       }
       clearTimeout(contactTimer.current);
-      showContact(part.id);
+      showContact(ids);
       invalidate();
     };
     const onUp = (ev: PointerEvent) => {
@@ -984,7 +1024,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       // Una copia que no se movió quedaría encima de la original: se descarta.
       if (copying && !moved) {
         cancelDrag();
-        select(original.id);
+        if (together.length > 1) pick(together);
+        else select(original.id);
         return;
       }
       if (drag.kind === 'push') {
@@ -997,10 +1038,11 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         // Al soltar, la medida exacta se escribe ahí mismo.
         setBubble({ target: { kind: 'push', ...pushed }, ...last });
       } else {
-        endDrag(undefined, moved ? (copying ? t('Hiciste la copia {id}', { id: part.id }) : t('Moviste {id}', { id: part.id })) : undefined);
+        const name = partsLabel(useEditor.getState().project ?? current, ids);
+        endDrag(undefined, moved ? (copying ? t('Hiciste la copia {id}', { id: name }) : t('Moviste {id}', { id: name })) : undefined);
         // Como en Estirar: al soltar se escribe cuánto se corrió y a qué altura queda. Un toque sin arrastrar
-        // también la abre, para subir o bajar la pieza escribiendo.
-        setBubble({ target: { kind: 'move', id: part.id, from: [...drag.start.min] }, ...last });
+        // también la abre, para subir o bajar la pieza escribiendo. Un grupo se corre exacto con las flechas.
+        if (!multi) setBubble({ target: { kind: 'move', id: part.id, from: [...drag.start.min] }, ...last });
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -1368,9 +1410,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const click = (e: ThreeEvent<MouseEvent>, part: Part) => {
     if (e.delta > 6) return;
     e.stopPropagation();
+    const { tool, picked, addMode, tapPart, select } = useEditor.getState();
     // Midiendo, tocar una pieza la mide: no cambia la pieza elegida en el panel.
-    if (useEditor.getState().tool === 'measure') return;
-    useEditor.getState().select(part.id);
+    if (tool === 'measure') return;
+    // Con Elegir, un toque en una pieza de un grupo elige el grupo (Shift suma o saca). Con Mover, el grupo ya
+    // quedó elegido al apoyar el dedo.
+    if (tool === 'select') return tapPart(part.id, addMode || e.nativeEvent.shiftKey);
+    if (!picked.includes(part.id)) select(part.id);
   };
 
   if (!project) return null;
@@ -1393,7 +1439,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
             key={p.id}
             part={p}
             exact={dragging ? undefined : exact}
-            selected={p.id === selectedId}
+            selected={p.id === selectedId || picked.includes(p.id)}
             xray={xray || faded.has(p.id)}
             edgeColor={colors.edge}
             accent={colors.accent}
@@ -1405,6 +1451,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       {contact.map((f, i) => (
         <ContactFace key={i} face={f} accent={colors.accent} />
       ))}
+      <GroupOutline accent={colors.accent} ink={colors.edge} />
       <MeasureMarks accent={colors.accent} ink={colors.edge} />
       <BevelDraft accent={colors.accent} />
       <SectionDraft accent={colors.accent} />
@@ -1435,7 +1482,8 @@ export function Viewport({ meshes, label }: { meshes: ReadonlyMap<string, ExactM
       aria-label={label}
       role="img"
       onPointerMissed={(e) => {
-        if (e.type === 'click' && useEditor.getState().tool === 'select') select(null);
+        // Eligiendo varias, un toque afuera no suelta lo elegido.
+        if (e.type === 'click' && useEditor.getState().tool === 'select' && !useEditor.getState().addMode) select(null);
       }}
       style={{ touchAction: 'none' }}
     >

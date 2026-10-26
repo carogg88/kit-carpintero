@@ -876,3 +876,30 @@
   .titleBlock { flex-shrink: 0; max-width: 260px; }
   .titleBlock > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* Grupos: varias piezas que se mueven juntas. */
+.btnPrimary { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
+.btnPrimary:hover { filter: brightness(1.08); }
+.groupNote { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--text-s); color: var(--muted); }
+.groupNote svg { flex: none; width: 16px; height: 16px; }
+.groupNote .link { min-height: 32px; }
+.partList li[data-group] > button:first-child { background: var(--surface-2); }
+.partList li[data-group] svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.groupRow { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.groupRow > span:first-child { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.groupIds { font: 400 var(--text-xs) var(--font-num); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pickPill {
+  min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px 0 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card);
+  font: 500 var(--text-s) var(--font-ui); white-space: nowrap; cursor: pointer;
+}
+.pickPill svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.pickPill:hover { background: var(--bg); }
+.pickPill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 899px) {
+  .pickPill { gap: 6px; padding: 0 12px 0 10px; font-size: var(--text-xs); }
+}
+/* En el celular, el aviso de un cambio va en el mismo lugar que el botón de agregar y las píldoras: mientras se ve, se corren. */
+@media (max-width: 899px) {
+  .stage:has(.notice) .fabWrap, .stage:has(.notice) .stageStatus { visibility: hidden; }
+}

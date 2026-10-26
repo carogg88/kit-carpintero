@@ -66,6 +66,16 @@ const RECIPES: Recipe[] = [
     show: { target: 'part-view', title: tk('Ver sola está acá'), text: tk('Al lado de la pieza elegida, arriba en el panel.'), before: pickFirst },
   },
   {
+    id: 'grupo',
+    title: tk('Agrupar piezas para moverlas juntas'),
+    steps: [
+      tk('Tocá una pieza y después las otras con Shift + clic. En el celular, tocá Elegir varias y después cada pieza.'),
+      tk('En el panel, tocá Agrupar (o la tecla G).'),
+      tk('Desde ahí, un toque elige el grupo entero: se mueve, se corre con las flechas, se duplica, se oculta y se borra junto.'),
+      tk('Para editar una pieza sola, tocala otra vez. Desagrupar las deja sueltas donde están.'),
+    ],
+  },
+  {
     id: 'gemela',
     title: tk('Hacer la pata gemela del otro lado'),
     steps: [tk('Elegí la pieza que ya está bien.'), tk('Tocá Del otro lado.'), tk('Mirá la vista previa y tocá Aplicar. La copia cambia de nombre sola: de izquierda a derecha, de delantera a trasera.')],
