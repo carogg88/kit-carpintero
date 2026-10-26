@@ -336,4 +336,7 @@ export default {
   'Elegir varias': 'Select several',
   '1 grupo': '1 group',
   '{n} grupos': '{n} groups',
+  '{who} ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}': '{who} now measures {mm} in {axis}: {s} parts stretched and {m} moved',
+  '{who} pasa a medir {mm} de {axis}': '{who} becomes {mm} in {axis}',
+  'Medidas del grupo': 'Group size',
 } satisfies Record<string, string>;

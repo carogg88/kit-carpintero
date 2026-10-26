@@ -25,6 +25,7 @@ import {
   isWholeGroup,
   makeGroup,
   partsBox,
+  resizeGroup,
   ungroup,
   resizeFurniture,
   JOINT_NAMES,
@@ -868,10 +869,6 @@ function PickedPanel({ project, ids }: { project: Project; ids: string[] }) {
   const group = groupOf(project, ids[0]!);
   const whole = isWholeGroup(group, ids) ? group : undefined;
   const label = partsLabel(project, ids);
-  const box = partsBox(project.parts, ids);
-  const size = box
-    ? [0, 1, 2].map((k) => formatLength(box.max[k]! - box.min[k]!, project.units).replace(/ cm|″/, '')).join(' × ') + (project.units === 'cm' ? ' cm' : '″')
-    : '';
   const parts = ids.map((id) => project.parts.find((p) => p.id === id)).filter((p): p is Part => !!p);
   return (
     <>
@@ -911,15 +908,13 @@ function PickedPanel({ project, ids }: { project: Project; ids: string[] }) {
         ) : (
           <h2 className={styles.panelTitle}>{t('Varias piezas')}</h2>
         )}
-        <span className={styles.eyebrow}>
-          {t('Ancho × alto × fondo')} · {size}
-        </span>
       </div>
       <p className={styles.muted}>
         {whole
           ? t('Se mueven, se copian, se ocultan y se borran juntas. Para editar una sola, tocala otra vez en el modelo o elegila en la lista.')
           : t('Agrupalas para que se muevan juntas. Shift + clic (o Elegir varias) suma o saca piezas.')}
       </p>
+      <FurnitureSize key={ids.join()} project={project} ids={ids} />
       <ul className={styles.partList} data-many={parts.length > PART_LIST_MAX || undefined}>
         {parts.map((p) => (
           <li key={p.id}>
@@ -1045,34 +1040,41 @@ const SIZE_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
  * Ancho, alto y fondo de todo el mueble. Al cambiarlos se estiran las piezas largas sobre ese eje y las demás se
  * corren o se reparten, sin cambiar espesores.
  */
-function FurnitureSize({ project, heading = true }: { project: Project; heading?: boolean }) {
+/**
+ * Medidas del mueble, o de las piezas `ids` (un grupo) como si fueran un mueble solo: las largas se estiran,
+ * las demás se corren y los espesores no cambian.
+ */
+function FurnitureSize({ project, heading = true, ids }: { project: Project; heading?: boolean; ids?: string[] }) {
   const propose = useEditor((s) => s.propose);
   const setGhost = useEditor((s) => s.setGhost);
-  const box = furnitureBox(project.parts);
+  const box = ids ? partsBox(project.parts, ids) : furnitureBox(project.parts);
+  // Al soltar el grupo, el fantasma de una medida a medio escribir se va.
+  useEffect(() => () => setGhost(null), [setGhost]);
   if (!box) return null;
   const size = boxSize(box);
+  const run = (parts: Part[], axis: Axis, mm: number) => (ids ? resizeGroup(parts, ids, axis, mm) : resizeFurniture(parts, axis, mm));
+  const who = ids ? partsLabel(project, ids) : null;
   const resize = (axis: Axis, mm: number) => {
     // Se prueba antes en una copia: si no entra, no se toca el proyecto.
-    const r = resizeFurniture(structuredClone(project.parts), axis, mm);
+    const r = run(structuredClone(project.parts), axis, mm);
     if (!r) {
       useEditor.getState().warn(t('No se puede achicar tanto: no queda lugar libre entre las piezas. Achicá antes alguna pieza.'));
       return;
     }
-    const label = t('El mueble ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}', {
-      mm: formatLength(mm, project.units),
-      axis: t(SIZE_NAMES[axis]),
-      s: r.stretched.length,
-      m: r.moved.length,
-    });
-    propose((d) => void resizeFurniture(d.parts as Part[], axis, mm), label, {
-      title: t('El mueble pasa a medir {mm} de {axis}', { mm: formatLength(mm, project.units), axis: t(SIZE_NAMES[axis]) }),
+    const args = { mm: formatLength(mm, project.units), axis: t(SIZE_NAMES[axis]), s: r.stretched.length, m: r.moved.length };
+    const label = who
+      ? t('{who} ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}', { ...args, who })
+      : t('El mueble ahora mide {mm} de {axis}: se estiraron {s} piezas y se corrieron {m}', args);
+    propose((d) => void run(d.parts as Part[], axis, mm), label, {
+      title: who ? t('{who} pasa a medir {mm} de {axis}', { ...args, who }) : t('El mueble pasa a medir {mm} de {axis}', args),
+      ...(ids ? { select: ids } : {}),
     });
   };
   return (
     <fieldset className={styles.dims}>
-      <legend className={heading ? styles.legend : styles.srOnly}>{t('Medidas del mueble')}</legend>
+      <legend className={heading ? styles.legend : styles.srOnly}>{ids ? t('Medidas del grupo') : t('Medidas del mueble')}</legend>
       {AXIS_LABELS.map((label, k) => (
-        <LengthField key={label} label={t(label)} mm={size[k]!} units={project.units} min={30} max={6000} onDraft={(mm) => setGhost(mm === null ? null : (d) => void resizeFurniture(d.parts as Part[], k as Axis, mm))}
+        <LengthField key={label} label={t(label)} mm={size[k]!} units={project.units} min={ids ? 1 : 30} max={6000} onDraft={(mm) => setGhost(mm === null ? null : (d) => void run(d.parts as Part[], k as Axis, mm))}
           onCommit={(mm) => resize(k as Axis, mm)}
         />
       ))}

@@ -14,11 +14,18 @@ export function PreviewBar() {
   const ghost = useEditor((s) => s.ghost);
   const { applyPending, cancelPending } = useEditor.getState();
   const okRef = useRef<HTMLButtonElement>(null);
+  const shownAt = useRef(0);
   useEffect(() => {
     if (!pending) return;
     // Escape cancela desde el atajo del editor; Enter, con el foco acá, aplica.
+    shownAt.current = performance.now();
     okRef.current?.focus({ preventScroll: true });
   }, [pending]);
+  // El Enter que confirmó la medida llega también a Aplicar, que ya tiene el foco: ese no cuenta, así se ve la vista previa.
+  const apply = (e: React.MouseEvent) => {
+    if (e.detail === 0 && performance.now() - shownAt.current < 400) return;
+    applyPending();
+  };
   if (!pending || !project) return null;
   const ids = new Set(project.parts.map((p) => p.id));
   const added = ghost ? ghost.parts.filter((p) => !ids.has(p.id)).length : 0;
@@ -42,7 +49,7 @@ export function PreviewBar() {
         <button type="button" className={styles.previewCancel} onClick={cancelPending}>
           {t('Cancelar')}
         </button>
-        <button ref={okRef} type="button" className={removed.length && !changed.length ? styles.previewDanger : styles.previewOk} onClick={applyPending}>
+        <button ref={okRef} type="button" className={removed.length && !changed.length ? styles.previewDanger : styles.previewOk} onClick={apply}>
           {removed.length && !changed.length ? t('Borrar') : t('Aplicar')}
         </button>
       </div>

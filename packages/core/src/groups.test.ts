@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addCopies, duplicateParts, groupOf, isWholeGroup, makeGroup, partsBox, syncGroups, ungroup } from './groups';
+import { addCopies, duplicateParts, groupOf, isWholeGroup, makeGroup, partsBox, resizeGroup, syncGroups, ungroup } from './groups';
 import { partBox } from './geometry';
 import { loadProject, SCHEMA_VERSION } from './project';
 import { decodeShare, encodeShare } from './share';
@@ -69,5 +69,21 @@ describe('grupos', () => {
     expect(r.ok && r.project.groups).toEqual(p.groups);
     const none = await decodeShare(await encodeShare(mesa()));
     expect(none.ok && none.project).toEqual(mesa());
+  });
+
+  it('medidas del grupo: el frente se ensancha sin mover el resto ni cambiar espesores', () => {
+    const p = mesa();
+    const ids = ['P3', 'P4', 'F1'];
+    const before = partsBox(p.parts, ids)!;
+    const others = structuredClone(p.parts.filter((x) => !ids.includes(x.id)));
+    const legs = ['P3', 'P4'].map((id) => partBox(p.parts.find((x) => x.id === id)!));
+    const r = resizeGroup(p.parts, ids, 0, before.max[0] - before.min[0] + 200)!;
+    expect(r.stretched).toEqual(['F1']);
+    const after = partsBox(p.parts, ids)!;
+    expect(after.min[0]).toBe(before.min[0]);
+    expect(after.max[0]).toBe(before.max[0] + 200);
+    expect(p.parts.filter((x) => !ids.includes(x.id))).toEqual(others);
+    const legsAfter = ['P3', 'P4'].map((id) => partBox(p.parts.find((x) => x.id === id)!));
+    expect(legsAfter.map((b) => b.max[0] - b.min[0])).toEqual(legs.map((b) => b.max[0] - b.min[0]));
   });
 });

@@ -72,6 +72,7 @@ const RECIPES: Recipe[] = [
       tk('Tocá una pieza y después las otras con Shift + clic. En el celular, tocá Elegir varias y después cada pieza.'),
       tk('En el panel, tocá Agrupar (o la tecla G).'),
       tk('Desde ahí, un toque elige el grupo entero: se mueve, se corre con las flechas, se duplica, se oculta y se borra junto.'),
+      tk('Con el grupo elegido, escribí el ancho, el alto o el fondo: las piezas largas se estiran, las demás se corren y el resto del mueble no se mueve.'),
       tk('Para editar una pieza sola, tocala otra vez. Desagrupar las deja sueltas donde están.'),
     ],
   },
