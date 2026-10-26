@@ -56,7 +56,7 @@
 .wood { margin: -8px 0 0; font-size: var(--text-m); color: var(--muted); }
 
 /* Las tres medidas de corte, lo más grande de la pantalla: se leen desde el banco sin agarrar el celular. */
-.dims { margin: var(--space-1) 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.dims { margin: var(--space-1) 0 0; display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .dims div { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-2) var(--space-2); border-radius: 16px; background: var(--forest); color: var(--forest-ink); }
 .dims dt { font: 500 var(--text-xs) var(--font-ui); letter-spacing: var(--track-caps, 0.08em); text-transform: uppercase; opacity: 0.8; }
 .dims dd { margin: 0; font: 600 clamp(30px, 9vw, 52px)/1 var(--font-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
@@ -67,6 +67,8 @@
 .line { stroke: var(--paper-ink); fill: none; stroke-linecap: round; }
 .jointLine { stroke: var(--accent); fill: none; stroke-linecap: round; }
 .jointFill { fill: color-mix(in srgb, var(--signal) 22%, transparent); }
+.angle path { stroke: var(--accent); }
+.angle text { fill: var(--accent); font-family: var(--font-display); }
 
 .stepsTitle { margin: var(--space-2) 0 0; font: 500 var(--text-l) var(--font-display); }
 .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }

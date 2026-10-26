@@ -351,3 +351,20 @@ describe('faldones y travesaños entre patas inclinadas', () => {
     for (const b of built.values()) b.shape.delete();
   });
 });
+
+describe('despiece de una pata inclinada con el motor', () => {
+  it('la pata desgirada coincide con el dibujo de la pata derecha', () => {
+    const stool = leanTestStool('guatambu', '2026-10-26T00:00:00Z');
+    const leg = stool.parts.find((p) => p.id === 'P3')!;
+    const f = leanFrame(leg)!;
+    const d = drawPart(stool, leg);
+    const shape = partShape(leg, stool).shape.rotate(-f.angle, f.pivot, f.axis);
+    const { segments, hidden } = projectShapes([shape], d.engine!);
+    shape.delete();
+    const exact = withEngineLines(d, segments, hidden);
+    // Las dos puntas largas y la espiga caen donde las dibuja el despiece de cajas.
+    expect(exact.bounds.u0).toBeCloseTo(d.bounds.u0, 0);
+    expect(exact.bounds.u1).toBeCloseTo(d.bounds.u1, 0);
+    expect(exact.bounds.v1 - exact.bounds.v0).toBeCloseTo(d.bounds.v1 - d.bounds.v0, 0);
+  });
+});

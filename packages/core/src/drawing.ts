@@ -4,6 +4,8 @@ import { boxSize, otherAxes, partBox, partKey, type Axis, type Box, type Vec3 } 
 import { arcInfo, pocketSolid } from './pockets';
 import { sectionBox } from './sections';
 import type { Part, Project } from './project';
+import { endAt, followMortise, leanFollow, partEnds, placedBox, unleanPoint, type PartEnds } from './follow';
+import { isLeaning, leanFrame, type LeanFrame } from './lean';
 
 /**
  * Dibujo técnico de cajas: proyección ortogonal, contornos visibles y líneas ocultas.
@@ -76,6 +78,16 @@ export interface Drawing {
   turns?: TurnMark[];
   /** Qué tiene que proyectar el motor para cambiar estas líneas por las de la forma exacta. */
   engine?: EngineView;
+  /** Ángulos de las puntas cortadas en ángulo: los que se toman con la falsa escuadra. */
+  angles?: AngleMark[];
+}
+
+/** Ángulo entre el canto (`a`, unitario) y la punta (`b`, unitario) en la esquina `at`, en grados. */
+export interface AngleMark {
+  at: [number, number];
+  a: [number, number];
+  b: [number, number];
+  deg: number;
 }
 
 /** Cota de radio de un arco: dónde está el medio del arco y hacia qué lado queda la madera (unitario). */
@@ -101,6 +113,8 @@ export interface EngineView {
   parts: string[];
   projection: Projection;
   window?: Rect2;
+  /** Pata inclinada que se dibuja derecha: el motor le deshace la inclinación antes de proyectarla. */
+  local?: string;
 }
 
 interface Projected {
@@ -209,14 +223,41 @@ export function drawItems(items: DrawItem[], p: Projection, window?: Rect2): Dra
   return { lines: kept, joints: jointRects, labels, rects, bounds: pts.length || window ? bounds : { u0: 0, v0: 0, u1: 0, v1: 0 } };
 }
 
-/** Sólidos de encastres de una pieza: lo que se le suma y lo que se le saca. */
-export function partJointItems(project: Project, part: Part): DrawItem[] {
+/** Caja girada de vuelta a la pata derecha: el centro va a su lugar y las medidas quedan (alcanza para dibujar). */
+function unleanBox(f: LeanFrame, b: Box): Box {
+  const c = unleanPoint(f, [0, 1, 2].map((k) => (b.min[k]! + b.max[k]!) / 2) as Vec3);
+  const s = boxSize(b);
+  return { min: c.map((v, k) => v - s[k]! / 2) as Vec3, max: c.map((v, k) => v + s[k]! / 2) as Vec3 };
+}
+
+/**
+ * Sólidos de encastres de una pieza: lo que se le suma y lo que se le saca. Con `local`, una pata inclinada se
+ * dibuja derecha: sus encastres van como en la pata derecha.
+ */
+export function partJointItems(project: Project, part: Part, local = false): DrawItem[] {
+  const own = local ? leanFrame(part) : null;
   const items: DrawItem[] = [];
   for (const j of project.joints) {
     if (j.partA !== part.id && j.partB !== part.id) continue;
     const a = project.parts.find((p) => p.id === j.partA);
     const b = project.parts.find((p) => p.id === j.partB);
     if (!a || !b || a.base.kind !== 'box' || b.base.kind !== 'box') continue;
+    // Un faldón o travesaño que entra en una pata inclinada: espiga y mortaja derechas, a lo largo de la pieza.
+    if (leanFrame(a)) {
+      const f = isLeaning(b) ? null : leanFollow(project, b);
+      const end = f?.ends.find((e) => e.joint.id === j.id);
+      const m = f && end && j.type === 'mortaja' ? followMortise(f, end, b) : null;
+      if (!m || !end) continue;
+      if (j.partB === part.id) items.push({ id: `${j.id}+0`, box: m.tenon, joint: true, owner: part.id });
+      else {
+        // La mortaja arranca un poco afuera de la pata para no quedar corta; en el dibujo, desde la cara.
+        const hole: Box = { min: [...m.mortise.min], max: [...m.mortise.max] };
+        if (end.dir > 0) hole.min[end.axis] = end.face;
+        else hole.max[end.axis] = end.face;
+        items.push({ id: `${j.id}-a0`, box: own ? unleanBox(own, hole) : hole, joint: true, owner: part.id, hole: true });
+      }
+      continue;
+    }
     const g = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     if (!g) continue;
     if (j.partB === part.id) {
@@ -236,7 +277,7 @@ export const partSectionItems = (part: Part): DrawItem[] =>
 /** Vista general del mueble: piezas y, ocultas, las espigas y lengüetas. */
 export function drawView(project: Project, view: ViewName): Drawing {
   const boxes = project.parts.filter((p) => p.base.kind === 'box');
-  const items: DrawItem[] = boxes.map((p) => ({ id: p.id, box: partBox(p) }));
+  const items: DrawItem[] = boxes.map((p) => ({ id: p.id, box: placedBox(project, p) }));
   for (const p of boxes) for (const it of [...partJointItems(project, p), ...partSectionItems(p)]) if (!it.hole) items.push(it);
   return { ...drawItems(items, VIEWS[view]), engine: { parts: boxes.map((p) => p.id), projection: VIEWS[view] } };
 }
@@ -250,9 +291,65 @@ export function partProjection(part: Part): Projection {
 /** Despiece: la pieza con sus espigas y, ocultas, sus mortajas y agujeros. */
 export function drawPart(project: Project, part: Part): Drawing {
   const projection = partProjection(part);
+  const ends = partEnds(project, part);
   const pockets: DrawItem[] = part.pockets.map((p) => ({ id: `${part.id}-${p.id}`, box: solidBox(pocketSolid(part, p)), joint: true, owner: part.id, hole: true }));
-  const drawing = drawItems([{ id: part.id, box: partBox(part) }, ...partJointItems(project, part), ...partSectionItems(part), ...pockets], projection);
-  return { ...drawing, arcs: partArcMarks(part, projection), stops: partSectionStops(part, projection), turns: partTurnMarks(part, projection), engine: { parts: [part.id], projection } };
+  const rest = [...partJointItems(project, part, true), ...partSectionItems(part), ...pockets];
+  let drawing = drawItems([{ id: part.id, box: ends?.box ?? partBox(part) }, ...rest], projection);
+  const outline = ends && endOutline(ends, projection);
+  if (outline) {
+    // El contorno con las puntas en ángulo en lugar del rectángulo; los encastres quedan como estaban.
+    const lines = [...outline.lines, ...(rest.length ? drawItems(rest, projection).lines : [])];
+    const pts = lines.flatMap((l) => [l.a, l.b]);
+    const bounds = {
+      u0: Math.min(...pts.map((q) => q[0])),
+      v0: Math.min(...pts.map((q) => q[1])),
+      u1: Math.max(...pts.map((q) => q[0])),
+      v1: Math.max(...pts.map((q) => q[1])),
+    };
+    drawing = { ...drawing, lines, bounds, angles: outline.angles };
+  }
+  return {
+    ...drawing,
+    arcs: partArcMarks(part, projection),
+    stops: partSectionStops(part, projection),
+    turns: partTurnMarks(part, projection),
+    engine: { parts: [part.id], projection, ...(ends?.local ? { local: part.id } : {}) },
+  };
+}
+
+/**
+ * Contorno de una pieza con las puntas en ángulo, en la cara que mira quien dibuja, y el ángulo de cada punta larga:
+ * el que se marca con la falsa escuadra. null si el largo de la pieza no corre a lo ancho del dibujo.
+ */
+function endOutline(e: PartEnds, p: Projection): { lines: Line2[]; angles: AngleMark[] } | null {
+  if (p.u !== e.along) return null;
+  const depth = p.depthSign > 0 ? e.box.max[p.depth] : e.box.min[p.depth];
+  const corner = (end: 'lo' | 'hi', across: number): [number, number] => {
+    const q: Vec3 = [0, 0, 0];
+    q[p.v] = across;
+    q[p.depth] = depth;
+    q[e.along] = endAt(e[end], q, e.along, end === 'lo' ? e.box.min[e.along] : e.box.max[e.along]);
+    return [p.uSign * q[p.u], p.vSign * q[p.v]];
+  };
+  const [v0, v1] = [e.box.min[p.v], e.box.max[p.v]];
+  const pts = [corner('lo', v0), corner('lo', v1), corner('hi', v1), corner('hi', v0)];
+  const lines: Line2[] = pts.map((a, i) => ({ a, b: pts[(i + 1) % 4]!, hidden: false, joint: false }));
+  const angles: AngleMark[] = [];
+  for (const [end, x, y] of [
+    ['lo', pts[0]!, pts[1]!],
+    ['hi', pts[3]!, pts[2]!],
+  ] as const) {
+    if (!e[end]) continue;
+    // La punta larga: la que llega más lejos sobre el largo. Ahí el ángulo entre el canto y la punta es agudo.
+    const out = (end === 'hi' ? 1 : -1) * p.uSign;
+    const [tip, other] = x[0] * out >= y[0] * out ? [x, y] : [y, x];
+    const len = Math.hypot(other[0] - tip[0], other[1] - tip[1]) || 1;
+    const b: [number, number] = [(other[0] - tip[0]) / len, (other[1] - tip[1]) / len];
+    const a: [number, number] = [-out, 0];
+    const deg = (Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1])) ) * 180) / Math.PI;
+    if (Math.abs(deg - 90) > 0.25) angles.push({ at: tip, a, b, deg });
+  }
+  return { lines, angles };
 }
 
 /** Estaciones del torneado, si el eje del torneado es el largo del dibujo. */

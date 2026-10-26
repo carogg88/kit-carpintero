@@ -381,4 +381,5 @@ export default {
   'De costado (°)': 'From the side (°)',
   'Inclinaste {id}': 'You leaned {id}',
   'Positivo: la punta de abajo va hacia la derecha (de frente) o hacia adelante (de costado).': 'Positive: the bottom end moves right (from the front) or forward (from the side).',
+  'Los ángulos dibujados son los de la falsa escuadra: entre el canto y la punta larga.': 'The angles drawn are the bevel-gauge settings: between the edge and the long point.',
 } satisfies Record<string, string>;

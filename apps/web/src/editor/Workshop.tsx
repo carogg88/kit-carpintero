@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cutList, describePartJoints, drawPart, facePattern, formatNumber, t, type CutRow, type Drawing, type Project } from '@kitc/core';
+import { cutList, describePartJoints, drawPart, facePattern, formatAngle, formatNumber, t, type CutRow, type Drawing, type Project } from '@kitc/core';
 import { sectionHref, type Section } from '../routes';
 import { woodName } from './cutsData';
 import { IconCheck, IconChevron, IconClose } from './icons';
@@ -147,6 +147,25 @@ function PieceDrawing({ d, label }: { d: Drawing; label: string }) {
           className={l.joint ? styles.jointLine : styles.line}
         />
       ))}
+      {/* Puntas en ángulo: el ángulo de la falsa escuadra, entre el canto y la punta larga. */}
+      {d.angles?.map((m, i) => {
+        const r = Math.max(w, h) * 0.08;
+        const [x, y] = [m.at[0], -m.at[1]];
+        const a = [m.a[0], -m.a[1]] as const;
+        const b = [m.b[0], -m.b[1]] as const;
+        const sweep = a[0] * b[1] - a[1] * b[0] > 0 ? 1 : 0;
+        const mid = [a[0] + b[0], a[1] + b[1]] as const;
+        const len = Math.hypot(mid[0], mid[1]) || 1;
+        const size = Math.max(w, h) * 0.045;
+        return (
+          <g key={`a${i}`} className={styles.angle}>
+            <path d={`M ${x + a[0] * r} ${y + a[1] * r} A ${r} ${r} 0 0 ${sweep} ${x + b[0] * r} ${y + b[1] * r}`} fill="none" strokeWidth={stroke} />
+            <text x={x + (mid[0] / len) * r * 1.9} y={y + (mid[1] / len) * r * 1.9 + size / 3} fontSize={size} textAnchor="middle">
+              {formatAngle(Math.round(m.deg * 2) / 2)}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

@@ -2,7 +2,7 @@
 import opencascade from 'replicad-opencascadejs';
 import wasmUrl from 'replicad-opencascadejs/wasm?url';
 import { setOC, type Shape3D } from 'replicad';
-import { partKey, setLang, type Part, type Project } from '@kitc/core';
+import { leanFrame, partKey, setLang, type Part, type Project } from '@kitc/core';
 import { loadMessages } from '../i18n';
 import type { FromWorker, PartMesh, ToWorker, ViewLines } from './protocol';
 import { partShape, projectShapes } from './shapes';
@@ -71,7 +71,18 @@ self.onmessage = async (e: MessageEvent<ToWorker>) => {
       const out: ViewLines[] = views.map(({ key, view }) => {
         const t = performance.now();
         const parts = view.parts.map((id) => project.parts.find((p) => p.id === id)).filter((p) => p !== undefined);
-        const lines = projectShapes(parts.map((p) => exact(p, project).shape), view);
+        // Una pata inclinada en el despiece se dibuja derecha: una copia desgirada, que se borra después.
+        const copies: Shape3D[] = [];
+        const shapesOf = parts.map((p) => {
+          const shape = exact(p, project).shape;
+          const f = view.local === p.id ? leanFrame(p) : null;
+          if (!f) return shape;
+          const copy = shape.clone().rotate(-f.angle, f.pivot, f.axis) as Shape3D;
+          copies.push(copy);
+          return copy;
+        });
+        const lines = projectShapes(shapesOf, view);
+        copies.forEach((c) => c.delete());
         return { key, ...lines, ms: performance.now() - t };
       });
       send({ type: 'views', views: out, ms: performance.now() - t0, req }, out.flatMap((v) => [v.segments.buffer, v.hidden.buffer]));
