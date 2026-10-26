@@ -74,10 +74,12 @@ interface LengthFieldProps {
   compact?: boolean;
   /** Id de un aviso que describe el campo (por ejemplo, una medida fuera de lo habitual). */
   describedBy?: string;
+  /** Mientras se escribe: la medida si es válida y distinta, o null. Sirve para mostrar el fantasma. */
+  onDraft?: (mm: number | null) => void;
 }
 
 /** Campo de medida: se escribe en la unidad elegida y se valida al salir del campo. */
-export function LengthField({ label, mm, units, min = 1, max, onCommit, compact, describedBy }: LengthFieldProps) {
+export function LengthField({ label, mm, units, min = 1, max, onCommit, compact, describedBy, onDraft }: LengthFieldProps) {
   const id = useId();
   const [text, setText] = useState(() => (mm || min === 0 ? formatNumber(mm, units) : ''));
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +91,7 @@ export function LengthField({ label, mm, units, min = 1, max, onCommit, compact,
     setError(null);
   }
   const commit = () => {
+    onDraft?.(null);
     const v = parseLength(text, units);
     if (v === null) return setError(units === 'cm' ? t('Escribí un número, por ejemplo 72,5') : t('Escribí pulgadas, por ejemplo 2 7/8'));
     if (v < min) return setError(t('Tiene que ser de {n} o más', { n: formatNumber(min, units) }));
@@ -107,7 +110,12 @@ export function LengthField({ label, mm, units, min = 1, max, onCommit, compact,
         value={text}
         aria-invalid={!!error}
         aria-describedby={[error ? `${id}-e` : '', describedBy ?? ''].filter(Boolean).join(' ') || undefined}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          if (!onDraft) return;
+          const v = parseLength(e.target.value, units);
+          onDraft(v !== null && v >= min && (max === undefined || v <= max) && Math.abs(v - mm) > 0.01 ? v : null);
+        }}
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
       />
@@ -430,8 +438,12 @@ type EdgeKind = 'rectos' | 'round' | 'chamfer';
 
 function PartEditor({ part, project }: { part: Part; project: Project }) {
   const commit = useEditor((s) => s.commit);
+  const propose = useEditor((s) => s.propose);
+  const setGhost = useEditor((s) => s.setGhost);
   const select = useEditor((s) => s.select);
   const setTool = useEditor((s) => s.setTool);
+  // Al cambiar de pieza, el fantasma de una medida a medio escribir se va.
+  useEffect(() => () => setGhost(null), [part.id, setGhost]);
   const units = project.units;
   const nameId = useId();
   const woodId = useId();
@@ -499,7 +511,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
       <div className={styles.partHead}>
         <div className={styles.panelHead}>
           {/* Siempre a mano, arriba: cambiar de pieza sin buscar la lista ni tocar piezas finas en el modelo. */}
-          <label className={styles.partPick}>
+          <label className={styles.partPick} data-tour="part-pick">
             <span className={styles.srOnly}>{t('Pieza elegida')}</span>
             <select value={part.id} onChange={(e) => select(e.target.value)}>
               {project.parts.map((p) => (
@@ -539,7 +551,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         />
       </div>
       <PartNotes project={project} partId={part.id} />
-      <fieldset className={styles.dims}>
+      <fieldset className={styles.dims} data-tour="part-dims">
         <legend className={styles.legend}>{t('Medidas terminadas ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}</legend>
         {/* Siempre en el mismo orden y con el nombre de la dirección: no cambian al girar la pieza con las medidas. */}
         {([0, 1, 2] as const).map((axis) => (
@@ -549,6 +561,16 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
             mm={size[axis] ?? 0}
             units={units}
             min={3}
+            onDraft={(v) =>
+              setGhost(
+                v === null
+                  ? null
+                  : (d) => {
+                      const q = d.parts.find((x) => x.id === part.id);
+                      if (q?.base.kind === 'box') q.base.size[axis] = v;
+                    },
+              )
+            }
             onCommit={(v) =>
               update((q) => {
                 if (q.base.kind === 'box') q.base.size[axis] = v;
@@ -567,6 +589,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
             mm={place[axis]}
             units={units}
             min={0}
+            onDraft={(v) => setGhost(v === null ? null : (d) => setPlace(d.parts as Part[], part.id, axis, v))}
             onCommit={(v) => commit((d) => setPlace(d.parts as Part[], part.id, axis, v), t('Moviste {id}', { id: part.id }))}
           />
         ))}
@@ -747,14 +770,16 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           )}
         </Fold>
       </div>
-      <div className={styles.panelActions}>
+      <div className={styles.panelActions} data-tour="part-actions">
         <button
           type="button"
           className={styles.btn}
           onClick={() => {
             const copy = duplicatePart(project.parts, part);
-            commit((d) => void d.parts.push(copy));
-            select(copy.id);
+            propose((d) => void d.parts.push(copy), t('Duplicaste {id}: la copia es {copy}', { id: part.id, copy: copy.id }), {
+              title: t('Copia de {id} al costado del mueble', { id: part.id }),
+              select: copy.id,
+            });
           }}
         >
           {t('Duplicar')}
@@ -770,8 +795,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
               useEditor.getState().warn(t('Del otro lado ya hay una pieza igual, o esta pieza está en el medio.'));
               return;
             }
-            commit((d) => void d.parts.push(res.part), t('Agregaste {id} del otro lado', { id: res.part.id }));
-            select(res.part.id);
+            propose((d) => void d.parts.push(res.part), t('Agregaste {id} del otro lado', { id: res.part.id }), {
+              title: t('{name}, del otro lado', { name: res.part.name }),
+              select: res.part.id,
+            });
           }}
         >
           {t('Del otro lado')}
@@ -796,7 +823,11 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           className={`${styles.iconBtn} ${styles.dangerIcon}`}
           aria-label={t('Eliminar {id}', { id: part.id })}
           title={t('Eliminar')}
-          onClick={() => commit((d) => void (d.parts = d.parts.filter((x) => x.id !== part.id)), t('Borraste {id}', { id: part.id }))}
+          onClick={() =>
+            propose((d) => void (d.parts = d.parts.filter((x) => x.id !== part.id)), t('Borraste {id}', { id: part.id }), {
+              title: t('¿Borrar {id} {name}?', { id: part.id, name: part.name }),
+            })
+          }
         >
           <IconTrash />
         </button>
@@ -872,7 +903,8 @@ const SIZE_NAMES = [tk('ancho'), tk('alto'), tk('fondo')] as const;
  * corren o se reparten, sin cambiar espesores.
  */
 function FurnitureSize({ project, heading = true }: { project: Project; heading?: boolean }) {
-  const commit = useEditor((s) => s.commit);
+  const propose = useEditor((s) => s.propose);
+  const setGhost = useEditor((s) => s.setGhost);
   const box = furnitureBox(project.parts);
   if (!box) return null;
   const size = boxSize(box);
@@ -889,13 +921,17 @@ function FurnitureSize({ project, heading = true }: { project: Project; heading?
       s: r.stretched.length,
       m: r.moved.length,
     });
-    commit((d) => void resizeFurniture(d.parts as Part[], axis, mm), label);
+    propose((d) => void resizeFurniture(d.parts as Part[], axis, mm), label, {
+      title: t('El mueble pasa a medir {mm} de {axis}', { mm: formatLength(mm, project.units), axis: t(SIZE_NAMES[axis]) }),
+    });
   };
   return (
     <fieldset className={styles.dims}>
       <legend className={heading ? styles.legend : styles.srOnly}>{t('Medidas del mueble')}</legend>
       {AXIS_LABELS.map((label, k) => (
-        <LengthField key={label} label={t(label)} mm={size[k]!} units={project.units} min={30} max={6000} onCommit={(mm) => resize(k as Axis, mm)} />
+        <LengthField key={label} label={t(label)} mm={size[k]!} units={project.units} min={30} max={6000} onDraft={(mm) => setGhost(mm === null ? null : (d) => void resizeFurniture(d.parts as Part[], k as Axis, mm))}
+          onCommit={(mm) => resize(k as Axis, mm)}
+        />
       ))}
     </fieldset>
   );
@@ -1077,7 +1113,7 @@ function AddPartMenu({ fittings }: { fittings: boolean }) {
           )}
         </div>
       )}
-      <button type="button" className={styles.addDropBtn} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={() => setOpen(!open)}>
+      <button type="button" className={styles.addDropBtn} data-tour="add" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={() => setOpen(!open)}>
         <IconPlus />
         {t('Agregar pieza')}
         <svg className={styles.addDropChevron} viewBox="0 0 16 16" aria-hidden="true">

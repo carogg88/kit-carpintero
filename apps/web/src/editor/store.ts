@@ -83,6 +83,13 @@ interface EditorState {
   fitting: FittingKind | null;
   /** El hueco elegido y las piezas que se van a sumar, marcados en la vista 3D. */
   fittingPreview: { opening: Box; parts: Box[] } | null;
+  /**
+   * Cómo quedaría el mueble: las piezas que cambian, aparecen o se van se dibujan encima del modelo. Sale de un
+   * cambio grande por confirmar (`pending`) o de una medida que se está escribiendo.
+   */
+  ghost: Project | null;
+  /** Cambio grande que espera Aplicar o Cancelar. `select`: la pieza que queda elegida al aplicar. */
+  pending: Pending | null;
 
   open: (p: Project) => void;
   close: () => void;
@@ -116,6 +123,21 @@ interface EditorState {
   setBubble: (b: Bubble | null) => void;
   setFitting: (f: FittingKind | null) => void;
   setFittingPreview: (p: EditorState['fittingPreview']) => void;
+  /** Muestra el cambio en fantasma y espera Aplicar o Cancelar. */
+  propose: (recipe: (p: Draft<Project>) => void, label: string, opts?: { title?: string; select?: string }) => void;
+  applyPending: () => void;
+  cancelPending: () => void;
+  /** Fantasma mientras se escribe una medida; null lo borra. */
+  setGhost: (recipe: ((p: Draft<Project>) => void) | null) => void;
+}
+
+export interface Pending {
+  recipe: (p: Draft<Project>) => void;
+  /** Lo que dice el aviso al aplicar. */
+  label: string;
+  /** Lo que dice la barra de vista previa; si falta, el aviso. */
+  title: string;
+  select?: string;
 }
 
 export interface Notice {
@@ -193,23 +215,25 @@ export const useEditor = create<EditorState>()((set, get) => ({
   bubble: null,
   fitting: null,
   fittingPreview: null,
+  ghost: null,
+  pending: null,
 
   open: (project) =>
-    set({ fitting: null, fittingPreview: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
+    set({ fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
     const { project, past } = get();
     if (!project) return;
     const next = apply(project, recipe, true);
-    set({ project: next, past: [...past, project].slice(-HISTORY), future: [], ...noticeFor(project, next, label) });
+    set({ project: next, past: [...past, project].slice(-HISTORY), future: [], ghost: null, pending: null, ...noticeFor(project, next, label) });
     if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
 
   beginDrag: () => {
     const { project, past } = get();
     if (!project) return;
-    set({ dragging: true, past: [...past, project].slice(-HISTORY), future: [], bubble: null });
+    set({ dragging: true, past: [...past, project].slice(-HISTORY), future: [], bubble: null, ghost: null, pending: null });
   },
   dragUpdate: (recipe) => {
     const { project } = get();
@@ -235,14 +259,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { project, past, future } = get();
     const prev = past.at(-1);
     if (!project || !prev) return;
-    set({ project: prev, past: past.slice(0, -1), future: [project, ...future], notice: null, bubble: null });
+    set({ project: prev, past: past.slice(0, -1), future: [project, ...future], notice: null, bubble: null, ghost: null, pending: null });
     if (get().selectedId && !prev.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
   redo: () => {
     const { project, past, future } = get();
     const next = future[0];
     if (!project || !next) return;
-    set({ project: next, past: [...past, project], future: future.slice(1), notice: null, bubble: null });
+    set({ project: next, past: [...past, project], future: future.slice(1), notice: null, bubble: null, ghost: null, pending: null });
     if (get().selectedId && !next.parts.some((p) => p.id === get().selectedId)) set({ selectedId: null });
   },
 
@@ -278,6 +302,24 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setBubble: (bubble) => set({ bubble }),
   setFitting: (fitting) => set(fitting ? { fitting, selectedId: null, tool: 'select', drawFace: null, bubble: null } : { fitting, fittingPreview: null }),
   setFittingPreview: (fittingPreview) => set({ fittingPreview }),
+  propose: (recipe, label, opts) => {
+    const { project } = get();
+    if (!project) return;
+    set({ pending: { recipe, label, title: opts?.title ?? label, select: opts?.select }, ghost: apply(project, recipe, true), bubble: null });
+  },
+  applyPending: () => {
+    const { pending, commit, select } = get();
+    if (!pending) return;
+    commit(pending.recipe, pending.label);
+    if (pending.select) select(pending.select);
+  },
+  cancelPending: () => set({ pending: null, ghost: null }),
+  setGhost: (recipe) => {
+    const { project, pending } = get();
+    // Con un cambio grande esperando, el fantasma es el de ese cambio.
+    if (!project || pending) return;
+    set({ ghost: recipe ? apply(project, recipe, false) : null });
+  },
   setUnits: (units) => {
     const { project } = get();
     if (project) set({ project: produce(project, (d) => void (d.units = units)) });

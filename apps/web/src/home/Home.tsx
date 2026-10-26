@@ -5,6 +5,7 @@ import {
   loadProject,
   locale,
   partBox,
+  buildTemplate,
   SCHEMA_VERSION,
   t,
   templateById,
@@ -20,6 +21,7 @@ import { navigate, sectionHref } from '../routes';
 import { useInstall } from '../pwa';
 import { projectName, switchLang } from '../i18n';
 import { JointMeta } from '../help/Help';
+import { useTour } from '../help/Tour';
 import styles from './Home.module.css';
 
 const icon = { width: 40, height: 40, viewBox: '0 0 32 32', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true } as const;
@@ -392,6 +394,16 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
     onOpen(p.id);
   };
 
+  // Para quien entra por primera vez: un taburete armado y el recorrido por el editor encima.
+  const learn = async () => {
+    const def = templateById('taburete');
+    if (!def) return;
+    const p = { ...buildTemplate(def, templateDefaults(def), 'guatambu', def.joints?.default), name: t('Taburete de práctica') };
+    await saveProject(p);
+    useTour.getState().queue();
+    onOpen(p.id);
+  };
+
   const openFile = async (file: File) => {
     setFileError(null);
     try {
@@ -430,6 +442,13 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
                 </button>
               ))}
             </span>
+            <button type="button" className={styles.learn} onClick={() => void learn()}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5.5v13l10-6.5z" />
+              </svg>
+              <span className={styles.learnLong}>{t('Aprender con un taburete')}</span>
+              <span className={styles.learnShort}>{t('Aprender')}</span>
+            </button>
             {install && (
               <button type="button" className={styles.install} onClick={install}>
                 <IconSave />
