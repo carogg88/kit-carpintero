@@ -126,6 +126,14 @@ export function leanedBox(part: Part): Box {
   };
 }
 
+/** Una caja chica de la pieza derecha (una espiga) corrida a donde queda en la inclinada, sin girarla. */
+export function leanShift(f: LeanFrame, b: Box): Box {
+  const c: Vec3 = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2];
+  const p = leanPoint(f, c);
+  const d = [p[0] - c[0], p[1] - c[1], p[2] - c[2]];
+  return { min: b.min.map((v, k) => v + d[k]!) as Vec3, max: b.max.map((v, k) => v + d[k]!) as Vec3 };
+}
+
 /**
  * Dónde cae de verdad el agujero que deja una pieza inclinada en la pieza en que entra: corrido lo que se corre la
  * inclinada a la altura de la cara de entrada. Una pata que entra por arriba no se corre (gira sobre esa punta);

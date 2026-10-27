@@ -5,6 +5,8 @@ import { isLeaning, leanedBox, leanFrame, leanPoint } from './lean';
 import { createSplayedBench, createSplayedChair, createSplayedStool, leanTestStool } from './templates/leanTest';
 import { leanFollow } from './follow';
 import { describePartJoints } from './jointmarks';
+import { placedJoint } from './explode';
+import { drawJointDetail } from './drawing';
 import { drawPart, drawView } from './drawing';
 import type { Part } from './project';
 
@@ -135,6 +137,28 @@ describe('patas inclinadas', () => {
     expect(text).toContain('2 mortajas para B1 y B2 en la cara de arriba: a 2.60 de cada punta y a 7.55 del borde de atrás');
     // Las de las patas no se corren: giran sobre esa punta.
     expect(text).toContain('a 6.35 del borde de atrás');
+    // Y cada una dice con qué ángulo cortarla.
+    expect(text).toContain('Van inclinadas 10°, como la pieza que entra: guiá el formón con la falsa escuadra a 80° de la cara.');
+    expect(text).toContain('Van inclinadas 6° de frente y 6° de costado');
+  });
+
+  it('el detalle de la unión del parante mira donde queda armado y lo saca a lo largo de él', () => {
+    const chair = createSplayedChair({}, 'guatambu', '2026-10-27T00:00:00Z');
+    const j = chair.joints.find((x) => x.partA === 'S1' && x.partB === 'B1')!;
+    const placed = placedJoint(chair, j)!;
+    const f = leanFrame(chair.parts.find((p) => p.id === 'B1')!)!;
+    // Sale hacia arriba y hacia atrás, como se echa el parante.
+    expect(placed.explode.offset[1]).toBeGreaterThan(0);
+    expect(placed.explode.offset[2]).toBeLessThan(0);
+    expect(placed.explode.offset[2] / placed.explode.offset[1]).toBeCloseTo(f.dir[2] / f.dir[1], 1);
+    // La espiga del dibujo está donde cae, unos 7 cm hacia adelante, dentro de la ventana del motor.
+    const d = drawJointDetail(chair, j.id)!;
+    const win = d.views[0]!.engine!.window!;
+    const side = d.projections.findIndex((p) => p.v === 2 || p.u === 2);
+    const z = d.projections[side]!.u === 2 ? 'u' : 'v';
+    const w = d.views[side]!.engine!.window!;
+    expect(win).toBeTruthy();
+    expect(z === 'u' ? w.u1 : w.v1).toBeGreaterThan(70);
   });
 });
 
