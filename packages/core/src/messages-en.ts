@@ -561,4 +561,10 @@ export const MESSAGES_EN: Record<string, string> = {
   'hombros en ángulo, a {a}: falsa escuadra a {g} del canto': 'angled shoulders, at {a}: set the bevel gauge to {g} from the edge',
   'hombros en ángulo compuesto, {a} contra el alto y {b} de costado: falsa escuadra a {ga} y {gb} del canto':
     'compound-angle shoulders, {a} against the height and {b} sideways: set the bevel gauge to {ga} and {gb} from the edge',
+  'Cada espiga queda de {w} de ancho: con menos de {min} se puede quebrar. Achicá los hombros o la separación, o hacé una sola.': 'Each tenon is only {w} wide: under {min} it can snap. Make the shoulders or the gap smaller, or make a single one.',
+  'Espiga ancha en {name}': 'Wide tenon on {name}',
+  'La espiga de {b} mide {w} de ancho: con la humedad la madera se mueve a lo ancho y una mortaja tan larga debilita {a}.': 'The tenon on {b} is {w} wide: with humidity the wood moves across its width, and such a long mortise weakens {a}.',
+  'Partila en dos: una espiga doble, con madera en el medio, se mueve menos y deja la pieza más fuerte.': 'Split it in two: a double tenon, with wood in the middle, moves less and leaves the part stronger.',
+  'Hacer espiga doble': 'Make a double tenon',
+  'Hacer espiga doble en las {n} uniones': 'Make a double tenon on the {n} joints',
 };

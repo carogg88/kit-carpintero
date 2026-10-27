@@ -419,4 +419,10 @@ export default {
   'Hiciste un perfil a mano alzada en {id}': 'You drew a freehand profile on {id}',
   'Largo': 'Length',
   'Arrastrá hacia afuera para alargar, hacia adentro para acortar': 'Drag outward to lengthen, inward to shorten',
+  'Espigas': 'Tenons',
+  'Una': 'Single',
+  'Doble': 'Double',
+  'Entre espigas': 'Between tenons',
+  '2 mortajas {t} × {w} × {d}{unit}': '2 mortises {t} × {w} × {d}{unit}',
+  'Estás en la punta de {id}: lo que dibujes acá atraviesa todo el largo ({len}). Para darle forma al borde, tocá la cara ancha.': 'You are on the end of {id}: what you draw here goes through its whole length ({len}). To shape the edge, tap the wide face.',
 } satisfies Record<string, string>;

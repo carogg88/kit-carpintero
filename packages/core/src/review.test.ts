@@ -65,6 +65,22 @@ describe('revisión del diseño', () => {
     expect(reviewDesign(p).find((n) => n.id === `espiga|${j.id}`)?.title ?? '').not.toMatch(/^Mortaja al borde/);
   });
 
+  it('un faldón alto con espiga sola avisa y se arregla con espiga doble en sus dos puntas', () => {
+    const p = build('mesa', 'guatambu');
+    const j = p.joints.find((x) => x.type === 'mortaja')!;
+    const apron = p.parts.find((x) => x.id === j.partB)!;
+    if (apron.base.kind !== 'box') throw new Error('sin caja');
+    apron.position[1] -= 60;
+    apron.base.size[1] += 60;
+    const wide = reviewDesign(p).find((n) => n.id === `espiga|${j.id}`)!;
+    expect(wide.title).toMatch(/^Espiga ancha/);
+    expect(wide).toMatchObject({ field: 'count', action: { kind: 'joint', params: { count: 2 } } });
+    // Las dos puntas del faldón van juntas.
+    expect(wide.action!.kind === 'joint' && wide.action!.joints.length).toBe(2);
+    applyReviewFix(p, wide.action!);
+    expect(reviewDesign(p).filter((n) => n.parts[0] === apron.id && n.kind === 'espiga')).toEqual([]);
+  });
+
   it('los estantes de melamina de 76 cm se comban; los de madera maciza, no', () => {
     const notes = reviewDesign(build('estante', 'melamina')).filter((n) => n.kind === 'estante');
     // Los cinco estantes son iguales: un solo aviso.

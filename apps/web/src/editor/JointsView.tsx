@@ -337,7 +337,14 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   const fields: React.ReactNode[] =
     fineFields[joint.type] ??
     (joint.type === 'mortaja'
-      ? [length('length', t('Largo'), 5), length('thickness', t('Espesor'), 3), length('shoulder', t('Hombro'), 0)]
+      ? [
+          length('length', t('Largo'), 5),
+          length('thickness', t('Espesor'), 3),
+          length('shoulder', t('Hombro'), 0),
+          // Doble: dos espigas lado a lado con madera en el medio, para piezas anchas.
+          choose('count', t('Espigas'), [1, 2], (v) => (v === 1 ? t('Una') : t('Doble'))),
+          ...((params.count ?? 1) > 1 ? [length('gap', t('Entre espigas'), 3)] : []),
+        ]
       : joint.type === 'canal' || joint.type === 'rebaje'
         ? [length('depth', t('Profundidad'))]
         : joint.type === 'clavija'

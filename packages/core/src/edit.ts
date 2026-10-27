@@ -1,5 +1,5 @@
 import { boxSize, endContact, overlapBox, partBox, type Axis, type Box, type Vec3 } from './geometry';
-import { defaultJointParams, endJoint, MIN_TENON_WIDTH, suggestJoints } from './joints';
+import { defaultJointParams, endJoint, MIN_TENON_WIDTH, suggestJoints, tenonWidth } from './joints';
 import type { Component, Joint, Part } from './project';
 import { t, tk } from './i18n';
 import { fitJointDepths } from './jointfit';
@@ -317,8 +317,14 @@ function refitTenon(j: Joint, a: Box, b: Box, was?: Box): Joint {
   const followed =
     oldStock !== undefined && Math.abs(oldStock - newStock) > 0.01 && Math.abs(thickness - oldStock / 3) <= THIRD_SLACK && Math.abs(thickness - def.thickness!) > 0.01;
   const thick = thickness >= thin || followed;
-  if (!narrow && !thick) return j;
-  return { ...j, params: { ...j.params, ...(narrow ? { shoulder: def.shoulder } : {}), ...(thick ? { thickness: def.thickness } : {}) } };
+  // Una espiga doble en una pieza que se angostó: si cada una queda muy fina, vuelve a ser una.
+  const count = j.params.count ?? 1;
+  const single = count > 1 && tenonWidth(wide, { shoulder: narrow ? def.shoulder! : shoulder, count, gap: j.params.gap }) < MIN_TENON_WIDTH;
+  if (!narrow && !thick && !single) return j;
+  return {
+    ...j,
+    params: { ...j.params, ...(narrow ? { shoulder: def.shoulder } : {}), ...(thick ? { thickness: def.thickness } : {}), ...(single ? { count: 1 } : {}) },
+  };
 }
 
 /**

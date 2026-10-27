@@ -1,5 +1,5 @@
 import { boxSize, otherAxes, partBox, type Axis, type Box, type Vec3 } from './geometry';
-import { defaultMortiseParams, endJoint } from './joints';
+import { defaultMortiseParams, endJoint, splitTenons } from './joints';
 import { isLeaning, leanedBox, leanFrame, leanPoint, rotateVec, type LeanFrame } from './lean';
 import type { Joint, Part, Project } from './project';
 import { t } from './i18n';
@@ -122,7 +122,7 @@ export function leanFollow(project: Pick<Project, 'parts' | 'joints'>, part: Par
  * desde la cara de la pata. La espiga arranca un poco antes del hombro, adentro de la pieza, para que no quede
  * corta de un lado; la mortaja es 2 mm más honda, como las demás.
  */
-export function followMortise(f: Follow, end: FollowEnd, part: Part): { tenon: Box; mortise: Box } | null {
+export function followMortise(f: Follow, end: FollowEnd, part: Part): { tenon: Box; mortise: Box }[] | null {
   const legBox = partBox(end.leg);
   const own = partBox(part);
   const d = defaultMortiseParams(legBox, own);
@@ -142,7 +142,8 @@ export function followMortise(f: Follow, end: FollowEnd, part: Part): { tenon: B
     b.max[end.axis] = Math.max(back, to);
     return b;
   };
-  return { tenon: span(end.face + end.dir * p.length), mortise: span(end.face + end.dir * (p.length + 2)) };
+  // Con espiga doble, cada una con su mortaja.
+  return splitTenons({ tenon: span(end.face + end.dir * p.length), mortise: span(end.face + end.dir * (p.length + 2)) }, e.wide, p);
 }
 
 /** Encastres que ya siguen a la pata inclinada: los demás todavía no se cortan. */

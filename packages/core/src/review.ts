@@ -1,5 +1,5 @@
 import { boxSize, overlapBox, partBox, type Axis, type Box } from './geometry';
-import { defaultMortiseParams, endJoint, JOINT_NAMES, mortiseAndTenon, type MortiseParams } from './joints';
+import { defaultMortiseParams, defaultTenonGap, DOUBLE_TENON_FROM, endJoint, JOINT_NAMES, mortiseAndTenon, type MortiseParams } from './joints';
 import { furnitureBox } from './resize';
 import { formatLength } from './units';
 import { isSheet, sheetById } from './woods';
@@ -253,6 +253,22 @@ function tenon(project: Project, j: Joint): ReviewNote | null {
       action: { kind: 'joint', joints: [j.id], params: { thickness: third }, label: t('Usar espiga de {third} mm', { third: third.toLocaleString(locale()) }) },
     };
   }
+  // Una espiga muy ancha (un faldón alto): con la humedad la pieza se mueve a lo ancho y la mortaja larga debilita la
+  // pata. Dos espigas con madera en el medio aguantan mejor.
+  const width = g.tenon.max[e.wide] - g.tenon.min[e.wide];
+  if ((params.count ?? 1) < 2 && width >= DOUBLE_TENON_FROM) {
+    return {
+      id: `espiga|${j.id}`,
+      kind: 'espiga',
+      parts: [b.id, a.id],
+      title: t('Espiga ancha en {name}', { name: name(b) }),
+      text: t('La espiga de {b} mide {w} de ancho: con la humedad la madera se mueve a lo ancho y una mortaja tan larga debilita {a}.', { b: name(b), w: mm(width), a: name(a) }),
+      fix: t('Partila en dos: una espiga doble, con madera en el medio, se mueve menos y deja la pieza más fuerte.'),
+      joint: j.id,
+      field: 'count',
+      action: { kind: 'joint', joints: [j.id], params: { count: 2, gap: defaultTenonGap(width) }, label: t('Hacer espiga doble') },
+    };
+  }
   return null;
 }
 
@@ -332,16 +348,24 @@ export function reviewDesign(project: Project): ReviewNote[] {
     }
   }
   const tenons = project.joints.flatMap((j) => tenon(project, j) ?? []);
-  // La misma espiga gruesa en las dos puntas de un travesaño se arregla de una vez: el botón va a las dos uniones.
+  // La misma espiga gruesa en las dos puntas de un travesaño se arregla de una vez: el botón va a las dos uniones, y
+  // queda un solo aviso.
+  const merged = new Set<ReviewNote>();
   for (const n of tenons) {
     const fix = n.action;
-    if (fix?.kind !== 'joint') continue;
-    const same = tenons.filter((m) => m.action?.kind === 'joint' && m.parts[0] === n.parts[0] && m.action.params.thickness === fix.params.thickness);
+    if (merged.has(n) || fix?.kind !== 'joint') continue;
+    const same = tenons.filter(
+      (m) => m.action?.kind === 'joint' && m.parts[0] === n.parts[0] && m.action.params.thickness === fix.params.thickness && m.action.params.count === fix.params.count,
+    );
     if (same.length < 2) continue;
+    for (const m of same) if (m !== n) merged.add(m);
     fix.joints = same.map((m) => m.joint!);
-    fix.label = t('Usar espiga de {third} mm en las {n} uniones', { third: fix.params.thickness!.toLocaleString(locale()), n: same.length });
+    fix.label =
+      fix.params.thickness !== undefined
+        ? t('Usar espiga de {third} mm en las {n} uniones', { third: fix.params.thickness.toLocaleString(locale()), n: same.length })
+        : t('Hacer espiga doble en las {n} uniones', { n: same.length });
   }
-  notes.push(...tenons);
+  notes.push(...tenons.filter((n) => !merged.has(n)));
   notes.push(...sagging(project));
   return notes;
 }
