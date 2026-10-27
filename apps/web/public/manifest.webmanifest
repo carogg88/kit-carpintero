@@ -3,7 +3,7 @@
   "short_name": "Calibre",
   "description": "Diseñá muebles de carpintería fina: piezas, encastres, lista de cortes y planos.",
   "lang": "es",
-  "start_url": "./",
+  "start_url": "./#/",
   "scope": "./",
   "display": "standalone",
   "background_color": "#F7F8F4",
