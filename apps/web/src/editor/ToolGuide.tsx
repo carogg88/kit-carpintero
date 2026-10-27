@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { faceLabel, t, tk } from '@kitc/core';
 import { IconArc, IconChamfer, IconCircle, IconCopy, IconCornerPoint, IconCurvePoint, IconPath, IconRect, IconRound, IconUndo } from './icons';
+import { CutPick, FlipSide } from './DrawControls';
 import { MeasureBubble } from './MeasureBubble';
 import { MeasureCard } from './MeasureCard';
 import { useEditor, useSelectedPart } from './store';
@@ -55,7 +56,7 @@ export function dropPathPoint() {
   const rest = pathPoints.slice(0, -1);
   setHint(null);
   setPathPoints(rest);
-  setDraft(drawFace && rest.length ? { ...drawFace, shape: { kind: 'path', points: rest, closed: false, flip: false } } : null);
+  setDraft(drawFace && rest.length ? { ...drawFace, shape: { kind: 'path', points: rest, closed: false, flip: useEditor.getState().pathFlip } } : null);
 }
 
 /**
@@ -124,7 +125,7 @@ export function ToolGuide() {
               ? t('Seguí marcando puntos')
               : t(STEP2_DRAW[drawShape]),
         },
-        { text: t('Elegí vaciado o calado y qué tan hondo') },
+        { text: t('Ajustá las medidas, si hace falta') },
       ];
       active = bubble?.target.kind === 'pocket' ? 2 : drawFace ? 1 : 0;
       controls = (
@@ -142,6 +143,13 @@ export function ToolGuide() {
             <IconPath />
           </button>
         </div>
+      );
+      // Antes de dibujar: qué se saca. Así lo que se ve mientras se dibuja ya es lo que va a quedar.
+      controls = (
+        <>
+          {controls}
+          <CutPick />
+        </>
       );
       // Perfil a mano: si el próximo punto va en curva o en esquina, y volver atrás el último.
       if (drawShape === 'path')
@@ -162,6 +170,7 @@ export function ToolGuide() {
                 {t('Sacar punto')}
               </button>
             )}
+            <FlipSide />
           </>
         );
       if (drawFace)
@@ -214,7 +223,7 @@ export function ToolGuide() {
 
   const numbered = steps.length > 1;
   return (
-    <div className={styles.guide} data-tool={tool}>
+    <div className={styles.guide} data-tool={tool} data-wide={(tool === 'draw' && drawShape === 'path') || undefined}>
       {controls}
       <ol className={styles.steps} aria-label={t('Pasos')} data-numbered={numbered || undefined}>
         {steps.map((s, i) => (

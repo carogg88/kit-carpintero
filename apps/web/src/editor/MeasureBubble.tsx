@@ -25,7 +25,7 @@ const AXIS_LABELS = [tk('Ancho'), tk('Alto'), tk('Fondo')] as const;
 /**
  * Burbuja junto a la pieza, donde se soltó el arrastre: muestra la medida que quedó y deja escribir la exacta.
  * Sirve para Estirar (el largo, ancho o espesor de esa cara), para Mover (cuánto se corrió y a qué altura), para Biselar (el bisel o el radio) y para Dibujar:
- * ahí se elige si lo dibujado es un vaciado o un calado y qué tan hondo baja.
+ * ahí se elige si lo dibujado es un vaciado o un calado y qué tan hondo baja (en el celular; en la compu, en el panel).
  * `docked`: en el celular va dentro de la tarjeta de pasos, donde no tapa la pieza ni el dedo.
  */
 export function MeasureBubble({ docked = false }: { docked?: boolean }) {
@@ -53,6 +53,8 @@ export function MeasureBubble({ docked = false }: { docked?: boolean }) {
   }, [bubble, docked]);
   if (!bubble || !project) return null;
   const { target } = bubble;
+  // En la compu, lo dibujado se ajusta en el panel de la derecha (la figura queda marcada ahí): la burbuja taparía el dibujo.
+  if (!docked && target.kind === 'pocket') return null;
   const part = project.parts.find((p) => p.id === target.id);
   if (!part || part.base.kind !== 'box') return null;
   if (target.kind === 'move') return <MoveBubble key={`${bubble.x},${bubble.y}`} target={target} part={part} project={project} docked={docked} x={bubble.x} y={bubble.y} />;

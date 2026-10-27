@@ -21,7 +21,8 @@ function focusBox(a: Box, b: Box): THREE.Box3 {
   return contact.expandByScalar(Math.max(70, 0.45 * Math.max(size.x, size.y, size.z)));
 }
 
-function Rig({ focus, frameKey }: { focus: THREE.Box3; frameKey: string }) {
+/** `reach`: qué parte de la esfera que rodea la zona entra en la vista; menos de 1 acerca (una pieza larga y fina se ve chica si no). */
+export function Rig({ focus, frameKey, reach = 1 }: { focus: THREE.Box3; frameKey: string; reach?: number }) {
   const { camera, gl, invalidate, size } = useThree();
   const controls = useRef<OrbitControls | null>(null);
 
@@ -45,7 +46,7 @@ function Rig({ focus, frameKey }: { focus: THREE.Box3; frameKey: string }) {
     const r = focus.getSize(new THREE.Vector3()).length() / 2;
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-    camera.position.copy(center.clone().add(DIR.clone().multiplyScalar(r / Math.sin(Math.min(hHalf, vHalf)))));
+    camera.position.copy(center.clone().add(DIR.clone().multiplyScalar((r * reach) / Math.sin(Math.min(hHalf, vHalf)))));
     c.target.copy(center);
     c.update();
     invalidate();
@@ -54,13 +55,13 @@ function Rig({ focus, frameKey }: { focus: THREE.Box3; frameKey: string }) {
   return null;
 }
 
-interface Look {
+export interface Look {
   fill: string;
   edge: string;
   xray: boolean;
 }
 
-function Piece({ part, exact, look }: { part: Part; exact: ExactMesh | undefined; look: Look }) {
+export function Piece({ part, exact, look }: { part: Part; exact: ExactMesh | undefined; look: Look }) {
   const box = partBox(part);
   const size = box.max.map((v, i) => v - box.min[i]!) as [number, number, number];
   const center = box.min.map((v, i) => v + size[i]! / 2) as [number, number, number];

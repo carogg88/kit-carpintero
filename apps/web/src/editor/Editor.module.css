@@ -275,6 +275,31 @@
   background: transparent; color: var(--ink); cursor: pointer; transition: background-color 150ms ease;
 }
 .shapes button[aria-pressed='true'] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgb(43 54 40 / 0.18); }
+/* Dibujar, en la compu: arriba del panel, la pieza en diagonal con lo que se está dibujando ya sacado. No tapa el dibujo. */
+.drawPreview {
+  display: none; position: sticky; z-index: 2; top: -20px; flex: none; height: 180px; margin: -8px -8px 0; flex-direction: column;
+  border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--surface-2); overflow: hidden;
+}
+@media (min-width: 900px) {
+  .drawPreview { display: flex; }
+}
+.drawPreview figcaption {
+  display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px 0; font: 500 var(--text-xs) var(--font-display);
+  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--muted);
+}
+.drawPreview > div { flex: 1; min-height: 0; }
+.drawPreviewBusy { text-transform: none; letter-spacing: 0; font-family: var(--font-ui); }
+
+/* Dibujar: calado o vaciado, con palabras, y el hondo del vaciado. */
+.cutPick button { width: auto; padding: 0 12px; border-radius: var(--radius-pill); font: 500 var(--text-s) var(--font-ui); }
+.cutDepth {
+  display: inline-flex; align-items: center; gap: 6px; height: 40px; font: 500 var(--text-s) var(--font-ui); color: var(--muted); white-space: nowrap;
+}
+.cutDepth input {
+  width: 52px; height: 32px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-s); background: var(--surface);
+  color: var(--ink); font: 500 var(--text-s) var(--font-num); text-align: right;
+}
+.cutDepth input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .done {
   height: 40px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--forest); color: var(--forest-ink);
   font: 600 var(--text-s) var(--font-ui); cursor: pointer;
@@ -564,6 +589,10 @@
   .guide { top: auto; bottom: var(--space-3); left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100% - 2 * var(--space-3) - 160px); padding-right: var(--space-2); }
   .guide:has(.done) { padding-right: var(--space-1); }
   .guide { flex-wrap: nowrap; }
+  /* Perfil a mano trae muchos botones: el paso baja a una segunda fila en vez de quedar tapado. */
+  .guide[data-wide] { flex-wrap: wrap; justify-content: center; }
+  .stage:has(.guide[data-wide]) .notice { bottom: calc(var(--space-3) + 96px); }
+  .guide[data-wide] .steps { order: 2; flex: 1 1 100%; justify-content: center; padding: 2px var(--space-1) 4px; }
   .steps, .guide:has(.bubbleDocked) .steps { display: flex; flex: 1 1 auto; order: 0; gap: var(--space-3); padding: 0 var(--space-1); }
   .stage:has(.bubbleDocked) .notice { display: flex; }
   .guide > .done { margin-left: 0; }
@@ -928,3 +957,10 @@
 .jointLook svg { width: 18px; height: 18px; }
 .pathRow button:disabled { opacity: 0.35; cursor: default; background: transparent; }
 .pocketCard > .link { align-self: flex-start; }
+.pocketCard[data-fresh] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* Con la vista chica pegada arriba del panel, la tarjeta nueva se acomoda debajo de ella. */
+.drawPreview ~ * .pocketCard[data-fresh] { scroll-margin-top: 200px; }
+.pocketCenter {
+  align-self: end; min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--ink); font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+}

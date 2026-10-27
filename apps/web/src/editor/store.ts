@@ -90,6 +90,14 @@ interface EditorState {
   /** Perfil a mano: los puntos ya marcados sobre la cara elegida, y si el próximo va en curva o en esquina. */
   pathPoints: PathPoint[];
   pathCorner: boolean;
+  /** Perfil a mano abierto: saca el otro lado (el más grande) en vez del más chico. */
+  pathFlip: boolean;
+  /**
+   * Qué se saca con lo que se dibuja, elegido antes de dibujar: calado (atraviesa) o vaciado, y qué tan hondo en mm.
+   * `null`: según la figura (el rectángulo, vaciado hasta la mitad; lo demás, calado).
+   */
+  drawThrough: boolean | null;
+  drawDepth: number | null;
   /** Aviso de lo que acaba de cambiar, con la opción de deshacerlo. `key` cambia con cada aviso nuevo. */
   notice: Notice | null;
   bubble: Bubble | null;
@@ -143,6 +151,8 @@ interface EditorState {
   setHint: (h: DragHint | null) => void;
   setDrawFace: (f: DrawFace | null, frame?: boolean) => void;
   setDrawShape: (s: DrawShape) => void;
+  setDrawCut: (through: boolean, depth?: number | null) => void;
+  setPathFlip: (flip: boolean) => void;
   setBevelRound: (round: boolean) => void;
   setDraft: (d: EditorState['draft']) => void;
   setBevelDraft: (d: EditorState['bevelDraft']) => void;
@@ -301,6 +311,9 @@ export const useEditor = create<EditorState>()((set, get) => ({
   arcChord: null,
   pathPoints: [],
   pathCorner: false,
+  pathFlip: false,
+  drawThrough: null,
+  drawDepth: null,
   notice: null,
   bubble: null,
   fitting: null,
@@ -311,7 +324,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], notice: null, bubble: null }),
+    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -404,7 +417,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setJointFocus: (jointFocus, hint) => set({ jointFocus, jointHint: hint ?? null }),
   setTool: (tool) =>
     set((s) => ({
-      ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], bubble: null }),
+      ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], pathFlip: false, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, bubble: null }),
       ...(tool !== 'measure' && (s.measure.a || s.measure.b) ? { measure: { a: null, b: null } } : {}),
     })),
   pickMeasure: (pick) =>
@@ -424,17 +437,20 @@ export const useEditor = create<EditorState>()((set, get) => ({
       drawFramed: !!drawFace && frame,
       arcChord: null,
       pathPoints: [],
+      pathFlip: false,
       draft: null,
       // Al terminar, la vista vuelve a como estaba si se había puesto de frente.
       ...(!drawFace && s.drawFramed ? { viewNonce: s.viewNonce + 1 } : {}),
     })),
-  setDrawShape: (drawShape) => set({ drawShape, arcChord: null, pathPoints: [], draft: null }),
+  setDrawShape: (drawShape) => set({ drawShape, arcChord: null, pathPoints: [], pathFlip: false, draft: null }),
+  setDrawCut: (drawThrough, drawDepth) => set((s) => ({ drawThrough, drawDepth: drawDepth === undefined ? s.drawDepth : drawDepth })),
+  setPathFlip: (pathFlip) => set({ pathFlip }),
   setBevelRound: (bevelRound) => set({ bevelRound }),
   setDraft: (draft) => set({ draft }),
   setBevelDraft: (bevelDraft) => set({ bevelDraft }),
   setSectionDraft: (sectionDraft) => set({ sectionDraft }),
   setArcChord: (arcChord) => set({ arcChord }),
-  setPathPoints: (pathPoints) => set({ pathPoints }),
+  setPathPoints: (pathPoints) => set(pathPoints.length ? { pathPoints } : { pathPoints, pathFlip: false }),
   setPathCorner: (pathCorner) => set({ pathCorner }),
   dismissNotice: () => set({ notice: null }),
   warn: (text) => set({ notice: { text, key: ++noticeKey, undo: false } }),

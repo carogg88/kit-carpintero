@@ -41,6 +41,7 @@ import { PreviewBar } from './PreviewBar';
 import { HelpButton } from '../help/HelpCenter';
 import { TourOverlay, useTour } from '../help/Tour';
 import { MeasureBubble } from './MeasureBubble';
+import { DrawPreview } from './DrawPreview';
 import { MeasureCard } from './MeasureCard';
 import { NextSteps, useStepMarks, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
@@ -662,6 +663,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
 
           <aside id="panel-mueble" className={styles.panel} data-tour="panel" aria-label={selected ? t('Pieza seleccionada') : t('Piezas del proyecto')}>
             <span className={styles.grabber} aria-hidden="true" />
+            <DrawPreview meshes={meshes} />
             <PartPanel />
           </aside>
         </main>
