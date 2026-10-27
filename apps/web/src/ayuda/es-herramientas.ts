@@ -539,6 +539,15 @@ export const ES_TOOLS: Article[] = [
         title: 'Más lugar para el modelo',
         blocks: [p('El botón al lado de las vistas pliega el panel de la derecha. Tocalo de nuevo para volver a abrirlo.')],
       },
+      {
+        id: 'veta',
+        title: 'Veta o colores lisos',
+        blocks: [
+          p('Cada pieza se ve con la veta de su madera, a lo largo de la pieza: en las caras se ven las rayas y en las puntas, los anillos. Así se nota enseguida si una pieza quedó con la veta para el lado equivocado.'),
+          steps('Tocá el botón de las tres rayas onduladas, al lado de las vistas, para ver las piezas de un color liso.', 'Tocalo de nuevo para volver a la veta.'),
+          tip('En un equipo lento, los colores lisos hacen que el modelo se mueva más suelto. La app se acuerda de lo que elegiste.'),
+        ],
+      },
     ],
     faq: [{ q: 'Las flechas del teclado corren la pieza para otro lado', a: 'Siguen la vista: en Frente corren a lo ancho y a lo alto; en Arriba, a lo ancho y de fondo.' }],
     related: ['mover', 'pantalla-editor'],

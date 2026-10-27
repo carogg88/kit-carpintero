@@ -2,7 +2,8 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { partBox, partKey, placedJoint, woodById, type Box, type Joint, type Part, type Project } from '@kitc/core';
+import { partBox, partKey, placedJoint, type Box, type Joint, type Part, type Project } from '@kitc/core';
+import { usePartMaterial } from './woodMaterial';
 import { useDraftMeshes, type ExactMesh } from './useGeometry';
 import { cssColor } from './Viewport';
 
@@ -56,7 +57,8 @@ export function Rig({ focus, frameKey, reach = 1 }: { focus: THREE.Box3; frameKe
 }
 
 export interface Look {
-  fill: string;
+  /** Color liso; sin esto, la veta de la madera. */
+  fill?: string;
   edge: string;
   xray: boolean;
 }
@@ -67,15 +69,17 @@ export function Piece({ part, exact, look }: { part: Part; exact: ExactMesh | un
   const center = box.min.map((v, i) => v + size[i]! / 2) as [number, number, number];
   const boxGeo = useMemo(() => new THREE.BoxGeometry(...size), [size[0], size[1], size[2]]); // eslint-disable-line react-hooks/exhaustive-deps
   const geometry = exact?.geometry ?? boxGeo;
+  const material = usePartMaterial(part, look.fill, !look.fill);
   const edges = useMemo(() => exact?.edges ?? new THREE.EdgesGeometry(boxGeo), [exact, boxGeo]);
   useEffect(() => () => boxGeo.dispose(), [boxGeo]);
   useEffect(() => () => void (edges !== exact?.edges && edges.dispose()), [edges, exact]);
   return (
     <group position={exact ? [0, 0, 0] : center}>
       <mesh geometry={geometry}>
-        <meshStandardMaterial
-          color={look.fill}
-          roughness={0.85}
+        <primitive
+          object={material}
+          attach="material"
+          roughness={0.8}
           transparent={look.xray}
           opacity={look.xray ? 0.2 : 1}
           depthWrite={!look.xray}
@@ -168,7 +172,7 @@ export function JointDetail3D({ project, joint, meshes, label, draft = null, apa
         <Piece part={b} exact={exact(b.id)} look={{ fill: colors.signal, edge: colors.ink, xray: false }} />
       </Slide>
       {/* Separadas, la que recibe va sólida: la caja vacía se ve mejor que en rayos X. */}
-      <Piece part={a} exact={exact(a.id)} look={{ fill: woodById(a.wood)?.color ?? '#D9BC8C', edge: apart ? colors.ink : colors.xray, xray: !apart }} />
+      <Piece part={a} exact={exact(a.id)} look={{ edge: apart ? colors.ink : colors.xray, xray: !apart }} />
     </Canvas>
   );
 }

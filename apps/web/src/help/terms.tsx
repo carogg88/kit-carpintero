@@ -170,6 +170,23 @@ export const TERMS = {
       </Svg>
     ),
   },
+  veta: {
+    title: tk('Veta'),
+    text: tk('Las fibras de la madera, que corren a lo largo del tronco. La pieza se corta con la veta a lo largo: así es fuerte. Con la veta cruzada (a la derecha), una pieza larga se parte con poco esfuerzo.'),
+    drawing: (
+      <Svg>
+        <rect className={P} x="6" y="26" width="52" height="20" />
+        <rect className={M} x="6" y="31" width="52" height="1.6" />
+        <rect className={M} x="6" y="37" width="52" height="1.6" />
+        <rect className={M} x="6" y="42" width="52" height="1.6" />
+        <rect className={P} x="66" y="26" width="52" height="20" />
+        <rect className={M} x="74" y="26" width="1.6" height="20" />
+        <rect className={M} x="86" y="26" width="1.6" height="20" />
+        <rect className={M} x="98" y="26" width="1.6" height="20" />
+        <rect className={M} x="110" y="26" width="1.6" height="20" />
+      </Svg>
+    ),
+  },
   vaciados: {
     title: tk('Vaciados y calados'),
     text: tk('Un vaciado saca madera de una cara sin atravesar la pieza, como el hueco de una manija. Un calado la atraviesa de lado a lado y deja un agujero.'),

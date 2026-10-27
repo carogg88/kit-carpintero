@@ -66,6 +66,10 @@ import {
   type Units,
   tenonWidth,
   flipParts,
+  grainAxis,
+  grainChoosable,
+  grainOptions,
+  setGrain,
 } from '@kitc/core';
 import { OPEN_EVENT, PartNotes, ReviewCard, reviewSummary, useReview } from './Review';
 import { GoldenCard, goldenCount } from './Golden';
@@ -895,6 +899,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         </select>
         {sheetNote(part.wood) && <span className={styles.fieldNote}>{sheetNote(part.wood)}</span>}
       </label>
+      <GrainRow part={part} units={units} />
       {component && <ComponentNote project={project} part={part} name={component.name} />}
       <div className={styles.folds}>
         <Fold title={t('Forma')} summary={shape} open={open.forma} onToggle={() => toggle('forma')}>
@@ -1257,6 +1262,44 @@ function FlipRow({ ids, label }: { ids: string[]; label: string }) {
           {t(name)}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Hacia dónde va la veta: sale sola por lo más largo de la pieza; en un tablero o un panel se puede girar. La lista de
+ * cortes pide la tabla con el largo a lo largo de la veta.
+ */
+function GrainRow({ part, units }: { part: Part; units: Project['units'] }) {
+  const commit = useEditor((s) => s.commit);
+  if (!grainChoosable(part) || part.base.kind !== 'box') return null;
+  const size = part.base.size;
+  const current = grainAxis(part);
+  const options = grainOptions(part);
+  return (
+    <div className={styles.field} role="group" aria-labelledby={`veta-${part.id}`}>
+      <span id={`veta-${part.id}`}>
+        {t('Veta')}
+        <HelpTip term="veta" />
+      </span>
+      <div className={styles.seg}>
+        {options.map((axis) => (
+          <button
+            key={axis}
+            type="button"
+            aria-pressed={current === axis}
+            onClick={() =>
+              current !== axis &&
+              commit((d) => {
+                const q = d.parts.find((x) => x.id === part.id);
+                if (q) setGrain(q as Part, axis);
+              }, t('Giraste la veta de {id}', { id: part.id }))
+            }
+          >
+            {t('Por el {axis} · {mm}', { axis: t(SIZE_NAMES[axis]), mm: formatLength(size[axis], units) })}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -82,6 +82,8 @@ export const ES_PARTS: Article[] = [
         title: 'Madera',
         blocks: [
           p('En **Madera** elegís una madera maciza o una placa (MDF, melamina, terciado o multilaminado). Si elegís una placa, la pieza pasa al espesor de placa más cercano, porque las placas vienen en espesores fijos. Más información: [Placas](placas).'),
+          p('Abajo, **Veta** dice para dónde corre la fibra. Sale sola por lo más largo de la pieza, que es como se corta la tabla. En un tablero o un panel la podés girar al otro lado: la lista de cortes pide la tabla con el largo a lo largo de la veta. En el MDF y la melamina no aparece, porque no tienen veta.'),
+          tip('Si girás la veta en una pieza larga y angosta, como un listón o una pata, la revisión avisa **Veta corta**: así la pieza se parte con poco esfuerzo.'),
         ],
       },
       {
@@ -541,6 +543,7 @@ export const ES_PARTS: Article[] = [
             ['Veta cruzada', 'Una pieza ancha encolada a otra que no la deja moverse con la humedad: se raja.'],
             ['Mortaja al borde o espiga gruesa', 'Queda poca madera alrededor de la mortaja, o la espiga pasa del tercio del espesor.'],
             ['Espiga ancha', 'La espiga pasa de 9 cm de ancho: se mueve con la humedad y debilita la pata. **Hacer espiga doble** la parte en dos.'],
+            ['Veta corta', 'Una pieza larga y angosta con la veta girada a lo ancho: se parte. **Poner la veta a lo largo** la vuelve a su lugar.'],
             ['Estantes que se comban', 'Con libros encima, el estante baja en el medio. Dice qué largo o qué espesor lo evita.'],
           ),
         ],

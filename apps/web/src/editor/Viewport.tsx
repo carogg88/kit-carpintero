@@ -43,7 +43,6 @@ import {
   snapOnFace,
   t,
   tk,
-  woodById,
   type Axis,
   type Bevel,
   type Box,
@@ -64,6 +63,7 @@ import { DEAD_PX, gentle, roundMeasure } from './gesture';
 import { ghostDiff } from './ghost';
 import { drawnPocket, showCorner } from './drawCut';
 import { partsLabel, useEditor, type DrawFace, type View } from './store';
+import { usePartMaterial } from './woodMaterial';
 import type { ExactMesh } from './useGeometry';
 
 const VIEW_DIRS: Record<View, [number, number, number]> = {
@@ -278,11 +278,12 @@ function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDow
     boxEdges.dispose();
   }, [boxGeo, boxEdges]);
 
-  const color = woodById(part.wood)?.color ?? '#D9BC8C';
+  const wood = usePartMaterial(part);
   const material = (
-    <meshStandardMaterial
-      color={color}
-      roughness={0.85}
+    <primitive
+      object={wood}
+      attach="material"
+      roughness={0.8}
       emissive={selected ? accent : '#000000'}
       emissiveIntensity={selected ? 0.35 : 0}
       transparent={xray}

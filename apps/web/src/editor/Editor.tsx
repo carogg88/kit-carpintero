@@ -11,6 +11,7 @@ import {
   IconBack,
   IconBevel,
   IconFit,
+  IconGrain,
   IconSection,
   IconTurn,
   IconDraw,
@@ -35,6 +36,7 @@ import { JointsView } from './JointsView';
 import { PlanView } from './PlanView';
 import { ADD_OPTIONS, FITTING_OPTIONS, PartPanel, UnitsToggle, useAddPart } from './PartPanel';
 import { partsLabel, useEditor, useSelectedPart, type DragHint, type Tool, type View } from './store';
+import { setGrainOn, useGrainOn } from './woodMaterial';
 import { useExactMeshes } from './useGeometry';
 import { ToolGuide, ChangeNotice, dropPathPoint } from './ToolGuide';
 import { PreviewBar } from './PreviewBar';
@@ -456,6 +458,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
   const { undo, redo, setTool, setXray, setView } = useEditor.getState();
+  const grain = useGrainOn();
   const selected = useSelectedPart();
   const picked = useEditor((s) => s.picked);
   const [panelOpen, setPanelOpen] = usePanelOpen();
@@ -604,6 +607,17 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                   <span className={styles.mobileOnly}>{t(short)}</span>
                 </button>
               ))}
+              {/* La veta de la madera, o el color liso: para equipos lentos o para trabajar sin distracción. */}
+              <button
+                type="button"
+                className={styles.grainBtn}
+                aria-pressed={grain}
+                aria-label={t('Ver la veta de la madera')}
+                title={grain ? t('Veta de la madera: tocá para ver colores lisos') : t('Colores lisos: tocá para ver la veta de la madera')}
+                onClick={() => setGrainOn(!grain)}
+              >
+                <IconGrain />
+              </button>
               {/* Vuelve a poner todo el mueble a la vista, después de girar, acercar o agregar piezas lejos. */}
               <button type="button" className={styles.fitBtn} aria-label={t('Encuadrar')} title={t('Encuadrar: todo el mueble a la vista')} onClick={() => setView(view)}>
                 <IconFit />

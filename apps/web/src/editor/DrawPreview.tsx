@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { produce } from 'immer';
 import * as THREE from 'three';
-import { partBox, partKey, pathCrosses, pocketRegion, t, woodById, type Part, type Project } from '@kitc/core';
+import { partBox, partKey, pathCrosses, pocketRegion, t, type Part, type Project } from '@kitc/core';
 import { drawnPocket } from './drawCut';
 import { Piece, Rig } from './JointDetail3D';
 import { useEditor } from './store';
@@ -71,7 +71,7 @@ export function DrawPreview({ meshes }: { meshes: ReadonlyMap<string, ExactMesh>
         <Rig focus={focus} frameKey={part.id} reach={0.62} />
         <hemisphereLight args={['#ffffff', '#b9ad98', 1.7]} />
         <directionalLight position={[1500, 2500, 1800]} intensity={1.3} />
-        <Piece part={part} exact={exact} look={{ fill: woodById(part.wood)?.color ?? '#D9BC8C', edge: colors.ink, xray: false }} />
+        <Piece part={part} exact={exact} look={{ edge: colors.ink, xray: false }} />
       </Canvas>
     </figure>
   );

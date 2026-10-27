@@ -196,4 +196,5 @@ export default {
   'El modo taller está en Cortes y en Armado': 'Workshop mode is in Cuts and in Assembly',
   'Compartir está acá': 'Share is here',
   'Arriba a la derecha, al lado de Deshacer.': 'At the top right, next to Undo.',
+  'Las fibras de la madera, que corren a lo largo del tronco. La pieza se corta con la veta a lo largo: así es fuerte. Con la veta cruzada (a la derecha), una pieza larga se parte con poco esfuerzo.': 'The wood fibers, which run along the trunk. A piece is cut with the grain running its length: that makes it strong. With the grain across (on the right), a long piece breaks easily.',
 } satisfies Record<string, string>;

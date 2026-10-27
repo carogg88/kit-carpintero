@@ -82,6 +82,8 @@ export const EN_PARTS: Article[] = [
         title: 'Wood',
         blocks: [
           p('Under **Wood** you pick a solid wood or a sheet (MDF, melamine, plywood or multi-ply). If you pick a sheet, the part takes the nearest sheet thickness, because sheets come in fixed thicknesses. Learn more: [Sheets](placas).'),
+          p('Below it, **Grain** says which way the fibers run. It goes along the longest side of the part by itself, which is how the board is cut. On a top or a panel you can turn it the other way: the cut list then asks for the board with its length along the grain. It does not show for MDF or melamine, which have no grain.'),
+          tip('If you turn the grain on a long, narrow part, like a slat or a leg, the design review warns **Short grain**: the part breaks easily that way.'),
         ],
       },
       {
@@ -541,6 +543,7 @@ export const EN_PARTS: Article[] = [
             ['Cross grain', 'A wide part glued to another that won’t let it move with humidity: it will crack.'],
             ['Mortise at the edge or thick tenon', 'Little wood is left around the mortise, or the tenon is over a third of the thickness.'],
             ['Wide tenon', 'The tenon is over 9 cm wide: it moves with humidity and weakens the leg. **Make a double tenon** splits it in two.'],
+            ['Short grain', 'A long, narrow part with its grain turned across: it breaks. **Run the grain lengthwise** puts it back.'],
             ['Sagging shelves', 'Loaded with books, the shelf sags in the middle. It says which length or thickness avoids it.'],
           ),
         ],
