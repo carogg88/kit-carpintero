@@ -150,7 +150,8 @@ export const FOLLOW_JOINTS = new Set(['tope', 'mortaja']);
 
 /** "hombros en ángulo, a 8°: falsa escuadra a 82° del canto" para la lista de cortes. */
 export function followWork(f: Follow): string | null {
-  const half = (a: number) => Math.round(a * 2) / 2;
+  // Menos de un grado no se marca a mano: el hombro va a escuadra de ese lado.
+  const half = (a: number) => (a < 1 ? 0 : Math.round(a * 2) / 2);
   const angles = f.ends.map((e) => e.shoulder.map(half) as [number, number]).filter(([a, b]) => a || b);
   if (!angles.length) return null;
   const [a, b] = angles.reduce((m, x) => [Math.max(m[0], x[0]), Math.max(m[1], x[1])], [0, 0]);

@@ -506,7 +506,18 @@ export const MESSAGES_EN: Record<string, string> = {
   'Corré una hasta que solo se toquen, o acortala. Con Rayos X (tecla X) se ve dónde se cruzan.':
     'Move one until they only touch, or shorten it. X-ray (X key) shows where they overlap.',
   'Grupo {n}': 'Group {n}',
-  'Taburete de patas abiertas (prueba)': 'Splayed-leg stool (test)',
+  'Banco rústico': 'Rustic bench',
+  'De punta a punta del asiento.': 'From end to end of the seat.',
+  'Apertura hacia los costados': 'Sideways splay',
+  'Cuánto se abre cada pata hacia adelante o hacia atrás, visto desde una punta del banco: más apertura, menos se vuelca.':
+    'How far each leg opens toward the front or the back, seen from one end of the bench: more splay, less tipping.',
+  'Apertura a lo largo': 'Lengthwise splay',
+  'Cuánto se abre cada pata hacia su punta del banco, visto de frente.': 'How far each leg opens toward its end of the bench, seen from the front.',
+  'Barras entre las patas que las traban: siguen la apertura de las patas.': 'Bars that brace the legs: they follow the leg splay.',
+  'En las puntas': 'At the ends',
+  'En las puntas y a lo largo': 'At the ends and along the length',
+  'A qué altura del piso van los travesaños de las puntas: los de a lo largo van un poco más arriba.':
+    'How high off the floor the end rungs go: the lengthwise ones sit a little higher.',
   'Taburete de patas abiertas': 'Splayed-leg stool',
   'De lado a lado del asiento.': 'From side to side of the seat.',
   'De adelante hacia atrás del asiento.': 'From front to back of the seat.',

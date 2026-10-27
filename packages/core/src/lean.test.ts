@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
 import { mirrorPart } from './edit';
 import { isLeaning, leanedBox, leanFrame, leanPoint } from './lean';
-import { createSplayedStool, leanTestStool } from './templates/leanTest';
+import { createSplayedBench, createSplayedStool, leanTestStool } from './templates/leanTest';
 import { leanFollow } from './follow';
 import { drawPart, drawView } from './drawing';
 import type { Part } from './project';
@@ -75,7 +75,7 @@ describe('patas inclinadas', () => {
     expect(twin.part.lean).toEqual(stool.parts.find((p) => p.id === 'P2')!.lean);
   });
 
-  it('el taburete de prueba: patas en el asiento con mortaja y espiga', () => {
+  it('el taburete de patas abiertas: patas en el asiento con mortaja y espiga', () => {
     const stool = leanTestStool('guatambu', '2026-10-26T00:00:00Z');
     const legs = stool.parts.filter((p) => p.id.startsWith('P'));
     expect(legs).toHaveLength(4);
@@ -89,6 +89,23 @@ describe('patas inclinadas', () => {
       expect(Math.sign(cx)).toBe(Math.sign(p.lean![0]));
       expect(Math.sign(cz)).toBe(Math.sign(p.lean![1]));
     }
+  });
+
+  it('el banco rústico: patas metidas desde las puntas, más abiertas hacia los costados', () => {
+    const bench = createSplayedBench({}, 'guatambu', '2026-10-27T00:00:00Z');
+    const legs = bench.parts.filter((p) => p.id.startsWith('P'));
+    expect(legs.every(isLeaning)).toBe(true);
+    for (const p of legs) {
+      expect(Math.abs(p.lean![1])).toBeGreaterThan(Math.abs(p.lean![0]));
+      // A lo largo, la pata queda metida un octavo del largo desde la punta.
+      const x = p.position[0] < 450 ? p.position[0] : 900 - p.position[0] - 45;
+      expect(x).toBe(113);
+    }
+    // Con la opción de siempre, solo los travesaños de las puntas, de adelante hacia atrás.
+    const rungs = bench.parts.filter((p) => p.id.startsWith('R'));
+    expect(rungs.map((p) => p.id)).toEqual(['R3', 'R4']);
+    expect(bench.joints.filter((j) => j.type === 'mortaja' && j.partA === 'S1')).toHaveLength(4);
+    expect(bench.joints.filter((j) => j.partB.startsWith('R') || j.partA.startsWith('R'))).toHaveLength(4);
   });
 });
 

@@ -127,11 +127,21 @@ const TEMPLATES = [
   },
   {
     id: 'patas-abiertas',
-    name: tk('Taburete de patas abiertas (prueba)'),
+    name: tk('Taburete de patas abiertas'),
     icon: (
       <svg {...icon}>
         <rect x="7" y="7" width="18" height="4" rx="1" />
         <path d="M10 11 5 27M22 11l5 16" />
+      </svg>
+    ),
+  },
+  {
+    id: 'banco-rustico',
+    name: tk('Banco rústico'),
+    icon: (
+      <svg {...icon}>
+        <rect x="2" y="11" width="28" height="4" rx="1" />
+        <path d="M6 15 3 27M26 15l3 12M4.5 22h23" />
       </svg>
     ),
   },

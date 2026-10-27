@@ -4,7 +4,7 @@ import { t } from './i18n';
 import { formatAngle } from './bevels';
 
 /**
- * Patas inclinadas (prueba técnica): una pata derecha que se abre hacia afuera, como en un taburete de patas
+ * Patas inclinadas: una pata derecha que se abre hacia afuera, como en un taburete de patas
  * abiertas. La pieza se arma derecha y se gira sobre el centro de su punta de arriba; después se cortan las dos
  * puntas horizontales, a la altura de la pieza derecha: arriba apoya plana contra el asiento y abajo, en el piso.
  * Por eso la madera tiene que ser un poco más larga que la altura, y cada punta se corta en ángulo.

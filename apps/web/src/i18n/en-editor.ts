@@ -376,7 +376,7 @@ export default {
   'Agregar un punto después': 'Add a point after',
   'Mover los puntos en el modelo': 'Move the points in the model',
   'Entre -20° y 20°': 'Between -20° and 20°',
-  'Inclinar la pata (prueba)': 'Lean the leg (test)',
+  'Inclinar la pata': 'Lean the leg',
   'De frente (°)': 'From the front (°)',
   'De costado (°)': 'From the side (°)',
   'Inclinaste {id}': 'You leaned {id}',

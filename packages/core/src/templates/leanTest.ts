@@ -7,17 +7,32 @@ export const SPLAY_ANGLES = [4, 6, 8, 10, 12];
 
 export const SPLAYED_DEFAULTS = { width: 360, depth: 360, height: 450, leg: 40, seat: 40, splay: 2, rungs: 1, rung: 150 };
 
+/** Cómo se arma un asiento grueso con cuatro patas abiertas: el taburete y el banco rústico. */
+interface SplayedPlan {
+  W: number;
+  D: number;
+  H: number;
+  leg: number;
+  seat: number;
+  /** Cuánto queda metida arriba cada pata desde el borde del asiento, a lo ancho (X) y a lo hondo (Z). */
+  insetX: number;
+  insetZ: number;
+  /** Cuánto se abre cada pata hacia afuera, visto de frente (X) y de costado (Z), en grados. */
+  angleX: number;
+  angleZ: number;
+  /** Travesaños de adelante y atrás (a lo largo, X) y de los costados (Z), y a qué altura va cada par. */
+  long: number | null;
+  ends: number | null;
+  wood: string;
+}
+
 /**
- * Taburete de patas abiertas (prueba técnica de piezas inclinadas): un asiento grueso y cuatro patas que se abren
- * hacia sus esquinas, cada una con mortaja y espiga en el asiento. Con travesaños, si se piden: van entre las patas
- * derechas y al armarlos siguen a las inclinadas (ver `follow.ts`). Los de los costados van más arriba que los de
- * adelante y atrás, para que sus espigas no se crucen adentro de la pata.
+ * Un asiento grueso y cuatro patas que se abren hacia sus esquinas, cada una con mortaja y espiga en el asiento.
+ * Los travesaños van entre las patas derechas y al armarlos siguen a las inclinadas (ver `follow.ts`). Los de
+ * adelante y atrás van a otra altura que los de los costados, para que sus espigas no se crucen adentro de la pata.
  */
-export function createSplayedStool(v: Record<string, number>, wood: string, now: string): Project {
-  const { width: W, depth: D, height: H, leg, seat, rungs, rung } = { ...SPLAYED_DEFAULTS, ...v };
-  const angle = SPLAY_ANGLES[Math.round(v.splay ?? SPLAYED_DEFAULTS.splay)] ?? 8;
-  // Arriba, la pata queda metida 1,5 veces su grosor desde el borde del asiento: abajo se abre hacia afuera.
-  const inset = Math.round(leg * 1.5);
+function splayedParts(p: SplayedPlan): Part[] {
+  const { W, D, H, leg, seat, insetX, insetZ, angleX, angleZ, wood } = p;
   const sY = H - seat;
   const part = (id: string, name: string, min: [number, number, number], size: [number, number, number], lean?: [number, number]): Part => ({
     id,
@@ -33,7 +48,7 @@ export function createSplayedStool(v: Record<string, number>, wood: string, now:
     ...(lean ? { lean } : {}),
   });
   const legAt = (id: string, name: string, right: boolean, front: boolean) =>
-    part(id, name, [right ? W - inset - leg : inset, 0, front ? D - inset - leg : inset], [leg, sY, leg], [right ? angle : -angle, front ? angle : -angle]);
+    part(id, name, [right ? W - insetX - leg : insetX, 0, front ? D - insetZ - leg : insetZ], [leg, sY, leg], [right ? angleX : -angleX, front ? angleZ : -angleZ]);
   const parts = [
     part('S1', tk('Asiento'), [0, sY, 0], [W, seat, D]),
     legAt('P1', tk('Pata trasera izquierda'), false, false),
@@ -41,32 +56,39 @@ export function createSplayedStool(v: Record<string, number>, wood: string, now:
     legAt('P3', tk('Pata delantera derecha'), true, true),
     legAt('P4', tk('Pata delantera izquierda'), false, true),
   ];
-  if (rungs) {
-    const rH = 30;
-    const rT = 20;
-    const x0 = inset + leg;
-    const x1 = W - inset - leg;
-    const z0 = inset + leg;
-    const z1 = D - inset - leg;
-    // Centrados en el grueso de la pata.
-    const back = inset + (leg - rT) / 2;
-    const front = D - inset - leg + (leg - rT) / 2;
-    const left = inset + (leg - rT) / 2;
-    const right = W - inset - leg + (leg - rT) / 2;
-    const up = rung + rH + 10;
+  const rH = 30;
+  const rT = 20;
+  const x0 = insetX + leg;
+  const x1 = W - insetX - leg;
+  const z0 = insetZ + leg;
+  const z1 = D - insetZ - leg;
+  // Centrados en el grueso de la pata.
+  if (p.long !== null) {
+    const back = insetZ + (leg - rT) / 2;
+    const front = D - insetZ - leg + (leg - rT) / 2;
     parts.push(
-      part('R1', tk('Travesaño delantero'), [x0, rung, front], [x1 - x0, rH, rT]),
-      part('R2', tk('Travesaño trasero'), [x0, rung, back], [x1 - x0, rH, rT]),
-      part('R3', tk('Travesaño izquierdo'), [left, up, z0], [rT, rH, z1 - z0]),
-      part('R4', tk('Travesaño derecho'), [right, up, z0], [rT, rH, z1 - z0]),
+      part('R1', tk('Travesaño delantero'), [x0, p.long, front], [x1 - x0, rH, rT]),
+      part('R2', tk('Travesaño trasero'), [x0, p.long, back], [x1 - x0, rH, rT]),
     );
   }
+  if (p.ends !== null) {
+    const left = insetX + (leg - rT) / 2;
+    const right = W - insetX - leg + (leg - rT) / 2;
+    parts.push(
+      part('R3', tk('Travesaño izquierdo'), [left, p.ends, z0], [rT, rH, z1 - z0]),
+      part('R4', tk('Travesaño derecho'), [right, p.ends, z0], [rT, rH, z1 - z0]),
+    );
+  }
+  return parts;
+}
+
+function splayedProject(template: string, name: string, parts: Part[], now: string): Project {
   return {
     schemaVersion: SCHEMA_VERSION,
-    id: `patas-abiertas-${now}`,
-    name: 'Taburete de patas abiertas',
+    id: `${template}-${now}`,
+    name,
     units: 'cm',
-    template: 'patas-abiertas',
+    template,
     createdAt: now,
     updatedAt: now,
     parts,
@@ -76,5 +98,48 @@ export function createSplayedStool(v: Record<string, number>, wood: string, now:
   };
 }
 
-/** El taburete de prueba con las medidas de siempre. */
+/** Taburete de patas abiertas: cada pata se abre lo mismo hacia su esquina, de frente y de costado. */
+export function createSplayedStool(v: Record<string, number>, wood: string, now: string): Project {
+  const { width: W, depth: D, height: H, leg, seat, rungs, rung } = { ...SPLAYED_DEFAULTS, ...v };
+  const angle = SPLAY_ANGLES[Math.round(v.splay ?? SPLAYED_DEFAULTS.splay)] ?? 8;
+  // Arriba, la pata queda metida 1,5 veces su grosor desde el borde del asiento: abajo se abre hacia afuera.
+  const inset = Math.round(leg * 1.5);
+  const parts = splayedParts({ W, D, H, leg, seat, insetX: inset, insetZ: inset, angleX: angle, angleZ: angle, long: rungs ? rung : null, ends: rungs ? rung + 40 : null, wood });
+  return splayedProject('patas-abiertas', 'Taburete de patas abiertas', parts, now);
+}
+
+export const BENCH_DEFAULTS = { length: 900, depth: 300, height: 450, leg: 45, seat: 45, splayLong: 1, splaySide: 3, rungs: 1, rung: 150 };
+
+/** Travesaños del banco: ninguno, uno en cada punta (entre la pata de adelante y la de atrás), o también a lo largo. */
+export const BENCH_RUNGS_NONE = 0;
+export const BENCH_RUNGS_ENDS = 1;
+export const BENCH_RUNGS_ALL = 2;
+
+/**
+ * Banco rústico: una tabla gruesa y larga con las patas abiertas, más hacia los costados que a lo largo, como los
+ * bancos de campo. A lo largo las patas quedan metidas un octavo del largo desde cada punta; a lo hondo, apenas su
+ * grosor, para que entre el travesaño de cada punta.
+ */
+export function createSplayedBench(v: Record<string, number>, wood: string, now: string): Project {
+  const { length: W, depth: D, height: H, leg, seat, rungs, rung } = { ...BENCH_DEFAULTS, ...v };
+  const angleX = SPLAY_ANGLES[Math.round(v.splayLong ?? BENCH_DEFAULTS.splayLong)] ?? 6;
+  const angleZ = SPLAY_ANGLES[Math.round(v.splaySide ?? BENCH_DEFAULTS.splaySide)] ?? 10;
+  const parts = splayedParts({
+    W,
+    D,
+    H,
+    leg,
+    seat,
+    insetX: Math.round(W / 8),
+    insetZ: leg,
+    angleX,
+    angleZ,
+    ends: rungs !== BENCH_RUNGS_NONE ? rung : null,
+    long: rungs === BENCH_RUNGS_ALL ? rung + 40 : null,
+    wood,
+  });
+  return splayedProject('banco-rustico', 'Banco rústico', parts, now);
+}
+
+/** El taburete de patas abiertas con las medidas de siempre. */
 export const leanTestStool = (wood: string, now: string) => createSplayedStool({}, wood, now);
