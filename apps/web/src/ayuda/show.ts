@@ -20,6 +20,7 @@ export const SHOW: Record<string, TourStep> = {
   tramo: tool(tk('Tramo está acá'), tk('Es la sexta herramienta; en el celular, dentro de Más. También se elige con la tecla T.')),
   tornear: tool(tk('Tornear está acá'), tk('Es la séptima herramienta; en el celular, dentro de Más. También se elige con la tecla R.')),
   medir: tool(tk('Medir está acá'), tk('Es la octava herramienta; en el celular, dentro de Más. También se elige con la tecla C.')),
+  probar: tool(tk('Probar está acá'), tk('Al final de la barra; en el celular, dentro de Más. También se prende con la tecla A.')),
   'rayos-x': tool(tk('Rayos X está acá'), tk('Al final de la barra; en el celular, dentro de Más. También se prende con la tecla X.')),
   vistas: { target: 'views', title: tk('Las vistas están acá'), text: tk('Arriba a la derecha del modelo. El último botón encuadra todo el mueble.') },
   'panel-pieza': part('part-dims', tk('Las medidas de la pieza están acá'), tk('En el panel de la derecha; en el celular, debajo del modelo.')),

@@ -32,6 +32,7 @@ import {
   IconSelect,
   IconUndo,
   IconXray,
+  IconTry,
 } from './icons';
 import { JointsView } from './JointsView';
 import { PlanView } from './PlanView';
@@ -81,8 +82,9 @@ function MoreTools({ disabled }: { disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const tool = useEditor((s) => s.tool);
   const xray = useEditor((s) => s.xray);
-  const { setTool, setXray } = useEditor.getState();
-  const current = TOOLS.find(([id]) => id === tool && ADVANCED.has(id));
+  const trying = useEditor((s) => s.trying);
+  const { setTool, setXray, setTrying } = useEditor.getState();
+  const current = trying ? undefined : TOOLS.find(([id]) => id === tool && ADVANCED.has(id));
   const Icon = current?.[4] ?? IconMore;
   return (
     <span className={styles.moreWrap}>
@@ -90,7 +92,7 @@ function MoreTools({ disabled }: { disabled: boolean }) {
         type="button"
         className={styles.moreBtn}
         aria-expanded={open}
-        aria-pressed={!!current || xray}
+        aria-pressed={!!current || xray || trying}
         aria-label={t('Más herramientas')}
         disabled={disabled}
         onClick={() => setOpen(!open)}
@@ -131,6 +133,21 @@ function MoreTools({ disabled }: { disabled: boolean }) {
             <span>
               <strong>{t('Rayos X')}</strong>
               <span>{t('Ver a través de las piezas, para ver los encastres')}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={trying}
+            onClick={() => {
+              setTrying(!trying);
+              setOpen(false);
+            }}
+          >
+            <IconTry />
+            <span>
+              <strong>{t('Probar')}</strong>
+              <span>{t('Abrir cajones y puertas, y ver el mueble por adentro')}</span>
             </span>
           </button>
         </div>
@@ -244,7 +261,7 @@ function useShortcuts(modelo: boolean) {
       // Sin piezas, las herramientas no tienen sobre qué trabajar: solo queda Elegir.
       const none = !s.project?.parts.length;
       if (k === 'v') s.setTool('select');
-      else if (none && 'pmdbtrc'.includes(k)) return;
+      else if (none && 'pmdbtrca'.includes(k)) return;
       else if (k === 'p') s.setTool('push');
       else if (k === 'm') s.setTool('move');
       else if (k === 'd') s.setTool('draw');
@@ -253,6 +270,7 @@ function useShortcuts(modelo: boolean) {
       else if (k === 'r') s.setTool('turn');
       else if (k === 'c') s.setTool('measure');
       else if (k === 'x') s.setXray(!s.xray);
+      else if (k === 'a') s.setTrying(!s.trying);
       else if (k === 'h' && (s.selectedId || s.picked.length)) hidePart(s.selectedId ?? s.picked);
       else if (k === 's' && (s.selectedId || s.picked.length)) soloPart(s.selectedId ?? s.picked);
       else if (k === 'g' && s.picked.length > 1 && s.project && !isWholeGroup(groupOf(s.project, s.picked[0]!), s.picked)) {
@@ -261,6 +279,7 @@ function useShortcuts(modelo: boolean) {
         s.pick(ids);
       } else if (k === 'escape') {
         if (s.pending) s.cancelPending();
+        else if (s.trying) s.setTrying(false);
         else if (s.addMode) s.setAddMode(false);
         else if (s.measure.a) s.pickMeasure(null);
         else if (s.pathPoints.length) {
@@ -437,10 +456,11 @@ function usePanelOpen(): [boolean, (open: boolean) => void] {
   const selectedId = useEditor((s) => s.selectedId);
   const fitting = useEditor((s) => s.fitting);
   const picked = useEditor((s) => s.picked.join());
-  const [seen, setSeen] = useState({ selectedId, fitting, picked });
-  if (seen.selectedId !== selectedId || seen.fitting !== fitting || seen.picked !== picked) {
-    setSeen({ selectedId, fitting, picked });
-    if ((selectedId || fitting || picked) && !open) setOpen(true);
+  const trying = useEditor((s) => s.trying);
+  const [seen, setSeen] = useState({ selectedId, fitting, picked, trying });
+  if (seen.selectedId !== selectedId || seen.fitting !== fitting || seen.picked !== picked || seen.trying !== trying) {
+    setSeen({ selectedId, fitting, picked, trying });
+    if ((selectedId || fitting || picked || trying) && !open) setOpen(true);
   }
   return [open, set];
 }
@@ -451,6 +471,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const project = useEditor((s) => s.project);
   const tool = useEditor((s) => s.tool);
   const xray = useEditor((s) => s.xray);
+  const trying = useEditor((s) => s.trying);
   // Dibujando de frente a la cara: la vista no se cambia, así que en el celular la barra de vistas sobra.
   const framed = useEditor((s) => !!s.drawFace && s.drawFramed);
   const view = useEditor((s) => s.view);
@@ -458,7 +479,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
   const dragging = useEditor((s) => s.dragging);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
-  const { undo, redo, setTool, setXray, setView } = useEditor.getState();
+  const { undo, redo, setTool, setXray, setView, setTrying } = useEditor.getState();
   const grain = useGrainOn();
   const selected = useSelectedPart();
   const picked = useEditor((s) => s.picked);
@@ -585,7 +606,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                   key={id}
                   type="button"
                   data-advanced={ADVANCED.has(id) || undefined}
-                  aria-pressed={tool === id}
+                  aria-pressed={!trying && tool === id}
                   aria-label={`${t(label)} (${key})`}
                   title={empty && id !== 'select' ? t('Primero agregá una pieza') : `${t(label)} (${key})`}
                   disabled={empty && id !== 'select'}
@@ -600,6 +621,20 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
               <button type="button" data-advanced aria-pressed={xray} aria-label={t('Rayos X (X)')} title={t('Rayos X (X)')} onClick={() => setXray(!xray)}>
                 <IconXray />
                 <span aria-hidden="true">{t('Rayos X')}</span>
+              </button>
+              {/* Probar: abrir cajones y puertas, y ver por adentro. No edita: por eso va aparte de las herramientas. */}
+              <button
+                type="button"
+                data-advanced
+                data-tour="try"
+                aria-pressed={trying}
+                aria-label={t('Probar (A)')}
+                title={empty ? t('Primero agregá una pieza') : t('Probar: abrir cajones y puertas (A)')}
+                disabled={empty}
+                onClick={() => setTrying(!trying)}
+              >
+                <IconTry />
+                <span aria-hidden="true">{t('Probar')}</span>
               </button>
             </div>
             <div className={styles.views} data-tour="views" role="group" aria-label={t('Vista')}>
@@ -649,12 +684,12 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
                   {engineText ?? (warnings === 1 ? t('1 pieza no se pudo cortar del todo') : t('{n} piezas no se pudieron cortar del todo', { n: warnings }))}
                 </span>
               )}
-              {tool === 'select' && <ReviewPill project={project} />}
+              {tool === 'select' && !trying && <ReviewPill project={project} />}
               <HiddenPill />
-              {tool === 'select' && <PickPill />}
+              {tool === 'select' && !trying && <PickPill />}
             </div>
             {hint && <HintLabel hint={hint} />}
-            {tool === 'select' && !empty && (
+            {tool === 'select' && !trying && !empty && (
               <span className={styles.mobileOnly}>
                 <AddPartButton />
               </span>

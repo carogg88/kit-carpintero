@@ -213,6 +213,29 @@ async function createTable(page) {
   await page.context().close();
 }
 
+// Compu: Probar cajones y puertas, en una alacena y una cajonera.
+{
+  const page = await open(desktop);
+  await page.goto(`${BASE}#/nuevo/alacena`);
+  await page.getByRole('button', { name: 'Crear alacena' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3500);
+  await page.keyboard.press('a');
+  await page.getByRole('button', { name: /Puerta 1/ }).click();
+  await page.waitForTimeout(1500);
+  await shot(page, 'probar');
+  await page.goto(`${BASE}#/nuevo/cajonera`);
+  await page.getByRole('button', { name: 'Crear cajonera' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3500);
+  await page.keyboard.press('a');
+  await page.locator('input[type=range]').first().fill('60');
+  await page.getByRole('group', { name: 'Corte' }).getByRole('button', { name: 'Costado' }).click();
+  await page.waitForTimeout(1500);
+  await shot(page, 'probar-corte');
+  await page.context().close();
+}
+
 // Compu: piezas y mueble, y las demás secciones, sobre una mesa nueva.
 {
   const page = await open(desktop);

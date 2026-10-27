@@ -1,0 +1,23 @@
+/* Probar el mueble: la lista de lo que se abre, la barra para abrir todo y el corte. */
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.list button {
+  width: 100%; min-height: var(--tap); display: flex; align-items: center; gap: var(--space-2); padding: 6px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); color: var(--ink);
+  font: 400 var(--text-s) var(--font-ui); text-align: left; cursor: pointer;
+}
+.list button:hover { border-color: var(--line-strong); }
+.list button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.list button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+.list strong { font-weight: 500; }
+.name { display: flex; flex-direction: column; gap: 2px; min-width: 0; margin-right: auto; }
+.cuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-self: stretch; }
+.cuts button { padding-inline: 6px; white-space: nowrap; }
+.state { font-size: var(--text-xs); color: var(--muted); min-width: 4.5em; text-align: right; }
+.range { width: 100%; accent-color: var(--accent); }
+.ends { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--muted); }
+.block { display: flex; flex-direction: column; gap: var(--space-2); }
+.block + .block { padding-top: var(--space-3); border-top: 1px solid var(--line); }
+.block h3 { margin: 0; font: 500 var(--text-m)/1.3 var(--font-display); }
+.toggle { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-s); cursor: pointer; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+.empty { margin: 0; padding: 12px; border-radius: var(--radius-s); background: var(--surface-2); font-size: var(--text-s); color: var(--muted); }

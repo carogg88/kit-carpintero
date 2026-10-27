@@ -504,6 +504,54 @@ export const ES_TOOLS: Article[] = [
     related: ['cerca', 'vistas'],
   },
   {
+    id: 'probar',
+    topic: 'herramientas',
+    title: 'Probar el mueble',
+    summary: 'Abrir y cerrar en el modelo lo que se mueve, y ver el mueble por adentro.',
+    intro: [
+      p('**Probar** abre y cierra en el 3D lo que se mueve del mueble: los cajones corren hacia adelante, las puertas giran sobre la bisagra y las tapas se levantan por atrás. Sirve para ver cómo funciona y cómo queda por adentro. No cambia nada del proyecto.'),
+      img('probar', 'La alacena con una puerta abierta, y el panel de Probar'),
+    ],
+    sections: [
+      {
+        id: 'abrir',
+        title: 'Abrir y cerrar',
+        blocks: [
+          steps(
+            'Tocá **Probar**, al final de la barra de herramientas. En el celular está en **Más**.',
+            'Tocá un cajón o una puerta en el modelo: se abre. Tocalo de nuevo y se cierra.',
+            'Para abrir todo a la vez, usá la barra **Abrir todo** del panel. También podés abrir cada uno desde la lista.',
+            'Cuando termines, tocá **Terminar de probar** (o **Probar** de nuevo, o Esc): todo se cierra.',
+          ),
+          key('`A` prende y apaga Probar.'),
+          tip('Mientras probás no se puede editar: si elegís otra herramienta, la prueba termina y el mueble vuelve a estar cerrado.'),
+        ],
+      },
+      {
+        id: 'adentro',
+        title: 'Ver por adentro',
+        blocks: [
+          p('Con **Mueble transparente**, el cuerpo del mueble se ve como vidrio y los cajones y puertas quedan firmes: se ve dónde caen los estantes, la trasera y los fondos.'),
+          p('El **Corte** saca la parte del mueble que tenés más cerca: de **Frente**, de **Costado** o de **Arriba**. Corré la barra **Dónde corta** para ver otra parte. Lo cortado se pinta parejo, para que se lean los espesores.'),
+          img('probar-corte', 'La cajonera cortada de costado: se ven los cajones por adentro'),
+        ],
+      },
+      {
+        id: 'que-se-abre',
+        title: 'Qué se abre',
+        blocks: [
+          p('Los cajones y puertas armados con **Agregar pieza** se abren solos. Una pieza o un grupo hecho a mano se marca en **Se abre**, en el panel de la pieza; ahí también se cambia el lado de la bisagra. Más: [Panel de la pieza](panel-pieza).'),
+          tip('La **Foto del mueble** sale como lo dejaste: si sacás la foto con una puerta abierta, sale abierta.'),
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Toco una pieza y no se abre', a: 'Solo se abren los cajones, puertas y tapas. Si es una puerta hecha a mano, elegila y marcá **Se abre: Puerta** en su panel.' },
+      { q: '¿Abrir un cajón cambia las medidas?', a: 'No: probar no cambia nada del proyecto, ni los planos ni la lista de cortes.' },
+    ],
+    related: ['rayos-x', 'panel-pieza', 'foto-mueble'],
+  },
+  {
     id: 'vistas',
     topic: 'herramientas',
     title: 'Vistas y encuadre',

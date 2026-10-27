@@ -338,3 +338,19 @@ export const IconCornerOgee = () => (
     <path d="M4 20V4h7c0 4 2 5 4.5 5.5S20 11 20 13v7z" />
   </svg>
 );
+/** Probar: un mueble con la puerta abierta. */
+export const IconTry = () => (
+  <svg {...base}>
+    <path d="M3 3h13v18H3z" />
+    <path d="M3 11h13" />
+    <path d="M16 3l5 3v12l-5 3" />
+    <path d="M18.5 11.5v1.5" />
+  </svg>
+);
+/** Corte: un mueble partido por un plano. */
+export const IconCut = () => (
+  <svg {...base}>
+    <path d="M5 4h14v16H5z" />
+    <path d="M12 2v20" strokeDasharray="2.5 2" />
+  </svg>
+);

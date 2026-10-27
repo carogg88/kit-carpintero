@@ -85,6 +85,7 @@ import { sectionHref } from '../routes';
 import { IconCornerPoint, IconCurvePoint, IconGroup, IconLink, IconFlip, IconPlus, IconRotate, IconTrash, IconWarn, IconZoomIn } from './icons';
 import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
+import { TryPanel } from './TryPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
 import { partsLabel, useEditor, type FittingKind } from './store';
 import { EyeToggle, PartViewButtons } from './visibility';
@@ -1675,7 +1676,9 @@ export function PartPanel() {
   const selectedId = useEditor((s) => s.selectedId);
   const picked = useEditor((s) => s.picked);
   const fitting = useEditor((s) => s.fitting);
+  const trying = useEditor((s) => s.trying);
   if (!project) return null;
+  if (trying) return <TryPanel project={project} />;
   if (fitting) return <FittingPanel key={fitting} project={project} kind={fitting} />;
   if (picked.length > 1) return <PickedPanel project={project} ids={picked} />;
   const part = selectedId ? project.parts.find((p) => p.id === selectedId) : undefined;
