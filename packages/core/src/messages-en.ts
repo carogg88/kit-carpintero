@@ -507,6 +507,14 @@ export const MESSAGES_EN: Record<string, string> = {
     'Move one until they only touch, or shorten it. X-ray (X key) shows where they overlap.',
   'Grupo {n}': 'Group {n}',
   'Banco rústico': 'Rustic bench',
+  'Va inclinada {a}, como la pieza que entra: guiá el formón con la falsa escuadra a {g} de la cara.':
+    'It slants {a}, like the piece that goes in: guide the chisel with the bevel gauge set to {g} from the face.',
+  'Van inclinadas {a}, como la pieza que entra: guiá el formón con la falsa escuadra a {g} de la cara.':
+    'They slant {a}, like the piece that goes in: guide the chisel with the bevel gauge set to {g} from the face.',
+  'Va inclinada {a} de frente y {b} de costado, como la pieza que entra: guiá el formón con la falsa escuadra a {ga} y {gb} de la cara.':
+    'It slants {a} seen from the front and {b} from the side, like the piece that goes in: guide the chisel with the bevel gauge set to {ga} and {gb} from the face.',
+  'Van inclinadas {a} de frente y {b} de costado, como la pieza que entra: guiá el formón con la falsa escuadra a {ga} y {gb} de la cara.':
+    'They slant {a} seen from the front and {b} from the side, like the piece that goes in: guide the chisel with the bevel gauge set to {ga} and {gb} from the face.',
   Silla: 'Chair',
   'Crear silla': 'Create chair',
   'Alto del asiento': 'Seat height',

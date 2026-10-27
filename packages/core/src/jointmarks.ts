@@ -2,6 +2,8 @@ import { partAxesBySize } from './edit';
 import { boxSize, otherAxes, partBox, type Axis, type Box } from './geometry';
 import { box, jointGeometry, solidBox, type Solid } from './joints';
 import { leanFrame, leanHole } from './lean';
+import { leanFollow } from './follow';
+import { formatAngle } from './bevels';
 import { faceLabelOf } from './pockets';
 import type { JointType, Part, Project } from './project';
 import { t, tk } from './i18n';
@@ -49,6 +51,8 @@ export interface JointMark {
   fromEachEnd?: number;
   /** Cómo se llama el corte en el taller, si no es el del encastre: un canal que sale por la punta es un rebaje. */
   cutName?: JointType;
+  /** El agujero de una pieza inclinada va inclinado como ella: grados vistos de frente y de costado. */
+  slant?: [number, number];
 }
 
 const TOL = 0.5;
@@ -207,6 +211,12 @@ export function partJointMarks(project: Project, part: Part): JointMark[] {
     const fb = isA ? leanFrame(b) : null;
     const cutA = fb ? g.cutA.map((s) => box(leanHole(fb, solidBox(s), partBox(b)))) : g.cutA;
     const cut = markOf(body, center, isA ? cutA : g.cutB, 'cut', base);
+    if (cut && fb) cut.slant = b.lean!.map((x) => Math.abs(x)) as [number, number];
+    // La mortaja de un travesaño en una pata inclinada va a lo largo del travesaño: en ángulo con la pata, como su hombro.
+    if (cut && isA && !fb && leanFrame(a)) {
+      const end = leanFollow(project, b)?.ends.find((e) => e.joint.id === j.id);
+      if (end) cut.slant = end.shoulder;
+    }
     const add = isA ? null : markOf(body, center, g.addB, 'add', base);
     if (cut) marks.push(cut);
     if (add) marks.push(add);
@@ -286,6 +296,16 @@ export function describeJointMark(part: Part, m: JointMark, n: (mm: number) => s
     m.role === 'cut' ? t('Mide {size} y {depth} de hondo.', { size, depth: n(m.depth) }) : t('Mide {size} y sale {depth}.', { size, depth: n(m.depth) }),
   ];
   if (many && m.spacing) parts.push(t('A {n} entre centros.', { n: n(m.spacing) }));
+  if (m.slant) {
+    // Menos de un grado no se marca a mano: de ese lado va derecha.
+    const [a, b] = m.slant.map((x) => (x < 1 ? 0 : Math.round(x * 2) / 2)) as [number, number];
+    const one = many ? tk('Van inclinadas {a}, como la pieza que entra: guiá el formón con la falsa escuadra a {g} de la cara.') : tk('Va inclinada {a}, como la pieza que entra: guiá el formón con la falsa escuadra a {g} de la cara.');
+    const two = many
+      ? tk('Van inclinadas {a} de frente y {b} de costado, como la pieza que entra: guiá el formón con la falsa escuadra a {ga} y {gb} de la cara.')
+      : tk('Va inclinada {a} de frente y {b} de costado, como la pieza que entra: guiá el formón con la falsa escuadra a {ga} y {gb} de la cara.');
+    if (a && b) parts.push(t(two, { a: formatAngle(a), b: formatAngle(b), ga: formatAngle(90 - a), gb: formatAngle(90 - b) }));
+    else if (a || b) parts.push(t(one, { a: formatAngle(a || b), g: formatAngle(90 - (a || b)) }));
+  }
   return parts.join(' ');
 }
 

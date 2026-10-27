@@ -5,7 +5,7 @@ import { arcInfo, pocketSolid } from './pockets';
 import { sectionBox } from './sections';
 import type { Part, Project } from './project';
 import { endAt, followMortise, leanFollow, partEnds, placedBox, unleanPoint, type PartEnds } from './follow';
-import { isLeaning, leanFrame, leanHole, type LeanFrame } from './lean';
+import { isLeaning, leanFrame, leanHole, leanShift, type LeanFrame } from './lean';
 
 /**
  * Dibujo técnico de cajas: proyección ortogonal, contornos visibles y líneas ocultas.
@@ -261,8 +261,11 @@ export function partJointItems(project: Project, part: Part, local = false): Dra
     const g = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     if (!g) continue;
     if (j.partB === part.id) {
-      g.addB.forEach((s, i) => items.push({ id: `${j.id}+${i}`, box: solidBox(s), joint: true, owner: part.id }));
-      g.cutB.forEach((s, i) => items.push({ id: `${j.id}-b${i}`, box: solidBox(s), joint: true, owner: part.id, hole: true }));
+      // En el mueble armado, la espiga de una pieza inclinada va donde queda la pieza; en su despiece, derecha.
+      const fb = local ? null : leanFrame(b);
+      const at = (s: Parameters<typeof solidBox>[0]) => (fb ? leanShift(fb, solidBox(s)) : solidBox(s));
+      g.addB.forEach((s, i) => items.push({ id: `${j.id}+${i}`, box: at(s), joint: true, owner: part.id }));
+      g.cutB.forEach((s, i) => items.push({ id: `${j.id}-b${i}`, box: at(s), joint: true, owner: part.id, hole: true }));
     } else {
       const fb = leanFrame(b);
       g.cutA.forEach((s, i) => items.push({ id: `${j.id}-a${i}`, box: fb ? leanHole(fb, solidBox(s), partBox(b)) : solidBox(s), joint: true, owner: part.id, hole: true }));
@@ -412,9 +415,10 @@ export function drawJointDetail(project: Project, jointId: string): { views: Dra
   const a = j && project.parts.find((p) => p.id === j.partA);
   const b = j && project.parts.find((p) => p.id === j.partB);
   if (!j || !a || !b || a.base.kind !== 'box' || b.base.kind !== 'box') return null;
-  const ba = partBox(a);
-  const bb = partBox(b);
-  const e = endJoint(ba, bb);
+  // Donde quedan de verdad: el motor dibuja las piezas armadas, inclinadas o siguiendo a una inclinada.
+  const ba = placedBox(project, a);
+  const bb = placedBox(project, b);
+  const e = endJoint(partBox(a), partBox(b));
   // Ejes: el largo de B, y en cada vista uno de los otros dos.
   const [l, w, t] = partAxesBySize(b);
   const along = e?.axis ?? l;

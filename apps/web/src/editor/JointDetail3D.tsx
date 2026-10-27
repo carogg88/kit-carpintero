@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { explodeJoint, partBox, partKey, woodById, type Box, type Joint, type Part, type Project } from '@kitc/core';
+import { partBox, partKey, placedJoint, woodById, type Box, type Joint, type Part, type Project } from '@kitc/core';
 import { useDraftMeshes, type ExactMesh } from './useGeometry';
 import { cssColor } from './Viewport';
 
@@ -142,11 +142,13 @@ export function JointDetail3D({ project, joint, meshes, label, draft = null, apa
     return draft ? (d ?? m) : undefined;
   };
   const colors = useMemo(() => ({ ink: cssColor('--ink', '#2B3628'), signal: cssColor('--signal', '#C98A4E'), xray: cssColor('--xray-edge', '#6B4A2B') }), []);
-  if (!a || !b) return null;
-  const ex = explodeJoint(partBox(a), partBox(b));
+  const placed = placedJoint(shown, joint);
+  if (!a || !b || !placed) return null;
+  // Donde quedan de verdad: una pata inclinada, o un travesaño que la sigue, no están donde su caja derecha.
+  const ex = placed.explode;
   const offset: [number, number, number] = apart ? ex.offset : [0, 0, 0];
   // Separadas, el encuadre abarca las dos: la caja y la espiga que salió.
-  const focus = focusBox(partBox(a), partBox(b));
+  const focus = focusBox(placed.a, placed.b);
   if (apart) focus.union(focus.clone().translate(new THREE.Vector3(...ex.offset)));
   return (
     <Canvas
