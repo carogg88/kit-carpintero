@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { engineViewKey, getLang, partKey, withEngineLines, type Drawing, type EngineView, type Project } from '@kitc/core';
-import type { FromWorker, PartMesh, ViewLines } from '../geometry/protocol';
+import type { FromWorker, PartMesh, ToWorker, ViewLines } from '../geometry/protocol';
 
 export type EngineStatus = 'loading' | 'ready' | 'error';
 
@@ -48,6 +48,53 @@ function engine(): Worker {
 export const warmUpEngine = () => void engine();
 
 let nextReq = 1;
+
+/** Espera a que el motor esté abierto. */
+function whenReady(): Promise<void> {
+  engine();
+  if (status === 'ready') return Promise.resolve();
+  if (status === 'error') return Promise.reject(new Error('engine'));
+  return new Promise((resolve, reject) => {
+    const on = (s: EngineStatus) => {
+      statusListeners.delete(on);
+      if (s === 'ready') resolve();
+      else reject(new Error('engine'));
+    };
+    statusListeners.add(on);
+  });
+}
+
+type NoReq<M> = M extends unknown ? Omit<M, 'req'> : never;
+
+/** Un pedido suelto al motor, para exportar: devuelve la respuesta cuando llega. */
+async function ask<T extends 'parts' | 'views'>(msg: NoReq<Exclude<ToWorker, { type: 'init' }>>, want: T): Promise<Extract<FromWorker, { type: T }>> {
+  await whenReady();
+  const req = nextReq++;
+  return new Promise((resolve, reject) => {
+    const onReply = (m: FromWorker) => {
+      if (m.type === 'ready' || m.req !== req) return;
+      replyListeners.delete(onReply);
+      if (m.type === want) resolve(m as Extract<FromWorker, { type: T }>);
+      else reject(new Error(m.type === 'error' ? m.message : 'engine'));
+    };
+    replyListeners.add(onReply);
+    engine().postMessage({ ...msg, req });
+  });
+}
+
+/** Mallas exactas de todas las piezas del proyecto. */
+export const engineMeshes = async (project: Project): Promise<PartMesh[]> => (await ask({ type: 'build', project }, 'parts')).parts;
+
+/** Cambia las líneas de cajas de unos dibujos por las exactas del motor. Los que no tienen pedido quedan como están. */
+export async function engineDrawings(project: Project, drawings: Drawing[]): Promise<Drawing[]> {
+  const views = drawings.flatMap((d, i) => (d.engine ? [{ key: String(i), view: d.engine }] : []));
+  if (!views.length) return drawings;
+  const got = new Map((await ask({ type: 'views', project, views }, 'views')).views.map((v) => [v.key, v]));
+  return drawings.map((d, i) => {
+    const v = got.get(String(i));
+    return v ? withEngineLines(d, v.segments, v.hidden) : d;
+  });
+}
 
 /**
  * Mallas exactas de las piezas del proyecto. Mientras se arrastra, o mientras el motor calcula,

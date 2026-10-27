@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cutList, cutPlan, encodeShare, hardwareList, locale, SHARE_ROUTE, shoppingList, t, type Project } from '@kitc/core';
 import { download, readExported } from '../storage/backup';
 import { shopText } from './cutsData';
+import { exportDae, exportDxf } from './exportFiles';
 import { IconShare } from './icons';
 import styles from './Editor.module.css';
 
@@ -60,6 +61,7 @@ function ShareBody({ project, onClose }: { project: Project; onClose: () => void
   const [link, setLink] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [exportedAt, setExportedAt] = useState(() => readExported(project.id));
+  const [busy, setBusy] = useState<'dxf' | 'dae' | null>(null);
   const current = !!exportedAt && exportedAt >= project.updatedAt;
   const text = useMemo(() => {
     const plan = cutPlan(project);
@@ -89,6 +91,19 @@ function ShareBody({ project, onClose }: { project: Project; onClose: () => void
     }
     const ok = await copy(what === 'link' ? (link ?? '') : text);
     setDone(ok ? (what === 'link' ? t('Copiaste el enlace.') : t('Copiaste la lista.')) : t('No se pudo copiar: seleccioná el texto y copialo a mano.'));
+  };
+
+  const other = async (what: 'dxf' | 'dae') => {
+    setBusy(what);
+    setDone(t('Preparando el archivo…'));
+    try {
+      await (what === 'dxf' ? exportDxf(project) : exportDae(project));
+      setDone(what === 'dxf' ? t('Exportaste el despiece en DXF.') : t('Exportaste el modelo 3D en DAE.'));
+    } catch {
+      setDone(t('No se pudo armar el archivo. Probá de nuevo en un momento.'));
+    } finally {
+      setBusy(null);
+    }
   };
 
   const share = canShare();
@@ -135,6 +150,21 @@ function ShareBody({ project, onClose }: { project: Project; onClose: () => void
         >
           {t('Exportar archivo')}
         </button>
+      </section>
+
+      <section className={styles.shareSection} aria-labelledby="compartir-otros">
+        <h3 id="compartir-otros">{t('Para otros programas')}</h3>
+        <p className={styles.muted}>
+          {t('DXF: cada pieza a tamaño real, para una CNC, una cortadora láser o un programa de dibujo. DAE: el mueble en 3D, para SketchUp, Blender y otros.')}
+        </p>
+        <div className={styles.shareRow}>
+          <button type="button" className={styles.secondaryBtn} disabled={!!busy} aria-busy={busy === 'dxf'} onClick={() => void other('dxf')}>
+            {busy === 'dxf' ? t('Armando…') : t('Despiece en DXF')}
+          </button>
+          <button type="button" className={styles.secondaryBtn} disabled={!!busy} aria-busy={busy === 'dae'} onClick={() => void other('dae')}>
+            {busy === 'dae' ? t('Armando…') : t('Modelo 3D en DAE')}
+          </button>
+        </div>
       </section>
 
       <section className={styles.shareSection} aria-labelledby="compartir-lista">

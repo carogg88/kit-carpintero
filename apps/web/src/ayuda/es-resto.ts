@@ -514,8 +514,8 @@ export const ES_REST: Article[] = [
   {
     id: 'exportar',
     topic: 'compartir',
-    title: 'Exportar archivo, planilla y PDF',
-    summary: 'Las formas de sacar el proyecto de la app: archivo, planilla de cortes y plano en PDF.',
+    title: 'Exportar archivo, planilla, PDF, DXF y DAE',
+    summary: 'Las formas de sacar el proyecto de la app: archivo, planilla de cortes, plano en PDF y archivos para otros programas.',
     intro: [p('Todo queda guardado en el navegador, pero a veces hace falta llevarlo afuera: a otra compu, a la maderera o a la impresora.')],
     sections: [
       {
@@ -528,6 +528,8 @@ export const ES_REST: Article[] = [
             ['Planilla de cortes (.csv)', 'Cortes, **Exportar planilla**', 'Abrirla en Excel o Google Sheets, o llevarla a la casa de placas'],
             ['Plano en PDF', 'Plano, **Descargar PDF**', 'Imprimirlo o tenerlo en el celular'],
             ['Lista de compras como texto', 'Botón de compartir, **Copiar lista**', 'Mandarla por mensaje'],
+            ['Despiece en DXF', '**Compartir**, **Despiece en DXF**', 'Cortar las piezas en una CNC o una láser, o abrirlas en un programa de dibujo'],
+            ['Modelo 3D en DAE', '**Compartir**, **Modelo 3D en DAE**', 'Abrir el mueble en SketchUp, Blender u otro programa de 3D'],
           ),
         ],
       },
@@ -538,10 +540,19 @@ export const ES_REST: Article[] = [
           p('La planilla trae la lista de cortes (pieza, cantidad, largo, ancho, espesor, madera y trabajo), lo que hay que comprar, los herrajes y, si hay placas, el despiece de cada placa en milímetros.'),
         ],
       },
+      {
+        id: 'otros-programas',
+        title: 'DXF y DAE, para otros programas',
+        blocks: [
+          p('El **DXF** trae cada pieza distinta una vez, a tamaño real y vista de su cara grande, con su código, cuántas van y la madera. Lo que se ve está en la capa **CORTE**; las mortajas y vaciados del otro lado, en **OCULTO**, con línea de trazos; los nombres, en **TEXTO**. Va en milímetros, o en pulgadas si el proyecto está en pulgadas.'),
+          p('El **DAE** trae el mueble armado en 3D: cada pieza es un objeto con su código y su nombre, y el color de su madera. En SketchUp se abre con Archivo, Importar.'),
+        ],
+      },
     ],
     faq: [
       { q: '¿Cómo abro el archivo .kitc.json?', a: 'En el inicio, en Mis proyectos, tocá **Abrir archivo**.' },
       { q: '¿La planilla se puede editar?', a: 'Sí, en cualquier planilla de cálculo. Los cambios ahí no vuelven a la app.' },
+      { q: '¿Puedo volver a abrir un DXF o un DAE en la app?', a: 'No: son para otros programas. Para seguir editando en la app, exportá el archivo .kitc.json.' },
     ],
     related: ['guardar', 'plano', 'compartir-enlace'],
   },

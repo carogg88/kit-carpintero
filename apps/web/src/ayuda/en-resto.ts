@@ -511,8 +511,8 @@ export const EN_REST: Article[] = [
   {
     id: 'exportar',
     topic: 'compartir',
-    title: 'Export a file, spreadsheet or PDF',
-    summary: 'The ways to take the project out of the app: file, cut spreadsheet and PDF plans.',
+    title: 'Export a file, spreadsheet, PDF, DXF or DAE',
+    summary: 'The ways to take the project out of the app: file, cut spreadsheet, PDF plans and files for other programs.',
     intro: [p('Everything is saved in the browser, but sometimes you need to take it elsewhere: to another computer, to the lumber yard or to the printer.')],
     sections: [
       {
@@ -525,6 +525,8 @@ export const EN_REST: Article[] = [
             ['Cut spreadsheet (.csv)', 'Cuts, **Export spreadsheet**', 'Open it in Excel or Google Sheets, or take it to the sheet shop'],
             ['Plans as a PDF', 'Plans, **Download PDF**', 'Print it or keep it on your phone'],
             ['Shopping list as text', 'Share button, **Copy list**', 'Send it in a message'],
+            ['Parts as DXF', '**Share**, **Parts as DXF**', 'Cut the parts on a CNC or laser, or open them in a drawing program'],
+            ['3D model as DAE', '**Share**, **3D model as DAE**', 'Open the piece in SketchUp, Blender or another 3D program'],
           ),
         ],
       },
@@ -535,10 +537,19 @@ export const EN_REST: Article[] = [
           p('The spreadsheet has the cut list (part, quantity, length, width, thickness, wood and work), what to buy, the hardware and, if there are sheets, each sheet’s cutting layout in millimeters.'),
         ],
       },
+      {
+        id: 'otros-programas',
+        title: 'DXF and DAE, for other programs',
+        blocks: [
+          p('The **DXF** has each different part once, at full size and seen from its large face, with its code, how many you need and the wood. What you see is on the **CUT** layer; mortises and pockets on the other side are on **HIDDEN**, dashed; names are on **TEXT**. It is in millimeters, or in inches if the project is in inches.'),
+          p('The **DAE** has the assembled piece in 3D: each part is an object with its code, its name and the color of its wood. In SketchUp, open it with File, Import.'),
+        ],
+      },
     ],
     faq: [
       { q: 'How do I open the .kitc.json file?', a: 'On the home screen, under Your projects, tap **Open file**.' },
       { q: 'Can I edit the spreadsheet?', a: 'Yes, in any spreadsheet app. Changes there don’t come back to the app.' },
+      { q: 'Can I open a DXF or DAE back in the app?', a: 'No: they are for other programs. To keep editing in the app, export the .kitc.json file.' },
     ],
     related: ['guardar', 'plano', 'compartir-enlace'],
   },
