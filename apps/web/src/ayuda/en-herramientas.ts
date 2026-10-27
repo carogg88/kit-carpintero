@@ -84,8 +84,9 @@ export const EN_TOOLS: Article[] = [
         blocks: [
           steps(
             'Tap **Stretch** in the toolbar.',
+            'Move the mouse over the part: the face that would move lights up, an arrow points outward and a label says which size changes (the part’s **Length**, **Width** or **Thickness**, with the furniture direction in brackets).',
             'Put the pointer or your finger on the face you want to move.',
-            'Drag outward to lengthen or inward to shorten. The new size shows next to it.',
+            'Drag outward to lengthen or inward to shorten. What gets added shows in color and the new size shows next to it.',
             'Let go.',
           ),
           key('`P` picks this tool.'),
@@ -203,7 +204,10 @@ export const EN_TOOLS: Article[] = [
             ['Circle', 'Drag from the center outward'],
             ['Arc', 'Drag from end to end, then tap how far it curves. Use it for an arched apron'],
             ['Freehand profile', 'Tap point by point. Use it for an edge with several curves, the outline of a leg or a shaped cutout'],
+            ['Freehand', 'Draw in one stroke without letting go. When you let go it becomes a freehand profile, with a few points you can move later'],
+            ['Corner shape', 'Tap near a corner and pick the shape: round, chamfer, step, cove or ogee'],
           ),
+          p('Next to the shapes, pick **Through cut** (goes all the way through) or **Pocket** (goes down to the **Depth** you type). At the top of the panel, **How it turns out** shows the part at an angle with the shape already cut, while you draw.'),
         ],
       },
       {
@@ -223,21 +227,61 @@ export const EN_TOOLS: Article[] = [
             'Tap the face point by point. With a mouse, the line follows the pointer so you can see how it looks.',
             'To fix a mistake, tap **Remove point** or press `Backspace`. `Esc` starts over.',
           ),
+          p('If the profile goes edge to edge and removes the wrong side, tap **Other side** in the guide.'),
           tip('Fewer points give a smoother curve. For the outline of a cabriole leg, draw the profile on the front and the same one on the side.'),
           note('If the line crosses itself it can’t be cut: it turns red and you have to mark it again.'),
         ],
       },
       {
-        id: 'burbuja',
-        title: 'Pocket or through cut, and the sizes',
+        id: 'mano-alzada',
+        title: 'Freehand',
         blocks: [
           steps(
-            'When you let go, a bubble appears. Pick **Pocket** or **Through cut**.',
-            'For a pocket, type the **Depth**.',
+            'In the guide, pick **Freehand**.',
+            'Press and draw the curve in one stroke, with the mouse or your finger. If you start and finish near an edge, the ends snap to the edge.',
+            'Let go. The stroke becomes a freehand profile with a few smooth points; where you turned sharply there is a corner.',
+          ),
+          p('If the stroke ended in the middle of the face, it carries on as a **Freehand profile**: tap points up to an edge, or the first one to close.'),
+        ],
+      },
+      {
+        id: 'esquina',
+        title: 'Corner shapes',
+        blocks: [
+          p('For the cut-away corner of an apron, a round corner or a step, without drawing:'),
+          steps(
+            'In the guide, pick **Corner shape**.',
+            'Tap the face near the corner you want to change.',
+            'Below, pick the shape: **Round**, **Chamfer**, **Step**, **Cove** or **Ogee** (the S curve).',
+            'Type how much it takes along each edge. You see it on the face and in **How it turns out**.',
+            'Tap **Cut the corner**.',
+          ),
+          tip('With **Pocket**, the step is a rabbet: the corner goes down to the depth instead of going through.'),
+        ],
+      },
+      {
+        id: 'calcar',
+        title: 'Trace a photo',
+        blocks: [
+          steps(
+            'With the face picked, tap **Trace photo** and pick an image.',
+            'The photo covers the whole face, half see-through. Follow it with **Freehand profile** or **Freehand**.',
+            'To take it off, tap **Remove photo**.',
+          ),
+          tip('Crop the photo to the outline of the part first, so it matches the face.'),
+          note('The photo stays while you use the app; it is not saved in the project.'),
+        ],
+      },
+      {
+        id: 'burbuja',
+        title: 'The shape’s sizes',
+        blocks: [
+          steps(
+            'When you finish a shape, its card is highlighted in the panel (on a phone, in a bubble at the bottom).',
             'Type the size (or the circle’s **Diameter**) and the distance to the edges, or tap **Center**.',
             'Tap **Done** in the guide when you are finished with that face.',
           ),
-          note('If a through cut would take the whole part, the bubble warns you: make it smaller or change it to a pocket.'),
+          note('If a through cut would take the whole part, it warns you: make it smaller or change it to a pocket.'),
         ],
       },
       {

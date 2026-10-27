@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { formatLength, groupOf, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type PathPoint, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
+import { formatLength, groupOf, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type CornerKind, type FaceCorner, type PathPoint, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
 export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn' | 'measure';
 export type View = 'iso' | 'front' | 'side' | 'top';
@@ -36,7 +36,20 @@ export interface Bubble {
   avoid?: { x0: number; y0: number; x1: number; y1: number };
 }
 
-export type DrawShape = 'rect' | 'circle' | 'arc' | 'path';
+/** `free`: trazo a mano alzada, que queda como perfil a mano. `corner`: forma de esquina lista. */
+export type DrawShape = 'rect' | 'circle' | 'arc' | 'path' | 'free' | 'corner';
+
+/** Forma de esquina elegida en una cara: cuál esquina, qué forma y cuánto toma por cada borde (mm). */
+export type CornerPick = DrawFace & { corner: FaceCorner; kind: CornerKind; a: number; b: number };
+
+/** Foto o dibujo puesto sobre una cara para calcar encima. Solo mientras dura la sesión: no va al archivo. */
+export type TraceImage = DrawFace & { url: string; name: string };
+
+/** Suelta la foto de calcar: la URL del archivo deja de ocupar memoria. */
+function dropTrace(img: TraceImage | null): null {
+  if (img) URL.revokeObjectURL(img.url);
+  return null;
+}
 
 /** Cuerda de un arco ya marcada: falta decir cuánto se curva. */
 export type ArcChord = DrawFace & { u: number; v: number; u2: number; v2: number };
@@ -98,6 +111,11 @@ interface EditorState {
    */
   drawThrough: boolean | null;
   drawDepth: number | null;
+  /** Forma de esquina: la esquina tocada, mientras se eligen la forma y las medidas. */
+  cornerPick: CornerPick | null;
+  /** La última forma de esquina usada: la próxima esquina arranca con esa. */
+  cornerKind: CornerKind;
+  traceImage: TraceImage | null;
   /** Aviso de lo que acaba de cambiar, con la opción de deshacerlo. `key` cambia con cada aviso nuevo. */
   notice: Notice | null;
   bubble: Bubble | null;
@@ -153,6 +171,8 @@ interface EditorState {
   setDrawShape: (s: DrawShape) => void;
   setDrawCut: (through: boolean, depth?: number | null) => void;
   setPathFlip: (flip: boolean) => void;
+  setCornerPick: (c: CornerPick | null) => void;
+  setTraceImage: (img: TraceImage | null) => void;
   setBevelRound: (round: boolean) => void;
   setDraft: (d: EditorState['draft']) => void;
   setBevelDraft: (d: EditorState['bevelDraft']) => void;
@@ -314,6 +334,9 @@ export const useEditor = create<EditorState>()((set, get) => ({
   pathFlip: false,
   drawThrough: null,
   drawDepth: null,
+  cornerPick: null,
+  cornerKind: 'redondeo',
+  traceImage: null,
   notice: null,
   bubble: null,
   fitting: null,
@@ -324,7 +347,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, notice: null, bubble: null }),
+    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, traceImage: dropTrace(get().traceImage), notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -417,7 +440,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setJointFocus: (jointFocus, hint) => set({ jointFocus, jointHint: hint ?? null }),
   setTool: (tool) =>
     set((s) => ({
-      ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], pathFlip: false, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, bubble: null }),
+      ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, bubble: null }),
       ...(tool !== 'measure' && (s.measure.a || s.measure.b) ? { measure: { a: null, b: null } } : {}),
     })),
   pickMeasure: (pick) =>
@@ -429,7 +452,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     }),
   setXray: (xray) => set({ xray }),
   setCopyMove: (copyMove) => set({ copyMove }),
-  setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null, bubble: null })),
+  setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null, cornerPick: null, bubble: null })),
   setHint: (hint) => set({ hint }),
   setDrawFace: (drawFace, frame = true) =>
     set((s) => ({
@@ -438,13 +461,16 @@ export const useEditor = create<EditorState>()((set, get) => ({
       arcChord: null,
       pathPoints: [],
       pathFlip: false,
+      cornerPick: null,
       draft: null,
       // Al terminar, la vista vuelve a como estaba si se había puesto de frente.
       ...(!drawFace && s.drawFramed ? { viewNonce: s.viewNonce + 1 } : {}),
     })),
-  setDrawShape: (drawShape) => set({ drawShape, arcChord: null, pathPoints: [], pathFlip: false, draft: null }),
+  setDrawShape: (drawShape) => set({ drawShape, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, draft: null }),
   setDrawCut: (drawThrough, drawDepth) => set((s) => ({ drawThrough, drawDepth: drawDepth === undefined ? s.drawDepth : drawDepth })),
   setPathFlip: (pathFlip) => set({ pathFlip }),
+  setCornerPick: (cornerPick) => set(cornerPick ? { cornerPick, cornerKind: cornerPick.kind } : { cornerPick }),
+  setTraceImage: (traceImage) => set((s) => ({ traceImage: traceImage ?? dropTrace(s.traceImage) })),
   setBevelRound: (bevelRound) => set({ bevelRound }),
   setDraft: (draft) => set({ draft }),
   setBevelDraft: (bevelDraft) => set({ bevelDraft }),

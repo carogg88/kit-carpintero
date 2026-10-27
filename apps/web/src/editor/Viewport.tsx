@@ -53,11 +53,16 @@ import {
   type PocketShape,
   type Project,
   type Section,
+  cornerDefault,
+  nearestCorner,
+  strokeToPath,
+  partSizeName,
+  type Vec3,
 } from '@kitc/core';
 import { contactFaces } from './contact';
 import { DEAD_PX, gentle, roundMeasure } from './gesture';
 import { ghostDiff } from './ghost';
-import { drawnPocket } from './drawCut';
+import { drawnPocket, showCorner } from './drawCut';
 import { partsLabel, useEditor, type DrawFace, type View } from './store';
 import type { ExactMesh } from './useGeometry';
 
@@ -257,10 +262,12 @@ interface PartViewProps {
   accent: string;
   onPointerDown: (e: ThreeEvent<PointerEvent>, part: Part) => void;
   onClick: (e: ThreeEvent<MouseEvent>, part: Part) => void;
+  onPointerMove?: (e: ThreeEvent<PointerEvent>, part: Part) => void;
+  onPointerOut?: () => void;
 }
 
 /** Una pieza: la malla exacta del motor si está al día, o su caja mientras tanto. */
-function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDown, onClick }: PartViewProps) {
+function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDown, onClick, onPointerMove, onPointerOut }: PartViewProps) {
   const box = partBox(part);
   const size = box.max.map((v, i) => v - (box.min[i] ?? 0)) as [number, number, number];
   const center = box.min.map((v, i) => v + size[i]! / 2) as [number, number, number];
@@ -291,6 +298,8 @@ function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDow
     userData: { id: part.id },
     onPointerDown: (e: ThreeEvent<PointerEvent>) => onPointerDown(e, part),
     onClick: (e: ThreeEvent<MouseEvent>) => onClick(e, part),
+    onPointerMove: onPointerMove && ((e: ThreeEvent<PointerEvent>) => onPointerMove(e, part)),
+    onPointerOut,
   };
 
   if (exact) {
@@ -388,6 +397,55 @@ function FaceOverlay({ part, face, accent, onPointerDown, onPointerMove, onPoint
       </mesh>
       <Loop points={corners} color={accent} />
     </group>
+  );
+}
+
+/**
+ * Calcar: la foto sobre la cara elegida, medio transparente y estirada a toda la cara. Se acomoda derecha según cómo
+ * se ve la cara en la pantalla cuando se puso (lo de la derecha de la foto, a la derecha). No recibe toques.
+ */
+function TracePlane({ part, face, url }: { part: Part; face: DrawFace; url: string }) {
+  const { camera, invalidate } = useThree();
+  const box = partBox(part);
+  const [ua, va] = otherAxes(face.axis);
+  const w = box.max[ua] - box.min[ua];
+  const h = box.max[va] - box.min[va];
+  const key = `${box.min.join()}|${box.max.join()}|${face.axis}|${face.side}`;
+  const texture = useMemo(() => {
+    const tex = new THREE.TextureLoader().load(url, () => invalidate());
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }, [url, invalidate]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  const geo = useMemo(() => {
+    // Hacia dónde van u y v en la pantalla: el eje más horizontal de la cara lleva el ancho de la foto.
+    const at = (u: number, v: number) => facePoint(box, face, u, v, 0.3).project(camera);
+    const o = at(0, 0);
+    const du = at(w, 0).sub(o);
+    const dv = at(0, h).sub(o);
+    const uAcross = Math.abs(du.x) >= Math.abs(dv.x);
+    const uv = (s: number, r: number): [number, number] => {
+      // s, r: de 0 a 1 sobre u y v.
+      const x = uAcross ? (du.x >= 0 ? s : 1 - s) : dv.x >= 0 ? r : 1 - r;
+      const y = uAcross ? (dv.y >= 0 ? r : 1 - r) : du.y >= 0 ? s : 1 - s;
+      return [x, y];
+    };
+    const corners: [number, number][] = [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ];
+    const g = new THREE.BufferGeometry().setFromPoints(corners.map(([s, r]) => facePoint(box, face, s * w, r * h, 0.3)));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(corners.flatMap(([s, r]) => uv(s, r)), 2));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    return g;
+  }, [key, camera]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <mesh geometry={geo} raycast={() => null} renderOrder={1}>
+      <meshBasicMaterial map={texture} transparent opacity={0.6} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+    </mesh>
   );
 }
 
@@ -720,7 +778,7 @@ function pointOnDrawFace(ray: THREE.Ray, part: Part, face: DrawFace): THREE.Vect
 }
 
 /** Cara de contacto iluminada: una lámina apenas más gruesa que la junta, por encima de todo. */
-function ContactFace({ face, accent }: { face: Box; accent: string }) {
+function ContactFace({ face, accent, opacity = 0.45 }: { face: Box; accent: string; opacity?: number }) {
   const size = [0, 1, 2].map((k) => Math.max(face.max[k]! - face.min[k]!, 1.5)) as [number, number, number];
   const center = [0, 1, 2].map((k) => (face.min[k]! + face.max[k]!) / 2) as [number, number, number];
   const edges = useMemo(() => {
@@ -732,11 +790,77 @@ function ContactFace({ face, accent }: { face: Box; accent: string }) {
     <group position={center} renderOrder={4}>
       <mesh renderOrder={4}>
         <boxGeometry args={size} />
-        <meshBasicMaterial color={accent} transparent opacity={0.45} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial color={accent} transparent opacity={opacity} depthTest={false} depthWrite={false} />
       </mesh>
       <lineSegments geometry={edges} renderOrder={5}>
         <lineBasicMaterial color={accent} depthTest={false} />
       </lineSegments>
+    </group>
+  );
+}
+
+const SIZE_NAMES = { largo: tk('Largo'), ancho: tk('Ancho'), espesor: tk('Espesor') } as const;
+
+/**
+ * Estirar: qué medida cambia, con el nombre que tiene en la pieza ("Largo 36 cm") y, si no es el mismo, la
+ * dirección del mueble entre paréntesis ("(fondo)"). `size`: la medida sobre el eje, si ya cambió.
+ */
+export function stretchLabel(part: Part, axis: Axis, units: Project['units'], size?: number): string {
+  const now = size !== undefined && part.base.kind === 'box' ? { ...part, base: { ...part.base, size: part.base.size.map((x, k) => (k === axis ? size : x)) as Vec3 } } : part;
+  const box = partBox(now);
+  const name = partSizeName(now, axis);
+  const dir = AXIS_NAMES[axis];
+  const text = `${t(SIZE_NAMES[name])} ${formatLength(box.max[axis] - box.min[axis], units)}`;
+  return name === dir ? text : `${text} (${t(dir)})`;
+}
+
+/**
+ * Estirar: la cara que se va a mover iluminada y una flecha grande hacia afuera, al pasar el mouse o al arrastrar.
+ * Arrastrando, lo que se agrega se ve en color y lo que se saca, marcado con una línea.
+ */
+function StretchCue({ part, axis, sign, from, accent, danger }: { part: Part; axis: Axis; sign: 1 | -1; from: Box | null; accent: string; danger: string }) {
+  const box = partBox(part);
+  const at = sign > 0 ? box.max[axis] : box.min[axis];
+  const face: Box = { min: [...box.min] as Vec3, max: [...box.max] as Vec3 };
+  face.min[axis] = at;
+  face.max[axis] = at;
+  const span = Math.max(...[0, 1, 2].map((k) => box.max[k]! - box.min[k]!));
+  const length = Math.max(30, Math.min(150, span * 0.2));
+  const radius = length * 0.04;
+  const dir = new THREE.Vector3();
+  dir.setComponent(axis, sign);
+  const center = new THREE.Vector3(...[0, 1, 2].map((k) => (k === axis ? at : (box.min[k]! + box.max[k]!) / 2)) as Vec3);
+  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  const shaft = center.clone().add(dir.clone().multiplyScalar(length * 0.4));
+  const head = center.clone().add(dir.clone().multiplyScalar(length * 0.85));
+  // Lo que cambió desde que se empezó a arrastrar, entre la cara de antes y la de ahora.
+  let added: Box | null = null;
+  let removed: Box | null = null;
+  if (from) {
+    const was = sign > 0 ? from.max[axis] : from.min[axis];
+    const grew = (at - was) * sign;
+    if (Math.abs(grew) > 0.4) {
+      const b: Box = { min: [...box.min] as Vec3, max: [...box.max] as Vec3 };
+      b.min[axis] = Math.min(at, was);
+      b.max[axis] = Math.max(at, was);
+      if (grew > 0) added = b;
+      else removed = b;
+    }
+  }
+  const material = <meshBasicMaterial color={accent} depthTest={false} depthWrite={false} transparent opacity={0.95} />;
+  return (
+    <group>
+      <ContactFace face={face} accent={accent} opacity={0.35} />
+      {added && <ContactFace face={added} accent={accent} opacity={0.3} />}
+      {removed && <BoxOutline box={removed} color={danger} />}
+      <mesh position={shaft} quaternion={quat} renderOrder={6}>
+        <cylinderGeometry args={[radius, radius, length * 0.8, 16]} />
+        {material}
+      </mesh>
+      <mesh position={head} quaternion={quat} renderOrder={6}>
+        <coneGeometry args={[radius * 2.6, length * 0.3, 24]} />
+        {material}
+      </mesh>
     </group>
   );
 }
@@ -899,11 +1023,15 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const dragging = useEditor((s) => s.dragging);
   const drawFace = useEditor((s) => s.drawFace);
   const hidden = useEditor((s) => s.hidden);
+  const trace = useEditor((s) => s.traceImage);
+  const tool = useEditor((s) => s.tool);
   const { camera, gl, invalidate } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
   // Caras donde la pieza que se arrastra apoya en otras: se iluminan al encajar y un momento después de soltar.
   const [contact, setContact] = useState<Box[]>([]);
   const contactTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Estirar: la cara bajo el mouse (o la que se arrastra) y, arrastrando, cómo era la pieza al empezar. */
+  const [stretch, setStretch] = useState<{ partId: string; axis: Axis; sign: 1 | -1; from: Box | null } | null>(null);
   /** Hay un cartel de "arrastrá el punto" o "tocá la línea" a la vista, puesto al pasar el mouse. */
   const hovering = useRef(false);
   const showContact = (ids: string[]) => {
@@ -932,6 +1060,38 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   );
 
   const units = project?.units ?? 'cm';
+
+  /** Estirar, con el mouse sin apretar: qué cara se movería y qué medida cambia. */
+  const hoverStretch = (e: ThreeEvent<PointerEvent>, part: Part) => {
+    const { tool, dragging: busy, project: p, setHint } = useEditor.getState();
+    if (tool !== 'push' || busy || e.nativeEvent.pointerType !== 'mouse' || e.nativeEvent.buttons || !e.face || part.base.kind !== 'box' || !p) return;
+    e.stopPropagation();
+    const n = e.face.normal;
+    const abs = [Math.abs(n.x), Math.abs(n.y), Math.abs(n.z)];
+    const axis = abs.indexOf(Math.max(...abs)) as Axis;
+    const sign = ([n.x, n.y, n.z][axis] ?? 0) > 0 ? 1 : -1;
+    const box = partBox(part);
+    // Solo las caras de afuera: las paredes de un encastre o un vaciado no estiran la pieza.
+    if (Math.abs(e.point.getComponent(axis) - (sign > 0 ? box.max[axis] : box.min[axis])) > 0.6) return leaveStretch();
+    setStretch((s) => (s && s.partId === part.id && s.axis === axis && s.sign === sign ? s : { partId: part.id, axis, sign, from: null }));
+    const rect = gl.domElement.getBoundingClientRect();
+    setHint({
+      x: e.nativeEvent.clientX - rect.left,
+      y: e.nativeEvent.clientY - rect.top,
+      text: `${part.id} · ${stretchLabel(part, axis, p.units)}`,
+      dims: t('Arrastrá hacia afuera para alargar, hacia adentro para acortar'),
+      snap: null,
+    });
+    invalidate();
+  };
+  const leaveStretch = () => {
+    if (useEditor.getState().dragging) return;
+    setStretch((s) => {
+      if (s) useEditor.getState().setHint(null);
+      return null;
+    });
+    invalidate();
+  };
 
   const startDrag = (e: ThreeEvent<PointerEvent>, original: Part) => {
     const { tool, select, pick, beginDrag, copyMove, commit, project: current } = useEditor.getState();
@@ -997,6 +1157,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       members,
     };
     const [x0, y0] = [e.nativeEvent.clientX, e.nativeEvent.clientY];
+    if (tool === 'push') setStretch({ partId: part.id, axis, sign, from: start });
     beginDrag();
     if (copies) useEditor.getState().dragUpdate((d) => void addCopies(d as Project, together, structuredClone(copies)));
     if (multi) pick(ids);
@@ -1032,7 +1193,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
         });
         setHint({
           ...hintAt,
-          text: `${part.id} · ${t(AXIS_NAMES[drag.axis])} ${formatLength(max - min, units)}`,
+          text: `${part.id} · ${stretchLabel(part, drag.axis, units, max - min)}`,
           snap: snap.to === 'piso' ? t('piso') : snap.to ? t('cara de {id}', { id: snap.to }) : null,
         });
       } else {
@@ -1099,6 +1260,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       if (controlsRef.current) controlsRef.current.enabled = true;
       const { endDrag, cancelDrag, setHint, setBubble } = useEditor.getState();
       setHint(null);
+      setStretch(null);
       fadeContact();
       // Una copia que no se movió quedaría encima de la original: se descarta.
       if (copying && !moved) {
@@ -1420,6 +1582,66 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     if (moving) onMove(nativeEvent);
   };
 
+  /**
+   * Mano alzada: el trazo sigue al dedo o al mouse mientras está apretado y al soltar queda como perfil de pocos
+   * puntos suaves. De borde a borde o cerrado, se corta ahí; si quedó suelto, sigue como perfil a mano.
+   */
+  const freeStroke = (part: Part, face: DrawFace, first: THREE.Vector3) => {
+    const box = partBox(part);
+    const [ua, va] = otherAxes(face.axis);
+    const [w, h] = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]];
+    const normal = new THREE.Vector3();
+    normal.setComponent(face.axis, 1);
+    const plane = new THREE.Plane(normal, -(face.side > 0 ? box.max[face.axis] : box.min[face.axis]));
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const local = (pt: THREE.Vector3): [number, number] => [
+      Math.max(0, Math.min(w, pt.getComponent(ua) - box.min[ua])),
+      Math.max(0, Math.min(h, pt.getComponent(va) - box.min[va])),
+    ];
+    const raw: [number, number][] = [local(first)];
+    // Lo que se ve mientras se dibuja: el trazo tal cual, en rectas cortas.
+    const show = () => {
+      const pts = raw.map(([u, v]) => ({ u, v, corner: true }));
+      if (pts.length > 1) useEditor.getState().setDraft({ ...face, shape: { kind: 'path', points: pts, closed: false, flip: useEditor.getState().pathFlip } });
+      invalidate();
+    };
+    const onMove = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const pt = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(plane, pt)) return;
+      const p = local(pt);
+      const last = raw[raw.length - 1]!;
+      if (Math.hypot(p[0] - last[0], p[1] - last[1]) < Math.max(0.5, Math.max(w, h) / 400)) return;
+      raw.push(p);
+      show();
+    };
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      const { setDraft, setHint, warn, setDrawShape, setPathPoints, pathFlip } = useEditor.getState();
+      setHint(null);
+      setDraft(null);
+      const stroke = strokeToPath(raw, w, h, faceSnap(part, face, first).reach);
+      if (!stroke) return raw.length > 3 && warn(t('No pude armar el perfil: hacé un trazo más largo y sin cruzarlo'));
+      if (stroke.kind === 'loose') {
+        // Quedó suelto: sigue como perfil a mano, con esos puntos ya marcados.
+        setDrawShape('path');
+        setPathPoints(stroke.shape.points);
+        setDraft({ ...face, shape: { ...stroke.shape, flip: pathFlip } });
+        return warn(t('El trazo no llegó a un borde: seguí tocando puntos hasta un borde, o tocá el primero para cerrar'));
+      }
+      placePocket(part, face, { ...stroke.shape, flip: stroke.kind === 'edges' && pathFlip }, ev, t('Hiciste un perfil a mano alzada en {id}', { id: part.id }));
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   // Dibujar, segundo paso: arrastrar sobre la cara elegida. Rectángulo de esquina a esquina; círculo desde el centro.
   const startSketch = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
@@ -1438,10 +1660,24 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const { drawFace: face, drawShape, project: current } = useEditor.getState();
     const part = current?.parts.find((q) => q.id === face?.partId);
     if (!face || !part) return;
+    // Forma de esquina: el toque elige la esquina más cercana; la forma y las medidas se eligen abajo.
+    if (drawShape === 'corner') {
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      const at = faceSnap(part, face, point);
+      const [w, h] = at.size;
+      const { cornerPick: was, cornerKind, setBubble } = useEditor.getState();
+      const same = was && was.partId === face.partId && was.axis === face.axis && was.side === face.side;
+      const size = cornerDefault(w, h);
+      setBubble(null);
+      showCorner({ ...face, corner: nearestCorner(at.u, at.v, w, h), kind: cornerKind, a: same ? Math.min(was.a, w) : size, b: same ? Math.min(was.b, h) : size });
+      invalidate();
+      return;
+    }
     if (controlsRef.current) controlsRef.current.enabled = false;
     // Una figura nueva: la burbuja de la anterior ya quedó.
     useEditor.getState().setBubble(null);
     if (drawShape === 'path') return placePathPoint(part, face, point, nativeEvent, moving);
+    if (drawShape === 'free') return freeStroke(part, face, point);
     const box = partBox(part);
     const [ua, va] = otherAxes(face.axis);
     const size = [box.max[ua] - box.min[ua], box.max[va] - box.min[va]] as const;
@@ -1761,12 +1997,20 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
             accent={colors.accent}
             onPointerDown={startDrag}
             onClick={click}
+            onPointerMove={hoverStretch}
+            onPointerOut={leaveStretch}
           />
         );
       })}
       {contact.map((f, i) => (
         <ContactFace key={i} face={f} accent={colors.accent} />
       ))}
+      {stretch &&
+        tool === 'push' &&
+        (() => {
+          const part = project.parts.find((p) => p.id === stretch.partId);
+          return part && part.base.kind === 'box' ? <StretchCue part={part} axis={stretch.axis} sign={stretch.sign} from={stretch.from} accent={colors.accent} danger={colors.danger} /> : null;
+        })()}
       <GroupOutline accent={colors.accent} ink={colors.edge} />
       <MeasureMarks accent={colors.accent} ink={colors.edge} />
       <BevelDraft accent={colors.accent} />
@@ -1778,6 +2022,9 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           const part = project.parts.find((p) => p.id === drawFace.partId);
           return part ? (
             <>
+              {trace && trace.partId === part.id && trace.axis === drawFace.axis && trace.side === drawFace.side && (
+                <TracePlane part={part} face={drawFace} url={trace.url} />
+              )}
               <FaceOverlay part={part} face={drawFace} accent={colors.accent} onPointerDown={startSketch} onPointerMove={hoverPath} onPointerOut={leavePath} />
               <Draft part={part} accent={colors.accent} danger={colors.danger} />
               <PathHandles part={part} face={drawFace} accent={colors.accent} />

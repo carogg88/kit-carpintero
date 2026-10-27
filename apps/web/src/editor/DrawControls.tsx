@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { depthUnder, formatNumber, parseLength, t, type Pocket } from '@kitc/core';
-import { throughByShape } from './drawCut';
+import { useRef, useState } from 'react';
+import { CORNER_KINDS, depthUnder, formatNumber, parseLength, partSizeName, otherAxes, t, tk, type CornerKind, type Pocket } from '@kitc/core';
+import { faceSize, placeCorner, savedKind, showCorner, throughByShape } from './drawCut';
+import { IconCornerChamfer, IconCornerCove, IconCornerOgee, IconCornerRound, IconCornerStep, IconImage } from './icons';
 import { useEditor } from './store';
 import styles from './Editor.module.css';
 
@@ -27,7 +28,7 @@ export function CutPick() {
   const pathPoints = useEditor((s) => s.pathPoints);
   const drawn = useJustDrawn();
   // Sólo si sigue con la misma figura y no empezó otra: si no, el cambio es para la próxima.
-  const just = drawn && drawn.pocket.shape.kind === drawShape && !pathPoints.length ? drawn : null;
+  const just = drawn && drawn.pocket.shape.kind === savedKind(drawShape) && !pathPoints.length ? drawn : null;
   const { setDrawCut, commit } = useEditor.getState();
   const [text, setText] = useState<string | null>(null);
   const units = project?.units ?? 'cm';
@@ -115,5 +116,119 @@ export function FlipSide() {
       </svg>
       {t('Otro lado')}
     </button>
+  );
+}
+
+const CORNER_LOOK: Record<CornerKind, { label: string; icon: () => React.ReactNode }> = {
+  redondeo: { label: tk('Redondeo'), icon: IconCornerRound },
+  chaflan: { label: tk('Chaflán'), icon: IconCornerChamfer },
+  escalon: { label: tk('Escalón'), icon: IconCornerStep },
+  concavo: { label: tk('Cóncavo'), icon: IconCornerCove },
+  gola: { label: tk('Gola'), icon: IconCornerOgee },
+};
+
+const SIZE_LABEL = { largo: tk('Largo'), ancho: tk('Ancho'), espesor: tk('Espesor') } as const;
+
+/** Una medida de la esquina: se escribe y se ve al salir del campo (o con Enter). */
+function CornerSize({ label, value, max, onChange }: { label: string; value: number; max: number; onChange: (mm: number) => void }) {
+  const units = useEditor((s) => s.project?.units ?? 'cm');
+  const [text, setText] = useState<string | null>(null);
+  const done = () => {
+    if (text === null) return;
+    const mm = parseLength(text, units);
+    setText(null);
+    if (mm !== null && mm >= 1) onChange(Math.min(mm, max));
+  };
+  return (
+    <label className={styles.cutDepth}>
+      {label}
+      <input
+        inputMode="decimal"
+        autoComplete="off"
+        value={text ?? formatNumber(value, units)}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={done}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      <span aria-hidden="true">{units === 'cm' ? 'cm' : '″'}</span>
+    </label>
+  );
+}
+
+/**
+ * Forma de esquina, después de tocar la esquina: la forma y cuánto toma por cada borde. Lo que se elige se ve ya en
+ * la cara y en "Así queda"; el corte se hace con el botón.
+ */
+export function CornerRow() {
+  const pick = useEditor((s) => s.cornerPick);
+  const face = useEditor((s) => s.drawFace);
+  const part = useEditor((s) => s.project?.parts.find((p) => p.id === s.cornerPick?.partId));
+  if (!pick || !face || !part || face.partId !== pick.partId || face.axis !== pick.axis || face.side !== pick.side) return null;
+  const [w, h] = faceSize(part, pick);
+  const [ua, va] = otherAxes(pick.axis);
+  const set = (patch: Partial<typeof pick>) => showCorner({ ...pick, ...patch });
+  return (
+    <div className={styles.cornerRow}>
+      <div className={styles.shapes} role="group" aria-label={t('Forma de la esquina')}>
+        {CORNER_KINDS.map((k) => {
+          const Icon = CORNER_LOOK[k].icon;
+          return (
+            <button key={k} type="button" aria-pressed={pick.kind === k} title={t(CORNER_LOOK[k].label)} onClick={() => set({ kind: k })}>
+              <Icon />
+              <span>{t(CORNER_LOOK[k].label)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <CornerSize label={t(SIZE_LABEL[partSizeName(part, ua)])} value={pick.a} max={w} onChange={(a) => set({ a })} />
+      <CornerSize label={t(SIZE_LABEL[partSizeName(part, va)])} value={pick.b} max={h} onChange={(b) => set({ b })} />
+      <button type="button" className={styles.cornerGo} onClick={placeCorner}>
+        {t('Cortar la esquina')}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Calcar: una foto o un dibujo puesto sobre la cara, medio transparente, para seguirlo con el perfil. Ocupa toda la
+ * cara (conviene recortar la foto al contorno de la pieza). Queda mientras se usa la app; no va al archivo.
+ */
+export function TraceButton() {
+  const face = useEditor((s) => s.drawFace);
+  const img = useEditor((s) => s.traceImage);
+  const input = useRef<HTMLInputElement>(null);
+  if (!face) return null;
+  const here = !!img && img.partId === face.partId && img.axis === face.axis && img.side === face.side;
+  const { setTraceImage, warn } = useEditor.getState();
+  const load = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return warn(t('Eso no es una imagen: elegí una foto o un dibujo'));
+    setTraceImage(null);
+    setTraceImage({ ...face, url: URL.createObjectURL(file), name: file.name });
+  };
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.guideToggle}
+        aria-pressed={here}
+        title={here ? t('Sacar la foto de la cara') : t('Poner una foto o un dibujo sobre la cara para calcarlo')}
+        onClick={() => (here ? setTraceImage(null) : input.current?.click())}
+      >
+        <IconImage />
+        {here ? t('Sacar foto') : t('Calcar foto')}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          load(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+    </>
   );
 }
