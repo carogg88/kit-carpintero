@@ -75,6 +75,7 @@ export function useGrainOn(): boolean {
 const VERT_HEAD = /* glsl */ `
 varying vec3 vGPos;
 varying vec3 vGNrm;
+uniform mat4 uRest;
 `;
 
 const FRAG_HEAD = /* glsl */ `
@@ -94,6 +95,7 @@ uniform float uSeed;
 uniform float uKind;
 uniform float uPly;
 uniform float uBack;
+uniform vec3 uCut;
 
 float gHash(vec3 p) {
   p = fract(p * 0.3183099 + 0.1);
@@ -178,6 +180,8 @@ function makeUniforms(): Uniforms {
     uKind: { value: 0 },
     uPly: { value: 3 },
     uBack: { value: 0 },
+    uRest: { value: new THREE.Matrix4() },
+    uCut: { value: new THREE.Color() },
   };
 }
 
@@ -189,9 +193,11 @@ export function makeWoodMaterial(params: THREE.MeshStandardMaterialParameters = 
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = VERT_HEAD + shader.vertexShader
-      .replace('#include <project_vertex>', '#include <project_vertex>\n  vGPos = (modelMatrix * vec4(transformed, 1.0)).xyz;')
-      .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\n  vGNrm = mat3(modelMatrix) * objectNormal;');
-    shader.fragmentShader = FRAG_HEAD + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = woodColor();');
+      // La veta se calcula con la pieza cerrada: un cajón abierto lleva su veta, no la deja en el lugar.
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  vGPos = (uRest * modelMatrix * vec4(transformed, 1.0)).xyz;')
+      .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\n  vGNrm = mat3(uRest) * mat3(modelMatrix) * objectNormal;');
+    // Con un corte se ve el adentro de la pieza (sus caras de atrás): va de un color parejo, como madera cortada.
+    shader.fragmentShader = FRAG_HEAD + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = gl_FrontFacing ? woodColor() : uCut;');
   };
   // Un solo programa para todas las piezas: cambian los números, no el código.
   m.customProgramCacheKey = () => 'kitc-veta';
@@ -230,20 +236,52 @@ export function setGrainUniforms(m: THREE.Material, part: Part, color?: string):
   (u.uUp!.value as THREE.Vector3).set(...(f?.up ?? [0, 0, 1]));
   u.uSeed!.value = f?.seed ?? 0;
   u.uBack!.value = f?.back ?? 0;
+  (u.uCut!.value as THREE.Color).copy(light).lerp(dark, 0.55);
+}
+
+/** Color liso, sin veta (con la veta apagada, o una pieza de señal en el detalle de la unión). */
+function setPlainUniforms(m: THREE.Material, part: Part, color: string): void {
+  setGrainUniforms(m, part, color);
+  const u = m.userData.grain as Uniforms;
+  u.uKind!.value = KIND.plain;
+  (u.uLight!.value as THREE.Color).set(color);
+  (u.uCut!.value as THREE.Color).set(color).multiplyScalar(0.72);
+}
+
+/**
+ * La pieza corrida (un cajón abierto, una puerta girada): la veta se sigue calculando donde estaba cerrada.
+ * `matrix` es la que la corre; sin ella, la pieza está en su lugar.
+ */
+export function setGrainMotion(m: THREE.Material, matrix: THREE.Matrix4 | null): void {
+  const u = m.userData.grain as Uniforms | undefined;
+  if (!u) return;
+  const rest = u.uRest!.value as THREE.Matrix4;
+  if (matrix) rest.copy(matrix).invert();
+  else rest.identity();
+}
+
+/** Corta el material con estos planos (o ninguno), y muestra sus caras de atrás, que son el adentro de la pieza. */
+function setClip(m: THREE.Material, clip: THREE.Plane[] | null): void {
+  m.clippingPlanes = clip;
+  m.side = clip ? THREE.DoubleSide : THREE.FrontSide;
+  m.needsUpdate = true;
 }
 
 /**
  * El material de una pieza: con veta si está prendida, o del color liso de la madera. Los demás detalles (elegida,
  * rayos X) los pone quien la dibuja, sobre este material.
  */
-export function usePartMaterial(part: Part, color?: string, grain = true): THREE.MeshStandardMaterial {
+export function usePartMaterial(part: Part, color?: string, grain = true, clip: THREE.Plane[] | null = null): THREE.MeshStandardMaterial {
   const on = useGrainOn() && grain;
-  const material = useMemo(() => (on ? makeWoodMaterial() : new THREE.MeshStandardMaterial()), [on]);
+  // Siempre el mismo sombreador: con la veta apagada pinta liso, y así el corte y el movimiento andan igual.
+  const material = useMemo(() => makeWoodMaterial(), []);
   useEffect(() => () => material.dispose(), [material]);
+  // Con un corte se dibujan también las caras de atrás: son el adentro de la pieza.
+  useEffect(() => setClip(material, clip), [material, clip]);
   // Los números cambian sin que React lo vea: se pide otro cuadro.
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => invalidate());
   if (on) setGrainUniforms(material, part, color);
-  else material.color.set(color ?? woodById(part.wood)?.color ?? '#D9BC8C');
+  else setPlainUniforms(material, part, color ?? woodById(part.wood)?.color ?? '#D9BC8C');
   return material;
 }

@@ -2,6 +2,12 @@ import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
 import { formatLength, groupOf, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type CornerKind, type FaceCorner, type PathPoint, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
+/** Corte para ver por adentro: de frente (Z), de costado (X) o de arriba (Y), y dónde. */
+export interface Cut {
+  axis: 0 | 1 | 2;
+  at: number;
+}
+
 export type Tool = 'select' | 'push' | 'move' | 'draw' | 'bevel' | 'section' | 'turn' | 'measure';
 export type View = 'iso' | 'front' | 'side' | 'top';
 
@@ -79,6 +85,12 @@ interface EditorState {
   addMode: boolean;
   tool: Tool;
   xray: boolean;
+  /** Probando el mueble: tocar un cajón o una puerta lo abre o lo cierra, y no se edita nada. */
+  trying: boolean;
+  /** Cuánto está abierto cada cajón, puerta o tapa (por el id del movimiento), de 0 a 1. Solo probando. */
+  opened: Record<string, number>;
+  /** Corte para ver por adentro: de qué lado y dónde, de 0 (un extremo del mueble) a 1 (el otro). Solo probando. */
+  cut: Cut | null;
   /** Mover deja una copia en lugar de mover la pieza (botón del celular; en la compu, Ctrl u Opción). */
   copyMove: boolean;
   view: View;
@@ -163,6 +175,12 @@ interface EditorState {
   setJointFocus: (id: string | null, hint?: { field: string; text: string }) => void;
   setTool: (t: Tool) => void;
   setXray: (on: boolean) => void;
+  setTrying: (on: boolean) => void;
+  /** Abre lo cerrado y cierra lo abierto. */
+  toggleOpen: (id: string) => void;
+  /** Todos a la vez, a la misma apertura (la barra Abrir todo). */
+  openAll: (ids: readonly string[], open: number) => void;
+  setCut: (cut: Cut | null) => void;
   setCopyMove: (on: boolean) => void;
   setView: (v: View) => void;
   setUnits: (u: Units) => void;
@@ -316,6 +334,9 @@ export const useEditor = create<EditorState>()((set, get) => ({
   jointHint: null,
   tool: 'select',
   xray: false,
+  trying: false,
+  opened: {},
+  cut: null,
   copyMove: false,
   view: 'iso',
   viewNonce: 0,
@@ -347,8 +368,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, traceImage: dropTrace(get().traceImage), notice: null, bubble: null }),
-  close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null }),
+    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, traceImage: dropTrace(get().traceImage), notice: null, bubble: null, trying: false, opened: {}, cut: null }),
+  close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null, trying: false, opened: {}, cut: null }),
 
   commit: (recipe, label) => {
     const { project, past } = get();
@@ -440,6 +461,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setJointFocus: (jointFocus, hint) => set({ jointFocus, jointHint: hint ?? null }),
   setTool: (tool) =>
     set((s) => ({
+      // Elegir otra herramienta termina la prueba: con un cajón abierto no se edita.
+      ...(s.trying ? { trying: false, opened: {}, cut: null } : {}),
       ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, bubble: null }),
       ...(tool !== 'measure' && (s.measure.a || s.measure.b) ? { measure: { a: null, b: null } } : {}),
     })),
@@ -451,6 +474,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
       return { measure: { a: pick, b: null } };
     }),
   setXray: (xray) => set({ xray }),
+  setTrying: (trying) =>
+    set(
+      trying
+        ? { trying, opened: {}, cut: null, tool: 'select', drawFace: null, draft: null, arcChord: null, pathPoints: [], cornerPick: null, bubble: null, measure: { a: null, b: null } }
+        : { trying, opened: {}, cut: null },
+    ),
+  toggleOpen: (id) => set((s) => ({ opened: { ...s.opened, [id]: (s.opened[id] ?? 0) > 0.5 ? 0 : 1 } })),
+  openAll: (ids, open) => set({ opened: Object.fromEntries(ids.map((id) => [id, open])) }),
+  setCut: (cut) => set({ cut }),
   setCopyMove: (copyMove) => set({ copyMove }),
   setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null, cornerPick: null, bubble: null })),
   setHint: (hint) => set({ hint }),

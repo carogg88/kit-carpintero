@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { formatLength, furnitureBox, partBox, t, type Project } from '@kitc/core';
+import { findMotions, formatLength, furnitureBox, motionMatrix, partBox, t, type Project } from '@kitc/core';
 import type { PartMesh } from '../geometry/protocol';
-import { makeWoodMaterial, setGrainUniforms } from './woodMaterial';
+import { makeWoodMaterial, setGrainMotion, setGrainUniforms } from './woodMaterial';
 
 /**
  * La foto del mueble: las piezas con su veta, una luz de estudio armada por código (el cuarto con ventanas que trae
@@ -83,7 +83,13 @@ function contactShadow(): THREE.CanvasTexture {
 }
 
 /** Arma el estudio con las piezas que se ven. Las que no tienen malla del motor van como su caja. */
-export function buildStudio(renderer: THREE.WebGLRenderer, project: Project, meshes: readonly PhotoMesh[], hidden: ReadonlySet<string> = new Set()): PhotoStudio {
+export function buildStudio(
+  renderer: THREE.WebGLRenderer,
+  project: Project,
+  meshes: readonly PhotoMesh[],
+  hidden: ReadonlySet<string> = new Set(),
+  opened: Readonly<Record<string, number>> = {},
+): PhotoStudio {
   const scene = new THREE.Scene();
   const owned: { dispose(): void }[] = [];
   const keep = <T extends { dispose(): void }>(x: T): T => (owned.push(x), x);
@@ -96,6 +102,8 @@ export function buildStudio(renderer: THREE.WebGLRenderer, project: Project, mes
   pmrem.dispose();
 
   const byId = new Map(meshes.map((m) => [m.id, m]));
+  // Lo que quedó abierto probando sale abierto en la foto.
+  const motions = findMotions(project);
   const box = new THREE.Box3();
   for (const part of project.parts) {
     if (hidden.has(part.id)) continue;
@@ -118,6 +126,15 @@ export function buildStudio(renderer: THREE.WebGLRenderer, project: Project, mes
     setGrainUniforms(material, part);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.copy(at);
+    const motion = motions.find((x) => x.parts.includes(part.id));
+    const open = motion ? (opened[motion.id] ?? 0) : 0;
+    if (motion && open > 0) {
+      const move = new THREE.Matrix4().fromArray(motionMatrix(motion, open));
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.copy(move).multiply(new THREE.Matrix4().makeTranslation(at));
+      mesh.matrixWorldNeedsUpdate = true;
+      setGrainMotion(material, move);
+    }
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     scene.add(mesh);

@@ -64,6 +64,7 @@ import { ghostDiff } from './ghost';
 import { drawnPocket, showCorner } from './drawCut';
 import { partsLabel, useEditor, type DrawFace, type View } from './store';
 import { usePartMaterial } from './woodMaterial';
+import { CUT_PLANES, CutRig, Moving, useMotions } from './Motion3D';
 import type { ExactMesh } from './useGeometry';
 
 const VIEW_DIRS: Record<View, [number, number, number]> = {
@@ -258,6 +259,8 @@ interface PartViewProps {
   exact: ExactMesh | undefined;
   selected: boolean;
   xray: boolean;
+  /** Probando con un corte: la pieza se corta en el plano y muestra su adentro. */
+  cut?: boolean;
   edgeColor: string;
   accent: string;
   onPointerDown: (e: ThreeEvent<PointerEvent>, part: Part) => void;
@@ -267,7 +270,7 @@ interface PartViewProps {
 }
 
 /** Una pieza: la malla exacta del motor si está al día, o su caja mientras tanto. */
-function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDown, onClick, onPointerMove, onPointerOut }: PartViewProps) {
+function PartView({ part, exact, selected, xray, cut = false, edgeColor, accent, onPointerDown, onClick, onPointerMove, onPointerOut }: PartViewProps) {
   const box = partBox(part);
   const size = box.max.map((v, i) => v - (box.min[i] ?? 0)) as [number, number, number];
   const center = box.min.map((v, i) => v + size[i]! / 2) as [number, number, number];
@@ -278,7 +281,7 @@ function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDow
     boxEdges.dispose();
   }, [boxGeo, boxEdges]);
 
-  const wood = usePartMaterial(part);
+  const wood = usePartMaterial(part, undefined, true, cut ? CUT_PLANES : null);
   const material = (
     <primitive
       object={wood}
@@ -294,7 +297,7 @@ function PartView({ part, exact, selected, xray, edgeColor, accent, onPointerDow
       polygonOffsetUnits={1}
     />
   );
-  const lines = <lineBasicMaterial color={selected ? accent : edgeColor} transparent opacity={selected ? 1 : 0.55} />;
+  const lines = <lineBasicMaterial color={selected ? accent : edgeColor} transparent opacity={selected ? 1 : 0.55} clippingPlanes={cut ? CUT_PLANES : null} />;
   const handlers = {
     userData: { id: part.id },
     onPointerDown: (e: ThreeEvent<PointerEvent>) => onPointerDown(e, part),
@@ -1020,6 +1023,9 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const selectedId = useEditor((s) => s.selectedId);
   const picked = useEditor((s) => s.picked);
   const xray = useEditor((s) => s.xray);
+  const trying = useEditor((s) => s.trying);
+  const cutting = useEditor((s) => s.trying && !!s.cut);
+  const motions = useMotions(project);
   const ghost = useEditor((s) => s.ghost);
   const dragging = useEditor((s) => s.dragging);
   const drawFace = useEditor((s) => s.drawFace);
@@ -1968,7 +1974,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const click = (e: ThreeEvent<MouseEvent>, part: Part) => {
     if (e.delta > 6) return;
     e.stopPropagation();
-    const { tool, picked, addMode, tapPart, select } = useEditor.getState();
+    const { tool, picked, addMode, tapPart, select, trying, toggleOpen } = useEditor.getState();
+    // Probando: tocar un cajón o una puerta lo abre o lo cierra. Lo demás no se elige.
+    if (trying) {
+      const m = motions.find((x) => x.parts.includes(part.id));
+      if (m) toggleOpen(m.id);
+      return;
+    }
     // Midiendo, tocar una pieza la mide: no cambia la pieza elegida en el panel.
     if (tool === 'measure') return;
     // Con Elegir, un toque en una pieza de un grupo elige el grupo (Shift suma o saca). Con Mover, el grupo ya
@@ -1978,6 +1990,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   };
 
   if (!project) return null;
+  const motionByPart = new Map(motions.flatMap((m) => m.parts.map((id) => [id, m] as const)));
   // Lo que cambiaría queda en rayos X, para ver el fantasma de cómo queda.
   const faded = ghostDiff(project, ghost).faded;
   const b = bounds(project);
@@ -1988,17 +2001,21 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       <hemisphereLight args={['#ffffff', '#b9ad98', 1.6]} />
       <directionalLight position={[1500, 2500, 1800]} intensity={1.4} />
       <gridHelper args={[span, span / 100, colors.line, colors.line]} position={[b.getCenter(new THREE.Vector3()).x, -0.5, b.getCenter(new THREE.Vector3()).z]} />
+      <CutRig project={project} />
       {project.parts.map((p) => {
         if (hidden.includes(p.id)) return null;
         const m = meshes.get(p.id);
         const exact = m && m.key === partKey(project, p.id) ? m : undefined;
-        return (
+        const motion = motionByPart.get(p.id);
+        const view = (
           <PartView
             key={p.id}
             part={p}
             exact={dragging ? undefined : exact}
-            selected={p.id === selectedId || picked.includes(p.id)}
-            xray={xray || faded.has(p.id)}
+            selected={!trying && (p.id === selectedId || picked.includes(p.id))}
+            // Probando, Rayos X deja ver a través del mueble pero no de lo que se abre.
+            xray={(xray && !(trying && motion)) || faded.has(p.id)}
+            cut={cutting}
             edgeColor={colors.edge}
             accent={colors.accent}
             onPointerDown={startDrag}
@@ -2006,6 +2023,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
             onPointerMove={hoverStretch}
             onPointerOut={leaveStretch}
           />
+        );
+        return motion ? (
+          <Moving key={p.id} motion={motion}>
+            {view}
+          </Moving>
+        ) : (
+          view
         );
       })}
       {contact.map((f, i) => (
@@ -2049,6 +2073,8 @@ export function Viewport({ meshes, label }: { meshes: ReadonlyMap<string, ExactM
       dpr={[1, 2]}
       camera={{ fov: 35, near: 10, far: 60000, position: [3000, 2000, 3000] }}
       gl={{ antialias: true, alpha: true }}
+      // Los cortes de Probar: cuestan poco mientras no haya ninguno.
+      onCreated={({ gl }) => void (gl.localClippingEnabled = true)}
       aria-label={label}
       role="img"
       onPointerMissed={(e) => {

@@ -40,6 +40,8 @@ const SIZE_LABELS: [PhotoSize, string][] = [
   ['muy', tk('Muy alta')],
 ];
 
+const NONE: Record<string, number> = {};
+
 const canShareFiles = (f: File) => typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [f] });
 
 /** Botón del encabezado (en la compu): abre la foto del mueble. También se abre desde Compartir, en el celular también. */
@@ -91,6 +93,7 @@ function Seg<T extends string>({ label, value, options, onChange }: { label: str
 
 function PhotoBody({ project, onClose }: { project: Project; onClose: () => void }) {
   const hidden = useEditor((s) => s.hidden);
+  const opened = useEditor((s) => (s.trying ? s.opened : NONE));
   const canvas = useRef<HTMLCanvasElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const studio = useRef<PhotoStudio | null>(null);
@@ -123,7 +126,7 @@ function PhotoBody({ project, onClose }: { project: Project; onClose: () => void
         }
         setupRenderer(gl);
         gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
-        const s = buildStudio(gl, project, meshes, new Set(hidden));
+        const s = buildStudio(gl, project, meshes, new Set(hidden), opened);
         studio.current = s;
         renderer.current = gl;
         const render = () => gl!.render(s.scene, s.camera);
@@ -157,7 +160,7 @@ function PhotoBody({ project, onClose }: { project: Project; onClose: () => void
       gl?.dispose();
       renderer.current = null;
     };
-  }, [project, hidden]);
+  }, [project, hidden, opened]);
 
   // Vista, luz y fondo: se aplican sin volver a armar el estudio.
   useEffect(() => {

@@ -499,6 +499,54 @@ export const EN_TOOLS: Article[] = [
     related: ['cerca', 'vistas'],
   },
   {
+    id: 'probar',
+    topic: 'herramientas',
+    title: 'Try the piece',
+    summary: 'Open and close in the model whatever moves, and look inside the piece.',
+    intro: [
+      p('**Try** opens and closes in 3D whatever moves in the piece: drawers slide forward, doors swing on their hinge and lids lift at the back. Use it to see how it works and what it looks like inside. It changes nothing in the project.'),
+      img('probar', 'The wall cabinet with one door open, and the Try panel'),
+    ],
+    sections: [
+      {
+        id: 'abrir',
+        title: 'Open and close',
+        blocks: [
+          steps(
+            'Tap **Try**, at the end of the toolbar. On a phone it is under **More**.',
+            'Tap a drawer or a door in the model: it opens. Tap it again and it closes.',
+            'To open everything at once, use the **Open all** slider in the panel. You can also open each one from the list.',
+            'When you are done, tap **Stop trying** (or **Try** again, or Esc): everything closes.',
+          ),
+          key('`A` turns Try on and off.'),
+          tip('While trying you cannot edit: if you pick another tool, the test ends and the piece is closed again.'),
+        ],
+      },
+      {
+        id: 'adentro',
+        title: 'Look inside',
+        blocks: [
+          p('With **See-through piece**, the body looks like glass and the drawers and doors stay solid: you can see where the shelves, the back and the bottoms are.'),
+          p('The **Cut** removes the part of the piece closest to you: from the **Front**, the **Side** or the **Top**. Move the **Where it cuts** slider to see another part. The cut surface is painted flat so you can read the thicknesses.'),
+          img('probar-corte', 'The chest of drawers cut from the side: you can see inside the drawers'),
+        ],
+      },
+      {
+        id: 'que-se-abre',
+        title: 'What opens',
+        blocks: [
+          p('Drawers and doors made with **Add part** open by themselves. Mark a hand-made part or group under **Opens**, in the part panel; that is also where you change the hinge side. More: [Part panel](panel-pieza).'),
+          tip('The **Photo of the piece** comes out as you left it: take the photo with a door open and it comes out open.'),
+        ],
+      },
+    ],
+    faq: [
+      { q: 'I tap a part and it does not open', a: 'Only drawers, doors and lids open. If it is a hand-made door, select it and set **Opens: Door** in its panel.' },
+      { q: 'Does opening a drawer change the measurements?', a: 'No: trying changes nothing in the project, neither the plans nor the cut list.' },
+    ],
+    related: ['rayos-x', 'panel-pieza', 'foto-mueble'],
+  },
+  {
     id: 'vistas',
     topic: 'herramientas',
     title: 'Views and fit',
