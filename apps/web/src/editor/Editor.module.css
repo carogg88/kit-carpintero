@@ -692,6 +692,18 @@
 .reviewBody { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 0 12px 8px 36px; font-size: var(--text-s); line-height: 1.45; color: var(--ink); }
 .reviewBody p, .partNote p { margin: 0; }
 .reviewBody .link { min-height: 36px; }
+/* Medida que un aviso pide cambiar: se llega desde la revisión. */
+.field[data-highlight] input, .inlineField[data-highlight] input { border-color: var(--warn-line); box-shadow: 0 0 0 3px var(--warn-bg); }
+.field[data-highlight], .inlineField[data-highlight] { color: var(--warn-ink); }
+
+/* El arreglo de un aviso: un botón que lo aplica (con vista previa) y el atajo a la unión. */
+.noteActions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-top: 2px; }
+.noteActions .link { display: inline-flex; align-items: center; min-height: 36px; text-decoration: none; }
+.noteFix {
+  min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-ink);
+  font: 600 var(--text-s) var(--font-ui); cursor: pointer;
+}
+.noteFix:focus-visible, .noteActions .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .partNotes { display: flex; flex-direction: column; gap: var(--space-2); }
 .partNote {
   display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--warn-line); background: var(--warn-bg);

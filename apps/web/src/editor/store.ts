@@ -108,6 +108,8 @@ interface EditorState {
   hidden: string[];
   /** Unión que se pidió ver de cerca desde el Modelo: Uniones la abre al entrar. */
   jointFocus: string | null;
+  /** Con qué se llegó a esa unión desde un aviso: la medida a marcar y qué dice la revisión. */
+  jointHint: { field: string; text: string } | null;
   /** Las dos piezas que se están midiendo: la segunda falta hasta el segundo toque. */
   measure: { a: MeasurePick | null; b: MeasurePick | null };
 
@@ -132,7 +134,7 @@ interface EditorState {
    */
   tapPart: (id: string, add: boolean) => void;
   setAddMode: (on: boolean) => void;
-  setJointFocus: (id: string | null) => void;
+  setJointFocus: (id: string | null, hint?: { field: string; text: string }) => void;
   setTool: (t: Tool) => void;
   setXray: (on: boolean) => void;
   setCopyMove: (on: boolean) => void;
@@ -205,12 +207,13 @@ const apply = (p: Project, recipe: (p: Draft<Project>) => void, sync: boolean) =
     recipe(d);
     syncComponents(p, d as Project);
     syncGroups(d as Project);
-    if (sync) d.joints = syncJoints(d.parts as Project['parts'], d.joints as Project['joints']);
+    if (sync) d.joints = syncJoints(d.parts as Project['parts'], d.joints as Project['joints'], p.parts);
     touch(d);
   });
 
 /**
- * Lo que se dice después de un cambio: qué se hizo (si se dijo) y qué uniones se soltaron. Una unión se suelta
+ * Lo que se dice después de un cambio: qué se hizo (si se dijo), qué uniones se soltaron y qué espigas se ajustaron
+ * solas al espesor nuevo de su pieza. Una unión se suelta
  * cuando dos piezas que siguen en el proyecto dejan de tocarse; si se borró una pieza, el aviso ya lo dice.
  */
 export function changeNotice(before: Project, after: Project, label?: string): string | null {
@@ -218,10 +221,26 @@ export function changeNotice(before: Project, after: Project, label?: string): s
   const kept = new Set(after.joints.map((j) => pair(j.partA, j.partB)));
   const ids = new Set(after.parts.map((p) => p.id));
   const lost = [...new Set(before.joints.filter((j) => ids.has(j.partA) && ids.has(j.partB) && !kept.has(pair(j.partA, j.partB))).map((j) => pair(j.partA, j.partB)))];
-  const loose =
+  const loose: string | null =
     lost.length === 1 ? t('se soltó la unión de {a} con {b}', { a: lost[0]!.split('|')[0]!, b: lost[0]!.split('|')[1]! }) : lost.length ? t('se soltaron {n} uniones', { n: lost.length }) : null;
-  if (!loose) return label ?? null;
-  return label ? `${label} · ${loose}` : loose.replace(/^./, (c) => c.toUpperCase());
+  // Espigas que cambiaron solas porque su pieza cambió de espesor (no las que se editaron en Uniones).
+  const boxOf = (p: Project, id: string) => {
+    const q = p.parts.find((x) => x.id === id);
+    return q?.base.kind === 'box' ? `${q.base.size.join()}` : '';
+  };
+  const refit = after.joints.filter((j) => {
+    const old = before.joints.find((x) => x.id === j.id);
+    return j.type === 'mortaja' && old?.type === 'mortaja' && old.params.thickness !== j.params.thickness && boxOf(before, j.partB) !== boxOf(after, j.partB);
+  });
+  const fitted =
+    refit.length === 1
+      ? t('ajusté la espiga de {a} con {b} al espesor nuevo', { a: refit[0]!.partA, b: refit[0]!.partB })
+      : refit.length
+        ? t('ajusté la espiga de {n} uniones al espesor nuevo', { n: refit.length })
+        : null;
+  const extra = [loose, fitted].filter(Boolean).join(' · ');
+  if (!extra) return label ?? null;
+  return label ? `${label} · ${extra}` : extra.replace(/^./, (c) => c.toUpperCase());
 }
 
 let noticeKey = 0;
@@ -264,6 +283,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   picked: [],
   addMode: false,
   jointFocus: null,
+  jointHint: null,
   tool: 'select',
   xray: false,
   copyMove: false,
@@ -291,7 +311,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ jointFocus: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], notice: null, bubble: null }),
+    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], notice: null, bubble: null }),
   close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null }),
 
   commit: (recipe, label) => {
@@ -381,7 +401,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     pick(unit);
   },
   setAddMode: (addMode) => set({ addMode }),
-  setJointFocus: (jointFocus) => set({ jointFocus }),
+  setJointFocus: (jointFocus, hint) => set({ jointFocus, jointHint: hint ?? null }),
   setTool: (tool) =>
     set((s) => ({
       ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], bubble: null }),

@@ -498,6 +498,8 @@ export const ES_PARTS: Article[] = [
             'Tocá un aviso para leerlo: qué pasa y **Qué hacer**.',
             'Tocá **Ver la pieza** para ir a la pieza.',
           ),
+          p('Algunos avisos traen el arreglo en un botón, por ejemplo **Usar espiga de 5,5 mm** o **Engrosar** la pata: se ve en vista previa y lo confirmás con **Aplicar**. **Ver en la unión** te lleva a Uniones con la medida a cambiar marcada.'),
+          p('Si cambiás el espesor de una pieza, las espigas que tenían un tercio del espesor se ajustan solas al espesor nuevo, y un aviso abajo lo dice con **Deshacer**.'),
           p('Si hay avisos, la vista del modelo muestra **Revisión** con cuántos son: un toque abre la lista. Y cada pieza muestra los suyos arriba en su panel.'),
         ],
       },

@@ -91,10 +91,12 @@ interface LengthFieldProps {
   describedBy?: string;
   /** Mientras se escribe: la medida si es válida y distinta, o null. Sirve para mostrar el fantasma. */
   onDraft?: (mm: number | null) => void;
+  /** Marcado: se llegó acá desde un aviso de la revisión que dice que esta medida hay que cambiarla. */
+  highlight?: boolean;
 }
 
 /** Campo de medida: se escribe en la unidad elegida y se valida al salir del campo. */
-export function LengthField({ label, mm, units, min = 1, max, onCommit, compact, describedBy, onDraft }: LengthFieldProps) {
+export function LengthField({ label, mm, units, min = 1, max, onCommit, compact, describedBy, onDraft, highlight }: LengthFieldProps) {
   const id = useId();
   const [text, setText] = useState(() => (mm || min === 0 ? formatNumber(mm, units) : ''));
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +118,7 @@ export function LengthField({ label, mm, units, min = 1, max, onCommit, compact,
     else setText(formatNumber(mm, units));
   };
   return (
-    <label className={compact ? styles.inlineField : styles.field} htmlFor={id}>
+    <label className={compact ? styles.inlineField : styles.field} htmlFor={id} data-highlight={highlight || undefined}>
       {label}
       <input
         id={id}

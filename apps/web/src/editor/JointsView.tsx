@@ -222,12 +222,14 @@ interface DetailProps {
   applyAll: boolean;
   setApplyAll: (on: boolean) => void;
   onBack: () => void;
+  /** Se llegó desde un aviso de la revisión: qué medida marcar y qué dice el aviso. */
+  hint?: { field: string; text: string } | null;
 }
 
 /** Separar las piezas vale para todas las uniones mientras la app está abierta. */
 let apartOn = false;
 
-function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onBack }: DetailProps) {
+function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onBack, hint }: DetailProps) {
   const commit = useEditor((s) => s.commit);
   const typeName = useId();
   const typeListId = useId();
@@ -297,6 +299,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
       mm={params[key] ?? 0}
       units={units}
       min={min}
+      highlight={hint?.field === key}
       onCommit={(v) => setParam(key, v, label)}
       onDraft={(v) =>
         setDraft(
@@ -443,6 +446,12 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
                 ? t('Medidas de la espiga ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })
                 : t('Medidas del encastre ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}
             </legend>
+            {hint && (
+              <p className={styles.reviewHint}>
+                <IconWarn />
+                <span>{hint.text}</span>
+              </p>
+            )}
             {fields}
           </fieldset>
         )}
@@ -547,6 +556,11 @@ export function JointsView({ project, meshes }: { project: Project; meshes: Read
   // Si se llegó desde una pieza en el Modelo, se abre esa unión.
   const [selectedId, setSelectedId] = useState<string | null>(() => useEditor.getState().jointFocus);
   const [detailOpen, setDetailOpen] = useState(() => !!useEditor.getState().jointFocus);
+  // Si se llegó desde un aviso, la medida a cambiar queda marcada en esa unión.
+  const [hint] = useState(() => {
+    const { jointFocus, jointHint } = useEditor.getState();
+    return jointFocus && jointHint ? { joint: jointFocus, ...jointHint } : null;
+  });
   useEffect(() => useEditor.getState().setJointFocus(null), []);
   const [applyAll, setApplyAll] = useState(true);
   const groups = groupJoints(project);
@@ -587,6 +601,7 @@ export function JointsView({ project, meshes }: { project: Project; meshes: Read
           applyAll={applyAll}
           setApplyAll={setApplyAll}
           onBack={() => setDetailOpen(false)}
+          hint={hint?.joint === joint.id ? hint : null}
         />
       </section>
     </main>

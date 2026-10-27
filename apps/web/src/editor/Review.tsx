@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { partNotes, reviewDesign, t, type Project, type ReviewNote } from '@kitc/core';
+import { applyReviewFix, partNotes, reviewDesign, t, type Project, type ReviewNote } from '@kitc/core';
+import { sectionHref } from '../routes';
 import { useEditor } from './store';
 import { IconCheck, IconWarn } from './icons';
 import styles from './Editor.module.css';
@@ -43,13 +44,42 @@ export function ReviewPill({ project }: { project: Project }) {
   );
 }
 
-function NoteBody({ note }: { note: ReviewNote }) {
+/** Lo que dice el aviso y, si se puede, el arreglo en un toque (con vista previa) y el atajo a la unión. */
+function NoteBody({ note, projectId }: { note: ReviewNote; projectId: string }) {
+  const { action, joint, field } = note;
   return (
     <>
       <p>{note.text}</p>
       <p>
         <strong>{t('Qué hacer:')}</strong> {note.fix}
       </p>
+      {field === 'thickness' && note.kind === 'espiga' && <p className={styles.muted}>{t('La medida está en Uniones, en el espesor de la espiga: no en la pieza.')}</p>}
+      {(action || joint) && (
+        <div className={styles.noteActions}>
+          {action && (
+            <button
+              type="button"
+              className={styles.noteFix}
+              onClick={() =>
+                useEditor
+                  .getState()
+                  .propose((d) => applyReviewFix(d, action), action.label, { title: t('Arreglar: {what}', { what: action.label }), select: action.kind === 'part' ? action.part : note.parts[0] })
+              }
+            >
+              {action.label}
+            </button>
+          )}
+          {joint && (
+            <a
+              className={styles.link}
+              href={sectionHref(projectId, 'uniones')}
+              onClick={() => useEditor.getState().setJointFocus(joint, field ? { field, text: note.fix } : undefined)}
+            >
+              {t('Ver en la unión')}
+            </a>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -101,7 +131,7 @@ export function ReviewCard({ project, heading = true }: { project: Project; head
               </button>
               {open === n.id && (
                 <div className={styles.reviewBody}>
-                  <NoteBody note={n} />
+                  <NoteBody note={n} projectId={project.id} />
                   {n.parts[0] && (
                     <button type="button" className={styles.link} onClick={() => select(n.parts[0]!)}>
                       {n.parts.length > 1 && n.kind === 'estante' ? t('Ver el primero ({id})', { id: n.parts[0] }) : t('Ver la pieza ({id})', { id: n.parts[0] })}
@@ -129,7 +159,7 @@ export function PartNotes({ project, partId }: { project: Project; partId: strin
             <IconWarn />
             {n.title}
           </strong>
-          <NoteBody note={n} />
+          <NoteBody note={n} projectId={project.id} />
         </div>
       ))}
     </div>
