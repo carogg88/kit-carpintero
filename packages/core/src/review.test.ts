@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { hardwareList } from './hardware';
 import { cutPlan } from './cutlist';
 import { partBox } from './geometry';
-import { reviewDesign, shelfSag } from './review';
+import { applyReviewFix, reviewDesign, shelfSag } from './review';
 import { buildTemplate, TEMPLATES, templateById, templateDefaults } from './templates';
 import type { Project } from './project';
 
@@ -39,6 +39,30 @@ describe('revisión del diseño', () => {
     expect(reviewDesign(p).find((n) => n.kind === 'espiga')?.title).toMatch(/^Espiga gruesa/);
     j.params = { ...j.params, thickness: 40 };
     expect(reviewDesign(p).find((n) => n.kind === 'espiga')?.title).toMatch(/^Mortaja al borde/);
+  });
+
+  it('los avisos de espiga traen su arreglo, y aplicarlo los saca', () => {
+    const p = build('mesa', 'guatambu');
+    const j = p.joints.find((x) => x.type === 'mortaja')!;
+    j.params = { ...j.params, thickness: 14 };
+    const thick = reviewDesign(p).find((n) => n.id === `espiga|${j.id}`)!;
+    expect(thick).toMatchObject({ joint: j.id, field: 'thickness', action: { kind: 'joint', joints: [j.id] } });
+    applyReviewFix(p, thick.action!);
+    expect(reviewDesign(p).some((n) => n.id === `espiga|${j.id}`)).toBe(false);
+
+    // Mortaja al borde: se engrosa la pieza que recibe, a lo grueso, nunca a lo largo.
+    j.params = { ...j.params, thickness: 40 };
+    const edge = reviewDesign(p).find((n) => n.id === `espiga|${j.id}`)!;
+    expect(edge.title).toMatch(/^Mortaja al borde/);
+    const fix = edge.action!;
+    expect(fix.kind).toBe('part');
+    if (fix.kind !== 'part') return;
+    const leg = p.parts.find((x) => x.id === fix.part)!;
+    expect(fix.axis).not.toBe(1);
+    const before = partBox(leg);
+    applyReviewFix(p, fix);
+    expect(partBox(leg).max[fix.axis] - partBox(leg).min[fix.axis]).toBeGreaterThan(before.max[fix.axis] - before.min[fix.axis]);
+    expect(reviewDesign(p).find((n) => n.id === `espiga|${j.id}`)?.title ?? '').not.toMatch(/^Mortaja al borde/);
   });
 
   it('los estantes de melamina de 76 cm se comban; los de madera maciza, no', () => {

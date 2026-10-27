@@ -498,6 +498,8 @@ export const EN_PARTS: Article[] = [
             'Tap a warning to read it: what is going on and **What to do**.',
             'Tap **Show the piece** to go to the part.',
           ),
+          p('Some warnings bring the fix in a button, for example **Use a 5.5 mm tenon** or **Thicken** the leg: you see it as a preview and confirm with **Apply**. **See it in the joint** takes you to Joints with the measurement to change marked.'),
+          p('If you change a part’s thickness, tenons that were a third of the thickness follow the new thickness, and a notice at the bottom says so with **Undo**.'),
           p('If there are warnings, the model view shows **Review** with how many: one tap opens the list. And each part shows its own at the top of its panel.'),
         ],
       },

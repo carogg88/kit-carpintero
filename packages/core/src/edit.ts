@@ -293,11 +293,16 @@ function touches(a: Box, b: Box): boolean {
   return !!endContact(a, b) || !!overlapBox(a, b);
 }
 
+/** Hasta cuánto se aleja una espiga del tercio de su pieza y se sigue tomando como "la del tercio". */
+const THIRD_SLACK = 0.6;
+
 /**
  * Una espiga que ya no entra en su pieza, porque la pieza se achicó (un faldón de 8 cm que pasa a travesaño de 3):
  * los hombros y el espesor vuelven a las medidas de taller para la pieza nueva. El largo que eligió la persona queda.
+ * Con `was`, la caja que tenía la pieza de la espiga antes del cambio: si cambió de espesor y la espiga era la del
+ * tercio, sigue siendo la del tercio con el espesor nuevo. Un espesor escrito a mano, lejos del tercio, queda.
  */
-function refitTenon(j: Joint, a: Box, b: Box): Joint {
+function refitTenon(j: Joint, a: Box, b: Box, was?: Box): Joint {
   if (j.type !== 'mortaja') return j;
   const e = endJoint(a, b);
   const def = defaultJointParams('mortaja', a, b);
@@ -307,24 +312,30 @@ function refitTenon(j: Joint, a: Box, b: Box): Joint {
   const shoulder = j.params.shoulder ?? def.shoulder!;
   const thickness = j.params.thickness ?? def.thickness!;
   const narrow = wide - 2 * shoulder < MIN_TENON_WIDTH && def.shoulder! < shoulder;
-  const thick = thickness >= thin;
+  const oldStock = was && was.max[e.thin] - was.min[e.thin];
+  const newStock = b.max[e.thin] - b.min[e.thin];
+  const followed =
+    oldStock !== undefined && Math.abs(oldStock - newStock) > 0.01 && Math.abs(thickness - oldStock / 3) <= THIRD_SLACK && Math.abs(thickness - def.thickness!) > 0.01;
+  const thick = thickness >= thin || followed;
   if (!narrow && !thick) return j;
   return { ...j, params: { ...j.params, ...(narrow ? { shoulder: def.shoulder } : {}), ...(thick ? { thickness: def.thickness } : {}) } };
 }
 
 /**
  * Encastres al día con las piezas: conserva los que siguen valiendo (con el tipo y las medidas que eligió
- * la persona), propone uno para cada contacto nuevo y saca los de piezas que ya no se tocan.
+ * la persona), propone uno para cada contacto nuevo y saca los de piezas que ya no se tocan. Con `before`, las
+ * piezas antes del cambio, las espigas del tercio siguen el espesor nuevo de su pieza.
  */
-export function syncJoints(parts: Part[], joints: Joint[]): Joint[] {
+export function syncJoints(parts: Part[], joints: Joint[], before?: Part[]): Joint[] {
   const boxes = new Map(parts.flatMap((p) => (p.base.kind === 'box' ? [[p.id, partBox(p)] as const] : [])));
+  const was = new Map((before ?? []).flatMap((p) => (p.base.kind === 'box' ? [[p.id, partBox(p)] as const] : [])));
   const key = (x: string, y: string) => [x, y].sort().join('|');
   const kept = new Map<string, Joint>();
   for (const j of joints) {
     const a = boxes.get(j.partA);
     const b = boxes.get(j.partB);
     if (!a || !b || !touches(a, b)) continue;
-    if (defaultJointParams(j.type, a, b) !== null) kept.set(key(j.partA, j.partB), refitTenon(j, a, b));
+    if (defaultJointParams(j.type, a, b) !== null) kept.set(key(j.partA, j.partB), refitTenon(j, a, b, was.get(j.partB)));
   }
   const result: Joint[] = [];
   const added = new Set<string>();

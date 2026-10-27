@@ -68,6 +68,23 @@ describe('syncJoints', () => {
     expect(synced.filter((j) => j.partB === shelf.id)).toMatchObject([{ partA: 'P1', type: 'mortaja' }, { partA: 'P2', type: 'mortaja' }]);
   });
 
+  it('la espiga del tercio sigue el espesor nuevo del faldón; una escrita a mano, no', () => {
+    const f1 = table.parts.find((p) => p.id === 'F1')!;
+    const thin = partAxesBySize(f1)[2];
+    const stock = f1.base.kind === 'box' ? f1.base.size[thin] : 0;
+    const thinner = table.parts.map((p) => {
+      if (p.id !== 'F1' || p.base.kind !== 'box') return p;
+      const size = [...p.base.size] as [number, number, number];
+      size[thin] = 16;
+      return { ...p, base: { ...p.base, size } };
+    });
+    const third = table.joints.map((j) => (j.partB === 'F1' ? { ...j, params: { ...j.params, thickness: Math.round((stock / 3) * 10) / 10 } } : j));
+    const fitted = syncJoints(thinner, third, table.parts).filter((j) => j.partB === 'F1' && j.partA.startsWith('P'));
+    expect(fitted.map((j) => j.params.thickness)).toEqual([5.3, 5.3]);
+    const manual = table.joints.map((j) => (j.partB === 'F1' ? { ...j, params: { ...j.params, thickness: 10 } } : j));
+    expect(syncJoints(thinner, manual, table.parts).filter((j) => j.partB === 'F1' && j.partA.startsWith('P')).map((j) => j.params.thickness)).toEqual([10, 10]);
+  });
+
   it('respeta el tipo que eligió la persona', () => {
     const joints = table.joints.map((j) => (j.id === 'P4-F1' ? { ...j, type: 'clavija' as const, params: {} } : j));
     expect(syncJoints(table.parts, joints).find((j) => j.id === 'P4-F1')?.type).toBe('clavija');

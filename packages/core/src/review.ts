@@ -24,6 +24,29 @@ export interface ReviewNote {
   text: string;
   /** Qué hacer. */
   fix: string;
+  /** La unión en cuestión y cuál de sus medidas mirar, cuando el arreglo se hace ahí. */
+  joint?: string;
+  field?: string;
+  /** El arreglo, listo para aplicar con `applyReviewFix`. */
+  action?: ReviewFix;
+}
+
+/** Un arreglo de la revisión: medidas nuevas para una unión, o una pieza más gruesa de un lado. */
+export type ReviewFix = { label: string } & (
+  | { kind: 'joint'; joints: string[]; params: Record<string, number> }
+  | { kind: 'part'; part: string; axis: Axis; min: number; size: number }
+);
+
+/** Aplica el arreglo sobre el proyecto (o un borrador de él). Si lo que nombra ya no está, no hace nada. */
+export function applyReviewFix(project: Pick<Project, 'parts' | 'joints'>, fix: ReviewFix): void {
+  if (fix.kind === 'joint') {
+    for (const j of project.joints) if (fix.joints.includes(j.id)) Object.assign(j.params, fix.params);
+    return;
+  }
+  const part = project.parts.find((x) => x.id === fix.part);
+  if (!part || part.base.kind !== 'box') return;
+  part.position[fix.axis] = fix.min;
+  part.base.size[fix.axis] = fix.size;
 }
 
 const lower = (s: string) => s.toLocaleLowerCase(locale());
@@ -179,10 +202,23 @@ function tenon(project: Project, j: Joint): ReviewNote | null {
   const g = mortiseAndTenon(ba, bb, params);
   if (!g) return null;
   const stock = boxSize(bb)[e.thin];
-  const third = Math.round((stock / 3) * 10) / 10;
+  // Al medio milímetro, como se marca en el taller y como lo muestra Uniones.
+  const third = Math.round((stock / 3) * 2) / 2;
   // Las paredes de la mortaja: lo que queda entre el agujero y las caras de la pieza que lo recibe.
-  const wall = Math.min(...([e.thin, e.wide] as Axis[]).flatMap((k) => [g.mortise.min[k] - ba.min[k], ba.max[k] - g.mortise.max[k]]));
+  const walls = ([e.thin, e.wide] as Axis[]).flatMap((k) => [
+    { axis: k, side: -1 as const, wall: g.mortise.min[k] - ba.min[k] },
+    { axis: k, side: 1 as const, wall: ba.max[k] - g.mortise.max[k] },
+  ]);
+  const thinnest = walls.reduce((x, y) => (y.wall < x.wall ? y : x));
+  const wall = thinnest.wall;
   if (wall < MIN_WALL) {
+    // El arreglo: engrosar la pieza que recibe del lado de la pared fina, lo justo para dejar la pared mínima.
+    const add = Math.ceil(MIN_WALL - wall);
+    const k = thinnest.axis;
+    const size = ba.max[k] - ba.min[k] + add;
+    // Solo a lo grueso: alargar una pata para ganar pared arriba no es engrosarla. Una pata inclinada tampoco se toca.
+    const along = axesBySize(ba)[0] === k;
+    const leaning = !!a.lean && (a.lean[0] !== 0 || a.lean[1] !== 0);
     return {
       id: `espiga|${j.id}`,
       kind: 'espiga',
@@ -190,6 +226,18 @@ function tenon(project: Project, j: Joint): ReviewNote | null {
       title: t('Mortaja al borde en {name}', { name: name(a) }),
       text: t('La mortaja para {b} deja solo {w} de madera hasta la cara de {a}: se puede partir al encolar o con un golpe.', { b: name(b), w: mm(Math.max(0, wall)), a: name(a) }),
       fix: t('Dejá al menos {min} mm de pared: corré la pieza hacia adentro, hacé la espiga más fina o usá una pieza que reciba más gruesa.', { min: MIN_WALL }),
+      joint: j.id,
+      field: 'thickness',
+      action: leaning || along
+        ? undefined
+        : {
+            kind: 'part',
+            part: a.id,
+            axis: k,
+            min: thinnest.side < 0 ? ba.min[k] - add : ba.min[k],
+            size,
+            label: t('Engrosar {name} a {size}', { name: name(a), size: formatLength(size, project.units) }),
+          },
     };
   }
   if (params.thickness > third + 1) {
@@ -200,6 +248,9 @@ function tenon(project: Project, j: Joint): ReviewNote | null {
       title: t('Espiga gruesa en {name}', { name: name(b) }),
       text: t('La espiga de {b} mide {t} y la pieza tiene {s}: los hombros quedan finos y se quiebran, y la mortaja debilita {a}.', { b: name(b), t: mm(params.thickness), s: mm(stock), a: name(a) }),
       fix: t('La regla del tercio: una espiga de {third} mm, un tercio del espesor de la pieza.', { third: third.toLocaleString(locale()) }),
+      joint: j.id,
+      field: 'thickness',
+      action: { kind: 'joint', joints: [j.id], params: { thickness: third }, label: t('Usar espiga de {third} mm', { third: third.toLocaleString(locale()) }) },
     };
   }
   return null;
@@ -280,10 +331,17 @@ export function reviewDesign(project: Project): ReviewNote[] {
       notes.push(n);
     }
   }
-  for (const j of project.joints) {
-    const n = tenon(project, j);
-    if (n) notes.push(n);
+  const tenons = project.joints.flatMap((j) => tenon(project, j) ?? []);
+  // La misma espiga gruesa en las dos puntas de un travesaño se arregla de una vez: el botón va a las dos uniones.
+  for (const n of tenons) {
+    const fix = n.action;
+    if (fix?.kind !== 'joint') continue;
+    const same = tenons.filter((m) => m.action?.kind === 'joint' && m.parts[0] === n.parts[0] && m.action.params.thickness === fix.params.thickness);
+    if (same.length < 2) continue;
+    fix.joints = same.map((m) => m.joint!);
+    fix.label = t('Usar espiga de {third} mm en las {n} uniones', { third: fix.params.thickness!.toLocaleString(locale()), n: same.length });
   }
+  notes.push(...tenons);
   notes.push(...sagging(project));
   return notes;
 }
