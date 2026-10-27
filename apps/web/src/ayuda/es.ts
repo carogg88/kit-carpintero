@@ -191,7 +191,7 @@ export const ES: HelpContent = {
             p('El panel cambia según lo que esté elegido:'),
             list(
               '**Sin nada elegido**: las medidas de todo el mueble, la revisión del diseño, la proporción áurea, la lista de piezas y **Agregar pieza**.',
-              '**Con una pieza elegida**: sus medidas, su posición, Girar 90°, Inclinar la pata (en patas y parantes), la madera, los cantos y sus uniones. Abajo, Duplicar, Del otro lado y Borrar.',
+              '**Con una pieza elegida**: sus medidas, su posición, Girar 90°, Espejar, Inclinar la pata (en patas y parantes), la madera, los cantos y sus uniones. Abajo, Duplicar, Del otro lado y Borrar.',
             ),
             p('El botón al lado de las vistas pliega el panel para ver el modelo más grande.'),
           ],

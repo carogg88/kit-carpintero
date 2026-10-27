@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Axis } from './geometry';
 import type { Part } from './project';
-import { rotatePart } from './rotate';
+import { flipPart, rotatePart } from './rotate';
 
 const slat = (): Part => ({
   id: 'L1',
@@ -71,5 +71,45 @@ describe('girar 90°', () => {
         { at: 340, d: 40, to: 'curve', bulge: 3 },
       ],
     });
+  });
+});
+
+describe('espejar', () => {
+  it('de izquierda a derecha: el vaciado y el tramo pasan a la otra punta, sin moverse la pieza', () => {
+    const p = slat();
+    flipPart(p, 0);
+    expect(p.position).toEqual([100, 400, 0]);
+    expect(p.base).toEqual({ kind: 'box', size: [340, 25, 40] });
+    // El rectángulo a 20 de la izquierda (60 de largo) queda a 20 de la derecha: 340 − 80.
+    expect(p.pockets[0]!.shape).toMatchObject({ kind: 'rect', u: 260, w: 60 });
+    expect(p.sections[0]).toMatchObject({ axis: 0, from: 280, to: 340 });
+    expect(p.bevels[0]!.a).toEqual({ axis: 0, side: -1 });
+  });
+
+  it('de arriba abajo: el vaciado de arriba pasa abajo y el arco da vuelta su flecha', () => {
+    const p = slat();
+    flipPart(p, 1);
+    expect([p.pockets[0]!.axis, p.pockets[0]!.side]).toEqual([1, -1]);
+    expect(p.pockets[2]!.shape).toMatchObject({ kind: 'arc', v: 0, v2: 0, bulge: 10 });
+  });
+
+  it('dos veces deja la pieza como estaba', () => {
+    for (const axis of [0, 1, 2] as Axis[]) {
+      const p = slat();
+      flipPart(p, axis);
+      flipPart(p, axis);
+      expect(p).toEqual(slat());
+    }
+  });
+
+  it('una pata inclinada se abre hacia el otro lado; una copia de componente guarda el reflejo', () => {
+    const p = { ...slat(), lean: [5, -3] as [number, number], component: 'C1' };
+    flipPart(p, 0);
+    expect(p.lean).toEqual([-5, -3]);
+    expect(p.orient).toEqual([-1, 2, 3]);
+    flipPart(p, 2);
+    expect(p.lean).toEqual([-5, 3]);
+    flipPart(p, 1);
+    expect(p.lean).toEqual([-5, 3]);
   });
 });

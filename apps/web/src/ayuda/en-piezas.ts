@@ -6,7 +6,7 @@ export const EN_PARTS: Article[] = [
     id: 'panel-pieza',
     topic: 'piezas',
     title: 'The part panel',
-    summary: 'Size, position, rotation, wood, shape and joints of the selected part.',
+    summary: 'Size, position, rotation, mirroring, wood, shape and joints of the selected part.',
     intro: [
       p('When you select a part, the panel on the right shows everything about it, top to bottom: which part it is, its size, where it is, its wood, its shape and which parts it joins. On a phone, the panel is below the model.'),
       img('panel-pieza', 'The panel of a selected leg, highlighted'),
@@ -49,6 +49,25 @@ export const EN_PARTS: Article[] = [
             ['**Sideways**', 'Tips it to one side: the top goes to a side.'],
           ),
           p('Pockets, bevels, sections and turning rotate with the part.'),
+        ],
+      },
+      {
+        id: 'espejar',
+        title: 'Mirror',
+        blocks: [
+          p('**Mirror** flips the part as seen in a mirror, without moving it. What is drawn moves to the other side: a cutout near the left end ends up near the right end.'),
+          table(
+            ['Button', 'What it does'],
+            ['**↔ Horizontal**', 'What was on the left moves to the right. Looking from the **Side**, it mirrors front to back.'],
+            ['**↕ Vertical**', 'What was on top moves to the bottom.'],
+          ),
+          list(
+            'Before it applies, the preview shows the result, with **Apply** and **Cancel**.',
+            'Pockets, cutouts, freehand profiles, bevels, sections and turning go with the part. A leaning leg splays the other way.',
+            'On a copy of a component only that copy is mirrored, just like rotating.',
+            'With several parts or a group selected, they are mirrored together about the center of what they take up: each one flips and moves to its mirrored spot.',
+          ),
+          tip('To make a curved leg and get all four, draw the curve on one, use **Other side** for its twin and mirror the ones you need.'),
         ],
       },
       {
@@ -261,7 +280,7 @@ export const EN_PARTS: Article[] = [
           steps(
             'Select a copy of the component.',
             'Use **Rotate 90°** in the panel. It turns only that copy: the others stay as they are.',
-            'The panel says so: **This copy is rotated**.',
+            'The panel says so: **This copy is rotated or mirrored**.',
           ),
         ],
       },
@@ -322,6 +341,7 @@ export const EN_PARTS: Article[] = [
             'With the group selected, Move and the arrow keys move all its parts together.',
             'Under **Group size** you change the width, height or depth of the whole group. Learn more: [Overall and group size](medidas-mueble).',
             '**Duplicate** makes a new group with the copies.',
+            '**Mirror** flips the whole group as seen in a mirror, without moving it. Learn more: [The part panel](panel-pieza).',
             'Groups come first in the piece’s **Parts** list, with their eye to hide them.',
           ),
         ],

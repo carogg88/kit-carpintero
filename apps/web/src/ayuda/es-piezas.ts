@@ -6,7 +6,7 @@ export const ES_PARTS: Article[] = [
     id: 'panel-pieza',
     topic: 'piezas',
     title: 'El panel de la pieza',
-    summary: 'Medidas, posición, giro, madera, forma y uniones de la pieza elegida.',
+    summary: 'Medidas, posición, giro, espejo, madera, forma y uniones de la pieza elegida.',
     intro: [
       p('Cuando elegís una pieza, el panel de la derecha muestra todo lo de esa pieza, de arriba hacia abajo: cuál es, cuánto mide, dónde está, de qué madera es, su forma y con qué otras piezas se une. En el celular, el panel está debajo del modelo.'),
       img('panel-pieza', 'El panel de una pata elegida, marcado'),
@@ -49,6 +49,25 @@ export const ES_PARTS: Article[] = [
             ['**Al costado**', 'La vuelca de costado: lo de arriba pasa a un lado.'],
           ),
           p('Al girar, los vaciados, biseles, tramos y el torneado giran con la pieza.'),
+        ],
+      },
+      {
+        id: 'espejar',
+        title: 'Espejar',
+        blocks: [
+          p('**Espejar** da vuelta la pieza como vista en un espejo, sin moverla de su lugar. Lo dibujado pasa al otro lado: un calado cerca de la punta izquierda queda cerca de la derecha.'),
+          table(
+            ['Botón', 'Qué hace'],
+            ['**↔ Horizontal**', 'Lo de la izquierda pasa a la derecha. Mirando de **Costado**, espeja de adelante hacia atrás.'],
+            ['**↕ Vertical**', 'Lo de arriba pasa abajo.'],
+          ),
+          list(
+            'Antes de aplicar, la vista previa muestra cómo queda, con **Aplicar** y **Cancelar**.',
+            'Pasan con la pieza los vaciados, calados, perfiles a mano, biseles, tramos y el torneado. Una pata inclinada se abre hacia el otro lado.',
+            'En una copia de un componente se espeja solo esa copia, igual que al girar.',
+            'Con varias piezas o un grupo elegidos, se espejan todas juntas sobre el centro de lo que ocupan: cada una se da vuelta y pasa al lugar reflejado.',
+          ),
+          tip('Para hacer una pata con curva y tener las cuatro, dibujá la curva en una, usá **Del otro lado** para la gemela y espejá las que hagan falta.'),
         ],
       },
       {
@@ -261,7 +280,7 @@ export const ES_PARTS: Article[] = [
           steps(
             'Elegí una copia del componente.',
             'Usá **Girar 90°** en el panel. Gira solo esa copia: las demás quedan como están.',
-            'El panel lo dice: **Esta copia va girada**.',
+            'El panel lo dice: **Esta copia va girada o espejada**.',
           ),
         ],
       },
@@ -322,6 +341,7 @@ export const ES_PARTS: Article[] = [
             'Con el grupo elegido, Mover y las flechas mueven todas sus piezas juntas.',
             'En **Medidas del grupo** cambiás el ancho, el alto o el fondo de todo el grupo. Más información: [Medidas del mueble y del grupo](medidas-mueble).',
             '**Duplicar** hace un grupo nuevo con las copias.',
+            '**Espejar** da vuelta el grupo entero como visto en un espejo, sin moverlo de su lugar. Más información: [El panel de la pieza](panel-pieza).',
             'Los grupos aparecen primero en la lista de **Piezas** del mueble, con su ojo para ocultarlos.',
           ),
         ],

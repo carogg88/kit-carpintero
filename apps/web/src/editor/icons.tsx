@@ -226,6 +226,12 @@ export const IconRotate = () => (
     <path d="M21 3v5h-5" />
   </svg>
 );
+export const IconFlip = () => (
+  <svg {...base}>
+    <path d="M12 3v18" strokeDasharray="2 2.5" />
+    <path d="M8 8l-4 4 4 4M16 8l4 4-4 4" />
+  </svg>
+);
 export const IconShare = () => (
   <svg {...base}>
     <circle cx="18" cy="5" r="2.5" />

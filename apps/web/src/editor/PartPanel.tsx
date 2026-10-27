@@ -65,13 +65,14 @@ import {
   type Section,
   type Units,
   tenonWidth,
+  flipParts,
 } from '@kitc/core';
 import { OPEN_EVENT, PartNotes, ReviewCard, reviewSummary, useReview } from './Review';
 import { GoldenCard, goldenCount } from './Golden';
 import { Accordion } from '../ui/Accordion';
 import { HelpTip } from '../help/Help';
 import { sectionHref } from '../routes';
-import { IconCornerPoint, IconCurvePoint, IconGroup, IconLink, IconPlus, IconRotate, IconTrash, IconWarn, IconZoomIn } from './icons';
+import { IconCornerPoint, IconCurvePoint, IconGroup, IconLink, IconFlip, IconPlus, IconRotate, IconTrash, IconWarn, IconZoomIn } from './icons';
 import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
@@ -842,6 +843,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           </button>
         ))}
       </div>
+      <FlipRow ids={[part.id]} label={part.id} />
       {/* Patas inclinadas: la pata gira sobre su punta de arriba y las puntas quedan horizontales. */}
       {leanable(part) && (
         <fieldset className={styles.dims}>
@@ -1161,6 +1163,7 @@ function PickedPanel({ project, ids }: { project: Project; ids: string[] }) {
           : t('Agrupalas para que se muevan juntas. Shift + clic (o Elegir varias) suma o saca piezas.')}
       </p>
       <FurnitureSize key={ids.join()} project={project} ids={ids} />
+      <FlipRow ids={ids} label={label} />
       <ul className={styles.partList} data-many={parts.length > PART_LIST_MAX || undefined}>
         {parts.map((p) => (
           <li key={p.id}>
@@ -1220,6 +1223,44 @@ function PickedPanel({ project, ids }: { project: Project; ids: string[] }) {
   );
 }
 
+/**
+ * Espejar la pieza (o las piezas elegidas, sobre el centro de lo que ocupan): de izquierda a derecha, o de adelante
+ * hacia atrás si se mira de costado, y de arriba abajo. Pasa con vista previa: lo dibujado cambia de lado.
+ */
+function FlipRow({ ids, label }: { ids: string[]; label: string }) {
+  const propose = useEditor((s) => s.propose);
+  const side = useEditor((s) => s.view === 'side');
+  const flips = [
+    side
+      ? ([2, tk('↔ Horizontal'), tk('Lo de adelante pasa atrás, como visto en un espejo')] as const)
+      : ([0, tk('↔ Horizontal'), tk('Lo de la izquierda pasa a la derecha, como visto en un espejo')] as const),
+    [1, tk('↕ Vertical'), tk('Lo de arriba pasa abajo, como visto en un espejo')] as const,
+  ];
+  return (
+    <div className={styles.rotateRow} data-two role="group" aria-label={t('Espejar')}>
+      <span className={styles.rotateTitle}>
+        <IconFlip />
+        {t('Espejar')}
+      </span>
+      {flips.map(([axis, name, title]) => (
+        <button
+          key={axis}
+          type="button"
+          title={t(title)}
+          onClick={() =>
+            propose((d) => flipParts(d.parts as Part[], ids, axis), t('Espejaste {id}', { id: label }), {
+              title: t('{id} en espejo', { id: label }),
+              select: ids.length === 1 ? ids[0] : ids,
+            })
+          }
+        >
+          {t(name)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Si la pieza es parte de un componente: cuántas copias tiene y qué cambia junto. */
 function ComponentNote({ project, part, name }: { project: Project; part: Part; name: string }) {
   const copies = componentCopies(project, part);
@@ -1232,7 +1273,7 @@ function ComponentNote({ project, part, name }: { project: Project; part: Part; 
       </span>
       <p className={styles.muted}>
         {others.length ? t('Medidas, madera y cantos cambian junto con {ids}.', { ids: others.join(', ') }) : t('Duplicala o copiala al mover y las copias quedan vinculadas.')}
-        {part.orient && ` ${t('Esta copia va girada: los biseles y vaciados le llegan en su lugar.')}`}
+        {part.orient && ` ${t('Esta copia va girada o espejada: los biseles y vaciados le llegan en su lugar.')}`}
       </p>
     </div>
   );
