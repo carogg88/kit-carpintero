@@ -126,6 +126,19 @@ export function leanedBox(part: Part): Box {
   };
 }
 
+/**
+ * Dónde cae de verdad el agujero que deja una pieza inclinada en la pieza en que entra: corrido lo que se corre la
+ * inclinada a la altura de la cara de entrada. Una pata que entra por arriba no se corre (gira sobre esa punta);
+ * un parante de respaldo que entra por abajo en el asiento, sí.
+ */
+export function leanHole(f: LeanFrame, hole: Box, leaning: Box): Box {
+  const above = (leaning.min[1] + leaning.max[1]) / 2 > (hole.min[1] + hole.max[1]) / 2;
+  const c: Vec3 = [(hole.min[0] + hole.max[0]) / 2, above ? hole.max[1] : hole.min[1], (hole.min[2] + hole.max[2]) / 2];
+  const p = leanPoint(f, c);
+  const d = [p[0] - c[0], 0, p[2] - c[2]];
+  return { min: hole.min.map((v, k) => v + d[k]!) as Vec3, max: hole.max.map((v, k) => v + d[k]!) as Vec3 };
+}
+
 /** "puntas cortadas paralelas, a 8°: falsa escuadra a 82° del canto": lo que hay que hacerle a la pata, para la lista de cortes. */
 export function leanWork(f: LeanFrame): string {
   const half = (a: number) => Math.round(a * 2) / 2;

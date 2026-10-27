@@ -5,7 +5,7 @@ import { arcInfo, pocketSolid } from './pockets';
 import { sectionBox } from './sections';
 import type { Part, Project } from './project';
 import { endAt, followMortise, leanFollow, partEnds, placedBox, unleanPoint, type PartEnds } from './follow';
-import { isLeaning, leanFrame, type LeanFrame } from './lean';
+import { isLeaning, leanFrame, leanHole, type LeanFrame } from './lean';
 
 /**
  * Dibujo técnico de cajas: proyección ortogonal, contornos visibles y líneas ocultas.
@@ -264,7 +264,8 @@ export function partJointItems(project: Project, part: Part, local = false): Dra
       g.addB.forEach((s, i) => items.push({ id: `${j.id}+${i}`, box: solidBox(s), joint: true, owner: part.id }));
       g.cutB.forEach((s, i) => items.push({ id: `${j.id}-b${i}`, box: solidBox(s), joint: true, owner: part.id, hole: true }));
     } else {
-      g.cutA.forEach((s, i) => items.push({ id: `${j.id}-a${i}`, box: solidBox(s), joint: true, owner: part.id, hole: true }));
+      const fb = leanFrame(b);
+      g.cutA.forEach((s, i) => items.push({ id: `${j.id}-a${i}`, box: fb ? leanHole(fb, solidBox(s), partBox(b)) : solidBox(s), joint: true, owner: part.id, hole: true }));
     }
   }
   return items;
