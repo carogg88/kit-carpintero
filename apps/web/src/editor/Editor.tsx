@@ -7,6 +7,7 @@ import { BrandMark, BrandWordmark } from '../brand/Brand';
 import { AssemblyView } from './AssemblyView';
 import { CutsView } from './CutsView';
 import { ShareButton } from './Share';
+import { PhotoButton } from './PhotoDialog';
 import {
   IconBack,
   IconBevel,
@@ -549,6 +550,7 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
         </div>
         <div className={styles.headerActions}>
           <HelpButton className={styles.iconBtn} />
+          <PhotoButton project={project} />
           <ShareButton project={project} />
           <button type="button" className={styles.iconBtn} data-tour="undo" aria-label={t('Deshacer (Ctrl+Z)')} disabled={!canUndo} onClick={undo}>
             <IconUndo />
