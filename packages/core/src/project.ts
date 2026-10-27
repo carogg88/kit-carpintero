@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -159,6 +159,16 @@ export const Part = z.object({
    * por lo más largo de la pieza.
    */
   grain: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  /**
+   * Cómo se abre, si se eligió a mano (ver `motion.ts`): como cajón, puerta o tapa, o 'no' para que no se abra. En una
+   * puerta, de qué lado va la bisagra. Sin esto, los cajones y puertas armados con el botón se abren solos.
+   */
+  opens: z
+    .object({
+      kind: z.enum(['cajon', 'puerta', 'tapa', 'no']),
+      hinge: z.enum(['izq', 'der', 'arriba', 'abajo']).optional(),
+    })
+    .optional(),
 });
 export type Part = z.infer<typeof Part>;
 
@@ -230,6 +240,8 @@ const migrations: Record<number, Migration> = {
   11: (d) => d,
   // v13 suma la veta elegida a mano; las viejas van por lo más largo.
   12: (d) => d,
+  // v14 suma cómo se abre cada pieza; las viejas lo calculan solas.
+  13: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

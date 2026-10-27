@@ -84,6 +84,7 @@ export const EN_PARTS: Article[] = [
           p('Under **Wood** you pick a solid wood or a sheet (MDF, melamine, plywood or multi-ply). If you pick a sheet, the part takes the nearest sheet thickness, because sheets come in fixed thicknesses. Learn more: [Sheets](placas).'),
           p('Below it, **Grain** says which way the fibers run. It goes along the longest side of the part by itself, which is how the board is cut. On a top or a panel you can turn it the other way: the cut list then asks for the board with its length along the grain. It does not show for MDF or melamine, which have no grain.'),
           tip('If you turn the grain on a long, narrow part, like a slat or a leg, the design review warns **Short grain**: the part breaks easily that way.'),
+          p('Further down, **Opens** says whether the part moves: as a **Drawer** (slides forward), a **Door** (swings on its hinge) or a **Lid** (lifts at the back). Drawers and doors made with the button already open by themselves; mark a hand-made part or group here, and the whole drawer or door changes together. On a door you pick which side the **Hinge** goes on: in a pair, each leaf opens to its own side. A marked door adds hinges to the hardware list.'),
         ],
       },
       {
