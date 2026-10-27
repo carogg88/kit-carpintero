@@ -42,5 +42,6 @@ export const SHOW: Record<string, TourStep> = {
   plantillas: section(tk('Plano está acá')),
   armado: section(tk('Armado está acá')),
   'modo-taller': section(tk('El modo taller está en Cortes y en Armado')),
+  'foto-mueble': { target: 'share', title: tk('La foto está acá'), text: tk('En la compu, la cámara al lado de Compartir. En el celular, adentro de Compartir: Sacar la foto.') },
   'compartir-enlace': { target: 'share', title: tk('Compartir está acá'), text: tk('Arriba a la derecha, al lado de Deshacer.') },
 };

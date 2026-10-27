@@ -529,6 +529,55 @@ export const ES_REST: Article[] = [
     related: ['exportar', 'guardar', 'comprar'],
   },
   {
+    id: 'foto-mueble',
+    topic: 'compartir',
+    title: 'Foto del mueble',
+    summary: 'Una imagen del mueble con luz de estudio, para guardar o mandar.',
+    intro: [
+      p('**Foto del mueble** dibuja el mueble con la veta de cada madera, luz suave y la sombra en el piso, sin la grilla ni las marcas del editor. Se arma en tu equipo y no se sube a ningún lado.'),
+      img('foto-mueble', 'La foto de la mesa, con las opciones a la derecha'),
+    ],
+    sections: [
+      {
+        id: 'sacar',
+        title: 'Sacar la foto',
+        blocks: [
+          steps(
+            'En la compu, tocá el botón de la cámara, arriba a la derecha. En el celular, abrí **Compartir** y tocá **Sacar la foto**.',
+            'Elegí la **Vista**, de dónde viene la **Luz** y el **Fondo**. Podés arrastrar la foto para girar el mueble y acercarte con la rueda o con dos dedos.',
+            'Tocá **Guardar foto**. En el celular, **Compartir foto** la manda directo a WhatsApp o a otra app.',
+          ),
+        ],
+      },
+      {
+        id: 'opciones',
+        title: 'Las opciones',
+        blocks: [
+          table(
+            ['Opción', 'Qué hace'],
+            ['Vista', '3/4 de un lado o del otro, de frente, de costado o desde arriba'],
+            ['Luz', 'Mueve la luz principal de izquierda a derecha: cambia hacia dónde cae la sombra'],
+            ['Fondo', 'Claro, blanco, gris de estudio o sin fondo (sale en PNG, para pegarla sobre otra imagen)'],
+            ['Forma', 'Apaisada, cuadrada o vertical'],
+            ['Tamaño', 'Normal (1600 px), alta (2800 px) o muy alta (4096 px de lado)'],
+            ['Escribir las medidas', 'Agrega abajo el ancho, el alto y el fondo del mueble'],
+          ),
+          tip('Las piezas que ocultaste en el modelo no salen en la foto: sirve para mostrar el mueble sin la tapa o sin las puertas.'),
+        ],
+      },
+      {
+        id: 'inicio',
+        title: 'La foto en el inicio',
+        blocks: [p('En el inicio, cada proyecto muestra una foto chica del mueble. Se saca sola cuando cambia el proyecto; si sacás una foto a mano, esa queda como miniatura.')],
+      },
+    ],
+    faq: [
+      { q: 'La foto tarda en aparecer', a: 'La primera vez, el motor arma cada pieza: en un equipo lento puede tardar unos segundos.' },
+      { q: '¿Puedo elegir la terminación de la madera?', a: 'Todavía no: la foto muestra la madera natural.' },
+    ],
+    related: ['compartir-enlace', 'exportar'],
+  },
+  {
     id: 'exportar',
     topic: 'compartir',
     title: 'Exportar archivo, planilla, PDF, DXF y DAE',

@@ -16,6 +16,7 @@ import {
 import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { download, readExported } from '../storage/backup';
 import { warmUpEngine } from '../editor/useGeometry';
+import { dropThumb, useThumb } from '../editor/thumbs';
 import { BrandMark, BrandWordmark } from '../brand/Brand';
 import { HELP_ROUTE, LANDING_ROUTE, navigate, sectionHref } from '../routes';
 import { useInstall } from '../pwa';
@@ -304,6 +305,7 @@ function ProjectMenu({ project, onExported, onChanged, align = 'end' }: { projec
               setOpen(false);
               if (!confirm(t('¿Eliminar "{name}" de este dispositivo? No se puede deshacer.', { name: projectName(project.name) }))) return;
               await deleteProject(project.id);
+              dropThumb(project.id);
               onChanged();
             }}
           >
@@ -331,6 +333,16 @@ function BackupTag({ pending, exportedAt }: { pending: boolean; exportedAt: stri
 }
 
 /** El último proyecto que se tocó, grande, para seguir donde se dejó. */
+/** La foto chica del mueble, o el logo mientras no hay. */
+function Thumb({ project, className, mark }: { project: Project; className?: string; mark: number }) {
+  const url = useThumb(project);
+  return (
+    <span className={className} aria-hidden="true">
+      {url ? <img src={url} alt="" className={styles.thumbImg} /> : <BrandMark height={mark} />}
+    </span>
+  );
+}
+
 function LastProject({ project, onOpen, onChanged }: { project: Project; onOpen: (id: string) => void; onChanged: () => void }) {
   const { size, meta } = summary(project);
   const { exportedAt, setExportedAt, pending } = useBackup(project);
@@ -352,9 +364,7 @@ function LastProject({ project, onOpen, onChanged }: { project: Project; onOpen:
           <span className={styles.projectSize}>{size}</span>
           <span className={styles.muted}>{meta}</span>
         </div>
-        <span className={`${styles.thumb} ${styles.lastThumb}`} aria-hidden="true">
-          <BrandMark height={34} />
-        </span>
+        <Thumb project={project} className={`${styles.thumb} ${styles.lastThumb}`} mark={34} />
       </div>
       <div className={styles.cardActions}>
         <button type="button" className={styles.primaryBtn} onClick={() => onOpen(project.id)}>
@@ -375,9 +385,7 @@ function ProjectCard({ project, onOpen, onChanged }: { project: Project; onOpen:
   return (
     <li className={styles.project}>
       <div className={styles.projectTop}>
-        <span className={styles.thumb} aria-hidden="true">
-          <BrandMark height={26} />
-        </span>
+        <Thumb project={project} className={styles.thumb} mark={26} />
         <span className={styles.projectText}>
           <span className={styles.projectName}>{projectName(project.name)}</span>
           <span className={styles.projectSize}>{size}</span>

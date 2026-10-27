@@ -197,4 +197,6 @@ export default {
   'Compartir está acá': 'Share is here',
   'Arriba a la derecha, al lado de Deshacer.': 'At the top right, next to Undo.',
   'Las fibras de la madera, que corren a lo largo del tronco. La pieza se corta con la veta a lo largo: así es fuerte. Con la veta cruzada (a la derecha), una pieza larga se parte con poco esfuerzo.': 'The wood fibers, which run along the trunk. A piece is cut with the grain running its length: that makes it strong. With the grain across (on the right), a long piece breaks easily.',
+  'La foto está acá': 'The photo is here',
+  'En la compu, la cámara al lado de Compartir. En el celular, adentro de Compartir: Sacar la foto.': 'On a computer, the camera next to Share. On a phone, inside Share: Take the photo.',
 } satisfies Record<string, string>;

@@ -306,6 +306,11 @@ async function createTable(page) {
   await page.locator('[data-tour="share"]').click();
   await page.waitForTimeout(1500);
   await shot(page, 'compartir');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-tour="photo"]').click();
+  await page.getByRole('button', { name: 'Guardar foto' }).waitFor();
+  await page.waitForTimeout(6000);
+  await shot(page, 'foto-mueble');
   await page.context().close();
 }
 

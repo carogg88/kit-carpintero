@@ -4,6 +4,7 @@ import { download, readExported } from '../storage/backup';
 import { shopText } from './cutsData';
 import { exportDae, exportDxf } from './exportFiles';
 import { IconShare } from './icons';
+import { openPhoto } from './PhotoDialog';
 import styles from './Editor.module.css';
 
 /** Un enlace más largo que esto puede cortarse en algunas apps de mensajes. */
@@ -127,6 +128,21 @@ function ShareBody({ project, onClose }: { project: Project; onClose: () => void
         {link && link.length > LONG_LINK && <p className={styles.muted}>{t('Es un enlace largo: si alguna app lo corta, exportá el archivo acá abajo y mandá el archivo.')}</p>}
         <button type="button" className={styles.primaryBtn} disabled={!link} onClick={() => void send('link')}>
           {share ? t('Compartir enlace') : t('Copiar enlace')}
+        </button>
+      </section>
+
+      <section className={styles.shareSection} aria-labelledby="compartir-foto">
+        <h3 id="compartir-foto">{t('Una foto del mueble')}</h3>
+        <p className={styles.muted}>{t('Con luz de estudio y sombra en el piso, para mostrarlo o mandarlo por WhatsApp. Se arma en este equipo.')}</p>
+        <button
+          type="button"
+          className={styles.secondaryBtn}
+          onClick={() => {
+            onClose();
+            openPhoto();
+          }}
+        >
+          {t('Sacar la foto')}
         </button>
       </section>
 

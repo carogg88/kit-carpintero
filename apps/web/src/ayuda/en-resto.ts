@@ -526,6 +526,55 @@ export const EN_REST: Article[] = [
     related: ['exportar', 'guardar', 'comprar'],
   },
   {
+    id: 'foto-mueble',
+    topic: 'compartir',
+    title: 'Furniture photo',
+    summary: 'An image of the furniture with studio light, to save or send.',
+    intro: [
+      p('**Furniture photo** draws the furniture with the grain of each wood, soft light and its shadow on the floor, without the grid or the editor marks. It is made on your device and is not uploaded anywhere.'),
+      img('foto-mueble', 'The table photo, with the options on the right'),
+    ],
+    sections: [
+      {
+        id: 'sacar',
+        title: 'Take the photo',
+        blocks: [
+          steps(
+            'On a computer, tap the camera button at the top right. On a phone, open **Share** and tap **Take the photo**.',
+            'Pick the **View**, where the **Light** comes from and the **Background**. You can drag the photo to turn the furniture and zoom with the wheel or two fingers.',
+            'Tap **Save photo**. On a phone, **Share photo** sends it straight to WhatsApp or another app.',
+          ),
+        ],
+      },
+      {
+        id: 'opciones',
+        title: 'The options',
+        blocks: [
+          table(
+            ['Option', 'What it does'],
+            ['View', '3/4 from one side or the other, front, side or from above'],
+            ['Light', 'Moves the main light from left to right: changes where the shadow falls'],
+            ['Background', 'Light, white, studio gray or no background (saved as PNG, to place it over another image)'],
+            ['Shape', 'Landscape, square or portrait'],
+            ['Size', 'Normal (1600 px), high (2800 px) or very high (4096 px on the long side)'],
+            ['Write the size', 'Adds the width, height and depth of the furniture at the bottom'],
+          ),
+          tip('Parts you hid in the model do not show in the photo: use it to show the furniture without its top or doors.'),
+        ],
+      },
+      {
+        id: 'inicio',
+        title: 'The photo on the home screen',
+        blocks: [p('On the home screen, each project shows a small photo of the furniture. It is taken by itself when the project changes; if you take a photo yourself, that one becomes the thumbnail.')],
+      },
+    ],
+    faq: [
+      { q: 'The photo takes a while to show', a: 'The first time, the engine builds every part: on a slow device it can take a few seconds.' },
+      { q: 'Can I pick the wood finish?', a: 'Not yet: the photo shows the natural wood.' },
+    ],
+    related: ['compartir-enlace', 'exportar'],
+  },
+  {
     id: 'exportar',
     topic: 'compartir',
     title: 'Export a file, spreadsheet, PDF, DXF or DAE',
