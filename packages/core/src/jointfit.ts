@@ -1,5 +1,5 @@
 import { partBox, type Axis, type Box } from './geometry';
-import { defaultJointParams, endJoint, jointGeometry, MIN_TENON_WIDTH, solidBox } from './joints';
+import { defaultJointParams, endJoint, jointGeometry, MIN_TENON_WIDTH, solidBox, tenonWidth } from './joints';
 import type { Joint, JointType, Project } from './project';
 import { t } from './i18n';
 
@@ -156,11 +156,15 @@ export function jointNotes(project: Model, joint: Joint, n: (mm: number) => stri
     const b = project.parts.find((p) => p.id === joint.partB);
     const e = a && b && endJoint(partBox(a), partBox(b));
     const shoulder = joint.params.shoulder ?? (a && b ? defaultJointParams('mortaja', partBox(a), partBox(b))?.shoulder : undefined) ?? 0;
-    const width = e ? e.section.max[e.wide] - e.section.min[e.wide] - 2 * shoulder : Infinity;
+    const count = joint.params.count ?? 1;
+    const width = e ? tenonWidth(e.section.max[e.wide] - e.section.min[e.wide], { shoulder, count, gap: joint.params.gap }) : Infinity;
     if (width < MIN_TENON_WIDTH)
       notes.push({
         level: 'warn',
-        text: t('La espiga queda de {w} de ancho: con menos de {min} se puede quebrar. Achicá los hombros.', { w: n(Math.max(0, width)), min: n(MIN_TENON_WIDTH) }),
+        text:
+          count > 1
+            ? t('Cada espiga queda de {w} de ancho: con menos de {min} se puede quebrar. Achicá los hombros o la separación, o hacé una sola.', { w: n(Math.max(0, width)), min: n(MIN_TENON_WIDTH) })
+            : t('La espiga queda de {w} de ancho: con menos de {min} se puede quebrar. Achicá los hombros.', { w: n(Math.max(0, width)), min: n(MIN_TENON_WIDTH) }),
       });
   }
   return notes;

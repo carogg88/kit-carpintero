@@ -248,14 +248,14 @@ export function partJointItems(project: Project, part: Part, local = false): Dra
       const end = f?.ends.find((e) => e.joint.id === j.id);
       const m = f && end && j.type === 'mortaja' ? followMortise(f, end, b) : null;
       if (!m || !end) continue;
-      if (j.partB === part.id) items.push({ id: `${j.id}+0`, box: m.tenon, joint: true, owner: part.id });
-      else {
+      m.forEach((x, i) => {
+        if (j.partB === part.id) return void items.push({ id: `${j.id}+${i}`, box: x.tenon, joint: true, owner: part.id });
         // La mortaja arranca un poco afuera de la pata para no quedar corta; en el dibujo, desde la cara.
-        const hole: Box = { min: [...m.mortise.min], max: [...m.mortise.max] };
+        const hole: Box = { min: [...x.mortise.min], max: [...x.mortise.max] };
         if (end.dir > 0) hole.min[end.axis] = end.face;
         else hole.max[end.axis] = end.face;
-        items.push({ id: `${j.id}-a0`, box: own ? unleanBox(own, hole) : hole, joint: true, owner: part.id, hole: true });
-      }
+        items.push({ id: `${j.id}-a${i}`, box: own ? unleanBox(own, hole) : hole, joint: true, owner: part.id, hole: true });
+      });
       continue;
     }
     const g = jointGeometry(j.type, partBox(a), partBox(b), j.params);

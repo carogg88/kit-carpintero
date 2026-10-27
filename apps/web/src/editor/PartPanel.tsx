@@ -64,6 +64,7 @@ import {
   type Project,
   type Section,
   type Units,
+  tenonWidth,
 } from '@kitc/core';
 import { OPEN_EVENT, PartNotes, ReviewCard, reviewSummary, useReview } from './Review';
 import { GoldenCard, goldenCount } from './Golden';
@@ -163,8 +164,9 @@ export function describeJoint(j: Joint, project: Project): string {
       return t('apoyada, sin cortes');
     case 'mortaja': {
       const e = endJoint(ba, bb);
-      const wide = e ? e.section.max[e.wide] - e.section.min[e.wide] - 2 * (p.shoulder ?? 0) : 0;
+      const wide = e ? tenonWidth(e.section.max[e.wide] - e.section.min[e.wide], { shoulder: p.shoulder ?? 0, count: p.count, gap: p.gap }) : 0;
       if (wide <= 0) return t('mortaja y espiga');
+      if ((p.count ?? 1) > 1) return t('2 mortajas {t} × {w} × {d}{unit}', { t: n(p.thickness ?? 0), w: n(wide), d: n((p.length ?? 0) + 2), unit });
       return t('mortaja {t} × {w} × {d}{unit}', { t: n(p.thickness ?? 0), w: n(wide), d: n((p.length ?? 0) + 2), unit });
     }
     case 'canal':

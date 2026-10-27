@@ -90,6 +90,7 @@ export const EN_REST: Article[] = [
     ],
     faq: [
       { q: 'A thick-tenon warning shows up', a: 'The tenon is over a third of the part’s thickness: the shoulders get thin. Bring it down to the size the warning says.' },
+      { q: 'How do I make a double tenon?', a: 'On a mortise and tenon, set **Tenons** to **Double**: you get two tenons side by side with wood in the middle, and **Between tenons** sets how much. It suits wide parts, like a tall apron: they move less and the leg stays stronger. If the tenon is over 9 cm wide, the design review suggests it.' },
       { q: 'Does the change in the detail also show in the model?', a: 'Yes: the model, the cut list and the plans use the same sizes.' },
     ],
     related: ['uniones', 'tipos-union', 'revision'],

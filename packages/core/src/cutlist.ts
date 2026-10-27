@@ -120,8 +120,8 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     if (end && follow) {
       // La espiga sale derecha desde la cara de la pata inclinada.
       const m = j.type === 'mortaja' ? followMortise(follow, end, part) : null;
-      if (m) {
-        outer = unionBox(outer, m.tenon);
+      if (m?.length) {
+        for (const x of m) outer = unionBox(outer, x.tenon);
         tongues += 1;
       }
     } else if (g && !isA) {
@@ -131,7 +131,8 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     const p = { ...j.params };
     switch (j.type) {
       case 'mortaja':
-        add(isA ? 'mortaja' : 'espiga');
+        // Una espiga doble son dos mortajas y dos espigas.
+        add(isA ? 'mortaja' : 'espiga', Math.max(1, g?.addB.length ?? 1));
         break;
       case 'canal':
         add(isA ? 'canal' : 'lengüeta de canal');

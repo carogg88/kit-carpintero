@@ -226,7 +226,7 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
       const m = j.type === 'mortaja' ? followMortise(f, end, b) : null;
       if (!m) continue;
       try {
-        shape = isA ? shape.cut(solid(m.mortise)) : shape.fuse(solid(m.tenon));
+        for (const x of m) shape = isA ? shape.cut(solid(x.mortise)) : shape.fuse(solid(x.tenon));
       } catch {
         warning = t('No se pudo cortar el encastre con {id}', { id: other });
       }

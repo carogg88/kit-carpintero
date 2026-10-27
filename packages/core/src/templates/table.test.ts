@@ -12,7 +12,7 @@ describe('createTable', () => {
   });
 
   it('cada espiga usa la regla del tercio del faldón de 22 mm', () => {
-    expect(t.joints[0]?.params).toEqual({ length: 40, thickness: 7.3, shoulder: 10 });
+    expect(t.joints[0]?.params).toMatchObject({ length: 40, thickness: 7.3, shoulder: 10, count: 1 });
   });
 
   it('es un proyecto válido', () => {

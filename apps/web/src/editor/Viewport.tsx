@@ -1324,9 +1324,14 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const onUp = () => {
       done();
       if (controlsRef.current) controlsRef.current.enabled = true;
-      const { select, setDrawFace } = useEditor.getState();
+      const { select, setDrawFace, warn } = useEditor.getState();
       select(part.id);
       setDrawFace(face);
+      // La punta de una pieza larga: un calado ahí atraviesa todo el largo. Casi siempre se quería la cara ancha.
+      const sizes = [0, 1, 2].map((k) => box.max[k]! - box.min[k]!);
+      const len = sizes[axis]!;
+      if (partSizeName(part, axis) === 'largo' && len >= 2 * Math.max(...sizes.filter((_, k) => k !== axis)))
+        warn(t('Estás en la punta de {id}: lo que dibujes acá atraviesa todo el largo ({len}). Para darle forma al borde, tocá la cara ancha.', { id: part.id, len: formatLength(len, useEditor.getState().project?.units ?? 'cm') }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

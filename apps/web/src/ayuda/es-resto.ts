@@ -93,6 +93,7 @@ export const ES_REST: Article[] = [
     ],
     faq: [
       { q: 'Aparece un aviso de espiga gruesa', a: 'La espiga pasa del tercio del espesor de la pieza: los hombros quedan finos. Bajala a la medida que dice el aviso.' },
+      { q: '¿Cómo hago una espiga doble?', a: 'En una mortaja, en **Espigas** elegí **Doble**: salen dos espigas lado a lado, con madera en el medio, y en **Entre espigas** ponés cuánta. Conviene en piezas anchas, como un faldón alto: se mueven menos y la pata queda más fuerte. Si la espiga pasa de 9 cm de ancho, la revisión del diseño te lo propone.' },
       { q: '¿El cambio en el detalle se ve también en el modelo?', a: 'Sí: el modelo, la lista de cortes y el plano usan las mismas medidas.' },
     ],
     related: ['uniones', 'tipos-union', 'revision'],
