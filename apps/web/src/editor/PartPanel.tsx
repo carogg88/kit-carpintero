@@ -282,8 +282,27 @@ const ROTATIONS = [
 const PLACE_LABELS = [tk('De la izquierda'), tk('Del piso'), tk('De atrás')] as const;
 
 /** Un vaciado o calado de la pieza, con sus medidas editables. */
-function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocket; part: Part; units: Units; onChange: (recipe: (p: Pocket) => void) => void; onRemove: () => void }) {
+function PocketCard({
+  pocket,
+  part,
+  units,
+  onChange,
+  onRemove,
+  fresh = false,
+}: {
+  pocket: Pocket;
+  part: Part;
+  units: Units;
+  onChange: (recipe: (p: Pocket) => void) => void;
+  onRemove: () => void;
+  /** Recién dibujada: queda marcada y a la vista en el panel, para ajustarla sin que nada tape el dibujo. */
+  fresh?: boolean;
+}) {
   const throughId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (fresh) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [fresh]);
   const otherId = useId();
   const { axes, size } = faceSize(part, pocket.axis);
   const thick = depthUnder(part, pocket.axis);
@@ -292,7 +311,7 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
   const side = (i: 0 | 1) => t(MEASURED_FROM[axes[i]]);
   const from = (i: 0 | 1) => (s.kind === 'circle' ? t('Centro desde {side}', { side: side(i) }) : t('Desde {side}', { side: side(i) }));
   return (
-    <div className={styles.pocketCard}>
+    <div ref={ref} className={styles.pocketCard} data-fresh={fresh || undefined}>
       <div className={styles.pocketHead}>
         <span className={styles.pocketTitle}>
           <strong>{pocket.id}</strong> {describePocket(pocket, n).replace(/^./, (c) => c.toUpperCase())}
@@ -335,6 +354,18 @@ function PocketCard({ pocket, part, units, onChange, onRemove }: { pocket: Pocke
             )}
             <LengthField label={from(0)} mm={s.u} units={units} min={0} max={size[0]} onCommit={(v) => onChange((p) => p.shape.kind !== 'path' && (p.shape.u = v))} />
             <LengthField label={from(1)} mm={s.v} units={units} min={0} max={size[1]} onCommit={(v) => onChange((p) => p.shape.kind !== 'path' && (p.shape.v = v))} />
+            <button
+              type="button"
+              className={styles.pocketCenter}
+              onClick={() =>
+                onChange((p) => {
+                  if (p.shape.kind === 'rect') [p.shape.u, p.shape.v] = [(size[0] - p.shape.w) / 2, (size[1] - p.shape.h) / 2];
+                  else if (p.shape.kind === 'circle') [p.shape.u, p.shape.v] = [size[0] / 2, size[1] / 2];
+                })
+              }
+            >
+              {t('Centrar')}
+            </button>
           </>
         )}
         {!pocket.through && (
@@ -628,6 +659,8 @@ type EdgeKind = 'rectos' | 'round' | 'chamfer';
 
 function PartEditor({ part, project }: { part: Part; project: Project }) {
   const commit = useEditor((s) => s.commit);
+  // La figura recién dibujada en esta pieza: su tarjeta queda marcada.
+  const fresh = useEditor((s) => (s.bubble?.target.kind === 'pocket' && s.bubble.target.id === part.id ? s.bubble.target.pocketId : null));
   const propose = useEditor((s) => s.propose);
   const setGhost = useEditor((s) => s.setGhost);
   const select = useEditor((s) => s.select);
@@ -894,6 +927,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
               {part.pockets.map((pk) => (
                 <PocketCard
                   key={pk.id}
+                  fresh={fresh === pk.id}
                   pocket={pk}
                   part={part}
                   units={units}

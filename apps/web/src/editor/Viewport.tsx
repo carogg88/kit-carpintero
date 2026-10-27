@@ -34,7 +34,6 @@ import {
   partAxesBySize,
   presetTurning,
   sectionBox,
-  newPocket,
   otherAxes,
   partBox,
   partsBox,
@@ -58,6 +57,7 @@ import {
 import { contactFaces } from './contact';
 import { DEAD_PX, gentle, roundMeasure } from './gesture';
 import { ghostDiff } from './ghost';
+import { drawnPocket } from './drawCut';
 import { partsLabel, useEditor, type DrawFace, type View } from './store';
 import type { ExactMesh } from './useGeometry';
 
@@ -1174,9 +1174,10 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   /** Deja la figura en la pieza y abre al costado la burbuja de vaciado o calado y cuánto de hondo. */
   const placePocket = (part: Part, face: DrawFace, s: PocketShape, ev: { clientX: number; clientY: number }, label: string) => {
     const pocketId = nextPocketId(part);
+    const { drawThrough, drawDepth } = useEditor.getState();
     useEditor.getState().commit((d) => {
       const q = d.parts.find((x) => x.id === part.id);
-      if (q) q.pockets.push(newPocket(q as Part, face.axis, face.side, s));
+      if (q) q.pockets.push(drawnPocket(q as Part, face, s, drawThrough, drawDepth));
     }, label);
     // Al costado de la figura, para no taparla.
     const rect = gl.domElement.getBoundingClientRect();
@@ -1210,7 +1211,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     const ends = !!first && !closes && placed.length >= 1 && onFaceEdge(first, size[0], size[1]) && onFaceEdge(point, size[0], size[1]);
     const shape: PocketShape = closes
       ? { kind: 'path', points: placed, closed: true, flip: false }
-      : { kind: 'path', points: [...placed, point], closed: false, flip: false };
+      : { kind: 'path', points: [...placed, point], closed: false, flip: useEditor.getState().pathFlip };
     return { point, shape, closes, ends, snap: closes ? t('primer punto') : snap };
   };
 
@@ -1363,7 +1364,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     hovering.current = false;
     if (drawShape !== 'path' || !face) return;
     setHint(null);
-    setDraft(pathPoints.length ? { ...face, shape: { kind: 'path', points: pathPoints, closed: false, flip: false } } : null);
+    setDraft(pathPoints.length ? { ...face, shape: { kind: 'path', points: pathPoints, closed: false, flip: useEditor.getState().pathFlip } } : null);
   };
 
   /** Perfil a mano: cada toque marca un punto. Si se arrastra, el punto sigue al dedo y queda donde se suelta. */
