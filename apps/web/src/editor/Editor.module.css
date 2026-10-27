@@ -300,6 +300,23 @@
   color: var(--ink); font: 500 var(--text-s) var(--font-num); text-align: right;
 }
 .cutDepth input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Forma de esquina: la forma, las dos medidas y el botón que corta, en una fila propia debajo de los pasos. */
+.cornerRow {
+  order: 3; flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) 2px; border-top: 1px solid var(--line);
+}
+.cornerRow .shapes button { width: 44px; gap: 6px; border-radius: var(--radius-pill); font: 500 var(--text-s) var(--font-ui); }
+.cornerRow .shapes span { display: none; }
+.cornerGo {
+  height: 40px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--accent); color: var(--accent-ink);
+  font: 600 var(--text-s) var(--font-ui); cursor: pointer;
+}
+.cornerGo:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (min-width: 900px) {
+  /* En la compu, el nombre de la forma elegida al lado de su dibujo; las otras, con el dibujo solo. */
+  .cornerRow .shapes button[aria-pressed='true'] { width: auto; padding: 0 12px 0 8px; }
+  .cornerRow .shapes button[aria-pressed='true'] span { display: inline; }
+}
 .done {
   height: 40px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--forest); color: var(--forest-ink);
   font: 600 var(--text-s) var(--font-ui); cursor: pointer;

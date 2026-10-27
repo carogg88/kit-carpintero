@@ -274,3 +274,50 @@ export const IconGroup = () => (
     <rect x="11.5" y="11.5" width="6" height="6" rx="1" />
   </svg>
 );
+/** Mano alzada: un trazo suelto, sin puntos. */
+export const IconFreehand = () => (
+  <svg {...base}>
+    <path d="M3 16c2-5 4-8 6-6s-1 7 2 7 4-9 7-9 2 5 3 6" />
+  </svg>
+);
+/** Forma de esquina: una pieza con la esquina de arriba a la derecha recortada en curva. */
+export const IconCornerShape = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h9c0 4 3 7 7 7v9z" />
+    <path d="M16 4h4v4" strokeDasharray="2 2" />
+  </svg>
+);
+/** Calcar: un cuadro con una montaña, la foto que va de fondo. */
+export const IconImage = () => (
+  <svg {...base} strokeLinejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 16 5-5 4 4 3-3 6 6" />
+    <circle cx="15.5" cy="9" r="1.4" />
+  </svg>
+);
+/** Las cinco formas de esquina, siempre en la esquina de arriba a la derecha de la pieza. */
+export const IconCornerRound = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h8a8 8 0 0 1 8 8v8z" />
+  </svg>
+);
+export const IconCornerChamfer = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h9l7 7v9z" />
+  </svg>
+);
+export const IconCornerStep = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h9v7h7v9z" />
+  </svg>
+);
+export const IconCornerCove = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h8a8 8 0 0 0 8 8v8z" />
+  </svg>
+);
+export const IconCornerOgee = () => (
+  <svg {...base} strokeLinejoin="round">
+    <path d="M4 20V4h7c0 4 2 5 4.5 5.5S20 11 20 13v7z" />
+  </svg>
+);

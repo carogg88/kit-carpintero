@@ -84,8 +84,9 @@ export const ES_TOOLS: Article[] = [
         blocks: [
           steps(
             'Tocá **Estirar** en la barra de herramientas.',
+            'Pasá el mouse por la pieza: la cara que se movería se ilumina, sale una flecha hacia afuera y un cartel dice qué medida cambia (**Largo**, **Ancho** o **Espesor** de la pieza, y entre paréntesis la dirección del mueble).',
             'Apoyá el puntero o el dedo en la cara que querés correr.',
-            'Arrastrá hacia afuera para alargar o hacia adentro para acortar. Al lado aparece la medida nueva.',
+            'Arrastrá hacia afuera para alargar o hacia adentro para acortar. Lo que se agrega se ve en color y al lado aparece la medida nueva.',
             'Soltá.',
           ),
           key('`P` elige esta herramienta.'),
@@ -206,7 +207,10 @@ export const ES_TOOLS: Article[] = [
             ['Círculo', 'Arrastrá desde el centro hacia afuera'],
             ['Arco', 'Arrastrá de punta a punta y después tocá hasta dónde se curva. Sirve para el arco de un faldón'],
             ['Perfil a mano', 'Tocá punto por punto. Sirve para un borde con varias curvas, la silueta de una pata o un calado con forma'],
+            ['Mano alzada', 'Dibujá de un tirón, sin soltar. Al soltar queda como perfil a mano, con pocos puntos que después podés mover'],
+            ['Forma de esquina', 'Tocá cerca de una esquina y elegí la forma: redondeo, chaflán, escalón, cóncavo o gola'],
           ),
+          p('Al lado de las figuras elegí **Calado** (atraviesa la pieza) o **Vaciado** (baja hasta el **Hondo** que escribas). Arriba del panel, **Así queda** muestra la pieza en diagonal con la figura ya sacada, mientras dibujás.'),
         ],
       },
       {
@@ -226,21 +230,61 @@ export const ES_TOOLS: Article[] = [
             'Tocá la cara punto por punto. Con el mouse, la línea sigue al puntero para que veas cómo queda.',
             'Para corregir, tocá **Sacar punto** o apretá `Borrar`. `Esc` empieza de nuevo.',
           ),
+          p('Si el perfil va de borde a borde y saca el lado que no era, tocá **Otro lado** en la guía.'),
           tip('Con pocos puntos sale una curva más pareja. Para la silueta de una pata de cabra, dibujá el perfil en el frente y otro igual en el costado.'),
           note('Si la línea se cruza consigo misma no se puede cortar: se ve en rojo y hay que marcarla de nuevo.'),
         ],
       },
       {
-        id: 'burbuja',
-        title: 'Vaciado o calado, y las medidas',
+        id: 'mano-alzada',
+        title: 'Mano alzada',
         blocks: [
           steps(
-            'Al soltar aparece una burbuja. Elegí **Vaciado** o **Calado**.',
-            'En un vaciado, escribí la **Profundidad**.',
+            'En la guía elegí **Mano alzada**.',
+            'Apretá y dibujá la curva de un tirón, con el mouse o el dedo. Si empezás y terminás cerca de un borde, las puntas se pegan al borde.',
+            'Soltá. El trazo queda como perfil a mano con pocos puntos suaves; donde doblaste fuerte queda una esquina.',
+          ),
+          p('Si el trazo terminó en el medio de la cara, sigue como **Perfil a mano**: tocá puntos hasta un borde, o el primero para cerrar.'),
+        ],
+      },
+      {
+        id: 'esquina',
+        title: 'Formas de esquina',
+        blocks: [
+          p('Para el vértice comido de un faldón, una esquina redonda o un escalón, sin dibujar:'),
+          steps(
+            'En la guía elegí **Forma de esquina**.',
+            'Tocá la cara cerca de la esquina que querés cambiar.',
+            'Abajo elegí la forma: **Redondeo**, **Chaflán**, **Escalón**, **Cóncavo** o **Gola** (la curva en S).',
+            'Escribí cuánto toma sobre cada borde. Se ve en la cara y en **Así queda**.',
+            'Tocá **Cortar la esquina**.',
+          ),
+          tip('Con **Vaciado**, el escalón es un rebaje: la esquina baja hasta el hondo en vez de atravesar.'),
+        ],
+      },
+      {
+        id: 'calcar',
+        title: 'Calcar una foto',
+        blocks: [
+          steps(
+            'Con la cara elegida, tocá **Calcar foto** y elegí una imagen.',
+            'La foto se pone sobre toda la cara, medio transparente. Seguila con **Perfil a mano** o **Mano alzada**.',
+            'Para sacarla, tocá **Sacar foto**.',
+          ),
+          tip('Recortá la foto al contorno de la pieza antes de ponerla: así coincide con la cara.'),
+          note('La foto queda mientras usás la app; no se guarda en el proyecto.'),
+        ],
+      },
+      {
+        id: 'burbuja',
+        title: 'Las medidas de la figura',
+        blocks: [
+          steps(
+            'Al terminar una figura, su tarjeta queda marcada en el panel (en el celular, en una burbuja abajo).',
             'Escribí el tamaño (o el **Diámetro** del círculo) y la distancia a los bordes, o tocá **Centrar**.',
             'Tocá **Listo** en la guía cuando termines con esa cara.',
           ),
-          note('Si un calado se lleva toda la pieza, la burbuja te avisa: achicalo o cambialo a vaciado.'),
+          note('Si un calado se lleva toda la pieza, te avisa: achicalo o cambialo a vaciado.'),
         ],
       },
       {

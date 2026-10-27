@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { faceLabel, t, tk } from '@kitc/core';
-import { IconArc, IconChamfer, IconCircle, IconCopy, IconCornerPoint, IconCurvePoint, IconPath, IconRect, IconRound, IconUndo } from './icons';
-import { CutPick, FlipSide } from './DrawControls';
+import { IconArc, IconChamfer, IconCircle, IconCopy, IconCornerPoint, IconCornerShape, IconCurvePoint, IconFreehand, IconPath, IconRect, IconRound, IconUndo } from './icons';
+import { CornerRow, CutPick, FlipSide, TraceButton } from './DrawControls';
 import { MeasureBubble } from './MeasureBubble';
 import { MeasureCard } from './MeasureCard';
 import { useEditor, useSelectedPart } from './store';
@@ -19,6 +19,8 @@ const STEP2_DRAW = {
   circle: tk('Arrastrá desde el centro hacia afuera'),
   arc: tk('Arrastrá de punta a punta del arco'),
   path: tk('Tocá punto por punto: de un borde a otro, o cerrá en el primero'),
+  free: tk('Dibujá de un tirón, sin soltar: de un borde a otro, o cerrando la figura'),
+  corner: tk('Tocá cerca de la esquina que querés cambiar'),
 };
 
 const HINT_KEY = 'kitc:ayuda-elegir';
@@ -75,6 +77,7 @@ export function ToolGuide() {
   const dragging = useEditor((s) => s.dragging);
   const bubble = useEditor((s) => s.bubble);
   const measure = useEditor((s) => s.measure);
+  const cornerPick = useEditor((s) => s.cornerPick);
   const { setDrawFace, setDrawShape, setBevelRound, setCopyMove, pickMeasure, setPathCorner } = useEditor.getState();
   const selected = useSelectedPart();
   const [showHint, dismissHint] = useSelectHint(!!selected);
@@ -123,7 +126,9 @@ export function ToolGuide() {
             ? t('Tocá hasta dónde se curva')
             : drawShape === 'path' && pathPoints.length
               ? t('Seguí marcando puntos')
-              : t(STEP2_DRAW[drawShape]),
+              : drawShape === 'corner' && cornerPick
+                ? t('Elegí la forma y las medidas, o tocá otra esquina')
+                : t(STEP2_DRAW[drawShape]),
         },
         { text: t('Ajustá las medidas, si hace falta') },
       ];
@@ -142,6 +147,12 @@ export function ToolGuide() {
           <button type="button" aria-pressed={drawShape === 'path'} aria-label={t('Perfil a mano')} title={t('Perfil a mano')} onClick={() => setDrawShape('path')}>
             <IconPath />
           </button>
+          <button type="button" aria-pressed={drawShape === 'free'} aria-label={t('Mano alzada')} title={t('Mano alzada')} onClick={() => setDrawShape('free')}>
+            <IconFreehand />
+          </button>
+          <button type="button" aria-pressed={drawShape === 'corner'} aria-label={t('Forma de esquina')} title={t('Forma de esquina')} onClick={() => setDrawShape('corner')}>
+            <IconCornerShape />
+          </button>
         </div>
       );
       // Antes de dibujar: qué se saca. Así lo que se ve mientras se dibuja ya es lo que va a quedar.
@@ -149,6 +160,7 @@ export function ToolGuide() {
         <>
           {controls}
           <CutPick />
+          <TraceButton />
         </>
       );
       // Perfil a mano: si el próximo punto va en curva o en esquina, y volver atrás el último.
@@ -173,6 +185,12 @@ export function ToolGuide() {
             <FlipSide />
           </>
         );
+      if (drawShape === 'corner') controls = (
+        <>
+          {controls}
+          <CornerRow />
+        </>
+      );
       if (drawFace)
         action = (
           <button type="button" className={styles.done} onClick={() => setDrawFace(null)}>
@@ -223,7 +241,7 @@ export function ToolGuide() {
 
   const numbered = steps.length > 1;
   return (
-    <div className={styles.guide} data-tool={tool} data-wide={(tool === 'draw' && drawShape === 'path') || undefined}>
+    <div className={styles.guide} data-tool={tool} data-wide={(tool === 'draw' && !!drawFace) || undefined}>
       {controls}
       <ol className={styles.steps} aria-label={t('Pasos')} data-numbered={numbered || undefined}>
         {steps.map((s, i) => (

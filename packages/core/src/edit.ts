@@ -361,3 +361,8 @@ export function partAxesBySize(part: Part): [Axis, Axis, Axis] {
   const s = part.base.kind === 'box' ? part.base.size : boxSize(partBox(part));
   return ([0, 1, 2] as Axis[]).sort((x, y) => s[y] - s[x]) as [Axis, Axis, Axis];
 }
+
+/** Cómo se llama la medida de la pieza sobre el eje `axis`, pensando en la pieza y no en el mueble. */
+export function partSizeName(part: Part, axis: Axis): 'largo' | 'ancho' | 'espesor' {
+  return (['largo', 'ancho', 'espesor'] as const)[partAxesBySize(part).indexOf(axis)]!;
+}

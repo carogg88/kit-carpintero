@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { duplicatePart, mirrorPart, otherSideName, namePrefix, newPart, nextPartId, partAxesBySize, partPlace, renamePart, setPlace, snapCoord, snapMove, syncJoints } from './edit';
+import { duplicatePart, mirrorPart, otherSideName, namePrefix, newPart, nextPartId, partAxesBySize, partPlace, partSizeName, renamePart, setPlace, snapCoord, snapMove, syncJoints } from './edit';
 import { partBox } from './geometry';
 import type { Part } from './project';
 import { createTable } from './templates/table';
@@ -46,6 +46,7 @@ describe('piezas nuevas', () => {
 
   it('largo, ancho y espesor de una pata son Y, X y Z', () => {
     expect(partAxesBySize(legs)).toEqual([1, 0, 2]);
+    expect([0, 1, 2].map((k) => partSizeName(legs, k as 0 | 1 | 2))).toEqual(['ancho', 'largo', 'espesor']);
   });
 });
 
