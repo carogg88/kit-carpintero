@@ -90,10 +90,24 @@ export const ES_REST: Article[] = [
           tip('Así las cuatro patas de una mesa quedan con las mismas espigas en un solo cambio.'),
         ],
       },
+      {
+        id: 'doble',
+        title: 'Espiga doble',
+        blocks: [
+          p('En un faldón o un travesaño ancho, una espiga sola queda muy ancha: se mueve con la humedad y debilita la pata. La espiga doble la parte en dos, con madera en el medio.'),
+          steps(
+            'En **Uniones**, elegí una unión de **Mortaja y espiga**.',
+            'En **Espigas**, elegí **Doble**.',
+            'En **Entre espigas**, escribí cuánta madera queda en el medio.',
+          ),
+          img('espiga-doble', 'Una espiga doble en el faldón de una mesa, con las piezas separadas'),
+          tip('Si la espiga pasa de 9 cm de ancho, la revisión del diseño avisa **Espiga ancha** y te propone **Hacer espiga doble** en las dos puntas de la pieza.'),
+        ],
+      },
     ],
     faq: [
       { q: 'Aparece un aviso de espiga gruesa', a: 'La espiga pasa del tercio del espesor de la pieza: los hombros quedan finos. Bajala a la medida que dice el aviso.' },
-      { q: '¿Cómo hago una espiga doble?', a: 'En una mortaja, en **Espigas** elegí **Doble**: salen dos espigas lado a lado, con madera en el medio, y en **Entre espigas** ponés cuánta. Conviene en piezas anchas, como un faldón alto: se mueven menos y la pata queda más fuerte. Si la espiga pasa de 9 cm de ancho, la revisión del diseño te lo propone.' },
+      { q: '¿La espiga doble cambia la mortaja?', a: 'Sí: la pata lleva dos mortajas, una por espiga. La lista de cortes, el plano y el armado ya las cuentan.' },
       { q: '¿El cambio en el detalle se ve también en el modelo?', a: 'Sí: el modelo, la lista de cortes y el plano usan las mismas medidas.' },
     ],
     related: ['uniones', 'tipos-union', 'revision'],
@@ -152,6 +166,7 @@ export const ES_REST: Article[] = [
         blocks: [
           p('La pestaña **Piezas** tiene una fila por pieza (o por piezas iguales): código, cantidad, **Largo de corte**, **Ancho × espesor**, madera y el trabajo que lleva, como espigas o colas en las puntas.'),
           note('Si una pieza es más larga que las tablas de la maderera (3,66 m), un aviso lo dice: hay que empalmar o pedir un largo especial.'),
+          tip('Las patas inclinadas y los travesaños que las siguen dicen en **Trabajo** el ángulo de sus puntas para la falsa escuadra. Más información: [Patas inclinadas](patas-inclinadas).'),
         ],
       },
       {
@@ -329,6 +344,7 @@ export const ES_REST: Article[] = [
             ['Plantillas 1:1', 'Las curvas y el torneado a tamaño real, si el mueble los tiene'],
           ),
           p('Tocá una hoja en la lista para verla. Con los botones de zoom, pellizcando o con dos toques, la agrandás.'),
+          tip('Si el mueble tiene patas inclinadas, el despiece las dibuja derechas, a lo largo, con el ángulo de cada punta: es el de la falsa escuadra, entre el canto y la punta larga.'),
         ],
       },
       {
@@ -453,6 +469,7 @@ export const ES_REST: Article[] = [
           list(
             'Arriba dice qué pieza es y cuántas tenés listas. Las piezas iguales van juntas, en una sola pantalla.',
             'Marcá cada paso al terminarlo. Lo marcado queda guardado en el celular.',
+            'Si la pieza tiene las puntas en ángulo, como una pata inclinada, el dibujo muestra el ángulo para la falsa escuadra.',
             'Pasá con **Siguiente pieza** y la flecha de atrás, o tocá **ver todas**, arriba, para ir a una.',
             'Arriba a la derecha dice si la pantalla queda encendida (**Pantalla encendida**) o **Puede apagarse**. Tocalo para cambiarlo.',
             'Salí con la ✕ de arriba a la izquierda.',

@@ -59,7 +59,8 @@ export const ES: HelpContent = {
       ],
       faq: [
         { q: '¿Necesito saber carpintería?', a: 'No hace falta ser experto: la app te propone uniones y medidas habituales, y cada palabra de taller tiene un botón ? que la explica con un dibujo.' },
-        { q: '¿Sirve para cualquier mueble?', a: 'Sirve para muebles hechos con piezas rectas: mesas, bancos, estantes, cajoneras, cajas. Las patas pueden ir torneadas o con tramos más finos.' },
+        { q: '¿Sirve para cualquier mueble?', a: 'Sirve para muebles hechos con piezas rectas: mesas, bancos, estantes, cajoneras, cajas. Las patas pueden ir torneadas, con tramos más finos o inclinadas, como en una silla. Más información: [Patas inclinadas](patas-inclinadas).' },
+        { q: '¿Hay una página para mostrarle la app a alguien?', a: 'Sí, la presentación: cuenta qué hace la app, con capturas de un mueble real. Se abre al entrar a la dirección de la app o tocando el logo de Calibre Studio, arriba a la izquierda del inicio. **Ir a mis proyectos** te trae de vuelta.' },
       ],
       related: ['crear-proyecto', 'pantalla-editor', 'guardar'],
     },
@@ -76,7 +77,7 @@ export const ES: HelpContent = {
           blocks: [
             steps(
               'En el inicio, tocá **Desde una plantilla** o una de las **Plantillas rápidas**.',
-              'Elegí el mueble: mesa, taburete, estante, cajonera, biblioteca, banco y más.',
+              'Elegí el mueble: mesa, taburete, estante, cajonera, biblioteca, banco, silla y más.',
               'Completá las **Medidas generales**. Al tocar una medida, el dibujo marca qué parte del mueble cambia.',
               'Si querés, abrí **Piezas** y **Madera y uniones** para ajustar espesores, la madera y el tipo de unión.',
               'Tocá **Crear** y el mueble se abre en el editor.',
@@ -190,7 +191,7 @@ export const ES: HelpContent = {
             p('El panel cambia según lo que esté elegido:'),
             list(
               '**Sin nada elegido**: las medidas de todo el mueble, la revisión del diseño, la proporción áurea, la lista de piezas y **Agregar pieza**.',
-              '**Con una pieza elegida**: sus medidas, su posición, Girar 90°, la madera, los cantos y sus uniones. Abajo, Duplicar, Del otro lado y Borrar.',
+              '**Con una pieza elegida**: sus medidas, su posición, Girar 90°, Inclinar la pata (en patas y parantes), la madera, los cantos y sus uniones. Abajo, Duplicar, Del otro lado y Borrar.',
             ),
             p('El botón al lado de las vistas pliega el panel para ver el modelo más grande.'),
           ],

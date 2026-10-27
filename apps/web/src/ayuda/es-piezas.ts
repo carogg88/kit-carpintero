@@ -52,6 +52,13 @@ export const ES_PARTS: Article[] = [
         ],
       },
       {
+        id: 'inclinar',
+        title: 'Inclinar la pata',
+        blocks: [
+          p('Las patas y los parantes (las piezas paradas) tienen además **Inclinar la pata**: los grados **De frente** y **De costado** para abrirla, como en un taburete o una silla. Más información: [Patas inclinadas](patas-inclinadas).'),
+        ],
+      },
+      {
         id: 'madera',
         title: 'Madera',
         blocks: [
@@ -513,6 +520,7 @@ export const ES_PARTS: Article[] = [
             ['Se puede volcar', 'El mueble es alto y de poco fondo. Se agregan escuadras antivuelco a la lista de compras.'],
             ['Veta cruzada', 'Una pieza ancha encolada a otra que no la deja moverse con la humedad: se raja.'],
             ['Mortaja al borde o espiga gruesa', 'Queda poca madera alrededor de la mortaja, o la espiga pasa del tercio del espesor.'],
+            ['Espiga ancha', 'La espiga pasa de 9 cm de ancho: se mueve con la humedad y debilita la pata. **Hacer espiga doble** la parte en dos.'],
             ['Estantes que se comban', 'Con libros encima, el estante baja en el medio. Dice qué largo o qué espesor lo evita.'],
           ),
         ],
@@ -561,5 +569,80 @@ export const ES_PARTS: Article[] = [
       { q: '¿Se puede deshacer?', a: 'Sí, como cualquier cambio: con la flecha de Deshacer o `Ctrl` + `Z`.' },
     ],
     related: ['medidas-mueble', 'cajones-puertas', 'revision'],
+  },
+  {
+    id: 'patas-inclinadas',
+    topic: 'piezas',
+    title: 'Patas inclinadas: taburetes, bancos y sillas',
+    summary: 'Abrir las patas o echar atrás un respaldo, con los ángulos para la falsa escuadra.',
+    intro: [
+      p('Una pata inclinada se abre hacia afuera, como en un taburete rústico o una silla: el mueble queda más firme y no se vuelca. La app inclina la pata, le corta las puntas horizontales para que apoye en el piso y en el asiento, y hace que los travesaños la sigan. En Cortes, en el Plano y en el Modo taller te da el ángulo para marcar con la falsa escuadra.'),
+      img('patas-inclinadas', 'Una silla con la pata delantera elegida e Inclinar la pata en el panel'),
+    ],
+    sections: [
+      {
+        id: 'plantillas',
+        title: 'Empezar con una plantilla',
+        blocks: [
+          p('Tres plantillas ya traen las patas inclinadas, con todas sus uniones:'),
+          table(
+            ['Plantilla', 'Qué elegís'],
+            ['**Taburete de patas abiertas**', 'La apertura de las patas, de 4° a 12°, y si lleva travesaños'],
+            ['**Banco rústico**', 'La apertura hacia los costados y a lo largo, por separado, y travesaños en las puntas o también a lo largo'],
+            ['**Silla**', 'La apertura de las patas, cuánto se echa atrás el respaldo y si el respaldo lleva uno o dos travesaños'],
+          ),
+          img('plantilla-silla', 'El formulario de la plantilla Silla, con el respaldo echado hacia atrás y la apertura de las patas'),
+          tip('Entre 6° y 8° de apertura es lo habitual: se nota a la vista y el mueble queda firme. Con más de 10°, las patas ocupan mucho lugar en el piso.'),
+        ],
+      },
+      {
+        id: 'inclinar',
+        title: 'Inclinar una pata',
+        blocks: [
+          steps(
+            'Elegí la pata. Tiene que ser una pieza parada (más alta que ancha y que profunda) y sin tornear.',
+            'En el panel, debajo de **Girar 90°**, buscá **Inclinar la pata**.',
+            'Escribí los grados **De frente** y **De costado**. Positivo: la punta de abajo va hacia la derecha (de frente) o hacia adelante (de costado).',
+            'Apretá `Enter`. La pata gira sobre su punta de arriba, que queda donde estaba, y las dos puntas quedan cortadas horizontales.',
+          ),
+          tip('Para que las cuatro patas se abran hacia sus esquinas, la de la izquierda lleva el número en negativo y la de la derecha en positivo: -6 y 6. Con 0 y 0 la pata vuelve a quedar derecha.'),
+          note('Las medidas de la pieza siguen siendo las de la pata derecha: el **Alto** es lo que mide de alto la pata ya inclinada. El largo para cortarla está en Cortes.'),
+        ],
+      },
+      {
+        id: 'travesanos',
+        title: 'Travesaños y faldones',
+        blocks: [
+          p('Un travesaño o un faldón entre patas inclinadas se ve derecho en el panel, pero al cortarlo sigue a las patas: se corre con ellas, se estira hasta la cara de cada pata y sus hombros salen en ángulo. La espiga sale derecha, a lo largo del travesaño.'),
+          list(
+            'Siguen a la pata las uniones **Mortaja y espiga** y **A tope**. Con otro tipo, el detalle avisa que el encastre todavía no sigue la pata inclinada.',
+            'Las mortajas del asiento se corren a donde cae de verdad la pata, y su nota dice que van inclinadas y a cuánto poner la falsa escuadra para guiar el formón.',
+            'En Uniones, el detalle 3D muestra las piezas donde quedan, inclinadas, y al separarlas se abren a lo largo de la pata.',
+          ),
+        ],
+      },
+      {
+        id: 'angulos',
+        title: 'Los ángulos para marcar',
+        blocks: [
+          p('La **falsa escuadra** es una escuadra que se traba en cualquier ángulo: con ella se marcan las puntas y los hombros. La app te da siempre el ángulo para ponerla, medido entre el canto de la pieza y la punta.'),
+          img('patas-cortes', 'La lista de cortes de la silla: las patas con las puntas cortadas paralelas y la falsa escuadra a 84°'),
+          table(
+            ['Dónde', 'Qué dice'],
+            ['**Cortes**', 'En **Trabajo**, por ejemplo: "puntas cortadas paralelas, a 6°: falsa escuadra a 84° del canto". El largo de corte va de punta larga a punta larga.'],
+            ['**Plano**', 'El despiece dibuja la pata derecha, a lo largo, con un arco y su ángulo en cada punta. Los travesaños muestran el de sus hombros.'],
+            ['**Modo taller**', 'Cada pieza muestra los mismos ángulos, en letra grande.'],
+          ),
+          img('patas-plano', 'El despiece de la silla en el plano, con los ángulos en las puntas de las patas y los travesaños'),
+          tip('Medí el largo de corte sobre el canto más largo de la pieza: la punta larga.'),
+        ],
+      },
+    ],
+    faq: [
+      { q: '¿Puedo inclinar un listón acostado o una tabla?', a: 'No: solo se inclinan las piezas paradas, como patas y parantes. Si no ves **Inclinar la pata**, la pieza está acostada o torneada.' },
+      { q: '¿Por qué el respaldo de la silla se va para atrás y no se abre?', a: 'Los parantes del respaldo están inclinados solo **De costado**, para que la espalda apoye cómoda. Lo cambiás en **Respaldo echado hacia atrás** al crear la silla, o en el panel de cada parante.' },
+      { q: 'Cambié la inclinación, ¿tengo que alargar los travesaños?', a: 'No: al cortarse, el travesaño se estira o se acorta solo hasta las patas. La lista de cortes ya tiene el largo nuevo.' },
+    ],
+    related: ['panel-pieza', 'tipos-union', 'lista-cortes', 'plano'],
   },
 ];

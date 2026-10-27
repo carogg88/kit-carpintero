@@ -52,6 +52,13 @@ export const EN_PARTS: Article[] = [
         ],
       },
       {
+        id: 'inclinar',
+        title: 'Lean the leg',
+        blocks: [
+          p('Legs and posts (upright parts) also have **Lean the leg**: the degrees **From the front** and **From the side** to splay it, like on a stool or a chair. Learn more: [Leaning legs](patas-inclinadas).'),
+        ],
+      },
+      {
         id: 'madera',
         title: 'Wood',
         blocks: [
@@ -513,6 +520,7 @@ export const EN_PARTS: Article[] = [
             ['Could tip over', 'The piece is tall and shallow. Anti-tip brackets are added to the shopping list.'],
             ['Cross grain', 'A wide part glued to another that won’t let it move with humidity: it will crack.'],
             ['Mortise at the edge or thick tenon', 'Little wood is left around the mortise, or the tenon is over a third of the thickness.'],
+            ['Wide tenon', 'The tenon is over 9 cm wide: it moves with humidity and weakens the leg. **Make a double tenon** splits it in two.'],
             ['Sagging shelves', 'Loaded with books, the shelf sags in the middle. It says which length or thickness avoids it.'],
           ),
         ],
@@ -561,5 +569,80 @@ export const EN_PARTS: Article[] = [
       { q: 'Can I undo it?', a: 'Yes, like any change: with the Undo arrow or `Ctrl` + `Z`.' },
     ],
     related: ['medidas-mueble', 'cajones-puertas', 'revision'],
+  },
+  {
+    id: 'patas-inclinadas',
+    topic: 'piezas',
+    title: 'Leaning legs: stools, benches and chairs',
+    summary: 'Splay the legs or rake a chair back, with the angles for the bevel gauge.',
+    intro: [
+      p('A leaning leg opens outward, like on a rustic stool or a chair: the piece stands firmer and doesn’t tip over. The app leans the leg, cuts its ends level so it sits flat on the floor and under the seat, and makes the rungs follow it. In Cuts, the Plans and Workshop mode it gives you the angle to mark with the bevel gauge.'),
+      img('patas-inclinadas', 'A chair with the front leg selected and Lean the leg in the panel'),
+    ],
+    sections: [
+      {
+        id: 'plantillas',
+        title: 'Start from a template',
+        blocks: [
+          p('Three templates already come with leaning legs and all their joints:'),
+          table(
+            ['Template', 'What you choose'],
+            ['**Splayed-leg stool**', 'The leg splay, from 4° to 12°, and whether it has rungs'],
+            ['**Rustic bench**', 'The sideways and lengthwise splay, separately, and rungs at the ends or also along the length'],
+            ['**Chair**', 'The leg splay, how far the back rakes, and whether the back has one or two rails'],
+          ),
+          img('plantilla-silla', 'The Chair template form, with the back rake and the leg splay'),
+          tip('6° to 8° of splay is typical: you can see it and the piece stands firm. Past 10°, the legs take up a lot of floor.'),
+        ],
+      },
+      {
+        id: 'inclinar',
+        title: 'Lean a leg',
+        blocks: [
+          steps(
+            'Select the leg. It has to be an upright part (taller than it is wide and deep) and not turned.',
+            'In the panel, below **Rotate 90°**, find **Lean the leg**.',
+            'Type the degrees **From the front** and **From the side**. Positive: the bottom end moves right (from the front) or forward (from the side).',
+            'Press `Enter`. The leg pivots on its top end, which stays where it was, and both ends are cut level.',
+          ),
+          tip('For the four legs to open toward their corners, the left one takes a negative number and the right one a positive: -6 and 6. With 0 and 0 the leg stands straight again.'),
+          note('The part’s sizes are still those of the straight leg: **Height** is how tall the leaning leg stands. The length to cut it is in Cuts.'),
+        ],
+      },
+      {
+        id: 'travesanos',
+        title: 'Rungs and aprons',
+        blocks: [
+          p('A rung or apron between leaning legs looks straight in the panel, but when it is cut it follows the legs: it shifts with them, stretches to each leg’s face and its shoulders come out angled. The tenon stays straight, along the rung.'),
+          list(
+            '**Mortise and tenon** and **Butt joint** follow the leg. With any other type, the detail warns that the joint does not follow the leaning leg yet.',
+            'The seat mortises move to where the leg really lands, and their note says they slant and what to set the bevel gauge to for guiding the chisel.',
+            'In Joints, the 3D detail shows the parts where they really sit, leaning, and pulling them apart opens them along the leg.',
+          ),
+        ],
+      },
+      {
+        id: 'angulos',
+        title: 'The angles to mark',
+        blocks: [
+          p('A **bevel gauge** is a square that locks at any angle: you mark the ends and shoulders with it. The app always gives you the angle to set it to, measured between the part’s edge and the end.'),
+          img('patas-cortes', 'The chair’s cut list: the legs with ends cut parallel and the bevel gauge at 84°'),
+          table(
+            ['Where', 'What it says'],
+            ['**Cuts**', 'In **Work**, for example: “ends cut parallel, at 6°: set the bevel gauge to 84° from the edge”. The cut length runs from long point to long point.'],
+            ['**Plans**', 'The parts sheet draws the leg straight, lengthwise, with an arc and its angle at each end. Rungs show the angle of their shoulders.'],
+            ['**Workshop mode**', 'Each part shows the same angles, in large type.'],
+          ),
+          img('patas-plano', 'The chair’s parts sheet in the plans, with the angles at the ends of the legs and rungs'),
+          tip('Measure the cut length along the part’s longest edge: the long point.'),
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Can I lean a lying rail or a board?', a: 'No: only upright parts lean, like legs and posts. If you don’t see **Lean the leg**, the part is lying down or turned.' },
+      { q: 'Why does the chair back lean back instead of splaying?', a: 'The back posts lean only **From the side**, so your back rests comfortably. Change it with **Back rake** when you create the chair, or in each post’s panel.' },
+      { q: 'I changed the lean: do I have to lengthen the rungs?', a: 'No: when it is cut, the rung stretches or shortens to the legs on its own. The cut list already has the new length.' },
+    ],
+    related: ['panel-pieza', 'tipos-union', 'lista-cortes', 'plano'],
   },
 ];
