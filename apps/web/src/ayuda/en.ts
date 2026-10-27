@@ -187,7 +187,7 @@ export const EN: HelpContent = {
             p('The panel changes with what is selected:'),
             list(
               '**Nothing selected**: the size of the whole piece, the design review, the golden ratio, the parts list and **Add part**.',
-              '**A part selected**: its sizes, its position, Rotate 90°, Lean the leg (on legs and posts), the wood, the edges and its joints. At the bottom, Duplicate, Other side and Delete.',
+              '**A part selected**: its sizes, its position, Rotate 90°, Mirror, Lean the leg (on legs and posts), the wood, the edges and its joints. At the bottom, Duplicate, Other side and Delete.',
             ),
             p('The button next to the views folds the panel to see the model larger.'),
           ],

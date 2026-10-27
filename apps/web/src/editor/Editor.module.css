@@ -486,6 +486,7 @@
 .foldBody[hidden] { display: none; }
 .foldBody .muted { margin: 0; }
 .rotateRow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px var(--space-2); }
+.rotateRow[data-two] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rotateTitle { grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-s); font-weight: 600; color: var(--ink); }
 .rotateTitle svg { width: 14px; height: 14px; }
 .rotateRow button {

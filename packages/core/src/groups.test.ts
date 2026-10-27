@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addCopies, duplicateParts, groupOf, isWholeGroup, makeGroup, partsBox, resizeGroup, syncGroups, ungroup } from './groups';
+import { addCopies, duplicateParts, flipParts, groupOf, isWholeGroup, makeGroup, partsBox, resizeGroup, syncGroups, ungroup } from './groups';
 import { partBox } from './geometry';
 import { loadProject, SCHEMA_VERSION } from './project';
 import { decodeShare, encodeShare } from './share';
@@ -85,5 +85,27 @@ describe('grupos', () => {
     expect(p.parts.filter((x) => !ids.includes(x.id))).toEqual(others);
     const legsAfter = ['P3', 'P4'].map((id) => partBox(p.parts.find((x) => x.id === id)!));
     expect(legsAfter.map((b) => b.max[0] - b.min[0])).toEqual(legs.map((b) => b.max[0] - b.min[0]));
+  });
+});
+
+describe('espejar varias piezas', () => {
+  it('cada pieza pasa al lugar reflejado y el conjunto no se va de donde estaba', () => {
+    const p = mesa();
+    const ids = ['P1', 'F2', 'F3'];
+    const before = partsBox(p.parts, ids)!;
+    const f2 = partBox(p.parts.find((x) => x.id === 'F2')!);
+    flipParts(p.parts, ids, 0);
+    expect(partsBox(p.parts, ids)).toEqual(before);
+    const after = partBox(p.parts.find((x) => x.id === 'F2')!);
+    expect(after.min[0]).toBe(before.min[0] + before.max[0] - f2.max[0]);
+    // La pata pasa del borde izquierdo al derecho del conjunto.
+    expect(partBox(p.parts.find((x) => x.id === 'P1')!).max[0]).toBe(before.max[0]);
+  });
+
+  it('una sola pieza se espeja en su lugar', () => {
+    const p = mesa();
+    const box = partBox(p.parts.find((x) => x.id === 'F1')!);
+    flipParts(p.parts, ['F1'], 1);
+    expect(partBox(p.parts.find((x) => x.id === 'F1')!)).toEqual(box);
   });
 });

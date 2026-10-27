@@ -1,6 +1,7 @@
 import { copyPart } from './components';
 import { partBox, type Axis, type Box } from './geometry';
 import { resizeFurniture, type ResizeResult } from './resize';
+import { flipPart } from './rotate';
 import { t } from './i18n';
 import type { Group, Part, Project } from './project';
 
@@ -84,6 +85,22 @@ export function partsBox(parts: Part[], ids: readonly string[]): Box | null {
     min: [0, 1, 2].map((k) => Math.min(...boxes.map((b) => b.min[k]!))) as Box['min'],
     max: [0, 1, 2].map((k) => Math.max(...boxes.map((b) => b.max[k]!))) as Box['max'],
   };
+}
+
+/**
+ * Espeja estas piezas juntas sobre el centro de lo que ocupan: cada una se da vuelta y pasa al lugar reflejado, así
+ * el conjunto queda como visto en un espejo y no se va de donde estaba. Con una sola pieza, se espeja en su lugar.
+ */
+export function flipParts(parts: Part[], ids: readonly string[], axis: Axis): void {
+  const box = partsBox(parts, ids);
+  if (!box) return;
+  const sum = box.min[axis] + box.max[axis];
+  for (const part of parts) {
+    if (!ids.includes(part.id) || part.base.kind !== 'box') continue;
+    const own = partBox(part);
+    flipPart(part, axis);
+    part.position[axis] = sum - own.max[axis];
+  }
 }
 
 /**

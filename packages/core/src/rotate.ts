@@ -165,6 +165,18 @@ export function turnPart(part: Part, about: Axis): void {
   setOrient(part, rotationOrient(about));
 }
 
+/**
+ * Espejar una pieza desde el panel, en su lugar: lo de la izquierda pasa a la derecha (eje 0), lo de abajo arriba (1)
+ * o lo de atrás adelante (2). Pasan los vaciados, biseles, tramos y torneado; una pata inclinada se abre hacia el
+ * otro lado. Si es copia de un componente, se espeja solo esa copia, como al girar.
+ */
+export function flipPart(part: Part, axis: Axis): void {
+  mirrorShape(part, axis);
+  setOrient(part, mirrorOrient(axis));
+  // La inclinación es de la punta de abajo, de frente (X) y de costado (Z); dada vuelta de arriba abajo no cambia.
+  if (part.lean && axis !== 1) part.lean[axis === 0 ? 0 : 1] *= -1;
+}
+
 /** Suma un giro o un reflejo a la orientación de la copia (solo en componentes). */
 export function setOrient(part: Part, change: Orient): void {
   if (!part.component) return void delete part.orient;
