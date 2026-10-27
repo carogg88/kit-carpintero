@@ -520,7 +520,7 @@ export const EN_REST: Article[] = [
         blocks: [
           table(
             ['What', 'Where', 'What for'],
-            ['.kitc.json file', 'Home, the project’s ⋮ menu, **Export file**', 'A backup, or to carry on on another computer with **Open file**'],
+            ['.kitc.json file', 'Home, the project’s ⋮ menu, or **Share** in the editor: **Export file**', 'A backup, or to carry on on another computer with **Open file**'],
             ['Cut spreadsheet (.csv)', 'Cuts, **Export spreadsheet**', 'Open it in Excel or Google Sheets, or take it to the sheet shop'],
             ['Plans as a PDF', 'Plans, **Download PDF**', 'Print it or keep it on your phone'],
             ['Shopping list as text', 'Share button, **Copy list**', 'Send it in a message'],

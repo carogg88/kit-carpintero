@@ -36,6 +36,15 @@
 }
 .tabs [aria-current='page'] { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
 .tabs [aria-disabled='true'] { color: var(--muted); cursor: not-allowed; }
+/* El camino después de dibujar, en las pestañas: tilde en las ya vistas, punto en la que sigue. */
+.tabs > *, .bottomNav > * { position: relative; }
+.stepSeen { display: inline-flex; color: var(--forest); opacity: 0.8; }
+.stepSeen svg { width: 14px; height: 14px; stroke-width: 2.5; }
+.stepNext { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.tabs [data-next]:not([aria-current='page']) { color: var(--accent); }
+.bottomNav .stepSeen, .bottomNav .stepNext { position: absolute; top: 6px; left: calc(50% + 10px); }
+.bottomNav .stepSeen svg { width: 12px; height: 12px; }
+.bottomNav [data-next]:not([aria-current='page']) { color: var(--accent); }
 .badge { font-family: var(--font-num); font-size: var(--text-xs); background: var(--line); color: var(--ink); border-radius: 10px; padding: 1px 7px; }
 
 /* ---------- Vista 3D ---------- */
@@ -67,21 +76,7 @@
 .nextList li[data-done] .nextNum { background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
 .nextDone { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 .nextCount { flex: none; font: 500 var(--text-xs) var(--font-num); color: var(--muted); }
-.nextChip {
-  display: flex; align-items: center; gap: 2px; min-width: 0; padding: 2px 2px 2px 4px; border: 1px solid var(--line);
-  border-radius: var(--radius-pill); background: var(--surface); font-size: var(--text-s);
-}
-.nextChip a {
-  display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 40px; padding: 0 8px 0 4px; border-radius: var(--radius-pill);
-  color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap;
-}
-.nextChip a:hover { background: var(--surface-2); }
-.nextChip a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.nextChip .nextNum { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.nextChip a svg { flex: none; }
-.nextChipText { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
-.nextChipStep { font: 500 var(--text-xs) var(--font-num); color: var(--muted); }
-.nextChip .nextClose { width: 36px; height: 36px; }
+.nextClose { width: 36px; height: 36px; }
 .nextClose {
   flex: none; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
   background: transparent; color: var(--muted); cursor: pointer;
@@ -550,11 +545,7 @@
   .mobileOnly { display: none; }
   .chip.desktopOnly { display: flex; }
   .header { flex-wrap: wrap; gap: var(--space-3) var(--space-5); padding: var(--space-3) var(--space-5); background: var(--surface); border-bottom: 1px solid var(--line); }
-  /* Con el "qué sigue" en el encabezado, en pantallas medianas la marca queda solo con el logo para que todo entre en una fila. */
   .header { column-gap: var(--space-4); flex-wrap: nowrap; }
-  .header:has(.nextChip) { column-gap: var(--space-3); }
-  .header:has(.nextChip) .homeBack { margin-right: 0; }
-  .header:has(.nextChip) .brandText { display: none; }
   /* Entre la marca y el nombre, una línea y la flecha para volver a mis proyectos, pegada al nombre. */
   .headerDivider { align-self: stretch; width: 1px; margin: 6px 0; background: var(--line); }
   .homeBack { margin-right: calc(var(--space-2) - var(--space-4)); border-color: transparent; background: transparent; }
@@ -599,10 +590,6 @@
     background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-m) var(--radius-m);
   }
   .grabber { display: none; }
-}
-
-@media (min-width: 1440px) {
-  .header:has(.nextChip) .brandText { display: block; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -680,6 +667,9 @@
 .primaryBtn:disabled { opacity: 0.5; cursor: default; }
 .secondaryBtn { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
 .primaryBtn:focus-visible, .secondaryBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Estado de la copia en archivo: en verde cuando está al día. */
+.shareStatus { margin: 0; font-size: var(--text-s); color: var(--warn-ink); }
+.shareStatus[data-current] { color: var(--forest); }
 .shareDone { margin: 0; min-height: 1.4em; font-size: var(--text-s); color: var(--forest); }
 @media (max-width: 640px) {
   .primaryBtn, .secondaryBtn { align-self: stretch; }

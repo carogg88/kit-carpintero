@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cutList, cutPlan, encodeShare, hardwareList, SHARE_ROUTE, shoppingList, t, type Project } from '@kitc/core';
+import { cutList, cutPlan, encodeShare, hardwareList, locale, SHARE_ROUTE, shoppingList, t, type Project } from '@kitc/core';
+import { download, readExported } from '../storage/backup';
 import { shopText } from './cutsData';
 import { IconShare } from './icons';
 import styles from './Editor.module.css';
@@ -18,7 +19,17 @@ async function copy(text: string): Promise<boolean> {
   }
 }
 
-/** Botón del encabezado y el cuadro para compartir el proyecto por enlace o la lista de compras como texto. */
+/** "hoy a las 10:40", "ayer a las 18:05" o "12 oct a las 9:30". */
+function exportedWhen(iso: string): string {
+  const d = new Date(iso);
+  const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86_400_000);
+  const time = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  if (days <= 0) return t('hoy a las {time}', { time });
+  if (days === 1) return t('ayer a las {time}', { time });
+  return t('{day} a las {time}', { day: d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' }), time });
+}
+
+/** Botón del encabezado y el cuadro para compartir el proyecto por enlace o en archivo, o la lista de compras como texto. */
 export function ShareButton({ project }: { project: Project }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
@@ -48,6 +59,8 @@ export function ShareButton({ project }: { project: Project }) {
 function ShareBody({ project, onClose }: { project: Project; onClose: () => void }) {
   const [link, setLink] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [exportedAt, setExportedAt] = useState(() => readExported(project.id));
+  const current = !!exportedAt && exportedAt >= project.updatedAt;
   const text = useMemo(() => {
     const plan = cutPlan(project);
     return shopText(project, plan, cutList(project), shoppingList(plan), hardwareList(project, plan));
@@ -96,9 +109,31 @@ function ShareBody({ project, onClose }: { project: Project; onClose: () => void
           {t('El mueble va adentro del enlace: quien lo abre lo ve y puede guardar una copia para editarla. No hace falta cuenta y no se sube a ningún lado.')}
         </p>
         <input className={styles.shareLink} readOnly value={link ?? t('Armando el enlace…')} aria-label={t('Enlace del proyecto')} onFocus={(e) => e.currentTarget.select()} />
-        {link && link.length > LONG_LINK && <p className={styles.muted}>{t('Es un enlace largo: si alguna app lo corta, guardá una copia en archivo desde el inicio y mandá el archivo.')}</p>}
+        {link && link.length > LONG_LINK && <p className={styles.muted}>{t('Es un enlace largo: si alguna app lo corta, exportá el archivo acá abajo y mandá el archivo.')}</p>}
         <button type="button" className={styles.primaryBtn} disabled={!link} onClick={() => void send('link')}>
           {share ? t('Compartir enlace') : t('Copiar enlace')}
+        </button>
+      </section>
+
+      <section className={styles.shareSection} aria-labelledby="compartir-archivo">
+        <h3 id="compartir-archivo">{t('El proyecto, en un archivo')}</h3>
+        <p className={styles.muted}>{t('Una copia para guardar o mandar por mail. Se abre desde el inicio, con Abrir archivo.')}</p>
+        <p className={styles.shareStatus} data-current={current || undefined}>
+          {exportedAt
+            ? current
+              ? t('Copia al día: la exportaste {when}.', { when: exportedWhen(exportedAt) })
+              : t('Cambió desde la última copia, que exportaste {when}.', { when: exportedWhen(exportedAt) })
+            : t('Todavía no exportaste una copia de este proyecto.')}
+        </p>
+        <button
+          type="button"
+          className={styles.secondaryBtn}
+          onClick={() => {
+            setExportedAt(download(project));
+            setDone(t('Exportaste el archivo.'));
+          }}
+        >
+          {t('Exportar archivo')}
         </button>
       </section>
 

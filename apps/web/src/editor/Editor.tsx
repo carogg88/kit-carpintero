@@ -16,6 +16,7 @@ import {
   IconDraw,
   IconCuts,
   IconJoints,
+  IconCheck,
   IconModel,
   IconMeasure,
   IconMore,
@@ -41,7 +42,7 @@ import { HelpButton } from '../help/HelpCenter';
 import { TourOverlay, useTour } from '../help/Tour';
 import { MeasureBubble } from './MeasureBubble';
 import { MeasureCard } from './MeasureCard';
-import { NextSteps, useVisitSection } from './NextSteps';
+import { NextSteps, useStepMarks, useVisitSection } from './NextSteps';
 import { ReviewPill } from './Review';
 import { Workshop, workshopFrom } from './Workshop';
 import { Viewport } from './Viewport';
@@ -291,6 +292,8 @@ interface NavProps {
 }
 
 function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
+  // El camino de siempre (uniones, cortes, plano, armado) marcado en las pestañas: las vistas con tilde y la que sigue con un punto.
+  const marks = useStepMarks(projectId, jointCount > 0);
   const items: [Section, string, () => React.JSX.Element][] = [
     ['modelo', t('Modelo'), IconModel],
     ['uniones', t('Uniones'), IconJoints],
@@ -301,10 +304,26 @@ function SectionNav({ projectId, section, jointCount, variant }: NavProps) {
   return (
     <nav aria-label={t('Secciones del proyecto')} className={variant === 'tabs' ? styles.tabs : styles.bottomNav}>
       {items.map(([key, label, Icon]) => (
-        <a key={key} href={sectionHref(projectId, key)} aria-current={section === key ? 'page' : undefined}>
+        <a
+          key={key}
+          href={sectionHref(projectId, key)}
+          aria-current={section === key ? 'page' : undefined}
+          data-next={marks?.next === key || undefined}
+          title={marks?.next === key ? t('Sigue: {step}', { step: marks.hint }) : undefined}
+        >
           {variant === 'bar' && <Icon />}
           {label}
           {key === 'uniones' && variant === 'tabs' && <span className={styles.badge}>{jointCount}</span>}
+          {marks?.next === key && (
+            <span className={styles.stepNext}>
+              <span className={styles.srOnly}>{t('(sigue)')}</span>
+            </span>
+          )}
+          {marks?.visited.includes(key) && (
+            <span className={styles.stepSeen} aria-hidden="true">
+              <IconCheck />
+            </span>
+          )}
         </a>
       ))}
     </nav>
@@ -521,11 +540,6 @@ export function Editor({ section, onExit }: { section: Section; onExit: () => vo
             </>
           )}
         </div>
-        {modelo && jointCount > 0 && (
-          <span className={styles.desktopOnly}>
-            <NextSteps key={project.id} projectId={project.id} variant="chip" />
-          </span>
-        )}
         <div className={styles.desktopOnly} data-tour="sections">
           <SectionNav projectId={project.id} section={section} jointCount={jointCount} variant="tabs" />
         </div>
