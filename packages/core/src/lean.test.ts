@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { cutPiece } from './cutlist';
 import { mirrorPart } from './edit';
 import { isLeaning, leanedBox, leanFrame, leanPoint } from './lean';
-import { createSplayedBench, createSplayedStool, leanTestStool } from './templates/leanTest';
+import { createSplayedBench, createSplayedChair, createSplayedStool, leanTestStool } from './templates/leanTest';
 import { leanFollow } from './follow';
+import { describePartJoints } from './jointmarks';
 import { drawPart, drawView } from './drawing';
 import type { Part } from './project';
 
@@ -106,6 +107,34 @@ describe('patas inclinadas', () => {
     expect(rungs.map((p) => p.id)).toEqual(['R3', 'R4']);
     expect(bench.joints.filter((j) => j.type === 'mortaja' && j.partA === 'S1')).toHaveLength(4);
     expect(bench.joints.filter((j) => j.partB.startsWith('R') || j.partA.startsWith('R'))).toHaveLength(4);
+  });
+
+  it('la silla: parantes echados hacia atrás, con espiga en el asiento y el travesaño entre ellos', () => {
+    const chair = createSplayedChair({ backRails: 1 }, 'guatambu', '2026-10-27T00:00:00Z');
+    const posts = chair.parts.filter((p) => p.id.startsWith('B'));
+    expect(posts).toHaveLength(2);
+    for (const p of posts) {
+      // Abajo se corre hacia adelante: arriba queda atrás.
+      expect(p.lean).toEqual([0, 10]);
+      expect(leanedBox(p).max[2]).toBeGreaterThan(p.position[2] + 35 + 60);
+      expect(chair.joints.some((j) => j.partA === 'S1' && j.partB === p.id && j.type === 'mortaja')).toBe(true);
+    }
+    for (const id of ['C1', 'C2']) {
+      const rail = chair.parts.find((p) => p.id === id)!;
+      const f = leanFollow(chair, rail)!;
+      expect(f.ends).toHaveLength(2);
+      // El travesaño se corre hacia adelante con los parantes, más cuanto más abajo.
+      expect(f.shift[2]).toBeGreaterThan(0);
+    }
+  });
+
+  it('la mortaja del parante en el asiento se marca donde cae, corrida hacia adelante', () => {
+    const chair = createSplayedChair({}, 'guatambu', '2026-10-27T00:00:00Z');
+    const text = describePartJoints(chair, chair.parts[0]!, (mm) => (mm / 10).toFixed(2)).join('\n');
+    // Derecho caería a 0,6 cm del borde; echado 10° sobre 40 cm de parante, unos 7 cm más adelante.
+    expect(text).toContain('2 mortajas para B1 y B2 en la cara de arriba: a 2.60 de cada punta y a 7.55 del borde de atrás');
+    // Las de las patas no se corren: giran sobre esa punta.
+    expect(text).toContain('a 6.35 del borde de atrás');
   });
 });
 

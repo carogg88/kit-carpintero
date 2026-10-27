@@ -136,6 +136,17 @@ const TEMPLATES = [
     ),
   },
   {
+    id: 'silla',
+    name: tk('Silla'),
+    icon: (
+      <svg {...icon}>
+        <path d="M10 3l2 14M22 3l-2 14M11 6.5h10" />
+        <rect x="6" y="16" width="20" height="3" rx="1" />
+        <path d="M9 19 6 29M23 19l3 10" />
+      </svg>
+    ),
+  },
+  {
     id: 'banco-rustico',
     name: tk('Banco rústico'),
     icon: (

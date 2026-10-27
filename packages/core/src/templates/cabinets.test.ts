@@ -11,7 +11,7 @@ const ids = (p: ReturnType<typeof build>, prefix: string) => p.parts.filter((x) 
 
 describe('plantillas nuevas', () => {
   it('hay once plantillas (con la de prueba de patas abiertas) y todas se arman con uniones y lista de cortes', () => {
-    expect(TEMPLATES.map((t) => t.id)).toEqual(['mesa', 'taburete', 'estante', 'caja', 'mesa-luz', 'cajonera', 'biblioteca', 'alacena', 'mesa-ratona', 'banco', 'patas-abiertas', 'banco-rustico']);
+    expect(TEMPLATES.map((t) => t.id)).toEqual(['mesa', 'taburete', 'estante', 'caja', 'mesa-luz', 'cajonera', 'biblioteca', 'alacena', 'mesa-ratona', 'banco', 'patas-abiertas', 'banco-rustico', 'silla']);
     for (const t of TEMPLATES) {
       const p = build(t.id);
       expect(p.template).toBe(t.id);

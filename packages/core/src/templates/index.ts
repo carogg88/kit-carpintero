@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../proj
 import { createTable, TABLE_DEFAULTS } from './table';
 import { COFFEE_DEFAULTS, createBookcase, createCoffeeTable, createDresser, createNightstand, createWallCabinet } from './cabinets';
 import { autoComponents } from '../components';
-import { BENCH_DEFAULTS, BENCH_RUNGS_NONE, createSplayedBench, createSplayedStool, SPLAY_ANGLES, SPLAYED_DEFAULTS } from './leanTest';
+import { BENCH_DEFAULTS, BENCH_RUNGS_NONE, CHAIR_DEFAULTS, createSplayedBench, createSplayedChair, createSplayedStool, RAKE_ANGLES, SPLAY_ANGLES, SPLAYED_DEFAULTS } from './leanTest';
 import { fitJointDepths } from '../jointfit';
 import { t, tk } from '../i18n';
 
@@ -560,6 +560,98 @@ TEMPLATES.push({
   ],
   joints: null,
   build: createSplayedBench,
+});
+
+TEMPLATES.push({
+  id: 'silla',
+  name: tk('Silla'),
+  projectName: tk('Silla'),
+  createLabel: tk('Crear silla'),
+  fields: [
+    { key: 'width', label: tk('Ancho'), hint: tk('De lado a lado del asiento.'), shows: { parts: 'S1', measure: 'S1', axis: 0 }, group: 'general', default: CHAIR_DEFAULTS.width, min: 360, max: 560 },
+    { key: 'depth', label: tk('Fondo'), hint: tk('De adelante hacia atrás del asiento.'), shows: { parts: 'S1', measure: 'S1', axis: 2 }, group: 'general', default: CHAIR_DEFAULTS.depth, min: 340, max: 520 },
+    {
+      key: 'height',
+      label: tk('Alto del asiento'),
+      hint: tk('Desde el piso hasta arriba del asiento.'),
+      shows: { parts: 'S1|P' },
+      group: 'general',
+      default: CHAIR_DEFAULTS.height,
+      min: 380,
+      max: 520,
+      typical: [430, 470],
+      typicalNote: tk('una silla para la mesa suele tener el asiento entre 43 y 47 cm del piso'),
+    },
+    {
+      key: 'back',
+      label: tk('Alto total'),
+      hint: tk('Desde el piso hasta arriba del respaldo.'),
+      shows: { parts: 'B', measure: 'all', axis: 1 },
+      group: 'general',
+      default: CHAIR_DEFAULTS.back,
+      min: 700,
+      max: 1050,
+    },
+    {
+      key: 'rake',
+      label: tk('Respaldo echado hacia atrás'),
+      hint: tk('Cuánto se inclinan los parantes del respaldo: con 10° se apoya cómoda la espalda.'),
+      shows: { parts: 'B' },
+      group: 'general',
+      default: CHAIR_DEFAULTS.rake,
+      min: 0,
+      max: RAKE_ANGLES.length - 1,
+      choices: RAKE_ANGLES.map((a) => `${a}°`),
+    },
+    {
+      key: 'backRails',
+      label: tk('Travesaños del respaldo'),
+      hint: tk('Las tablas entre los parantes, donde apoya la espalda.'),
+      shows: { parts: 'C' },
+      group: 'general',
+      default: CHAIR_DEFAULTS.backRails,
+      min: 0,
+      max: 1,
+      choices: [tk('Uno arriba'), tk('Arriba y en el medio')],
+    },
+    {
+      key: 'splay',
+      label: tk('Apertura de las patas'),
+      hint: tk('Cuánto se abre cada pata hacia su esquina, visto de frente y de costado.'),
+      shows: { parts: 'P' },
+      group: 'general',
+      default: CHAIR_DEFAULTS.splay,
+      min: 0,
+      max: SPLAY_ANGLES.length - 1,
+      choices: SPLAY_ANGLES.map((a) => `${a}°`),
+    },
+    {
+      key: 'rungs',
+      label: tk('Travesaños'),
+      hint: tk('Barras entre las patas, donde se apoyan los pies: siguen la apertura de las patas.'),
+      shows: { parts: 'R' },
+      group: 'general',
+      default: CHAIR_DEFAULTS.rungs,
+      min: 0,
+      max: 1,
+      choices: [tk('Sin travesaños'), tk('Con travesaños')],
+    },
+    {
+      key: 'rung',
+      label: tk('Altura del travesaño'),
+      hint: tk('Los travesaños son las barras de abajo, donde se apoyan los pies: a qué altura del piso van.'),
+      shows: { parts: 'R', measure: 'R1', axis: 1, fromFloor: true },
+      group: 'general',
+      default: CHAIR_DEFAULTS.rung,
+      min: 80,
+      max: 300,
+      unlessKey: { key: 'rungs', value: 0 },
+    },
+    { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: CHAIR_DEFAULTS.leg, min: 30, max: 50 },
+    { key: 'seat', label: tk('Espesor del asiento'), hint: tk('Lo grueso de la tabla donde te sentás: la espiga de cada pata entra en él.'), shows: { parts: 'S1', measure: 'S1', axis: 1 }, group: 'piezas', default: CHAIR_DEFAULTS.seat, min: 35, max: 55 },
+  ],
+  joints: null,
+  build: createSplayedChair,
 });
 
 export const templateById = (id: string) => TEMPLATES.find((t) => t.id === id);

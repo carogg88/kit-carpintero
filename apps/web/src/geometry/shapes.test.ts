@@ -366,6 +366,28 @@ describe('faldones y travesaños entre patas inclinadas', () => {
       for (const b of built.values()) b.shape.delete();
     }
   });
+
+  it('la silla se arma sin choques: parantes echados hacia atrás con su travesaño', () => {
+    const def = TEMPLATES.find((t) => t.id === 'silla')!;
+    for (const backRails of [0, 1]) {
+      const chair = buildTemplate(def, { ...templateDefaults(def), backRails }, 'guatambu', undefined, '2026-10-27T00:00:00Z');
+      const built = noClashes(chair);
+      // Ninguna pieza se mete en otra, unidas o no: las mortajas de las patas y de los parantes no se cruzan en el asiento.
+      const ids = [...built.keys()];
+      for (const [i, a] of ids.entries()) {
+        for (const b of ids.slice(i + 1)) {
+          const both = built.get(a)!.shape.intersect(built.get(b)!.shape);
+          expect([a, b, Math.round(measureVolume(both))]).toEqual([a, b, 0]);
+          both.delete();
+        }
+      }
+      // El parante apoya plano sobre el asiento y arriba queda corrido hacia atrás.
+      const [min, max] = built.get('B1')!.shape.boundingBox.bounds;
+      expect(max[1]).toBeCloseTo(850, 0);
+      expect(min[2]).toBeCloseTo(0, 0);
+      for (const b of built.values()) b.shape.delete();
+    }
+  }, 120_000);
 });
 
 describe('despiece de una pata inclinada con el motor', () => {

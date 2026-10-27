@@ -1,6 +1,7 @@
 import { partAxesBySize } from './edit';
 import { boxSize, otherAxes, partBox, type Axis, type Box } from './geometry';
-import { jointGeometry, solidBox, type Solid } from './joints';
+import { box, jointGeometry, solidBox, type Solid } from './joints';
+import { leanFrame, leanHole } from './lean';
 import { faceLabelOf } from './pockets';
 import type { JointType, Part, Project } from './project';
 import { t, tk } from './i18n';
@@ -202,7 +203,10 @@ export function partJointMarks(project: Project, part: Part): JointMark[] {
     if (!g) continue;
     const isA = j.partA === part.id;
     const base = { jointId: j.id, type: j.type, other: isA ? b.id : a.id };
-    const cut = markOf(body, center, isA ? g.cutA : g.cutB, 'cut', base);
+    // El agujero de una pieza inclinada, donde cae de verdad.
+    const fb = isA ? leanFrame(b) : null;
+    const cutA = fb ? g.cutA.map((s) => box(leanHole(fb, solidBox(s), partBox(b)))) : g.cutA;
+    const cut = markOf(body, center, isA ? cutA : g.cutB, 'cut', base);
     const add = isA ? null : markOf(body, center, g.addB, 'add', base);
     if (cut) marks.push(cut);
     if (add) marks.push(add);

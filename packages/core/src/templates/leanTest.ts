@@ -31,10 +31,10 @@ interface SplayedPlan {
  * Los travesaños van entre las patas derechas y al armarlos siguen a las inclinadas (ver `follow.ts`). Los de
  * adelante y atrás van a otra altura que los de los costados, para que sus espigas no se crucen adentro de la pata.
  */
-function splayedParts(p: SplayedPlan): Part[] {
-  const { W, D, H, leg, seat, insetX, insetZ, angleX, angleZ, wood } = p;
-  const sY = H - seat;
-  const part = (id: string, name: string, min: [number, number, number], size: [number, number, number], lean?: [number, number]): Part => ({
+/** Una pieza de caja con los cantos redondeados, inclinada si se pide. */
+const piece =
+  (wood: string) =>
+  (id: string, name: string, min: [number, number, number], size: [number, number, number], lean?: [number, number]): Part => ({
     id,
     name,
     wood,
@@ -47,6 +47,11 @@ function splayedParts(p: SplayedPlan): Part[] {
     sections: [],
     ...(lean ? { lean } : {}),
   });
+
+function splayedParts(p: SplayedPlan): Part[] {
+  const { W, D, H, leg, seat, insetX, insetZ, angleX, angleZ, wood } = p;
+  const sY = H - seat;
+  const part = piece(wood);
   const legAt = (id: string, name: string, right: boolean, front: boolean) =>
     part(id, name, [right ? W - insetX - leg : insetX, 0, front ? D - insetZ - leg : insetZ], [leg, sY, leg], [right ? angleX : -angleX, front ? angleZ : -angleZ]);
   const parts = [
@@ -143,3 +148,40 @@ export function createSplayedBench(v: Record<string, number>, wood: string, now:
 
 /** El taburete de patas abiertas con las medidas de siempre. */
 export const leanTestStool = (wood: string, now: string) => createSplayedStool({}, wood, now);
+
+/** Cuánto se echa hacia atrás el respaldo, en grados: la opción elegida es el número de la lista. */
+export const RAKE_ANGLES = [6, 8, 10, 12, 14];
+
+export const CHAIR_DEFAULTS = { width: 440, depth: 420, height: 450, back: 850, rake: 2, splay: 1, backRails: 0, rungs: 1, rung: 150, leg: 38, seat: 40 };
+
+/**
+ * Silla de asiento macizo: el taburete de patas abiertas con un respaldo. Los dos parantes del respaldo entran
+ * con espiga en la cara de arriba del asiento, por fuera de las patas de atrás, y se echan hacia atrás: giran sobre
+ * su punta de arriba, así que la de abajo se corre hacia adelante y queda cortada plana sobre el asiento. El
+ * travesaño de arriba (y el del medio, si se pide) va entre los parantes y los sigue al armarlo.
+ */
+export function createSplayedChair(v: Record<string, number>, wood: string, now: string): Project {
+  const { width: W, depth: D, height: H, back, leg, seat, rungs, rung, backRails } = { ...CHAIR_DEFAULTS, ...v };
+  const angle = SPLAY_ANGLES[Math.round(v.splay ?? CHAIR_DEFAULTS.splay)] ?? 6;
+  const rake = RAKE_ANGLES[Math.round(v.rake ?? CHAIR_DEFAULTS.rake)] ?? 10;
+  const inset = Math.round(leg * 1.5);
+  const parts = splayedParts({ W, D, H, leg, seat, insetX: inset, insetZ: inset, angleX: angle, angleZ: angle, long: rungs ? rung : null, ends: rungs ? rung + 40 : null, wood });
+  const part = piece(wood);
+  const post = 35;
+  const rT = 20;
+  const h = back - H;
+  // Derecho, el parante apoya contra el borde de atrás del asiento: echado hacia atrás, la punta de arriba queda
+  // sobre ese borde y la de abajo se corre hacia adelante. Va por fuera de las patas, para que su mortaja y la de
+  // la pata no se encuentren adentro del asiento.
+  const x = Math.max(10, inset - post - 8);
+  const z = 0;
+  parts.push(
+    part('B1', tk('Parante izquierdo del respaldo'), [x, H, z], [post, h, post], [0, rake]),
+    part('B2', tk('Parante derecho del respaldo'), [W - x - post, H, z], [post, h, post], [0, rake]),
+  );
+  const rail = (id: string, name: string, top: number, tall: number) =>
+    part(id, name, [x + post, top - tall, z + (post - rT) / 2], [W - 2 * (x + post), tall, rT]);
+  parts.push(rail('C1', tk('Travesaño de arriba del respaldo'), back - 25, 70));
+  if (backRails) parts.push(rail('C2', tk('Travesaño del medio del respaldo'), H + Math.round(h * 0.45), 40));
+  return splayedProject('silla', 'Silla', parts, now);
+}
