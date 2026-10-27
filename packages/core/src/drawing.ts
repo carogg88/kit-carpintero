@@ -347,7 +347,7 @@ function endOutline(e: PartEnds, p: Projection): { lines: Line2[]; angles: Angle
     const b: [number, number] = [(other[0] - tip[0]) / len, (other[1] - tip[1]) / len];
     const a: [number, number] = [-out, 0];
     const deg = (Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1])) ) * 180) / Math.PI;
-    if (Math.abs(deg - 90) > 0.25) angles.push({ at: tip, a, b, deg });
+    if (Math.abs(deg - 90) >= 1) angles.push({ at: tip, a, b, deg });
   }
   return { lines, angles };
 }

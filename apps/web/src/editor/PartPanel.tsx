@@ -805,10 +805,10 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
           </button>
         ))}
       </div>
-      {/* Prueba técnica de patas inclinadas: la pata gira sobre su punta de arriba y las puntas quedan horizontales. */}
+      {/* Patas inclinadas: la pata gira sobre su punta de arriba y las puntas quedan horizontales. */}
       {leanable(part) && (
         <fieldset className={styles.dims}>
-          <legend className={styles.legend}>{t('Inclinar la pata (prueba)')}</legend>
+          <legend className={styles.legend}>{t('Inclinar la pata')}</legend>
           {(
             [
               [0, tk('De frente (°)')],

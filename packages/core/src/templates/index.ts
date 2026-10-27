@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../proj
 import { createTable, TABLE_DEFAULTS } from './table';
 import { COFFEE_DEFAULTS, createBookcase, createCoffeeTable, createDresser, createNightstand, createWallCabinet } from './cabinets';
 import { autoComponents } from '../components';
-import { createSplayedStool, SPLAY_ANGLES, SPLAYED_DEFAULTS } from './leanTest';
+import { BENCH_DEFAULTS, BENCH_RUNGS_NONE, createSplayedBench, createSplayedStool, SPLAY_ANGLES, SPLAYED_DEFAULTS } from './leanTest';
 import { fitJointDepths } from '../jointfit';
 import { t, tk } from '../i18n';
 
@@ -432,10 +432,10 @@ TEMPLATES.push(
   },
 );
 
-// Prueba técnica de piezas inclinadas: la plantilla definitiva llega con las patas abiertas (tandas 44 a 47).
+// Muebles con las patas abiertas: piezas inclinadas, con los travesaños que las siguen.
 TEMPLATES.push({
   id: 'patas-abiertas',
-  name: tk('Taburete de patas abiertas (prueba)'),
+  name: tk('Taburete de patas abiertas'),
   projectName: tk('Taburete de patas abiertas'),
   createLabel: tk('Crear taburete'),
   fields: [
@@ -480,6 +480,86 @@ TEMPLATES.push({
   ],
   joints: null,
   build: createSplayedStool,
+});
+
+TEMPLATES.push({
+  id: 'banco-rustico',
+  name: tk('Banco rústico'),
+  projectName: tk('Banco rústico'),
+  createLabel: tk('Crear banco'),
+  fields: [
+    {
+      key: 'length',
+      label: tk('Largo'),
+      hint: tk('De punta a punta del asiento.'),
+      shows: { parts: 'S1', measure: 'S1', axis: 0 },
+      group: 'general',
+      default: BENCH_DEFAULTS.length,
+      min: 500,
+      max: 1800,
+    },
+    { key: 'depth', label: tk('Fondo'), hint: tk('De adelante hacia atrás del asiento.'), shows: { parts: 'S1', measure: 'S1', axis: 2 }, group: 'general', default: BENCH_DEFAULTS.depth, min: 220, max: 450 },
+    {
+      key: 'height',
+      label: tk('Alto'),
+      hint: tk('Desde el piso hasta arriba del asiento.'),
+      shows: { parts: 'P', measure: 'all', axis: 1 },
+      group: 'general',
+      default: BENCH_DEFAULTS.height,
+      min: 300,
+      max: 700,
+      typical: [420, 480],
+      typicalNote: tk('un banco para sentarse suele medir entre 42 y 48 cm de alto'),
+    },
+    {
+      key: 'splaySide',
+      label: tk('Apertura hacia los costados'),
+      hint: tk('Cuánto se abre cada pata hacia adelante o hacia atrás, visto desde una punta del banco: más apertura, menos se vuelca.'),
+      shows: { parts: 'P' },
+      group: 'general',
+      default: BENCH_DEFAULTS.splaySide,
+      min: 0,
+      max: SPLAY_ANGLES.length - 1,
+      choices: SPLAY_ANGLES.map((a) => `${a}°`),
+    },
+    {
+      key: 'splayLong',
+      label: tk('Apertura a lo largo'),
+      hint: tk('Cuánto se abre cada pata hacia su punta del banco, visto de frente.'),
+      shows: { parts: 'P' },
+      group: 'general',
+      default: BENCH_DEFAULTS.splayLong,
+      min: 0,
+      max: SPLAY_ANGLES.length - 1,
+      choices: SPLAY_ANGLES.map((a) => `${a}°`),
+    },
+    {
+      key: 'rungs',
+      label: tk('Travesaños'),
+      hint: tk('Barras entre las patas que las traban: siguen la apertura de las patas.'),
+      shows: { parts: 'R' },
+      group: 'general',
+      default: BENCH_DEFAULTS.rungs,
+      min: 0,
+      max: 2,
+      choices: [tk('Sin travesaños'), tk('En las puntas'), tk('En las puntas y a lo largo')],
+    },
+    {
+      key: 'rung',
+      label: tk('Altura del travesaño'),
+      hint: tk('A qué altura del piso van los travesaños de las puntas: los de a lo largo van un poco más arriba.'),
+      shows: { parts: 'R', measure: 'R3', axis: 1, fromFloor: true },
+      group: 'general',
+      default: BENCH_DEFAULTS.rung,
+      min: 80,
+      max: 400,
+      unlessKey: { key: 'rungs', value: BENCH_RUNGS_NONE },
+    },
+    { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: BENCH_DEFAULTS.leg, min: 35, max: 70 },
+    { key: 'seat', label: tk('Espesor del asiento'), hint: tk('Lo grueso de la tabla donde te sentás: la espiga de cada pata entra en él.'), shows: { parts: 'S1', measure: 'S1', axis: 1 }, group: 'piezas', default: BENCH_DEFAULTS.seat, min: 35, max: 70 },
+  ],
+  joints: null,
+  build: createSplayedBench,
 });
 
 export const templateById = (id: string) => TEMPLATES.find((t) => t.id === id);

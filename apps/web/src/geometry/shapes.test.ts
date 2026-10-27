@@ -260,7 +260,7 @@ it('las mismas piezas se proyectan varias veces sin rearmarlas', () => {
   shapes.forEach((s) => s.delete());
 });
 
-describe('patas inclinadas (prueba técnica)', () => {
+describe('patas inclinadas', () => {
   const stool = leanTestStool('guatambu', '2026-10-26T00:00:00Z');
   const straight: Project = { ...stool, parts: stool.parts.map((p) => ({ ...p, lean: undefined })) };
   const shape = (project: Project, id: string) => partShape(project.parts.find((p) => p.id === id)!, project);
@@ -349,6 +349,22 @@ describe('faldones y travesaños entre patas inclinadas', () => {
     for (const p of stool.parts) if (out[p.id]) p.lean = out[p.id];
     const built = noClashes(stool);
     for (const b of built.values()) b.shape.delete();
+  });
+
+  it('el banco rústico se arma sin choques con cada opción de travesaños', () => {
+    const def = TEMPLATES.find((t) => t.id === 'banco-rustico')!;
+    for (const [rungs, count] of [
+      [0, 0],
+      [1, 2],
+      [2, 4],
+    ] as const) {
+      const bench = buildTemplate(def, { ...templateDefaults(def), rungs }, 'guatambu', undefined, '2026-10-27T00:00:00Z');
+      expect(bench.parts.filter((p) => p.id.startsWith('R'))).toHaveLength(count);
+      const built = noClashes(bench);
+      // Cada pata llega al piso plana.
+      for (const id of ['P1', 'P2', 'P3', 'P4']) expect(built.get(id)!.shape.boundingBox.bounds[0][1]).toBeCloseTo(0, 0);
+      for (const b of built.values()) b.shape.delete();
+    }
   });
 });
 
