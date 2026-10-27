@@ -433,4 +433,7 @@ export default {
   'Entre espigas': 'Between tenons',
   '2 mortajas {t} × {w} × {d}{unit}': '2 mortises {t} × {w} × {d}{unit}',
   'Estás en la punta de {id}: lo que dibujes acá atraviesa todo el largo ({len}). Para darle forma al borde, tocá la cara ancha.': 'You are on the end of {id}: what you draw here goes through its whole length ({len}). To shape the edge, tap the wide face.',
+  'Ver la veta de la madera': 'Show the wood grain',
+  'Veta de la madera: tocá para ver colores lisos': 'Wood grain: tap for plain colors',
+  'Colores lisos: tocá para ver la veta de la madera': 'Plain colors: tap to show the wood grain',
 } satisfies Record<string, string>;

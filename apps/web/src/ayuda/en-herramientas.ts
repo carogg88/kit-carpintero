@@ -534,6 +534,15 @@ export const EN_TOOLS: Article[] = [
         title: 'More room for the model',
         blocks: [p('The button next to the views folds the panel on the right. Tap it again to open it.')],
       },
+      {
+        id: 'veta',
+        title: 'Grain or plain colors',
+        blocks: [
+          p('Each part shows the grain of its wood, running along the part: the faces show stripes and the ends show the growth rings. That way you see right away if a part has its grain the wrong way.'),
+          steps('Tap the button with three wavy lines, next to the views, to see the parts in a plain color.', 'Tap it again to go back to the grain.'),
+          tip('On a slow device, plain colors make the model move more smoothly. The app remembers your choice.'),
+        ],
+      },
     ],
     faq: [{ q: 'The keyboard arrows move the part the other way', a: 'They follow the view: in Front they move across and up; in Top, across and front to back.' }],
     related: ['mover', 'pantalla-editor'],

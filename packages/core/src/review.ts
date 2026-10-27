@@ -3,6 +3,7 @@ import { defaultMortiseParams, defaultTenonGap, DOUBLE_TENON_FROM, endJoint, JOI
 import { furnitureBox } from './resize';
 import { formatLength } from './units';
 import { isSheet, sheetById } from './woods';
+import { grainAxis, setGrain, shortGrain } from './grain';
 import type { Joint, JointType, Part, Project } from './project';
 import { locale, t, tk } from './i18n';
 
@@ -35,6 +36,7 @@ export interface ReviewNote {
 export type ReviewFix = { label: string } & (
   | { kind: 'joint'; joints: string[]; params: Record<string, number> }
   | { kind: 'part'; part: string; axis: Axis; min: number; size: number }
+  | { kind: 'grain'; part: string; axis: Axis }
 );
 
 /** Aplica el arreglo sobre el proyecto (o un borrador de él). Si lo que nombra ya no está, no hace nada. */
@@ -45,6 +47,7 @@ export function applyReviewFix(project: Pick<Project, 'parts' | 'joints'>, fix: 
   }
   const part = project.parts.find((x) => x.id === fix.part);
   if (!part || part.base.kind !== 'box') return;
+  if (fix.kind === 'grain') return void setGrain(part, fix.axis);
   part.position[fix.axis] = fix.min;
   part.base.size[fix.axis] = fix.size;
 }
@@ -53,10 +56,16 @@ const lower = (s: string) => s.toLocaleLowerCase(locale());
 const name = (p: Part) => lower(p.name);
 const mm = (v: number) => `${Math.round(v)} mm`;
 
-/** Ejes de una caja, del más largo al más corto. En la app la veta va siempre a lo largo de la pieza. */
+/** Ejes de una caja, del más largo al más corto. */
 const axesBySize = (b: Box): [Axis, Axis, Axis] => {
   const s = boxSize(b);
   return ([0, 1, 2] as Axis[]).sort((x, y) => s[y] - s[x]) as [Axis, Axis, Axis];
+};
+
+/** Lo ancho de la pieza: el más grande de los dos ejes que no son la veta. */
+const acrossGrain = (p: Part): Axis => {
+  const g = grainAxis(p);
+  return axesBySize(partBox(p)).find((k) => k !== g)!;
 };
 
 const solid = (p: Part) => p.base.kind === 'box' && !p.turning && !isSheet(p.wood);
@@ -87,9 +96,9 @@ function crossGrain(project: Project, j: Joint): ReviewNote | null {
   ] as const) {
     const wb = partBox(wide);
     const ob = partBox(other);
-    const [, across] = axesBySize(wb);
+    const across = acrossGrain(wide);
     const width = boxSize(wb)[across];
-    if (width < MOVING_WIDTH || axesBySize(ob)[0] !== across) continue;
+    if (width < MOVING_WIDTH || grainAxis(other) !== across) continue;
     const shared = Math.min(wb.max[across], ob.max[across]) - Math.max(wb.min[across], ob.min[across]);
     if (shared < LOCKED_SPAN) continue;
     const move = Math.max(1, Math.round(width * MOVEMENT_SHARE));
@@ -106,6 +115,34 @@ function crossGrain(project: Project, j: Joint): ReviewNote | null {
     };
   }
   return null;
+}
+
+// ── Veta corta ──────────────────────────────────────────────────────────────
+
+/**
+ * Pieza larga y angosta con la veta girada a lo ancho: la fibra queda corta y se parte con un golpe o al encolar. Pasa
+ * cuando se gira la veta a mano en una pata, un travesaño o un listón.
+ */
+function shortGrainNotes(project: Project): ReviewNote[] {
+  const notes: ReviewNote[] = [];
+  for (const p of project.parts) {
+    if (!shortGrain(p) || p.base.kind !== 'box') continue;
+    const long = axesBySize(partBox(p))[0];
+    notes.push({
+      id: `veta-corta|${p.id}`,
+      kind: 'veta',
+      parts: [p.id],
+      title: t('Veta corta: {a}', { a: p.name }),
+      text: t('{a} mide {l} de largo pero la veta va a lo ancho, por los {w}: la fibra queda corta y la pieza se parte con poco esfuerzo.', {
+        a: p.name,
+        l: formatLength(p.base.size[long], project.units),
+        w: formatLength(p.base.size[grainAxis(p)], project.units),
+      }),
+      fix: t('Poné la veta a lo largo de la pieza. Si buscabas la veta a lo ancho por el dibujo, usá una placa enchapada.'),
+      action: { kind: 'grain', part: p.id, axis: long, label: t('Poner la veta a lo largo') },
+    });
+  }
+  return notes;
 }
 
 // ── Estantes que se comban ──────────────────────────────────────────────────
@@ -366,6 +403,7 @@ export function reviewDesign(project: Project): ReviewNote[] {
         : t('Hacer espiga doble en las {n} uniones', { n: same.length });
   }
   notes.push(...tenons.filter((n) => !merged.has(n)));
+  notes.push(...shortGrainNotes(project));
   notes.push(...sagging(project));
   return notes;
 }

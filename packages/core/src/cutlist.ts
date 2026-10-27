@@ -1,3 +1,4 @@
+import { grainAxis, grainTurned } from './grain';
 import { boardFeet, LENGTHS_M, planedMm, stockFor, stockKind, type StockKind } from './catalog/boards';
 import { boxSize, partBox, type Box } from './geometry';
 import { isAngleCut } from './bevels';
@@ -215,8 +216,16 @@ export function cutPiece(part: Part, project: Project): CutPiece {
   for (const sec of part.sections) work.push(describeSection(sec, (mm) => `${Math.round(mm)} mm`).replace(/ mm × /, ' × '));
   const op = part.turning ? undefined : part.ops[0];
   if (op) work.push(op.kind === 'round' ? t('cantos redondeados {r} mm', { r: op.radius }) : t('cantos chaflanados {s} mm', { s: op.size }));
-  const finished = [...boxSize(box)].sort((x, y) => y - x);
-  const cut = [...boxSize(outer)].sort((x, y) => y - x) as [number, number, number];
+  // El largo de corte va a lo largo de la veta: lo más largo, salvo que la veta se haya girado a mano.
+  const turned = grainTurned(part) && !lean && !follow;
+  const byGrain = (b: Box): number[] => {
+    const s = boxSize(b);
+    if (!turned) return [...s].sort((x, y) => y - x);
+    const g = grainAxis(part);
+    return [s[g]!, ...s.filter((_, k) => k !== g).sort((x, y) => y - x)];
+  };
+  const finished = byGrain(box);
+  const cut = byGrain(outer) as [number, number, number];
   const sheet = sheetById(part.wood);
   let band: [number, number] | undefined;
   if (sheet) {

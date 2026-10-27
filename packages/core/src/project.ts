@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -154,6 +154,11 @@ export const Part = z.object({
    * las dos puntas quedan horizontales, a la misma altura que la pieza derecha.
    */
   lean: z.tuple([z.number(), z.number()]).optional(),
+  /**
+   * Eje por donde corre la veta (0 ancho, 1 alto, 2 fondo), si se eligió a mano (ver `grain.ts`). Sin esto, la veta va
+   * por lo más largo de la pieza.
+   */
+  grain: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
 });
 export type Part = z.infer<typeof Part>;
 
@@ -223,6 +228,8 @@ const migrations: Record<number, Migration> = {
   10: (d) => d,
   // v12 suma las patas inclinadas; las viejas van derechas.
   11: (d) => d,
+  // v13 suma la veta elegida a mano; las viejas van por lo más largo.
+  12: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

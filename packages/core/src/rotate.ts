@@ -114,6 +114,7 @@ function remapPart(part: Part, map: AxisMap): void {
     }
     part.turning = { axis: to, stations };
   }
+  if (part.grain !== undefined) part.grain = map[part.grain]!.to;
   // Por el centro: la pieza no se va de donde estaba.
   for (const k of [0, 1, 2] as Axis[]) part.position[k] = part.position[k]! + (size[k]! - next[k]!) / 2;
   part.base.size = next;

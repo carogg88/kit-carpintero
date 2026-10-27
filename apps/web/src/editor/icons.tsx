@@ -215,6 +215,11 @@ export const IconFit = () => (
     <rect x="8.5" y="8.5" width="7" height="7" rx="1" />
   </svg>
 );
+export const IconGrain = () => (
+  <svg {...base} width={18} height={18}>
+    <path d="M3 6c4-2 7 2 11 0s5-1 7 0M3 12c3-1.5 5 1.5 9 0s6-2 9 0M3 18c4-2 7 2 11 0s5-1 7 0" />
+  </svg>
+);
 export const IconClose = () => (
   <svg {...base} width={18} height={18}>
     <path d="M6 6l12 12M18 6 6 18" />

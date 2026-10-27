@@ -581,4 +581,7 @@ export default {
   'Separar piezas': 'Pull apart',
   'Giraste {id}, solo esta copia: lo que le hagas a cualquier copia le llega a cada una en su lugar': 'You rotated {id}, only this copy: whatever you do to any copy reaches each one in its place',
   'Esta copia va girada o espejada: los biseles y vaciados le llegan en su lugar.': 'This copy is rotated or mirrored: bevels and pockets reach it in its place.',
+  'Veta': 'Grain',
+  'Giraste la veta de {id}': 'You turned the grain of {id}',
+  'Por el {axis} · {mm}': 'Along the {axis} · {mm}',
 } satisfies Record<string, string>;

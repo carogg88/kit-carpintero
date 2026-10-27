@@ -11,7 +11,7 @@ import { invertOrient, isSameOrient, orientPart, SAME_ORIENT, type Orient } from
 
 const json = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const shapeOf = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, bevels: p.bevels, sections: p.sections, turning: p.turning, wood: p.wood });
+const shapeOf = (p: Part) => ({ base: p.base, ops: p.ops, pockets: p.pockets, bevels: p.bevels, sections: p.sections, turning: p.turning, wood: p.wood, grain: p.grain });
 
 /**
  * La forma común del componente vista desde esta copia: la forma de la pieza, desgirada. Dos copias giradas
@@ -81,6 +81,8 @@ export function syncComponents(prev: Project | null, next: Project): void {
       if (shaped.turning) p.turning = shaped.turning;
       else delete p.turning;
       p.wood = shaped.wood;
+      if (shaped.grain !== undefined) p.grain = shaped.grain;
+      else delete p.grain;
       o.forEach((v, c) => {
         if (!grew[c]) return;
         const k = Math.abs(v) - 1;

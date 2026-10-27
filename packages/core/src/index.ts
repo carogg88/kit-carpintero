@@ -34,6 +34,7 @@ export * from './groups';
 export * from './explode';
 export * from './profile';
 export * from './lean';
+export * from './grain';
 export * from './follow';
 export * from './sketch';
 export * from './dxf';
