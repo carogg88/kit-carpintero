@@ -1,5 +1,6 @@
 import { otherAxes, type Axis, type Vec3 } from './geometry';
 import type { Part, PocketShape } from './project';
+import { mirrorHinge } from './motion';
 
 /**
  * Girar una pieza 90° sobre uno de los ejes, por su centro. La pieza sigue siendo una caja alineada a los ejes:
@@ -176,6 +177,8 @@ export function flipPart(part: Part, axis: Axis): void {
   setOrient(part, mirrorOrient(axis));
   // La inclinación es de la punta de abajo, de frente (X) y de costado (Z); dada vuelta de arriba abajo no cambia.
   if (part.lean && axis !== 1) part.lean[axis === 0 ? 0 : 1] *= -1;
+  // La bisagra de una puerta pasa al otro lado.
+  mirrorHinge(part, axis);
 }
 
 /** Suma un giro o un reflejo a la orientación de la copia (solo en componentes). */

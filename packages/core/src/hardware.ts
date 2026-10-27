@@ -1,4 +1,5 @@
 import { boxSize, overlapBox, partBox, type Box } from './geometry';
+import { findMotions, hingeEdge, isDoorPart, isDrawerPart, slideGap, SLIDE_LENGTHS, unionBox } from './motion';
 import { jointGeometry } from './joints';
 import { boardPieces, dowelsNeeded, type CutPlan } from './cutlist';
 import type { Part, Project } from './project';
@@ -24,39 +25,6 @@ export interface HardwareRow {
   note?: string;
 }
 
-/** Largos de correderas metálicas que se consiguen, en mm. */
-const SLIDE_LENGTHS = [250, 300, 350, 400, 450, 500, 550, 600];
-
-const isDrawer = (p: Part) => /^K\d+$/.test(p.id);
-const isDoor = (p: Part) => /^D\d+$/.test(p.id);
-
-const touches = (a: Box, b: Box) => overlapBox({ min: a.min.map((v) => v - 0.6) as Box['min'], max: a.max.map((v) => v + 0.6) as Box['max'] }, b) !== null;
-
-/** Piezas que se tocan, agrupadas: cada grupo es un cajón o una hoja de puerta. */
-function clusters(parts: Part[]): Part[][] {
-  const left = [...parts];
-  const out: Part[][] = [];
-  while (left.length) {
-    const group = [left.shift()!];
-    for (let i = 0; i < group.length; i++) {
-      const b = partBox(group[i]!);
-      for (let j = left.length - 1; j >= 0; j--) {
-        if (touches(b, partBox(left[j]!))) group.push(...left.splice(j, 1));
-      }
-    }
-    out.push(group);
-  }
-  return out;
-}
-
-const unionOf = (parts: Part[]): Box => {
-  const bs = parts.map(partBox);
-  return {
-    min: [0, 1, 2].map((k) => Math.min(...bs.map((b) => b.min[k]!))) as Box['min'],
-    max: [0, 1, 2].map((k) => Math.max(...bs.map((b) => b.max[k]!))) as Box['max'],
-  };
-};
-
 /** Bisagras por hoja según el alto: dos hasta 90 cm, tres hasta 160 cm, y una más cada 50 cm. */
 export const hingesFor = (height: number) => (height <= 900 ? 2 : height <= 1600 ? 3 : 3 + Math.ceil((height - 1600) / 500));
 
@@ -75,28 +43,27 @@ const add = (rows: HardwareRow[], row: HardwareRow) => {
 export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
   const rows: HardwareRow[] = [];
   const boxes = project.parts.filter((p) => p.base.kind === 'box');
-  const carcass = boxes.filter((p) => !isDrawer(p) && !isDoor(p));
+  const motions = findMotions(project);
+  const moving = new Set(motions.flatMap((m) => m.parts));
+  const carcass = boxes.filter((p) => !moving.has(p.id) && !isDrawerPart(p) && !isDoorPart(p));
   const zFront = carcass.length ? Math.max(...carcass.map((p) => partBox(p).max[2])) : 0;
+  const partsOf = (ids: string[]) => boxes.filter((p) => ids.includes(p.id));
 
   for (const d of dowelsNeeded(project)) {
     add(rows, { id: `tarugo|${d.diameter}|${d.length}`, name: t('Tarugos de {d} × {len} mm', { d: d.diameter, len: Math.round(d.length) }), qty: d.count, unit: 'u' });
   }
 
   // Cajones: correderas metálicas si el cajón deja lugar a los costados, y un tirador por frente.
-  for (const drawer of clusters(boxes.filter(isDrawer))) {
+  for (const m of motions.filter((x) => x.kind === 'cajon')) {
+    const drawer = partsOf(m.parts);
+    if (!drawer.length) continue;
     const front = drawer.reduce((a, b) => (partBox(b).max[2] > partBox(a).max[2] ? b : a));
     const body = drawer.filter((p) => p !== front);
     const pulls = boxSize(partBox(front))[0] > 600 ? 2 : 1;
     add(rows, { id: 'tirador', name: t('Tiradores o manijas'), qty: pulls, unit: 'u', note: t('para cajones y puertas') });
     if (!body.length) continue;
-    const box = unionOf(body);
-    const gap = Math.min(
-      ...carcass
-        .map(partBox)
-        .filter((c) => c.max[1] > box.min[1] && c.min[1] < box.max[1] && c.max[2] > box.min[2] && c.min[2] < box.max[2])
-        .flatMap((c) => [box.min[0] - c.max[0], c.min[0] - box.max[0]])
-        .filter((g) => g > -0.6),
-    );
+    const box = unionBox(body);
+    const gap = slideGap(box, carcass.map(partBox));
     if (gap >= 10 && Number.isFinite(gap)) {
       const depth = box.max[2] - box.min[2];
       const len = SLIDE_LENGTHS.filter((l) => l <= depth + 5).at(-1) ?? SLIDE_LENGTHS[0]!;
@@ -104,11 +71,10 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
     }
   }
 
-  // Puertas: bisagras de cazoleta según el alto de cada hoja; codo 0 si tapa el canto, codo 18 si va embutida.
-  for (const leaf of clusters(boxes.filter(isDoor))) {
-    const b = unionOf(leaf);
-    const overlay = b.min[2] >= zFront - 0.6;
-    const n = hingesFor(b.max[1] - b.min[1]);
+  // Puertas: bisagras de cazoleta según lo largo del canto de cada hoja; codo 0 si tapa el canto, codo 18 si va embutida.
+  for (const m of motions.filter((x) => x.kind === 'puerta')) {
+    const overlay = m.box.min[2] >= zFront - 0.6;
+    const n = hingesFor(hingeEdge(m));
     add(
       rows,
       overlay
@@ -127,18 +93,9 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
   // Alto y de poco fondo: se atornilla a la pared.
   if (tipRisk(project)) add(rows, { id: 'antivuelco', name: t('Escuadras antivuelco'), qty: 2, unit: 'u', note: t('con tornillos y tarugos, para fijarlo a la pared') });
 
-  // Una caja chica con tapa suelta arriba: la tapa va con dos bisagras chicas, no atornillada.
-  const all = boxes.length ? unionOf(boxes) : null;
-  const lid =
-    all && all.max[1] - all.min[1] <= 400
-      ? boxes.find((p) => {
-          const b = partBox(p);
-          return b.max[1] === all.max[1] && b.min[0] <= all.min[0] + 0.6 && b.max[0] >= all.max[0] - 0.6 && b.min[2] <= all.min[2] + 0.6 && b.max[2] >= all.max[2] - 0.6;
-        })
-      : undefined;
-  if (lid && project.joints.some((j) => j.type === 'tope' && (j.partA === lid.id || j.partB === lid.id))) {
-    add(rows, { id: 'bisagra-tapa', name: t('Bisagras chicas de bronce'), qty: 2, unit: 'u', note: t('para la tapa') });
-  }
+  // Una tapa que se levanta va con dos bisagras chicas, no atornillada.
+  const lids = new Set(motions.filter((m) => m.kind === 'tapa').flatMap((m) => m.parts));
+  if (lids.size) add(rows, { id: 'bisagra-tapa', name: t('Bisagras chicas de bronce'), qty: 2 * motions.filter((m) => m.kind === 'tapa').length, unit: 'u', note: t('para la tapa') });
 
   // Lo que apoya sin encastre se atornilla; las traseras y fondos finos se clavan cada 15 cm.
   for (const j of project.joints) {
@@ -154,7 +111,7 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
       const g = jointGeometry('galleta', ba, bb, j.params);
       add(rows, { id: 'galleta', name: t('Galletas n.º 20'), qty: g?.cutA.length ?? 0, unit: 'u' });
     }
-    if (j.type !== 'tope' || isDrawer(a) || isDoor(a) || a === lid || b === lid) continue;
+    if (j.type !== 'tope' || moving.has(a.id) || isDrawerPart(a) || isDoorPart(a) || lids.has(a.id) || lids.has(b.id)) continue;
     const thin = Math.min(...boxSize(ba), ...boxSize(bb)) <= 9;
     if (thin) {
       const o = overlapBox({ min: ba.min.map((v) => v - 0.6) as Box['min'], max: ba.max.map((v) => v + 0.6) as Box['max'] }, bb);

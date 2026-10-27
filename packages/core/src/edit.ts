@@ -5,6 +5,7 @@ import { t, tk } from './i18n';
 import { fitJointDepths } from './jointfit';
 import { crossingInNotch } from './pockets';
 import { mirrorOrient, mirrorShape, setOrient } from './rotate';
+import { mirrorHinge } from './motion';
 
 /**
  * Herramientas de edición que no dependen de la pantalla: imán a caras cercanas, piezas nuevas
@@ -230,6 +231,7 @@ export function mirrorPart(parts: Part[], part: Part): MirrorResult | null {
   setOrient(twin, mirrorOrient(axis));
   // Una pata inclinada se abre hacia su lado: la gemela, hacia el otro.
   if (twin.lean) twin.lean[axis === 0 ? 0 : 1] *= -1;
+  mirrorHinge(twin, axis);
   twin.position = position;
   return { axis, part: twin };
 }

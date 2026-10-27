@@ -70,6 +70,12 @@ import {
   grainChoosable,
   grainOptions,
   setGrain,
+  findMotions,
+  motionOf,
+  opensTargets,
+  setOpens,
+  type Hinge,
+  type Opens,
 } from '@kitc/core';
 import { OPEN_EVENT, PartNotes, ReviewCard, reviewSummary, useReview } from './Review';
 import { GoldenCard, goldenCount } from './Golden';
@@ -900,6 +906,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         {sheetNote(part.wood) && <span className={styles.fieldNote}>{sheetNote(part.wood)}</span>}
       </label>
       <GrainRow part={part} units={units} />
+      <OpensRow project={project} partId={part.id} units={units} />
       {component && <ComponentNote project={project} part={part} name={component.name} />}
       <div className={styles.folds}>
         <Fold title={t('Forma')} summary={shape} open={open.forma} onToggle={() => toggle('forma')}>
@@ -1169,6 +1176,7 @@ function PickedPanel({ project, ids }: { project: Project; ids: string[] }) {
       </p>
       <FurnitureSize key={ids.join()} project={project} ids={ids} />
       <FlipRow ids={ids} label={label} />
+      {whole && <OpensRow project={project} partId={whole.parts[0]!} units={project.units} />}
       <ul className={styles.partList} data-many={parts.length > PART_LIST_MAX || undefined}>
         {parts.map((p) => (
           <li key={p.id}>
@@ -1300,6 +1308,65 @@ function GrainRow({ part, units }: { part: Part; units: Project['units'] }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+const OPENS: [Opens['kind'], string][] = [
+  ['no', tk('No')],
+  ['cajon', tk('Cajón')],
+  ['puerta', tk('Puerta')],
+  ['tapa', tk('Tapa abatible')],
+];
+const HINGES: [Hinge, string][] = [
+  ['izq', tk('Izquierda')],
+  ['der', tk('Derecha')],
+  ['arriba', tk('Arriba')],
+  ['abajo', tk('Abajo')],
+];
+
+/** Cómo se abre la pieza (y todo su cajón, puerta o grupo): lo que después se prueba en el 3D. */
+function OpensRow({ project, partId, units }: { project: Project; partId: string; units: Project['units'] }) {
+  const commit = useEditor((s) => s.commit);
+  const motion = useMemo(() => motionOf(findMotions(project), partId), [project, partId]);
+  const kind = motion?.kind ?? 'no';
+  const choose = (opens: Opens) =>
+    commit((d) => {
+      setOpens(d as Project, opensTargets(d as Project, partId), opens);
+    }, t('Elegiste cómo se abre {id}', { id: partId }));
+  const others = motion ? motion.parts.filter((id) => id !== partId).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) : [];
+  const how = !motion
+    ? null
+    : motion.slide
+      ? t('Corre {mm} hacia adelante.', { mm: formatLength(motion.slide[2], units) })
+      : motion.kind === 'tapa'
+        ? t('Se levanta por atrás, hasta {deg}°.', { deg: Math.round((Math.abs(motion.angle ?? 0) * 180) / Math.PI) })
+        : t('Abre hasta {deg}°.', { deg: Math.round((Math.abs(motion.angle ?? 0) * 180) / Math.PI) });
+  return (
+    <div className={styles.field} role="group" aria-labelledby={`abre-${partId}`}>
+      <span id={`abre-${partId}`}>{t('Se abre')}</span>
+      <div className={styles.seg}>
+        {OPENS.map(([k, label]) => (
+          <button key={k} type="button" aria-pressed={kind === k} onClick={() => kind !== k && choose({ kind: k })}>
+            {t(label)}
+          </button>
+        ))}
+      </div>
+      {motion?.kind === 'puerta' && (
+        <div className={styles.seg} role="group" aria-label={t('Bisagra')}>
+          {HINGES.map(([h, label]) => (
+            <button key={h} type="button" aria-pressed={motion.hinge === h} onClick={() => motion.hinge !== h && choose({ kind: 'puerta', hinge: h })}>
+              {t(label)}
+            </button>
+          ))}
+        </div>
+      )}
+      {motion && (
+        <span className={styles.fieldNote}>
+          {motion.kind === 'puerta' && t('Bisagra: {side}.', { side: t(HINGES.find(([h]) => h === motion.hinge)![1]).toLocaleLowerCase() })} {how}{' '}
+          {others.length ? t('Se mueve junto con {ids}.', { ids: others.join(', ') }) : ''}
+        </span>
+      )}
     </div>
   );
 }

@@ -84,6 +84,7 @@ export const ES_PARTS: Article[] = [
           p('En **Madera** elegís una madera maciza o una placa (MDF, melamina, terciado o multilaminado). Si elegís una placa, la pieza pasa al espesor de placa más cercano, porque las placas vienen en espesores fijos. Más información: [Placas](placas).'),
           p('Abajo, **Veta** dice para dónde corre la fibra. Sale sola por lo más largo de la pieza, que es como se corta la tabla. En un tablero o un panel la podés girar al otro lado: la lista de cortes pide la tabla con el largo a lo largo de la veta. En el MDF y la melamina no aparece, porque no tienen veta.'),
           tip('Si girás la veta en una pieza larga y angosta, como un listón o una pata, la revisión avisa **Veta corta**: así la pieza se parte con poco esfuerzo.'),
+          p('Más abajo, **Se abre** dice si la pieza se mueve: como **Cajón** (corre hacia adelante), **Puerta** (gira sobre la bisagra) o **Tapa abatible** (se levanta por atrás). Los cajones y puertas armados con el botón ya salen solos; una pieza o un grupo hechos a mano se marcan acá, y el cajón o la puerta entera cambia junta. En una puerta elegís de qué lado va la **Bisagra**: en un par, cada hoja abre hacia su lado. Una puerta marcada suma bisagras en los herrajes.'),
         ],
       },
       {
