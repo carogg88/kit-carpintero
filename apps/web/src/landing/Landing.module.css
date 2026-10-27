@@ -1,0 +1,190 @@
+/* Presentación: limpia como WoodHaven (blanco cálido, verde bosque y madera) con el orden de una página de producto:
+   portada con la captura, funciones, para quién es, cómo funciona y el llamado final. */
+.page { min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); overflow-x: clip; }
+.page main { flex: 1; }
+.skip { position: absolute; left: var(--gutter); top: -60px; z-index: 30; padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); background: var(--forest); color: var(--forest-ink); }
+.skip:focus { top: var(--space-2); }
+
+/* Barra fija: marca, secciones, idioma y Comenzar ahora siempre a mano. */
+.header { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid transparent; transition: border-color 200ms ease, box-shadow 200ms ease; }
+.header[data-scrolled] { border-bottom-color: var(--line); box-shadow: 0 4px 16px rgb(43 54 40 / 0.05); }
+.headerInner { max-width: 1200px; margin: 0 auto; min-height: 64px; padding: var(--space-2) var(--gutter); display: flex; align-items: center; gap: var(--space-5); }
+.brand { display: inline-flex; align-items: center; gap: var(--space-3); color: inherit; text-decoration: none; border-radius: 8px; }
+.brand svg { display: block; flex-shrink: 0; }
+.nav { display: flex; align-items: center; gap: var(--space-1); margin: 0 auto; }
+.nav button, .nav a {
+  min-height: var(--tap); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: none; color: var(--muted);
+  font: 500 var(--text-s) var(--font-ui); text-decoration: none; display: inline-flex; align-items: center; cursor: pointer; transition: color 150ms ease, background-color 150ms ease;
+}
+.nav button:hover, .nav a:hover { color: var(--ink); background: var(--surface-2); }
+.headerActions { display: flex; align-items: center; gap: var(--space-3); margin-left: auto; }
+.nav + .headerActions { margin-left: 0; }
+.helpIcon { display: none; width: var(--tap); height: var(--tap); align-items: center; justify-content: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--ink); background: var(--surface); }
+.lang { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); }
+.lang button { min-width: 40px; min-height: 34px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--muted); font: 600 var(--text-s) var(--font-ui); cursor: pointer; }
+.lang button[aria-pressed='true'] { background: var(--forest); color: var(--forest-ink); }
+
+/* Botones: el principal en madera, el otro con borde. */
+.cta, .ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 52px; padding: 0 var(--space-5); border-radius: var(--radius-pill);
+  font: 600 var(--text-m) var(--font-ui); text-decoration: none; white-space: nowrap; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.cta { border: 0; background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 28%, transparent); }
+.cta:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
+.cta svg { transition: transform 150ms ease; }
+.cta:hover svg { transform: translateX(3px); }
+.ctaSmall { min-height: var(--tap); padding: 0 var(--space-4); font-size: var(--text-s); box-shadow: none; }
+.ghost { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.ghost:hover { border-color: var(--forest); background: var(--surface-2); }
+.ghost svg { color: var(--accent); }
+.page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.eyebrow { font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--accent); }
+.h2 { margin: 0; font: 500 clamp(26px, 3vw, 36px)/1.15 var(--font-display); color: var(--ink); text-wrap: balance; }
+.h3 { margin: 0; font: 500 var(--text-l)/1.25 var(--font-display); color: var(--ink); }
+.sub { margin: 0; max-width: 60ch; font-size: var(--text-m); color: var(--muted); text-wrap: pretty; }
+
+/* Portada: texto a la izquierda, la captura del Modelo a la derecha en una forma de madera, con el modo taller en el celu encima. */
+.hero {
+  max-width: 1200px; margin: 0 auto; padding: var(--space-5) var(--gutter) var(--space-6);
+  display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr); align-items: center; gap: var(--space-6);
+  min-height: calc(100dvh - 64px); max-height: 820px;
+}
+.heroText { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+.heroTitle { margin: 0; font: 500 clamp(34px, 4.2vw, 56px)/1.06 var(--font-display); letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+.heroTitle span { color: var(--accent); }
+.lead { margin: 0; max-width: 46ch; font-size: var(--text-l); line-height: 1.55; color: var(--muted); text-wrap: pretty; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-1); }
+.proof { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); font: 500 var(--text-s) var(--font-ui); color: var(--ink); }
+.proof li { display: inline-flex; align-items: center; gap: var(--space-2); }
+.tick { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); }
+
+.heroArt { position: relative; align-self: stretch; display: flex; align-items: center; justify-content: flex-end; padding: var(--space-5) 0 var(--space-5) var(--space-6); min-height: 0; }
+/* La forma de madera de atrás: redondeada como las fotos de WoodHaven, con una esquina más grande. */
+.heroArt::before {
+  content: ''; position: absolute; inset: 0 calc(-1 * var(--gutter)) 0 15%; border-radius: 160px 28px 28px 28px;
+  background: linear-gradient(150deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 45%, var(--bg)));
+}
+.window { position: relative; margin: 0; width: 100%; max-height: 100%; border-radius: var(--radius-m); overflow: hidden; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 30px 60px -20px rgb(43 54 40 / 0.35), 0 8px 24px rgb(43 54 40 / 0.08); }
+.windowBar { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.windowBar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
+.window img { display: block; width: 100%; height: auto; aspect-ratio: 1440 / 900; object-fit: cover; }
+.phone {
+  position: absolute; left: 0; bottom: 0; margin: 0; width: clamp(110px, 12vw, 160px); border-radius: 22px; padding: 6px; background: var(--forest-ink);
+  background: #1f251d; box-shadow: 0 24px 48px -12px rgb(20 26 18 / 0.45);
+}
+.phone img { display: block; width: 100%; height: auto; border-radius: 16px; aspect-ratio: 390 / 844; object-fit: cover; object-position: top; }
+
+/* Secciones con el mismo ancho que la barra. */
+.section { max-width: 1200px; margin: 0 auto; padding: var(--space-6) var(--gutter) calc(var(--space-6) * 1.5); display: flex; flex-direction: column; gap: var(--space-5); scroll-margin-top: 64px; }
+.sectionHead { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* Funciones: cuatro tarjetas como las categorías de WoodHaven: ícono, título y una parte de la captura. */
+.features { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
+.feature { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow-card); transition: border-color 200ms ease, box-shadow 200ms ease; }
+.feature:hover { border-color: var(--line-strong); box-shadow: 0 12px 28px rgb(43 54 40 / 0.1); }
+.featureHead { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-1) var(--space-1) 0; }
+.featureHead p { margin: 2px 0 0; font-size: var(--text-s); line-height: 1.45; color: var(--muted); }
+.featureIcon { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--dark-card); color: var(--dark-card-ink); }
+.featureShot { position: relative; display: block; aspect-ratio: 4 / 3; margin-top: auto; overflow: hidden; border-radius: 40px 14px 14px 14px; border: 1px solid var(--line); background: var(--surface-2); }
+.featureShot img { position: absolute; display: block; max-width: none; height: auto; transition: transform 400ms ease; transform-origin: 50% 30%; }
+.feature:hover .featureShot img { transform: scale(1.03); }
+
+/* Para el taller: la banda verde de "Why choose", con el texto a la izquierda y cuatro motivos. Verde también en modo oscuro. */
+.craft { padding: 0 var(--gutter); scroll-margin-top: 64px; }
+.craftInner {
+  max-width: 1200px; margin: 0 auto; padding: var(--space-6); border-radius: 28px; background: var(--dark-card); color: var(--dark-card-ink);
+  display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 2fr); gap: var(--space-6); align-items: center;
+}
+.craftText { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+.craftText p { margin: 0; color: var(--dark-card-muted); font-size: var(--text-m); line-height: 1.55; }
+.craftTitle { margin: 0; font: 500 clamp(26px, 3vw, 36px)/1.15 var(--font-display); color: var(--dark-card-ink); }
+.craftTitle span { display: block; color: var(--signal); }
+.craftList { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.craftList li { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-left: 1px solid var(--dark-card-line); }
+.craftList h3 { margin: var(--space-1) 0 0; font: 500 var(--text-l)/1.25 var(--font-display); color: var(--dark-card-ink); }
+.craftList p { margin: 0; font-size: var(--text-s); line-height: 1.5; color: var(--dark-card-muted); }
+.craftIcon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid var(--dark-card-line); color: var(--signal); }
+
+/* Cómo funciona: tres pasos numerados y, debajo, todo lo demás en una grilla chica. */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); counter-reset: paso; }
+.steps li { position: relative; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-5); background: var(--surface); border: 1px solid var(--line); border-radius: 22px; }
+.steps p { margin: 0; font-size: var(--text-s); line-height: 1.5; color: var(--muted); }
+.stepNum { width: 40px; height: 40px; margin-bottom: var(--space-2); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--accent-ink); font: 500 var(--text-l) var(--font-display); }
+.more { list-style: none; margin: 0; padding: var(--space-4) var(--space-5); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3) var(--space-5); background: var(--surface-2); border-radius: 22px; }
+.more li { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; font-size: var(--text-s); line-height: 1.4; color: var(--ink); }
+.more li > span { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); color: var(--accent); }
+.more svg { width: 18px; height: 18px; }
+
+/* Llamado final, centrado sobre el beige. */
+.final { padding: 0 var(--gutter) calc(var(--space-6) * 1.5); }
+.finalInner {
+  max-width: 1200px; margin: 0 auto; padding: calc(var(--space-6) * 1.5) var(--space-5); border-radius: 28px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
+  background: radial-gradient(120% 140% at 50% 0%, var(--surface) 0%, var(--accent-soft) 100%); border: 1px solid var(--line);
+}
+.finalInner .actions { justify-content: center; }
+
+/* Pie: marca, enlaces a la app y a la ayuda, y la franja beige de abajo. */
+.footer { border-top: 1px solid var(--line); background: var(--surface); }
+.footerInner { max-width: 1200px; margin: 0 auto; padding: var(--space-6) var(--gutter); display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
+.footerBrand { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.footerBrand p { margin: 0; font-size: var(--text-s); color: var(--muted); }
+.footerCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.footerCol h3 { margin: 0 0 var(--space-2); font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--muted); }
+.footerCol a, .footerCol button { display: inline-flex; align-items: center; text-align: left; min-height: 36px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 var(--text-s) var(--font-ui); text-decoration: none; cursor: pointer; }
+.footerCol a:hover, .footerCol button:hover { color: var(--accent); }
+.footerBar { max-width: 1200px; margin: 0 auto var(--space-4); padding: var(--space-3) var(--space-4); border-radius: var(--radius-s); background: var(--surface-2); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); }
+@media (max-width: 1232px) { .footerBar { margin-left: var(--gutter); margin-right: var(--gutter); } }
+
+/* Pantallas bajas (la de 13"): la portada entra entera con el comienzo de lo que sigue a la vista. */
+@media (min-width: 1000px) and (max-height: 760px) {
+  .hero { padding-top: var(--space-3); padding-bottom: var(--space-4); gap: var(--space-5); }
+  .heroText { gap: var(--space-3); }
+  .heroTitle { font-size: clamp(34px, 3.6vw, 48px); }
+  .lead { font-size: var(--text-m); }
+  .heroArt { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+  .window { max-width: calc((100dvh - 64px - 2 * var(--space-4) - 2 * var(--space-4) - 32px) * 1.6); }
+}
+
+/* Tableta: sin los enlaces de secciones; tarjetas de a dos. */
+@media (max-width: 999px) {
+  .nav { display: none; }
+  .headerActions { margin-left: auto; }
+  .nav + .headerActions { margin-left: auto; }
+  .helpIcon { display: inline-flex; }
+  .hero { grid-template-columns: 1fr; min-height: 0; max-height: none; padding-top: var(--space-4); gap: var(--space-5); }
+  .heroArt { padding-left: var(--space-5); }
+  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .craftInner { grid-template-columns: 1fr; padding: var(--space-5); }
+  .craftList { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--space-4); }
+  .more { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Celular: una columna; el texto de la marca y el idioma se van de la barra (el idioma queda en el pie). */
+@media (max-width: 599px) {
+  .headerInner { min-height: 56px; gap: var(--space-2); }
+  .headerActions { gap: var(--space-2); }
+  .headerActions .lang { display: none; }
+  .brand > svg:last-child { width: 96px; height: auto; }
+  .hero { padding-top: var(--space-3); padding-bottom: var(--space-5); gap: var(--space-4); }
+  .heroTitle { font-size: 34px; }
+  .lead { font-size: var(--text-m); }
+  .actions { width: 100%; flex-direction: column; }
+  .actions > * { width: 100%; }
+  .heroArt { padding: var(--space-4) 0 var(--space-5) var(--space-5); }
+  .heroArt::before { left: 8%; border-radius: 80px 20px 20px 20px; }
+  .phone { width: 92px; border-radius: 16px; padding: 4px; }
+  .phone img { border-radius: 12px; }
+  .section { padding-top: var(--space-5); padding-bottom: var(--space-6); gap: var(--space-4); }
+  .features { grid-template-columns: 1fr; }
+  .craftInner { padding: var(--space-5) var(--space-4); border-radius: 22px; }
+  .craftList { grid-template-columns: 1fr; }
+  .craftList li { padding: 0 0 0 var(--space-4); }
+  .steps { grid-template-columns: 1fr; }
+  .steps li { padding: var(--space-4); }
+  .more { grid-template-columns: 1fr; padding: var(--space-3) var(--space-4); }
+  .finalInner { padding: var(--space-6) var(--space-4); }
+  .footerInner { grid-template-columns: 1fr 1fr; }
+  .footerBrand { grid-column: 1 / -1; }
+}

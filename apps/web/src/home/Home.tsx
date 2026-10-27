@@ -17,7 +17,7 @@ import { deleteProject, listProjects, saveProject } from '../storage/db';
 import { download, readExported } from '../storage/backup';
 import { warmUpEngine } from '../editor/useGeometry';
 import { BrandMark, BrandWordmark } from '../brand/Brand';
-import { HELP_ROUTE, navigate, sectionHref } from '../routes';
+import { HELP_ROUTE, LANDING_ROUTE, navigate, sectionHref } from '../routes';
 import { useInstall } from '../pwa';
 import { projectName, switchLang } from '../i18n';
 import { JointMeta } from '../help/Help';
@@ -463,10 +463,10 @@ export function Home({ onOpen }: { onOpen: (id: string) => void }) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <span className={styles.brand}>
+          <a className={styles.brand} href={LANDING_ROUTE} aria-label={t('Calibre Studio: ver la presentación')} title={t('Ver la presentación')}>
             <BrandMark height={40} />
             <BrandWordmark height={26} />
-          </span>
+          </a>
           <span className={styles.headerActions}>
             <span className={styles.lang} role="group" aria-label="Idioma · Language">
               {(['es', 'en'] as const).map((l) => (
