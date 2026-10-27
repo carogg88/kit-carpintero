@@ -567,4 +567,7 @@ export const MESSAGES_EN: Record<string, string> = {
   'Partila en dos: una espiga doble, con madera en el medio, se mueve menos y deja la pieza más fuerte.': 'Split it in two: a double tenon, with wood in the middle, moves less and leaves the part stronger.',
   'Hacer espiga doble': 'Make a double tenon',
   'Hacer espiga doble en las {n} uniones': 'Make a double tenon on the {n} joints',
+  CORTE: 'CUT',
+  OCULTO: 'HIDDEN',
+  TEXTO: 'TEXT',
 };
