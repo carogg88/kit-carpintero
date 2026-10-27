@@ -41,7 +41,7 @@ export const ES: HelpContent = {
               '**Plano**: las hojas para imprimir, con las medidas de cada pieza y las plantillas 1:1.',
               '**Armado**: el orden para encolar y armar el mueble, paso a paso.',
             ),
-            tip('Arriba, al lado del nombre del proyecto, **¿Qué sigue?** te dice cuál es el próximo paso.'),
+            tip('En las pestañas, un punto marca la que sigue y una tilde las que ya viste.'),
           ],
         },
         {
@@ -140,10 +140,9 @@ export const ES: HelpContent = {
             list(
               '**Logo y flecha**: vuelven al inicio. El proyecto ya está guardado.',
               '**Nombre del proyecto**: tocalo para cambiarlo. Debajo dice si está guardado.',
-              '**¿Qué sigue?**: el próximo paso del proyecto. La cruz lo cierra.',
-              '**Pestañas**: Modelo, Uniones (con la cantidad de uniones), Cortes, Plano y Armado.',
+              '**Pestañas**: Modelo, Uniones (con la cantidad de uniones), Cortes, Plano y Armado. Un punto marca la que sigue y una tilde las que ya viste.',
               '**?**: abre este Centro de ayuda.',
-              '**Compartir**: un enlace con el proyecto, o la lista de compras como texto.',
+              '**Compartir**: un enlace con el proyecto, el proyecto en un archivo o la lista de compras como texto.',
               '**Deshacer y Rehacer**: vuelven atrás o adelante el último cambio.',
               '**cm y pulgadas**: las unidades en que se ven y se escriben las medidas.',
             ),
@@ -244,7 +243,7 @@ export const ES: HelpContent = {
           blocks: [
             steps(
               'En el inicio, buscá el proyecto. Su etiqueta dice **Sin copia en archivo**, **Cambió desde la copia** o **Copia al día**.',
-              'Tocá **Guardar copia**, o el menú ⋮ del proyecto y después **Exportar archivo**.',
+              'Tocá **Guardar copia**, o el menú ⋮ del proyecto y después **Exportar archivo**. Con el proyecto abierto, también está en **Compartir**.',
               'Se descarga un archivo que termina en .kitc.json. Guardalo donde quieras.',
             ),
             img('guardar', 'El menú ⋮ de un proyecto, abierto'),

@@ -41,7 +41,7 @@ export const EN: HelpContent = {
               '**Plans**: the sheets to print, with the sizes of every part and the 1:1 templates.',
               '**Assembly**: the order to glue up and assemble the piece, step by step.',
             ),
-            tip('At the top, next to the project name, **What’s next?** tells you the next step.'),
+            tip('In the tabs, a dot marks the next one and a tick the ones you’ve already seen.'),
           ],
         },
         {
@@ -136,10 +136,9 @@ export const EN: HelpContent = {
             list(
               '**Logo and arrow**: go back home. The project is already saved.',
               '**Project name**: tap it to change it. Below it says whether it is saved.',
-              '**What’s next?**: the next step of the project. The cross closes it.',
-              '**Tabs**: Model, Joints (with the number of joints), Cuts, Plans and Assembly.',
+              '**Tabs**: Model, Joints (with the number of joints), Cuts, Plans and Assembly. A dot marks the next one and a tick the ones you’ve already seen.',
               '**?**: opens this Help Center.',
-              '**Share**: a link with the project, or the shopping list as text.',
+              '**Share**: a link with the project, the project as a file, or the shopping list as text.',
               '**Undo and Redo**: step back or forward through the last change.',
               '**cm and inches**: the units sizes are shown and typed in.',
             ),
@@ -240,7 +239,7 @@ export const EN: HelpContent = {
           blocks: [
             steps(
               'On the home screen, find the project. Its tag says **No backup file**, **Changed since the backup** or **Backup up to date**.',
-              'Tap **Save a backup**, or the project ⋮ menu and then **Export file**.',
+              'Tap **Save a backup**, or the project ⋮ menu and then **Export file**. With the project open, it’s also in **Share**.',
               'A file ending in .kitc.json downloads. Keep it wherever you like.',
             ),
             img('guardar', 'The ⋮ menu of a project, open'),

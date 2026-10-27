@@ -523,7 +523,7 @@ export const ES_REST: Article[] = [
         blocks: [
           table(
             ['Qué', 'Dónde', 'Para qué'],
-            ['Archivo .kitc.json', 'Inicio, menú ⋮ del proyecto, **Exportar archivo**', 'Copia de seguridad, o seguir en otra compu con **Abrir archivo**'],
+            ['Archivo .kitc.json', 'Inicio, menú ⋮ del proyecto, o **Compartir** en el editor: **Exportar archivo**', 'Copia de seguridad, o seguir en otra compu con **Abrir archivo**'],
             ['Planilla de cortes (.csv)', 'Cortes, **Exportar planilla**', 'Abrirla en Excel o Google Sheets, o llevarla a la casa de placas'],
             ['Plano en PDF', 'Plano, **Descargar PDF**', 'Imprimirlo o tenerlo en el celular'],
             ['Lista de compras como texto', 'Botón de compartir, **Copiar lista**', 'Mandarla por mensaje'],

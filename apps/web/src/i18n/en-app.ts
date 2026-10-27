@@ -114,6 +114,8 @@ export default {
   'Paso {n} de {total}': 'Step {n} of {total}',
   Cambiar: 'Change',
   'Cerrar qué sigue': 'Close what\'s next',
+  'Sigue: {step}': 'Next: {step}',
+  '(sigue)': '(next)',
   // Inicio con plantillas rápidas
   'Seguí donde lo dejaste': 'Pick up where you left off',
   'Cambió desde la copia': 'Changed since the backup',

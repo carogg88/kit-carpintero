@@ -14,6 +14,7 @@ import {
   type Project,
 } from '@kitc/core';
 import { deleteProject, listProjects, saveProject } from '../storage/db';
+import { download, readExported } from '../storage/backup';
 import { warmUpEngine } from '../editor/useGeometry';
 import { BrandMark, BrandWordmark } from '../brand/Brand';
 import { HELP_ROUTE, navigate, sectionHref } from '../routes';
@@ -222,32 +223,6 @@ function summary(p: Project): { size: string; meta: string } {
   const count = p.parts.length === 1 ? t('1 pieza') : t('{n} piezas', { n: p.parts.length });
   const meta = [wood, count, when(p.updatedAt)].filter(Boolean).join(' · ');
   return { size, meta };
-}
-
-/** Cuándo se exportó cada proyecto por última vez, en este navegador. */
-const exportKey = (id: string) => `kitc:exportado:${id}`;
-function readExported(id: string): string | null {
-  try {
-    return localStorage.getItem(exportKey(id));
-  } catch {
-    return null;
-  }
-}
-
-function download(p: Project) {
-  const blob = new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${p.name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || t('proyecto')}.kitc.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  const at = new Date().toISOString();
-  try {
-    localStorage.setItem(exportKey(p.id), at);
-  } catch {
-    // Sin almacenamiento: el recordatorio vuelve a aparecer.
-  }
-  return at;
 }
 
 /** El ⋮ de un proyecto: ir al plano, exportar o eliminar. */
