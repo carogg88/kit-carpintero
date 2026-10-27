@@ -59,7 +59,8 @@ export const EN: HelpContent = {
       ],
       faq: [
         { q: 'Do I need to know woodworking?', a: 'You do not need to be an expert: the app suggests common joints and sizes, and every workshop word has a ? button that explains it with a drawing.' },
-        { q: 'Does it work for any piece of furniture?', a: 'It works for furniture made of straight parts: tables, benches, shelves, chests of drawers, boxes. Legs can be turned or have thinner sections.' },
+        { q: 'Does it work for any piece of furniture?', a: 'It works for furniture made of straight parts: tables, benches, shelves, chests of drawers, boxes. Legs can be turned, have thinner sections or lean out, like on a chair. Learn more: [Leaning legs](patas-inclinadas).' },
+        { q: 'Is there a page to show the app to someone?', a: 'Yes, the overview: it tells what the app does, with screenshots of a real piece. It opens when you go to the app’s address, or when you tap the Calibre Studio logo at the top left of the home screen. **Go to your projects** brings you back.' },
       ],
       related: ['crear-proyecto', 'pantalla-editor', 'guardar'],
     },
@@ -76,7 +77,7 @@ export const EN: HelpContent = {
           blocks: [
             steps(
               'On the home screen, tap **From a template** or one of the **Quick templates**.',
-              'Choose the piece: table, stool, shelf, chest of drawers, bookcase, bench and more.',
+              'Choose the piece: table, stool, shelf, chest of drawers, bookcase, bench, chair and more.',
               'Fill in the **Overall dimensions**. When you tap a size, the drawing marks which part of the piece changes.',
               'If you want, open **Parts** and **Wood and joints** to adjust thicknesses, the wood and the joint type.',
               'Tap **Create** and the piece opens in the editor.',
@@ -186,7 +187,7 @@ export const EN: HelpContent = {
             p('The panel changes with what is selected:'),
             list(
               '**Nothing selected**: the size of the whole piece, the design review, the golden ratio, the parts list and **Add part**.',
-              '**A part selected**: its sizes, its position, Rotate 90°, the wood, the edges and its joints. At the bottom, Duplicate, Other side and Delete.',
+              '**A part selected**: its sizes, its position, Rotate 90°, Lean the leg (on legs and posts), the wood, the edges and its joints. At the bottom, Duplicate, Other side and Delete.',
             ),
             p('The button next to the views folds the panel to see the model larger.'),
           ],

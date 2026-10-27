@@ -330,6 +330,53 @@ async function createTable(page) {
   await page.context().close();
 }
 
+// Compu: la silla, con las patas inclinadas, y sus ángulos en Cortes y en el Plano.
+{
+  const page = await open(desktop);
+  await page.goto(`${BASE}#/nuevo/silla`);
+  await page.getByRole('button', { name: 'Crear silla' }).waitFor();
+  await page.waitForTimeout(1500);
+  await shot(page, 'plantilla-silla');
+  await page.getByRole('button', { name: 'Crear silla' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3500);
+  // La pata delantera derecha, y el panel corrido hasta Inclinar la pata.
+  await page.mouse.click(540, 540);
+  await page.waitForTimeout(1000);
+  await page.getByText('Inclinar la pata').evaluate((el) => el.closest('fieldset').scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(500);
+  await shot(page, 'patas-inclinadas');
+  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Cortes' }).first().click();
+  await page.waitForTimeout(2000);
+  await shot(page, 'patas-cortes');
+  await page.getByRole('link', { name: 'Plano' }).first().click();
+  await page.waitForTimeout(3000);
+  await page.getByRole('button', { name: /Despiece 1/ }).click();
+  await page.waitForTimeout(2500);
+  await shot(page, 'patas-plano');
+  await page.context().close();
+}
+
+// Compu: espiga doble en las uniones de pata con faldón de la mesa, con las piezas separadas.
+{
+  const page = await open(desktop);
+  await createTable(page);
+  await page.getByRole('button', { name: 'Crear mesa' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3000);
+  await page.getByRole('link', { name: /^Uniones/ }).first().click();
+  await page.waitForTimeout(3000);
+  await page.getByLabel('Espigas').selectOption('2');
+  await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: /^Aplicar/ }).first().click();
+  await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: 'Separar piezas' }).click();
+  await page.waitForTimeout(2000);
+  await shot(page, 'espiga-doble');
+  await page.context().close();
+}
+
 // Celular: el editor con la mesa y el modo taller.
 {
   const page = await open(phone);

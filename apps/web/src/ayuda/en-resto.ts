@@ -87,10 +87,24 @@ export const EN_REST: Article[] = [
           tip('That way a table’s four legs get the same tenons in a single change.'),
         ],
       },
+      {
+        id: 'doble',
+        title: 'Double tenon',
+        blocks: [
+          p('On a wide apron or rail, a single tenon ends up too wide: it moves with humidity and weakens the leg. A double tenon splits it in two, with wood in the middle.'),
+          steps(
+            'In **Joints**, pick a **Mortise and tenon** joint.',
+            'Set **Tenons** to **Double**.',
+            'In **Between tenons**, type how much wood stays in the middle.',
+          ),
+          img('espiga-doble', 'A double tenon on a table apron, with the parts pulled apart'),
+          tip('If the tenon is over 9 cm wide, the design review warns **Wide tenon** and offers to **Make a double tenon** at both ends of the part.'),
+        ],
+      },
     ],
     faq: [
       { q: 'A thick-tenon warning shows up', a: 'The tenon is over a third of the part’s thickness: the shoulders get thin. Bring it down to the size the warning says.' },
-      { q: 'How do I make a double tenon?', a: 'On a mortise and tenon, set **Tenons** to **Double**: you get two tenons side by side with wood in the middle, and **Between tenons** sets how much. It suits wide parts, like a tall apron: they move less and the leg stays stronger. If the tenon is over 9 cm wide, the design review suggests it.' },
+      { q: 'Does a double tenon change the mortise?', a: 'Yes: the leg gets two mortises, one per tenon. The cut list, the plans and the assembly already count them.' },
       { q: 'Does the change in the detail also show in the model?', a: 'Yes: the model, the cut list and the plans use the same sizes.' },
     ],
     related: ['uniones', 'tipos-union', 'revision'],
@@ -149,6 +163,7 @@ export const EN_REST: Article[] = [
         blocks: [
           p('The **Parts** tab has one row per part (or per set of equal parts): code, quantity, **Cut length**, **Width × thickness**, wood and the work it takes, like tenons or tails at the ends.'),
           note('If a part is longer than the lumber yard’s boards (3.66 m), a warning says so: you need to splice it or order a special length.'),
+          tip('Leaning legs and the rungs that follow them say in **Work** the angle of their ends for the bevel gauge. Learn more: [Leaning legs](patas-inclinadas).'),
         ],
       },
       {
@@ -326,6 +341,7 @@ export const EN_REST: Article[] = [
             ['1:1 templates', 'Curves and turning at full size, if the piece has them'],
           ),
           p('Tap a sheet in the list to see it. Zoom in with the zoom buttons, by pinching or with a double tap.'),
+          tip('If the piece has leaning legs, the parts sheet draws them straight, lengthwise, with the angle of each end: the bevel-gauge setting, between the edge and the long point.'),
         ],
       },
       {
@@ -450,6 +466,7 @@ export const EN_REST: Article[] = [
           list(
             'At the top it says which piece it is and how many you have done. Equal pieces go together, on one screen.',
             'Check each step when you finish it. Checks are saved on the phone.',
+            'If the piece has angled ends, like a leaning leg, the drawing shows the bevel-gauge angle.',
             'Move with **Next piece** and the back arrow, or tap **see all** at the top to jump to one.',
             'At the top right it says whether the screen stays on (**Screen on**) or **May turn off**. Tap it to change that.',
             'Leave with the ✕ at the top left.',
