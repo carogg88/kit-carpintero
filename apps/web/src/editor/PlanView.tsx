@@ -37,6 +37,7 @@ import {
   type Project,
   type Rect2,
   type Units,
+  plainJoint,
 } from '@kitc/core';
 import { IconDownload, IconZoomIn, IconZoomOut } from './icons';
 import { capitalize, formatIds, woodName } from './cutsData';
@@ -728,10 +729,10 @@ const VIEW_NAMES = [tk('Vista de costado'), tk('Vista desde arriba'), tk('Vista 
 /** Hoja de encastres: un detalle por grupo de uniones con cortes, en dos vistas con su nombre. */
 function jointSheets(project: Project, refine: Refine): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
-  const groups = groupJoints(project).filter((g) => g.joints.some((j) => j.type !== 'tope'));
+  const groups = groupJoints(project).filter((g) => g.joints.some((j) => !plainJoint(j)));
   const details = groups
     .map((g) => {
-      const j = g.joints.find((x) => x.type !== 'tope')!;
+      const j = g.joints.find((x) => !plainJoint(x))!;
       const d = drawJointDetail(project, j.id);
       return d && { g, j, d: { ...d, views: d.views.map(refine) } };
     })

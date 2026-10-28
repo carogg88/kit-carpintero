@@ -10,8 +10,9 @@ describe('uniones de la mesa', () => {
     const groups = groupJoints(table);
     expect(groups.map((g) => [g.label, g.joints.length])).toEqual([
       ['Pata con faldón', 8],
-      ['Tapa con pata', 4],
+      // Los faldones llevan la ranura de los botones de la tapa: tienen cortes.
       ['Tapa con faldón', 4],
+      ['Tapa con pata', 4],
     ]);
     expect(groups[0]?.joints[0]?.partA).toBe('P1');
   });

@@ -2,7 +2,7 @@ import { cutList, cutPiece } from './cutlist';
 import { t, tk } from './i18n';
 import { groupJoints } from './jointinfo';
 import { jointRoom } from './jointfit';
-import { JOINT_NAMES, tenonStyle, type TenonStyle } from './joints';
+import { HOLD_NAMES, holdOf, JOINT_NAMES, plainJoint, tenonStyle, type Hold, type TenonStyle } from './joints';
 import type { JointType, Project } from './project';
 
 /**
@@ -52,6 +52,13 @@ const JOINT_HOW: Partial<Record<JointType, string>> = {
   brida: tk('Primero la horquilla en {b}; después el rebaje en {a}, ajustado al ancho de la horquilla.'),
   'media-madera': tk('Rebajá {a} y {b} a la mitad del espesor. Cortá un poco menos y ajustá con formón hasta que queden al ras.'),
   inglete: tk('Cortá los ingletes de {a} y {b} con la sierra bien a 45°: probá antes con dos retazos que cierren a escuadra.'),
+};
+
+/** Lo que se le hace al faldón para sujetar la tapa sin trabarla. */
+const HOLD_HOW: Partial<Record<Hold, string>> = {
+  botones: tk('Hacé la ranura de los botones en la cara de adentro de {b}, con fresadora o sierra de mesa. Los botones salen de un retazo: una lengüeta de 6 mm que entre en la ranura sin llegar al fondo.'),
+  grampas: tk('Hacé los rebajes de las grampas en el canto de arriba de {b}, con una mecha Forstner de 20 mm, del hondo justo de la chapa.'),
+  ovalados: tk('Hacé los agujeros de bolsillo en {b} y alargá la salida 4 mm hacia donde se mueve la tapa, con la mecha inclinada.'),
 };
 
 /** Cómo se hace cada forma de trabar la caja y espiga, además de la caja y la espiga. */
@@ -104,9 +111,9 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
   // Encastres: de a un tipo por vez en cada grupo, los que llevan cortes. Lo que va a tope se atornilla al encolar.
   const groups = groupJoints(project);
   for (const g of groups) {
-    const types = [...new Set(g.joints.map((j) => j.type))].filter((type) => type !== 'tope');
+    const types = [...new Set(g.joints.filter((j) => !plainJoint(j)).map((j) => j.type))];
     for (const type of types) {
-      const joints = g.joints.filter((j) => j.type === type);
+      const joints = g.joints.filter((j) => j.type === type && !plainJoint(j));
       const a = listIds(joints.map((j) => j.partA));
       const b = listIds(joints.map((j) => j.partB));
       // Las espigas o agujeros que se acortaron para no chocar adentro de la pieza: que no se hagan como las demás.
@@ -130,14 +137,15 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
       steps.push({
         key: `encastre:${g.key}:${type}`,
         kind: 'encastre',
-        title: t('{joint}: {group}', { joint: t(JOINT_NAMES[type]), group: g.label.toLocaleLowerCase() }),
-        text: t(JOINT_HOW[type] ?? tk('Hacé los encastres en {a} y {b}. Probá primero con un retazo.'), { a, b }),
+        title: t('{joint}: {group}', { joint: t(type === 'tope' ? HOLD_NAMES[holdOf(joints[0]!.params)] : JOINT_NAMES[type]), group: g.label.toLocaleLowerCase() }),
+        text: t((type === 'tope' ? HOLD_HOW[holdOf(joints[0]!.params)] : JOINT_HOW[type]) ?? tk('Hacé los encastres en {a} y {b}. Probá primero con un retazo.'), { a, b }),
         items: [joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: joints.length }), ...styles, ...(shortNote ? [shortNote] : [])],
         joint: type,
       });
     }
   }
-  const cuts = steps.some((s) => s.kind === 'encastre');
+  // La ranura de los botones no se presenta en seco: la tapa se sujeta al final.
+  const cuts = steps.some((s) => s.kind === 'encastre' && s.joint !== 'tope');
 
   // Vaciados, biseles, tramos, torneados: con la pieza suelta, antes de armar. El mismo trabajo en varias piezas va
   // en una línea ("P1 a P4: cantos redondeados 3 mm").
@@ -187,7 +195,13 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
         : t('Uní las piezas con tornillos o clips de fijación, con agujeros guía para que la madera no se raje.'),
       items: [
         ...glued.map((g) => t('{group}: {n} uniones con cola', { group: g.label, n: g.joints.length })),
-        ...plain.map((g) => t('{group}: va a tope; al final, con tornillos o clips de fijación', { group: g.label })),
+        ...plain.map((g) => {
+          // La tapa que corre: se sujeta al final, sin cola.
+          const held = g.joints.find((j) => !plainJoint(j));
+          return held
+            ? t('{group}: va a tope, sin cola; al final, sujetala con {hold}', { group: g.label, hold: t(HOLD_NAMES[holdOf(held.params)]).toLocaleLowerCase() })
+            : t('{group}: va a tope; al final, con tornillos o clips de fijación', { group: g.label });
+        }),
       ],
     });
 

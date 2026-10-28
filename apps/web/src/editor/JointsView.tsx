@@ -9,8 +9,14 @@ import {
   defaultJointParams,
   endJoint,
   fitJointDepths,
+  FLOATING_HOLDS,
   formatNumber,
   groupJoints,
+  HOLD_ABOUT,
+  HOLD_NAMES,
+  HOLDS,
+  holdFits,
+  holdOf,
   jointChoices,
   jointContact,
   jointGrowth,
@@ -24,6 +30,7 @@ import {
   recommendedJoint,
   partBox,
   partWord,
+  plainJoint,
   styleDefaults,
   swapJoint,
   t,
@@ -182,7 +189,7 @@ function JointList({
                 {shown.map((j) => (
                   <li key={j.id}>
                     <button type="button" aria-current={j.id === current.id ? 'true' : undefined} onClick={() => onPick(j)}>
-                      <span className={styles.thumb} data-plain={j.type === 'tope' || undefined} aria-hidden="true">
+                      <span className={styles.thumb} data-plain={plainJoint(j) || undefined} aria-hidden="true">
                         {JOINT_DRAWING[j.type]}
                       </span>
                       <span className={styles.pair}>
@@ -250,6 +257,10 @@ function ruleHint(j: Joint, a: Part, b: Part, n: (mm: number) => string): string
       return t('La lengüeta mide un tercio del espesor de {id} ({thick}) y entra la mitad de ese espesor.', { id: b.id, thick: n(minDim(b)) });
     case 'bolsillo':
       return t('Tornillos de cabeza plana, de unos 3 cm para madera de 19 mm. Uno cada 12 cm.');
+    case 'tope':
+      return FLOATING_HOLDS.has(holdOf(j.params))
+        ? t('Sin cola: la tapa maciza se mueve con la humedad y la sujeción la tiene que dejar correr.')
+        : t('No lleva cortes. Si es una tapa maciza ancha, sujetala con botones o grampas en 8, no con cola ni tornillos fijos.');
     default:
       return t('No lleva cortes: se fija con tornillos, clips de fijación o cola.');
   }
@@ -265,7 +276,7 @@ function cutChanges(j: Joint, a: Part, b: Part, project: Project, n: (mm: number
   });
   switch (j.type) {
     case 'tope':
-      return [t('No cambia ningún corte.')];
+      return plainJoint(j) ? [t('No cambia ningún corte.')] : [capitalize(describeJoint(j, project))];
     case 'mortaja':
     case 'canal':
     case 'rebaje':
@@ -421,6 +432,21 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
     galleta: [choose('size', t('Galleta'), BISCUITS.map(([size]) => size), (v) => t('Nº {size}', { size: v })), choose('count', t('Cantidad'), upTo(6))],
     machiembrado: [length('thickness', t('Espesor'), 2), length('depth', t('Largo'), 3, reachA)],
     bolsillo: [choose('count', t('Tornillos'), upTo(6))],
+    // A tope no se corta: se elige cómo se sujeta. Lo que deja correr la madera, solo si entra en esta pieza.
+    tope: crossing
+      ? []
+      : [
+          choose(
+            'hold',
+            t('Cómo se sujeta'),
+            HOLDS.map((_, i) => i).filter((i) => i === (params.hold ?? 0) || holdFits(ba, bb, HOLDS[i]!)),
+            (v) => t(HOLD_NAMES[HOLDS[v] ?? 'libre']),
+            true,
+          ),
+          <p key="hold-about" className={`${styles.note} ${styles.fieldNote}`}>
+            {t(HOLD_ABOUT[holdOf(params)])}
+          </p>,
+        ],
   };
   const fields: React.ReactNode[] =
     fineFields[joint.type] ??
@@ -567,6 +593,12 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
             <span className={apart ? styles.swatchWood : styles.swatchXray} aria-hidden="true" />
             {apart ? partWord(a) : t('{part} en rayos X', { part: partWord(a) })}
           </span>
+          {joint.type === 'tope' && holdOf(joint.params) === 'botones' && (
+            <span className={styles.legend} style={{ top: 76 }}>
+              <span className={styles.swatchDark} aria-hidden="true" />
+              {t('Botones')}
+            </span>
+          )}
           <button type="button" className={styles.apartBtn} aria-pressed={apart} title={t('Separa las dos piezas para ver la espiga afuera y la caja vacía')} onClick={() => setApart(!apart)}>
             {apart ? t('Juntar') : t('Separar piezas')}
           </button>
@@ -589,7 +621,9 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
         {fields.length > 0 && (
           <fieldset className={styles.params} data-count={fields.length}>
             <legend className={styles.eyebrow}>
-              {joint.type === 'mortaja'
+              {joint.type === 'tope'
+                ? t('Sujeción')
+                : joint.type === 'mortaja'
                 ? t('Medidas de la espiga ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })
                 : t('Medidas del encastre ({units})', { units: units === 'cm' ? 'cm' : t('pulgadas') })}
             </legend>

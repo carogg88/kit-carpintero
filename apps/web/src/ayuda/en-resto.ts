@@ -139,6 +139,28 @@ export const EN_REST: Article[] = [
           tip('Two through tenons reaching the same height of a leg cross inside it: the app warns about it. Move one up or down, or leave it blind.'),
         ],
       },
+      {
+        id: 'tapa',
+        title: 'Holding a solid top',
+        blocks: [
+          p('A solid wood top moves across its width with humidity: a 90 cm top, close to 1 cm between summer and winter. If it is glued or screwed tight to the aprons, they stop it from moving and it cracks. That is why it goes as a **Butt joint**, with no glue, held with something that lets it slide.'),
+          table(
+            ['How it is held', 'What it is', 'What it does to the apron'],
+            ['Wooden buttons', 'Small blocks with a tongue that fits a groove in the apron, screwed to the top', 'A groove on the inside face'],
+            ['Figure-8 fasteners', 'A figure-8 plate: one eye goes on the apron and the other on the top, and it pivots when the top moves', 'A round recess in the top edge'],
+            ['Screws in slotted holes', 'Pocket screws with the hole elongated toward where the top moves', 'Slotted pocket holes'],
+            ['Glued or fixed screws', 'They lock the wood: only for narrow pieces or sheet goods', 'Nothing'],
+          ),
+          steps(
+            'In **Joints**, pick a joint between the top and an apron (**Top to apron**).',
+            'In **How it is held**, pick the way. Only the ones that fit that part show up: buttons and fasteners don’t go on a leg.',
+            'With **Apply to all 4 joints of top to apron** checked, it goes to all four aprons at once.',
+          ),
+          img('tapa-botones', 'A table top held with wooden buttons in the apron groove'),
+          note('The table and the other templates with a solid top already come with buttons. The buttons, fasteners and their screws show up in **Hardware**, the groove or recesses on the apron’s plan, and in **Assembly** the top goes on last, with no glue.'),
+          tip('If a wide solid top rests without saying how, glued or with fixed screws, the design review warns **The top cannot move** and offers **Hold with wooden buttons**.'),
+        ],
+      },
     ],
     faq: [
       { q: 'A thick-tenon warning shows up', a: 'The tenon is over a third of the part’s thickness: the shoulders get thin. Bring it down to the size the warning says.' },

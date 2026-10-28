@@ -1,5 +1,5 @@
 import { endContact, overlapBox, partBox, type Axis } from './geometry';
-import { jointGeometry, solidBox } from './joints';
+import { jointGeometry, plainJoint, solidBox } from './joints';
 import { partAxesBySize } from './edit';
 import type { Joint, Part, Project } from './project';
 import { locale, t } from './i18n';
@@ -30,7 +30,7 @@ export function groupJoints(project: Project): JointGroup[] {
   }
   const list = [...groups.values()];
   for (const g of list) g.joints.sort((x, y) => byId(x.partA, y.partA) || byId(x.partB, y.partB));
-  const plain = (g: JointGroup) => (g.joints.every((j) => j.type === 'tope') ? 1 : 0);
+  const plain = (g: JointGroup) => (g.joints.every(plainJoint) ? 1 : 0);
   return list.sort((x, y) => plain(x) - plain(y));
 }
 

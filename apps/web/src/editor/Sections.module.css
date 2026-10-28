@@ -116,6 +116,7 @@
 }
 .swatchSolid { width: 12px; height: 12px; border-radius: 3px; background: var(--signal); }
 .swatchXray { width: 12px; height: 12px; border-radius: 3px; border: 1.5px dashed var(--xray-edge); }
+.swatchDark { width: 12px; height: 12px; border-radius: 3px; background: var(--xray-edge); }
 .swatchWood { width: 12px; height: 12px; border-radius: 3px; background: var(--locator-wood, #d9bc8c); border: 1px solid var(--xray-edge); }
 /* Separar piezas: arriba a la derecha del detalle. */
 .apartBtn {

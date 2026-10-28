@@ -21,7 +21,7 @@ const H = styles.hole;
 
 /** Qué es cada encastre: se ve al elegirlo en las plantillas y en la pantalla de Uniones. */
 export const JOINT_ABOUT: Partial<Record<JointType, string>> = {
-  tope: tk('Las piezas solo se apoyan, sin cortes. Se fijan con tornillos, clips de fijación o cola.'),
+  tope: tk('Las piezas solo se apoyan, sin cortes. Se fijan con tornillos o cola; una tapa maciza, con botones de madera o grampas en 8 que la dejan moverse.'),
   mortaja: tk('Encastre clásico para patas y faldones: fuerte y oculto. Se hace con escoplo o fresadora; la espiga va encolada.'),
   'media-madera': tk('Cada pieza se rebaja a la mitad de su espesor y quedan al ras. Se hace con sierra y formón, o con fresadora.'),
   canal: tk('Una ranura a lo largo de una pieza donde entra el canto de la otra. Ideal para fondos y paneles; se hace con fresadora o sierra de mesa.'),

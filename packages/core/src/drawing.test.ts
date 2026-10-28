@@ -37,7 +37,8 @@ describe('dibujo técnico', () => {
     const f1 = table.parts.find((p) => p.id === 'F1')!;
     const d = drawPart(table, f1);
     expect(Math.round(d.bounds.u1 - d.bounds.u0)).toBe(1680);
-    expect(d.joints.length).toBe(2);
+    // Las dos espigas y la ranura de los botones de la tapa.
+    expect(d.joints.length).toBe(3);
   });
 
   it('el detalle de una mortaja tiene dos vistas con la espiga', () => {
