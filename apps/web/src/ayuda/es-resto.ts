@@ -11,7 +11,7 @@ export const ES_REST: Article[] = [
     title: 'Los tipos de unión',
     summary: 'Qué encastres ofrece la app, cuál conviene y con qué herramientas se hace cada uno.',
     intro: [
-      p('Cuando dos piezas se tocan, la app propone un encastre y te ofrece solo los que se pueden hacer en ese lugar. En **Uniones** están todas, agrupadas por dónde van: patas con faldones, estantes con laterales, y así.'),
+      p('Cuando dos piezas se tocan, la app propone un encastre. Los que no se pueden hacer en ese lugar también se ven, con el motivo. En **Uniones** están todas, agrupadas por dónde van: patas con faldones, estantes con laterales, y así.'),
       img('uniones', 'La sección Uniones: la lista de grupos a la izquierda y el detalle a la derecha'),
     ],
     sections: [
@@ -25,6 +25,21 @@ export const ES_REST: Article[] = [
             'Elegí uno. El que lleva **Recomendado** es el que conviene para esas piezas; cada uno dice su dificultad, y la (i) muestra un dibujo y cómo se hace.',
           ),
           tip('También se cambia desde el panel de la pieza, en **Uniones**, con la lista de cada renglón.'),
+        ],
+      },
+      {
+        id: 'no-van',
+        title: 'Los que no van, y cómo hacer que vayan',
+        blocks: [
+          p('Debajo de los encastres que se pueden, en **No van acá, y por qué**, están los demás con lo que les falta: “se cruzan”, “la pieza tiene 10 mm y este encastre pide 12”, “queda 8 mm adentro del canto”.'),
+          steps(
+            'Si hay un arreglo, el encastre tiene un botón: **Recortar hasta la cara**, **Engrosar**, **Ensanchar** o **Llevar al ras del canto**.',
+            'Tocalo: el detalle 3D y **Qué cambia en los cortes** muestran cómo queda, en **Vista previa**.',
+            'Tocá **Aplicar** para hacer el cambio y pasar a ese encastre, o **Cancelar** para dejarlo como estaba.',
+          ),
+          tip('Dos piezas que se cruzan solo admiten media madera o apoyado en muesca. Si la punta de una apenas entra en la otra, **Recortar hasta la cara** la deja tocando la cara, y ahí ya van caja y espiga, tarugos y los demás.'),
+          p('Arriba del detalle, **Que reciba…** cambia cuál de las dos piezas lleva la caja, el rebaje o los huecos. En un cruce, **Dar vuelta el cruce** cambia cuál queda arriba.'),
+          p('En la lista de uniones, **Casi se tocan** muestra las piezas a las que les faltan hasta 5 mm para tocarse. **Estirar** alarga la pieza hasta la otra y aparece la unión.'),
         ],
       },
       {
@@ -51,8 +66,8 @@ export const ES_REST: Article[] = [
       },
     ],
     faq: [
-      { q: '¿Por qué no aparece la cola de milano en una unión?', a: 'Solo se ofrecen los encastres que se pueden hacer con esas piezas en esa posición.' },
-      { q: 'Dos piezas se tocan y no tienen unión', a: 'Acercalas con Mover hasta que se toquen de verdad: la unión aparece cuando las caras se apoyan.' },
+      { q: '¿Por qué no puedo elegir la cola de milano en una unión?', a: 'En **Cambiar**, abajo, en **No van acá, y por qué**, está el motivo: por ejemplo, las colas piden una pieza de 30 mm de ancho o más. Si hay un arreglo, tiene su botón.' },
+      { q: 'Dos piezas se tocan y no tienen unión', a: 'Si les faltan pocos milímetros, aparecen en **Casi se tocan**, arriba de la lista de uniones, con el botón **Estirar**. Si no, acercalas con Mover hasta que se toquen de verdad.' },
     ],
     related: ['medidas-union', 'encastre-cerca', 'unir'],
   },

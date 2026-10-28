@@ -1,26 +1,34 @@
 import { useEffect, useId, useState } from 'react';
 import { produce, type Draft } from 'immer';
 import {
+  applyJointFix,
+  applyReviewFix,
   BISCUITS,
+  boxSize,
+  canSwap,
   defaultJointParams,
   endJoint,
   fitJointDepths,
   formatNumber,
   groupJoints,
+  jointChoices,
   jointContact,
   jointGrowth,
   jointName,
   jointNotes,
   jointOptions,
   locale,
+  nearMisses,
   overlapBox,
   recommendedJoint,
   partBox,
   partWord,
+  swapJoint,
   t,
   type Joint,
   type JointGroup,
   type JointType,
+  type NearMiss,
   type Part,
   type Project,
 } from '@kitc/core';
@@ -59,12 +67,43 @@ function pairNames(parts: readonly Part[], j: Joint): string {
   return t('{a} con {b}', { a, b: b.toLocaleLowerCase(locale()) });
 }
 
+/** Piezas a las que les faltan unos milímetros para tocarse: sin unión, con el botón que las junta. */
+function NearMisses({ misses, parts, onFix }: { misses: NearMiss[]; parts: readonly Part[]; onFix: (m: NearMiss) => void }) {
+  if (!misses.length) return null;
+  const nameOf = (id: string) => parts.find((p) => p.id === id)?.name ?? id;
+  return (
+    <section className={styles.near} aria-labelledby="casi-titulo">
+      <h2 id="casi-titulo" className={styles.eyebrow}>
+        {t('Casi se tocan')}
+      </h2>
+      <p className={styles.note}>{t('A estas piezas les faltan unos milímetros para tocarse, así que no tienen unión.')}</p>
+      <ul className={styles.nearList}>
+        {misses.map((m) => (
+          <li key={`${m.a}-${m.b}`}>
+            <span className={styles.pair}>
+              <span className={styles.pairCodes}>
+                {m.b} ↔ {m.a}
+              </span>
+              <span className={styles.pairNames}>{t('{a} con {b}', { a: nameOf(m.b), b: nameOf(m.a).toLocaleLowerCase(locale()) })}</span>
+            </span>
+            <button type="button" className={styles.fixBtn} onClick={() => onFix(m)}>
+              {m.fix.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function JointList({
   groups,
   parts,
   current,
   warned,
   onPick,
+  misses,
+  onFixMiss,
 }: {
   groups: JointGroup[];
   parts: readonly Part[];
@@ -72,6 +111,8 @@ function JointList({
   /** Uniones con un aviso de taller: cortes que chocan, espigas muy angostas. */
   warned: ReadonlySet<string>;
   onPick: (j: Joint) => void;
+  misses: NearMiss[];
+  onFixMiss: (m: NearMiss) => void;
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [more, setMore] = useState<Record<string, boolean>>({});
@@ -80,7 +121,8 @@ function JointList({
       <h1 id="uniones-titulo" className={styles.h1}>
         {t('Uniones del mueble')}
       </h1>
-      <p className={styles.muted}>{t('La app encuentra dónde se tocan las piezas y te ofrece solo los encastres posibles en cada lugar.')}</p>
+      <p className={styles.muted}>{t('La app encuentra dónde se tocan las piezas. En cada unión ves los encastres que van y, en “Cambiar”, por qué no van los otros.')}</p>
+      <NearMisses misses={misses} parts={parts} onFix={onFixMiss} />
       <div className={styles.groups}>
         {groups.map((g) => {
           const at = g.joints.findIndex((j) => j.id === current.id);
@@ -236,7 +278,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   // La lista de tipos se abre a pedido: lo que más se toca son las medidas.
   const [choosing, setChoosing] = useState(false);
   // Un cambio que va a todo el grupo espera confirmación, con lo que cambia en los cortes a la vista.
-  const [pendingAll, setPendingAll] = useState<{ title: string; recipe: (d: Draft<Project>) => void } | null>(null);
+  const [pendingAll, setPendingAll] = useState<{ title: string; recipe: (d: Draft<Project>) => void; single?: boolean } | null>(null);
   // Mientras se escribe una medida, el detalle 3D ya muestra cómo queda (solo esta unión).
   const [draft, setDraft] = useState<Project | null>(null);
   const [apart, setApartState] = useState(apartOn);
@@ -252,8 +294,16 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   const n = (mm: number) => `${formatNumber(mm, units)}${unit}`;
   const ba = partBox(a);
   const bb = partBox(b);
-  const options = jointOptions(ba, bb);
+  // Todos los encastres: los que van, y los que no con el motivo y el arreglo.
+  const choices = jointChoices(a, b, n);
+  const options = choices.filter((c) => c.ok).map((c) => c.type);
   if (!options.includes(joint.type)) options.unshift(joint.type);
+  const off = choices.filter((c) => !c.ok && c.type !== joint.type);
+  const crossing = !!overlapBox(ba, bb);
+  // Hasta dónde puede entrar una espiga, unas colas o un tarugo: el espesor de la pieza que recibe.
+  const contact = endJoint(ba, bb);
+  const reachA = contact ? boxSize(ba)[contact.axis] : undefined;
+  const reachB = contact ? boxSize(bb)[contact.axis] : undefined;
   // El recomendado va primero, con su marca.
   const recommended = recommendedJoint(ba, bb);
   if (recommended) options.sort((x, y) => Number(y === recommended) - Number(x === recommended));
@@ -262,6 +312,9 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   const shown = preview?.joints.find((j) => j.id === joint.id) ?? joint;
   const params = { ...defaultJointParams(joint.type, ba, bb), ...(shown.type === joint.type ? shown.params : joint.params) };
   const targets = applyAll ? group.joints : [joint];
+  // Con un arreglo esperando, las piezas pueden haber cambiado de papel: se muestran como quedan.
+  const shownA = preview?.parts.find((p) => p.id === shown.partA) ?? a;
+  const shownB = preview?.parts.find((p) => p.id === shown.partB) ?? b;
   const warning = meshes.get(a.id)?.warning ?? meshes.get(b.id)?.warning;
 
   // Con varias uniones, primero la vista previa; con una sola, directo.
@@ -292,13 +345,14 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
       }
     });
 
-  const length = (key: string, label: string, min = 1) => (
+  const length = (key: string, label: string, min = 1, max?: number) => (
     <LengthField
       key={`${joint.id}-${key}`}
       label={label}
       mm={params[key] ?? 0}
       units={units}
       min={min}
+      max={max}
       highlight={hint?.field === key}
       onCommit={(v) => setParam(key, v, label)}
       onDraft={(v) =>
@@ -327,18 +381,18 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   );
   const upTo = (max: number) => Array.from({ length: max }, (_, i) => i + 1);
   const fineFields: Partial<Record<JointType, React.ReactNode[]>> = {
-    'cola-milano': [choose('count', t('Colas'), upTo(8)), choose('slope', t('Pendiente'), SLOPES, (v) => `1:${v}`), length('depth', t('Largo'), 3)],
-    dedos: [choose('count', t('Dedos'), upTo(12)), length('depth', t('Largo'), 3)],
-    brida: [length('thickness', t('Lengüeta'), 3), length('depth', t('Largo'), 5)],
+    'cola-milano': [choose('count', t('Colas'), upTo(8)), choose('slope', t('Pendiente'), SLOPES, (v) => `1:${v}`), length('depth', t('Largo'), 3, reachA)],
+    dedos: [choose('count', t('Dedos'), upTo(12)), length('depth', t('Largo'), 3, reachA)],
+    brida: [length('thickness', t('Lengüeta'), 3), length('depth', t('Largo'), 5, reachA)],
     galleta: [choose('size', t('Galleta'), BISCUITS.map(([size]) => size), (v) => t('Nº {size}', { size: v })), choose('count', t('Cantidad'), upTo(6))],
-    machiembrado: [length('thickness', t('Espesor'), 2), length('depth', t('Largo'), 3)],
+    machiembrado: [length('thickness', t('Espesor'), 2), length('depth', t('Largo'), 3, reachA)],
     bolsillo: [choose('count', t('Tornillos'), upTo(6))],
   };
   const fields: React.ReactNode[] =
     fineFields[joint.type] ??
     (joint.type === 'mortaja'
       ? [
-          length('length', t('Largo'), 5),
+          length('length', t('Largo'), 5, reachA),
           length('thickness', t('Espesor'), 3),
           length('shoulder', t('Hombro'), 0),
           // Doble: dos espigas lado a lado con madera en el medio, para piezas anchas.
@@ -369,11 +423,27 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
                   ))}
                 </select>
               </label>,
-              length('depthA', t('Hondo en {id}', { id: a.id }), 5),
-              length('depthB', t('Hondo en {id}', { id: b.id }), 5),
+              length('depthA', t('Hondo en {id}', { id: a.id }), 5, reachA),
+              length('depthB', t('Hondo en {id}', { id: b.id }), 5, reachB),
             ]
           : []);
+  if (joint.type === 'mortaja' && reachA)
+    fields.push(
+      <p key="reach" className={`${styles.note} ${styles.fieldNote}`}>
+        {t('El largo llega hasta {max}, el espesor de {id}: con ese largo la espiga es pasante.', { max: n(reachA), id: a.id })}
+      </p>,
+    );
   const notes = jointNotes(project, joint, n);
+  const fix = (c: (typeof off)[number]) => {
+    if (!c.fix) return;
+    const action = c.fix;
+    setChoosing(false);
+    setPendingAll({
+      title: t('{fix} y pasar a {joint}', { fix: action.label, joint: nameOf(c.type).toLocaleLowerCase(locale()) }),
+      recipe: (d) => applyJointFix(d, joint.id, c.type, action),
+      single: true,
+    });
+  };
   const legendB = joint.type === 'mortaja' ? t('Espiga') : joint.type === 'cola-milano' ? t('Colas') : `${b.id} ${b.name}`;
 
   return (
@@ -387,9 +457,22 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           <span className={styles.mono}>
             {a.id} {a.name} ↔ {b.id} {b.name} · {jointContact(a, b)}
           </span>
-          <h2 id="detalle" className={styles.h2}>
-            {nameOf(joint.type, a, b)}
-          </h2>
+          <div className={styles.titleRow}>
+            <h2 id="detalle" className={styles.h2}>
+              {nameOf(joint.type, a, b)}
+            </h2>
+            {canSwap(a, b) && (
+              <button
+                type="button"
+                className={styles.swapBtn}
+                title={crossing ? t('Cambia cuál de las dos piezas queda arriba en el cruce') : t('Cambia cuál de las dos piezas lleva la caja, el rebaje o los huecos')}
+                onClick={() => commit((d) => swapJoint(d, joint.id), crossing ? t('Cruce dado vuelta') : t('Ahora recibe {id}', { id: b.id }))}
+              >
+                <span aria-hidden="true">⇄</span>
+                {crossing ? t('Dar vuelta el cruce') : t('Que reciba {id}', { id: b.id })}
+              </button>
+            )}
+          </div>
         </div>
         {/* Los avisos arriba, antes del detalle: abajo quedaban fuera de la pantalla. */}
         {warning && (
@@ -465,10 +548,10 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
         {pendingAll && preview && (
           <div className={styles.pendingAll} role="group" aria-labelledby={`${joint.id}-pend`}>
             <span className={styles.eyebrow} id={`${joint.id}-pend`}>
-              {t('Vista previa · {n} uniones de {group}', { n: targets.length, group: group.label.toLocaleLowerCase(locale()) })}
+              {pendingAll.single ? t('Vista previa') : t('Vista previa · {n} uniones de {group}', { n: targets.length, group: group.label.toLocaleLowerCase(locale()) })}
             </span>
             <strong>{pendingAll.title}</strong>
-            {cutChanges(shown, a, b, preview, n).map((line) => (
+            {cutChanges(shown, shownA, shownB, preview, n).map((line) => (
               <span key={line} className={styles.pendingLine}>
                 {line}
               </span>
@@ -485,7 +568,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
                   setPendingAll(null);
                 }}
               >
-                {t('Aplicar a las {n}', { n: targets.length })}
+                {pendingAll.single ? t('Aplicar') : t('Aplicar a las {n}', { n: targets.length })}
               </button>
             </div>
           </div>
@@ -540,6 +623,24 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
               </label>
             ))}
           </fieldset>
+          {off.length > 0 && (
+            <div className={styles.offBlock} hidden={!choosing}>
+              <span className={styles.eyebrow}>{t('No van acá, y por qué')}</span>
+              <ul className={styles.offList}>
+                {off.map((c) => (
+                  <li key={c.type} className={styles.offItem}>
+                    <span className={styles.offName}>{nameOf(c.type, a, b)}</span>
+                    <span className={styles.offWhy}>{c.reason}</span>
+                    {c.fix && (
+                      <button type="button" className={styles.fixBtn} onClick={() => fix(c)}>
+                        {c.fix.label}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className={styles.changes}>
@@ -574,11 +675,24 @@ export function JointsView({ project, meshes }: { project: Project; meshes: Read
   const joint = project.joints.find((j) => j.id === selectedId) ?? groups[0]?.joints[0];
   const group = joint && groups.find((g) => g.joints.some((j) => j.id === joint.id));
 
+  const units = project.units;
+  const fmt = (mm: number) => `${formatNumber(mm, units)}${units === 'cm' ? ' cm' : '″'}`;
+  const misses = nearMisses(project, fmt);
+  // Al juntar dos piezas aparece su unión: se abre.
+  const fixMiss = (m: NearMiss) => {
+    useEditor.getState().commit((d) => applyReviewFix(d, m.fix), m.fix.label);
+    const made = useEditor.getState().project?.joints.find((j) => [j.partA, j.partB].sort().join('|') === [m.a, m.b].sort().join('|'));
+    if (made) {
+      setSelectedId(made.id);
+      setDetailOpen(true);
+    }
+  };
   if (!joint || !group) {
     return (
       <main className={styles.empty}>
         <h1 className={styles.h1}>{t('Todavía no hay uniones')}</h1>
         <p className={styles.muted}>{t('En el modelo, acercá dos piezas hasta que se toquen y la app te propone un encastre.')}</p>
+        <NearMisses misses={misses} parts={project.parts} onFix={fixMiss} />
         <a className={styles.primary} href={sectionHref(project.id, 'modelo')}>
           {t('Ir al modelo')}
         </a>
@@ -593,6 +707,8 @@ export function JointsView({ project, meshes }: { project: Project; meshes: Read
         parts={project.parts}
         current={joint}
         warned={warned}
+        misses={misses}
+        onFixMiss={fixMiss}
         onPick={(j) => {
           setSelectedId(j.id);
           setDetailOpen(true);
