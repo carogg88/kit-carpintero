@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { partBox, partKey, placedJoint, type Box, type Joint, type Part, type Project } from '@kitc/core';
+import { buttonBlocks, endJoint, FLOATING_HOLDS, holdOf, partBox, partKey, placedJoint, type Box, type Joint, type Part, type Project } from '@kitc/core';
 import { usePartMaterial } from './woodMaterial';
 import { useDraftMeshes, type ExactMesh } from './useGeometry';
 import { cssColor } from './Viewport';
@@ -22,8 +22,52 @@ function focusBox(a: Box, b: Box): THREE.Box3 {
   return contact.expandByScalar(Math.max(70, 0.45 * Math.max(size.x, size.y, size.z)));
 }
 
+/**
+ * Una tapa sujeta con botones o grampas: el contacto es todo el faldón y se vería chico. Se encuadra una punta, donde
+ * se ve el primer botón o la primera grampa.
+ */
+function holdFocus(a: Box, b: Box): THREE.Box3 {
+  const j = endJoint(a, b);
+  if (!j) return focusBox(a, b);
+  const min = [...b.min];
+  const max = [...b.max];
+  max[j.wide] = Math.min(max[j.wide]!, j.section.min[j.wide] + 340);
+  min[j.axis] = Math.max(min[j.axis]!, j.face - 60);
+  max[j.axis] = Math.min(max[j.axis]!, j.face + 60);
+  return new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)).expandByScalar(40);
+}
+
+/** Desde adentro del mueble y desde abajo: así se ven la ranura y los botones, que quedan debajo de la tapa. */
+function holdView(a: Box, b: Box): THREE.Vector3 {
+  const j = endJoint(a, b);
+  if (!j) return DIR;
+  const v = [0, 0, 0];
+  v[j.thin] = (a.min[j.thin] + a.max[j.thin]) / 2 >= (b.min[j.thin] + b.max[j.thin]) / 2 ? 1.1 : -1.1;
+  v[j.axis] = -j.dir * 0.75;
+  v[j.wide] = 0.7;
+  return new THREE.Vector3(...v).normalize();
+}
+
+/** Lo que no es una pieza pero se ve en la unión: los botones que sujetan la tapa. */
+function Blocks({ boxes, fill, edge }: { boxes: Box[]; fill: string; edge: string }) {
+  return boxes.map((b, i) => {
+    const size = b.max.map((v, k) => v - b.min[k]!) as [number, number, number];
+    const center = b.min.map((v, k) => v + size[k]! / 2) as [number, number, number];
+    return (
+      <mesh key={i} position={center}>
+        <boxGeometry args={size} />
+        <meshStandardMaterial color={fill} roughness={0.8} />
+        <lineSegments>
+          <edgesGeometry args={[new THREE.BoxGeometry(...size)]} />
+          <lineBasicMaterial color={edge} transparent opacity={0.7} />
+        </lineSegments>
+      </mesh>
+    );
+  });
+}
+
 /** `reach`: qué parte de la esfera que rodea la zona entra en la vista; menos de 1 acerca (una pieza larga y fina se ve chica si no). */
-export function Rig({ focus, frameKey, reach = 1 }: { focus: THREE.Box3; frameKey: string; reach?: number }) {
+export function Rig({ focus, frameKey, reach = 1, dir = DIR }: { focus: THREE.Box3; frameKey: string; reach?: number; dir?: THREE.Vector3 }) {
   const { camera, gl, invalidate, size } = useThree();
   const controls = useRef<OrbitControls | null>(null);
 
@@ -47,7 +91,7 @@ export function Rig({ focus, frameKey, reach = 1 }: { focus: THREE.Box3; frameKe
     const r = focus.getSize(new THREE.Vector3()).length() / 2;
     const vHalf = (camera.fov * Math.PI) / 360;
     const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-    camera.position.copy(center.clone().add(DIR.clone().multiplyScalar((r * reach) / Math.sin(Math.min(hHalf, vHalf)))));
+    camera.position.copy(center.clone().add(dir.clone().multiplyScalar((r * reach) / Math.sin(Math.min(hHalf, vHalf)))));
     c.target.copy(center);
     c.update();
     invalidate();
@@ -153,7 +197,11 @@ export function JointDetail3D({ project, joint, meshes, label, draft = null, apa
   const ex = placed.explode;
   const offset: [number, number, number] = apart ? ex.offset : [0, 0, 0];
   // Separadas, el encuadre abarca las dos: la caja y la espiga que salió.
-  const focus = focusBox(placed.a, placed.b);
+  const hold = joint.type === 'tope' ? holdOf(joint.params) : 'libre';
+  const held = FLOATING_HOLDS.has(hold);
+  const focus = held ? holdFocus(placed.a, placed.b) : focusBox(placed.a, placed.b);
+  // Los botones van atornillados a la tapa: no se mueven con el faldón.
+  const buttons = hold === 'botones' ? buttonBlocks(placed.a, placed.b) : [];
   if (apart) focus.union(focus.clone().translate(new THREE.Vector3(...ex.offset)));
   return (
     <Canvas
@@ -165,7 +213,7 @@ export function JointDetail3D({ project, joint, meshes, label, draft = null, apa
       aria-label={label}
       style={{ touchAction: 'none' }}
     >
-      <Rig focus={focus} frameKey={`${joint.id}-${apart}`} />
+      <Rig focus={focus} frameKey={`${joint.id}-${apart}-${hold}`} dir={held ? holdView(placed.a, placed.b) : undefined} />
       <hemisphereLight args={['#ffffff', '#b9ad98', 1.7]} />
       <directionalLight position={[1500, 2500, 1800]} intensity={1.3} />
       <Slide to={offset}>
@@ -173,6 +221,9 @@ export function JointDetail3D({ project, joint, meshes, label, draft = null, apa
       </Slide>
       {/* Separadas, la que recibe va sólida: la caja vacía se ve mejor que en rayos X. */}
       <Piece part={a} exact={exact(a.id)} look={{ edge: apart ? colors.ink : colors.xray, xray: !apart }} />
+      {/* Visto desde abajo, una luz de abajo para que no quede a oscuras. */}
+      {held && <directionalLight position={[-1200, -1800, -1000]} intensity={0.7} />}
+      {buttons.length > 0 && <Blocks boxes={buttons} fill={colors.xray} edge={colors.ink} />}
     </Canvas>
   );
 }

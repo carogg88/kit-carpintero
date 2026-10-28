@@ -28,9 +28,12 @@ describe('herrajes y consumibles', () => {
     expect(qty(rows, 'clavo')).toBeGreaterThan(0);
   });
 
-  it('la mesa: grampas para la tapa en los faldones, no en las patas, y lija con terminación', () => {
+  it('la mesa: botones para la tapa en los faldones, no en las patas, y lija con terminación', () => {
     const rows = list('mesa', 'guatambu');
-    expect(qty(rows, 'grampa')).toBe(8);
+    // Uno cada 25 cm: 6 en cada faldón largo y 3 en cada corto.
+    expect(qty(rows, 'boton')).toBe(18);
+    expect(qty(rows, 'tornillo|4x25')).toBe(18);
+    expect(qty(rows, 'grampa')).toBe(0);
     expect(qty(rows, 'tornillo')).toBe(0);
     expect(['lija|80', 'lija|120', 'lija|180'].every((id) => qty(rows, id) > 0)).toBe(true);
     expect(qty(rows, 'terminacion')).toBeGreaterThan(0);

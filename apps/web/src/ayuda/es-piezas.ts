@@ -541,6 +541,7 @@ export const ES_PARTS: Article[] = [
             ['Aviso', 'Qué quiere decir'],
             ['Se meten una en otra', 'Dos piezas ocupan el mismo lugar sin una unión que lo resuelva: así no se pueden armar.'],
             ['Se puede volcar', 'El mueble es alto y de poco fondo. Se agregan escuadras antivuelco a la lista de compras.'],
+            ['La tapa no se puede mover', 'Una tapa maciza ancha apoyada sin una sujeción que la deje correr: se raja. **Sujetar con botones de madera** lo arregla en todos los faldones.'],
             ['Veta cruzada', 'Una pieza ancha encolada a otra que no la deja moverse con la humedad: se raja.'],
             ['Mortaja al borde o espiga gruesa', 'Queda poca madera alrededor de la mortaja, o la espiga pasa del tercio del espesor.'],
             ['Espiga ancha', 'La espiga pasa de 9 cm de ancho: se mueve con la humedad y debilita la pata. **Hacer espiga doble** la parte en dos.'],

@@ -211,7 +211,10 @@ export function drawItems(items: DrawItem[], p: Projection, window?: Rect2): Dra
     .map(({ x, at }) => ({ id: x.item.id, at }));
 
   const kept = window ? lines.map((l) => clip(l, window)).filter((l): l is Line2 => l !== null) : lines;
-  const jointRects = all.filter((x) => x.item.joint && !x.item.section && (!window || intersects(x.rect, window))).map((x) => x.rect);
+  // Un encastre que sale de la ventana (la ranura de los botones, que corre todo el faldón) no se acota: la cota
+  // cortada diría otra medida.
+  const inside = (r: Rect2) => !window || (r.u0 >= window.u0 - EPS && r.u1 <= window.u1 + EPS && r.v0 >= window.v0 - EPS && r.v1 <= window.v1 + EPS);
+  const jointRects = all.filter((x) => x.item.joint && !x.item.section && inside(x.rect)).map((x) => x.rect);
   const rects = solids.map((x) => ({ id: x.item.id, rect: x.rect }));
   const pts = kept.flatMap((l) => [l.a, l.b]);
   const bounds = window ?? {
@@ -439,6 +442,8 @@ export function drawJointDetail(project: Project, jointId: string): { views: Dra
         min: [0, 1, 2].map((k) => Math.max(ba.min[k]!, bb.min[k]!) - 1) as Box['min'],
         max: [0, 1, 2].map((k) => Math.min(ba.max[k]!, bb.max[k]!) + 1) as Box['max'],
       };
+  // La ranura de los botones o la fila de grampas corre todo el faldón: se dibuja una punta, que alcanza para marcarla.
+  if (j.type === 'tope' && e && solids.length) focus.max[e.wide] = Math.min(focus.max[e.wide], focus.min[e.wide] + 120);
   const projections = across.map((k): Projection => {
     const depth = ([0, 1, 2] as Axis[]).find((x) => x !== along && x !== k)!;
     return { u: along, uSign: 1, v: k, vSign: 1, depth, depthSign: 1 };

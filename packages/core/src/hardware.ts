@@ -1,6 +1,6 @@
 import { boxSize, overlapBox, partBox, type Box } from './geometry';
 import { findMotions, hingeEdge, isDoorPart, isDrawerPart, slideGap, SLIDE_LENGTHS, unionBox } from './motion';
-import { endJoint, jointGeometry, tenonStyle } from './joints';
+import { endJoint, holdCount, holdFits, holdOf, jointGeometry, tenonStyle } from './joints';
 import { boardPieces, dowelsNeeded, type CutPlan } from './cutlist';
 import type { Part, Project } from './project';
 import { tipRisk } from './review';
@@ -145,6 +145,23 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
       add(rows, { id: 'galleta', name: t('Galletas n.º 20'), qty: g?.cutA.length ?? 0, unit: 'u' });
     }
     if (j.type !== 'tope' || moving.has(a.id) || isDrawerPart(a) || isDoorPart(a) || lids.has(a.id) || lids.has(b.id)) continue;
+    // Si se eligió cómo se sujeta, lo que pide esa sujeción.
+    const hold = holdOf(j.params);
+    if (hold !== 'libre') {
+      const n = holdFits(ba, bb, hold) ? holdCount(ba, bb, hold) : 0;
+      if (hold === 'botones' && n) {
+        add(rows, { id: 'boton', name: t('Botones de madera de 25 × 40 mm'), qty: n, unit: 'u', note: t('de un retazo, con una lengüeta de 6 mm para la ranura') });
+        add(rows, { id: 'tornillo|4x25', name: t('Tornillos para madera de 4 × 25 mm'), qty: n, unit: 'u', note: t('uno por botón, a la tapa') });
+      } else if (hold === 'grampas' && n) {
+        add(rows, { id: 'grampa-8', name: t('Grampas en 8 para tapa'), qty: n, unit: 'u', note: t('sujetan la tapa sin trabarla') });
+        add(rows, { id: 'tornillo|3.5x16', name: t('Tornillos para madera de 3,5 × 16 mm'), qty: 2 * n, unit: 'u', note: t('dos por grampa') });
+      } else if (hold === 'ovalados' && n) {
+        add(rows, { id: 'tornillo-ovalado', name: t('Tornillos con arandela para agujero ovalado'), qty: n, unit: 'u', note: t('ajustados sin apretar de más, para que la tapa corra') });
+      } else if (hold === 'tornillos') {
+        add(rows, { id: 'tornillo', name: t('Tornillos para madera de 4 × 40 mm'), qty: 2, unit: 'u', note: t('para lo que apoya sin encastre') });
+      }
+      continue;
+    }
     const thin = Math.min(...boxSize(ba), ...boxSize(bb)) <= 9;
     if (thin) {
       const o = overlapBox({ min: ba.min.map((v) => v - 0.6) as Box['min'], max: ba.max.map((v) => v + 0.6) as Box['max'] }, bb);

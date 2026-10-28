@@ -1,4 +1,5 @@
 import { buildDoors, buildDrawers, findOpenings, type Fitting } from '../fittings';
+import { holdTops } from '../review';
 import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../project';
 import { defaultJointParams, suggestJoints } from '../joints';
 import { partBox, type Vec3 } from '../geometry';
@@ -78,6 +79,8 @@ function carcassProject(id: string, name: string, now: string, parts: Part[]): P
     const params = defaultJointParams(type, partBox(a), partBox(b));
     return params ? { ...j, type, params: { ...params } } : j;
   });
+  // Las tapas y asientos macizos van sujetos con botones o grampas, que los dejan moverse.
+  holdTops({ parts, joints });
   return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [], groups: [] };
 }
 

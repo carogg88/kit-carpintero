@@ -1,6 +1,6 @@
 import { partAxesBySize } from './edit';
 import { boxSize, otherAxes, partBox, type Axis, type Box } from './geometry';
-import { box, jointGeometry, solidBox, type Solid } from './joints';
+import { box, holdOf, jointGeometry, plainJoint, solidBox, type Hold, type Solid } from './joints';
 import { leanFrame, leanHole } from './lean';
 import { leanFollow } from './follow';
 import { formatAngle } from './bevels';
@@ -53,6 +53,8 @@ export interface JointMark {
   cutName?: JointType;
   /** El agujero de una pieza inclinada va inclinado como ella: grados vistos de frente y de costado. */
   slant?: [number, number];
+  /** En una unión a tope, cómo se sujeta: es lo que nombra el corte. */
+  hold?: Hold;
 }
 
 const TOL = 0.5;
@@ -87,6 +89,13 @@ const ADD_NAMES: Partial<Record<JointType, [string, string]>> = {
   'cola-milano': [tk('Colas de milano'), tk('colas de milano')],
   dedos: [tk('Dedos'), tk('dedos')],
   inglete: [tk('Corte a inglete'), tk('cortes a inglete')],
+};
+
+/** Lo que lleva el faldón para sujetar una tapa a tope, según cómo se sujete. */
+const HOLD_CUT_NAMES: Partial<Record<Hold, [string, string]>> = {
+  botones: [tk('Ranura de los botones'), tk('ranuras de los botones')],
+  grampas: [tk('Rebaje de grampa en 8'), tk('rebajes de grampas en 8')],
+  ovalados: [tk('Agujero ovalado'), tk('agujeros ovalados')],
 };
 
 /** Los que no se marcan con una distancia: se trazan con plantilla o falsa escuadra. */
@@ -142,7 +151,7 @@ function markOf(
 ): JointMark | null {
   if (!solids.length) return null;
   const boxes = solids.map(solidBox);
-  const shaped = SHAPED.has(base.type);
+  const shaped = SHAPED.has(base.type) || base.hold === 'ovalados';
   const env = union(boxes);
   const f = role === 'cut' ? openFace(body, shaped ? env : boxes[0]!) : outFace(body, boxes[0]!);
   if (!f) return null;
@@ -199,14 +208,14 @@ export function partJointMarks(project: Project, part: Part): JointMark[] {
   const center = [0, 1, 2].map((k) => (Math.min(...all.map((b) => b.min[k]!)) + Math.max(...all.map((b) => b.max[k]!))) / 2);
   const marks: JointMark[] = [];
   for (const j of project.joints) {
-    if (j.type === 'tope' || (j.partA !== part.id && j.partB !== part.id)) continue;
+    if (plainJoint(j) || (j.partA !== part.id && j.partB !== part.id)) continue;
     const a = project.parts.find((p) => p.id === j.partA);
     const b = project.parts.find((p) => p.id === j.partB);
     if (!a || !b || a.base.kind !== 'box' || b.base.kind !== 'box') continue;
     const g = jointGeometry(j.type, partBox(a), partBox(b), j.params);
     if (!g) continue;
     const isA = j.partA === part.id;
-    const base = { jointId: j.id, type: j.type, other: isA ? b.id : a.id };
+    const base = { jointId: j.id, type: j.type, other: isA ? b.id : a.id, ...(j.type === 'tope' ? { hold: holdOf(j.params) } : {}) };
     // El agujero de una pieza inclinada, donde cae de verdad.
     const fb = isA ? leanFrame(b) : null;
     const cutA = fb ? g.cutA.map((s) => box(leanHole(fb, solidBox(s), partBox(b)))) : g.cutA;
@@ -259,7 +268,10 @@ const END_PLACES = [
  */
 export function describeJointMark(part: Part, m: JointMark, n: (mm: number) => string): string {
   const [length, width] = partAxesBySize(part);
-  const names = (m.role === 'cut' ? CUT_NAMES : ADD_NAMES)[m.cutName ?? m.type] ?? (m.role === 'cut' ? [tk('Corte'), tk('cortes')] : [tk('Saliente'), tk('salientes')]);
+  const names =
+    (m.hold && HOLD_CUT_NAMES[m.hold]) ??
+    (m.role === 'cut' ? CUT_NAMES : ADD_NAMES)[m.cutName ?? m.type] ??
+    (m.role === 'cut' ? [tk('Corte'), tk('cortes')] : [tk('Saliente'), tk('salientes')]);
   const where = m.bothEnds
     ? t('cada punta')
     : m.face.axis === length
@@ -280,6 +292,8 @@ export function describeJointMark(part: Part, m: JointMark, n: (mm: number) => s
     if (f.axis === length && m.fromEachEnd !== undefined)
       return m.fromEachEnd < TOL ? t('al ras de cada punta') : t('a {n} de cada punta', { n: n(m.fromEachEnd) });
     if (f.axis === length && m.along && m.along.length > 1) return t('a {n} {ref}', { n: list(m.along.map(n)), ref: t(ENDS[f.axis][0]) });
+    // Un corte largo centrado (la ranura de los botones) se marca desde cada punta.
+    if (f.centered && f.axis === length && m.size[m.from.indexOf(f)]! > boxSize(partBox(part))[length] / 2) return t('a {n} de cada punta', { n: n(f.mm) });
     if (f.centered) return f.axis === length ? t('a la mitad del largo') : f.axis === width ? t('a la mitad del ancho') : t('a la mitad del espesor');
     const ref = t(f.axis === length ? ENDS[f.axis][f.side > 0 ? 1 : 0] : f.out !== null ? EDGE_OUT[f.out ? 1 : 0] : EDGES[f.axis][f.side > 0 ? 1 : 0]);
     return f.mm < TOL ? t('al ras {ref}', { ref }) : t('a {n} {ref}', { n: n(f.mm), ref });

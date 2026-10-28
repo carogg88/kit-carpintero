@@ -31,10 +31,11 @@ describe('dónde marcar cada encastre', () => {
   });
 
   it('el faldón lleva una espiga centrada en cada punta', () => {
-    expect(describeJointMark(part('F1'), partJointMarks(table, part('F1'))[0]!, n)).toBe(
+    expect(describeJointMark(part('F1'), partJointMarks(table, part('F1')).find((m) => m.role === 'add')!, n)).toBe(
       'Espiga para P4 en la punta izquierda: a la mitad del ancho y a la mitad del espesor. Mide 7,5 × 0,75 y sale 4.',
     );
     expect(describePartJoints(table, part('F1'), n)).toEqual([
+      'Ranura de los botones para T1 en la cara de adentro: a 2,5 de cada punta y a 1,2 del borde de arriba. Mide 155 × 0,6 y 0,8 de hondo.',
       '2 espigas para P3 y P4 en cada punta: a la mitad del ancho y a la mitad del espesor. Mide 7,5 × 0,75 y sale 4.',
     ]);
   });
@@ -63,10 +64,12 @@ describe('dónde marcar cada encastre', () => {
     expect(describePartJoints(p, side, n)[0]).toMatch(/se marca con la hoja de encastres\.$/);
   });
 
-  it('las uniones a tope no llevan marcas', () => {
+  it('las uniones a tope no llevan marcas, salvo la ranura de los botones de la tapa', () => {
     const def = TEMPLATES.find((d) => d.id === 'mesa')!;
     const p = buildTemplate(def, templateDefaults(def), 'guatambu', 'tope', '2026-10-21T00:00:00Z');
-    expect(p.parts.flatMap((x) => partJointMarks(p, x))).toEqual([]);
+    const marks = p.parts.flatMap((x) => partJointMarks(p, x));
+    expect(marks).toHaveLength(4);
+    expect(marks.every((m) => m.hold === 'botones' && m.other === 'T1')).toBe(true);
   });
 
   it('el estante de arriba va en un rebaje y el zócalo en un canal, marcados desde la cara de adentro', () => {

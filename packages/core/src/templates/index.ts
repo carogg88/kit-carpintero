@@ -1,6 +1,7 @@
 import { suggestJoints, jointOptions, defaultJointParams } from '../joints';
 import { partBox } from '../geometry';
 import { partWord } from '../jointinfo';
+import { holdTops } from '../review';
 import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../project';
 import { createTable, TABLE_DEFAULTS } from './table';
 import { COFFEE_DEFAULTS, createBookcase, createCoffeeTable, createDresser, createNightstand, createWallCabinet } from './cabinets';
@@ -77,6 +78,8 @@ const project = (id: string, name: string, now: string, parts: Part[], force: (a
     const params = defaultJointParams(type, partBox(a), partBox(b));
     return params ? { ...j, type, params: { ...params } } : j;
   });
+  // Las tapas y asientos macizos van sujetos con botones o grampas, que los dejan moverse.
+  holdTops({ parts, joints });
   return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [], groups: [] };
 };
 

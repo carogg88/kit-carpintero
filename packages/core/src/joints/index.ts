@@ -18,6 +18,7 @@ import {
   pocketGeometry,
   tongueGeometry,
 } from './fine';
+import { holdGeometry, holdOf } from './hold';
 import { defaultMortiseParams, mortiseGeometry } from './mortise';
 import {
   defaultDowelParams,
@@ -32,6 +33,7 @@ import {
 
 export * from './common';
 export * from './fine';
+export * from './hold';
 export * from './mortise';
 export * from './others';
 
@@ -116,7 +118,8 @@ export function jointGeometry(type: JointType, a: Box, b: Box, params: Params = 
   const n = (k: string) => p[k] ?? 0;
   switch (type) {
     case 'tope':
-      return { cutA: [], cutB: [], addB: [] };
+      // Apoyada: solo lleva cortes si se sujeta con botones, grampas o tornillos en agujero ovalado.
+      return endJoint(a, b) ? holdGeometry(a, b, holdOf(p)) : { cutA: [], cutB: [], addB: [] };
     case 'mortaja':
       return mortiseGeometry(a, b, {
         length: n('length'),

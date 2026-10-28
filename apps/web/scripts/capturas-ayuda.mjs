@@ -453,6 +453,23 @@ async function createTable(page) {
   await page.context().close();
 }
 
+// Compu: la tapa de la mesa sujeta con botones de madera, vista desde adentro y desde abajo.
+{
+  const page = await open(desktop);
+  await createTable(page);
+  await page.getByRole('button', { name: 'Crear mesa' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3000);
+  await page.getByRole('link', { name: /^Uniones/ }).first().click();
+  await page.waitForTimeout(2500);
+  await page.getByText('Tapa con faldón').first().click();
+  await page.waitForTimeout(800);
+  await page.locator('li button').filter({ hasText: 'T1 ↔ F1' }).first().click();
+  await page.waitForTimeout(3000);
+  await shot(page, 'tapa-botones');
+  await page.context().close();
+}
+
 // Celular: el editor con la mesa y el modo taller.
 {
   const page = await open(phone);

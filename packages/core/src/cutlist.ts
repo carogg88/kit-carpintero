@@ -7,7 +7,7 @@ import { followMortise, followWork, leanFollow } from './follow';
 import { arcInfo } from './pockets';
 import { describeSection, sectionBox } from './sections';
 import { describeTurning } from './turning';
-import { isThrough, jointGeometry, solidBox, tenonStyle } from './joints';
+import { holdOf, isThrough, jointGeometry, solidBox, tenonStyle } from './joints';
 import type { Joint, Part, Pocket, Project } from './project';
 import { t, tk } from './i18n';
 import { sheetById } from './woods';
@@ -90,6 +90,9 @@ const WORK_NAMES: Record<string, [string, string]> = {
   'agujero para tarugar': [tk('{n} agujero para tarugar'), tk('{n} agujeros para tarugar')],
   'agujero corrido': [tk('{n} agujero corrido hacia el hombro'), tk('{n} agujeros corridos hacia el hombro')],
   'agujero para llave': [tk('{n} agujero para llave'), tk('{n} agujeros para llave')],
+  'ranura para botones': [tk('{n} ranura para botones'), tk('{n} ranuras para botones')],
+  'rebaje para grampa': [tk('{n} rebaje para grampa en 8'), tk('{n} rebajes para grampas en 8')],
+  'agujero ovalado': [tk('{n} agujero ovalado de bolsillo'), tk('{n} agujeros ovalados de bolsillo')],
 };
 
 /** Medidas de corte y trabajos de una pieza, según sus encastres. */
@@ -183,6 +186,15 @@ export function cutPiece(part: Part, project: Project): CutPiece {
       case 'bolsillo':
         if (!isA) add('agujero de bolsillo', (g?.cutB.length ?? 0) / 2);
         break;
+      case 'tope': {
+        // Lo que lleva el faldón para sujetar la tapa sin trabarla.
+        const hold = holdOf(p);
+        if (isA || !g?.cutB.length) break;
+        if (hold === 'botones') add('ranura para botones');
+        else if (hold === 'grampas') add('rebaje para grampa', g.cutB.length);
+        else if (hold === 'ovalados') add('agujero ovalado', g.cutB.length / 3);
+        break;
+      }
       default:
         break;
     }

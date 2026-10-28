@@ -96,8 +96,8 @@ export default {
   'Agregar pieza': 'Add part',
 
   // Uniones
-  'Las piezas solo se apoyan, sin cortes. Se fijan con tornillos, clips de fijación o cola.':
-    'The parts just meet, with no cuts. Hold them with screws, fastening clips or glue.',
+  'Las piezas solo se apoyan, sin cortes. Se fijan con tornillos o cola; una tapa maciza, con botones de madera o grampas en 8 que la dejan moverse.':
+    'The pieces just rest on each other, no cuts. They are fixed with screws or glue; a solid top, with wooden buttons or figure-8 fasteners that let it move.',
   'Encastre clásico para patas y faldones: fuerte y oculto. Se hace con escoplo o fresadora; la espiga va encolada.':
     'The classic joint for legs and aprons: strong and hidden. Cut it with a mortise chisel or a router; the tenon gets glued.',
   'Cada pieza se rebaja a la mitad de su espesor y quedan al ras. Se hace con sierra y formón, o con fresadora.':
@@ -633,4 +633,14 @@ export default {
   'Ya se tocan. Sale: {list}.': 'They already touch. You get: {list}.',
   'Así saldría: {list}.': 'This would give: {list}.',
   'Ver la unión': 'See the joint',
+  'Sin cola: la tapa maciza se mueve con la humedad y la sujeción la tiene que dejar correr.': 'No glue: a solid top moves with humidity, and the fastening has to let it slide.',
+  'No lleva cortes. Si es una tapa maciza ancha, sujetala con botones o grampas en 8, no con cola ni tornillos fijos.': 'No cuts. If it is a wide solid top, hold it with buttons or figure-8 fasteners, not with glue or fixed screws.',
+  'Cómo se sujeta': 'How it is held',
+  'Sujeción': 'Fastening',
+  'apoyada, con {count} botones de madera en una ranura': 'resting, with {count} wooden buttons in a groove',
+  'apoyada, con {count} grampas en 8': 'resting, with {count} figure-8 fasteners',
+  'apoyada, con {count} tornillos en agujero ovalado': 'resting, with {count} screws in slotted holes',
+  'apoyada y encolada': 'resting and glued',
+  'apoyada, con tornillos fijos': 'resting, with fixed screws',
+  'Botones': 'Buttons',
 } satisfies Record<string, string>;

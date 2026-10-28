@@ -1,5 +1,6 @@
 import { partBox } from '../geometry';
 import { defaultMortiseParams } from '../joints/mortise';
+import { holdTops } from '../review';
 import { SCHEMA_VERSION, type Joint, type Part, type Project } from '../project';
 import { tk } from '../i18n';
 
@@ -32,7 +33,7 @@ export const TABLE_DEFAULTS: TableDims = {
   edgeRadius: 3,
 };
 
-/** Mesa de 4 patas, 4 faldones con mortaja y espiga, y tapa apoyada (se sujeta con clips). */
+/** Mesa de 4 patas, 4 faldones con mortaja y espiga, y tapa apoyada (se sujeta con botones de madera). */
 export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', now = new Date().toISOString()): Project {
   const { width: W, depth: D, height: H, leg, top, apronHeight: aH, apronThickness: aT, inset, setback } = d;
   const tY = H - top;
@@ -76,10 +77,12 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
     if (!params) throw new Error(`${apronId} no toca a ${legId}`);
     joints.push({ id: `${legId}-${apronId}`, type: 'mortaja', partA: legId, partB: apronId, params: { ...params } });
   }
-  // La tapa apoya sobre patas y faldones y se sujeta con clips: sin encastre.
+  // La tapa apoya sobre patas y faldones, sin cola: se sujeta a los faldones con botones de madera, que la dejan
+  // moverse con la humedad.
   for (const id of ['P1', 'P2', 'P3', 'P4', 'F1', 'F2', 'F3', 'F4']) {
     joints.push({ id: `T1-${id}`, type: 'tope', partA: 'T1', partB: id, params: {} });
   }
+  holdTops({ parts, joints });
   return {
     schemaVersion: SCHEMA_VERSION,
     id: `mesa-${now}`,

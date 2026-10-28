@@ -81,6 +81,9 @@ import {
   setOpens,
   type Hinge,
   type Opens,
+  holdCount,
+  holdFits,
+  holdOf,
 } from '@kitc/core';
 import { OPEN_EVENT, PartNotes, ReviewCard, reviewSummary, useReview } from './Review';
 import { GoldenCard, goldenCount } from './Golden';
@@ -177,8 +180,17 @@ export function describeJoint(j: Joint, project: Project): string {
   const n = (mm: number) => formatNumber(mm, u);
   const unit = u === 'cm' ? ' cm' : '″';
   switch (j.type) {
-    case 'tope':
+    case 'tope': {
+      // Cómo se sujeta, si se eligió; con botones, grampas u ovalados, cuántos lleva.
+      const hold = holdOf(p);
+      const count = holdFits(ba, bb, hold) ? holdCount(ba, bb, hold) : 0;
+      if (hold === 'botones' && count) return t('apoyada, con {count} botones de madera en una ranura', { count });
+      if (hold === 'grampas' && count) return t('apoyada, con {count} grampas en 8', { count });
+      if (hold === 'ovalados' && count) return t('apoyada, con {count} tornillos en agujero ovalado', { count });
+      if (hold === 'cola') return t('apoyada y encolada');
+      if (hold === 'tornillos') return t('apoyada, con tornillos fijos');
       return t('apoyada, sin cortes');
+    }
     case 'mortaja': {
       const e = endJoint(ba, bb);
       const wide = e ? tenonWidth(e.section.max[e.wide] - e.section.min[e.wide], { shoulder: p.shoulder ?? 0, count: p.count, gap: p.gap }) : 0;

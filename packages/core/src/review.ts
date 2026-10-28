@@ -1,5 +1,5 @@
 import { boxSize, overlapBox, partBox, type Axis, type Box } from './geometry';
-import { defaultMortiseParams, defaultTenonGap, DOUBLE_TENON_FROM, endJoint, JOINT_NAMES, mortiseAndTenon, type MortiseParams } from './joints';
+import { bestHold, defaultMortiseParams, defaultTenonGap, DOUBLE_TENON_FROM, endJoint, FLOATING_HOLDS, HOLDS, holdFits, holdOf, JOINT_NAMES, mortiseAndTenon, type Hold, type MortiseParams } from './joints';
 import { furnitureBox } from './resize';
 import { formatLength } from './units';
 import { isSheet, sheetById } from './woods';
@@ -78,8 +78,45 @@ export const MOVEMENT_SHARE = 0.01;
 const MOVING_WIDTH = 200;
 /** Lo que tienen que compartir las dos piezas sobre ese ancho para que la unión lo trabe. */
 const LOCKED_SPAN = 150;
-/** Encastres que flotan o dejan correr la madera: no traban el ancho. */
-const FLOATING = new Set<JointType>(['tope', 'canal', 'machiembrado']);
+/**
+ * Encastres que flotan o dejan correr la madera: no traban el ancho. A tope depende de cómo se sujete: con botones,
+ * grampas en 8 o tornillos en agujero ovalado corre; encolada, atornillada fija o sin decir, no.
+ */
+const FLOATING = new Set<JointType>(['canal', 'machiembrado']);
+
+/**
+ * Las tapas y asientos macizos anchos que apoyan a tope sobre faldones, sujetos con algo que los deja correr: botones
+ * si entran, si no grampas en 8. Es lo que hacen las plantillas; las uniones con una sujeción elegida no se tocan.
+ */
+export function holdTops(project: Pick<Project, 'parts' | 'joints'>): void {
+  for (const j of project.joints) {
+    if (j.type !== 'tope' || holdOf(j.params) !== 'libre') continue;
+    const a = project.parts.find((p) => p.id === j.partA);
+    const b = project.parts.find((p) => p.id === j.partB);
+    if (!a || !b || !solid(a) || b.base.kind !== 'box' || boxSize(partBox(a))[acrossGrain(a)] < MOVING_WIDTH) continue;
+    const hold = bestHold(partBox(a), partBox(b));
+    if (hold) j.params.hold = HOLDS.indexOf(hold);
+  }
+}
+
+/** Sujeción que deja correr la tapa en todas las uniones a tope de `wide` donde entra: botones, o si no, grampas. */
+function holdFix(project: Project, wide: Part): ReviewFix | undefined {
+  const plain = project.joints.filter((j) => j.type === 'tope' && j.partA === wide.id && !FLOATING_HOLDS.has(holdOf(j.params)));
+  for (const hold of ['botones', 'grampas'] as Hold[]) {
+    const joints = plain.filter((j) => {
+      const b = project.parts.find((p) => p.id === j.partB);
+      return b && b.base.kind === 'box' && holdFits(partBox(wide), partBox(b), hold);
+    });
+    if (joints.length)
+      return {
+        kind: 'joint',
+        joints: joints.map((j) => j.id),
+        params: { hold: HOLDS.indexOf(hold) },
+        label: hold === 'botones' ? t('Sujetar con botones de madera') : t('Sujetar con grampas en 8'),
+      };
+  }
+  return undefined;
+}
 
 /**
  * Pieza ancha encolada a otra cuya veta corre a lo ancho de la primera: la ancha quiere moverse y la otra no la deja.
@@ -90,6 +127,9 @@ function crossGrain(project: Project, j: Joint): ReviewNote | null {
   const a = project.parts.find((p) => p.id === j.partA);
   const b = project.parts.find((p) => p.id === j.partB);
   if (!a || !b || !solid(a) || !solid(b)) return null;
+  // Apoyada en una muesca, o tomada con algo que la deja correr: no traba.
+  const top = j.type === 'tope';
+  if (top && (FLOATING_HOLDS.has(holdOf(j.params)) || !endJoint(partBox(a), partBox(b)))) return null;
   for (const [wide, other] of [
     [a, b],
     [b, a],
@@ -102,6 +142,21 @@ function crossGrain(project: Project, j: Joint): ReviewNote | null {
     const shared = Math.min(wb.max[across], ob.max[across]) - Math.max(wb.min[across], ob.min[across]);
     if (shared < LOCKED_SPAN) continue;
     const move = Math.max(1, Math.round(width * MOVEMENT_SHARE));
+    const action = top && wide === a ? holdFix(project, wide) : undefined;
+    if (action)
+      // Una tapa apoyada: un solo aviso para toda la tapa, con el arreglo para todos sus faldones.
+      return {
+        id: `veta-tapa|${wide.id}`,
+        kind: 'veta',
+        parts: [wide.id, other.id],
+        title: t('La tapa no se puede mover: {a}', { a: wide.name }),
+        text: t(
+          '{a} es maciza y mide {w} de ancho: con la humedad se mueve hasta {move} mm a lo ancho. Si la encolás o la atornillás fija a {b} y a los otros faldones, no la dejan moverse y se raja.',
+          { a: wide.name, w: formatLength(width, project.units), move, b: name(other) },
+        ),
+        fix: t('Sujetala con botones de madera o grampas en 8: la toman firme contra los faldones y la dejan correr.'),
+        action,
+      };
     return {
       id: `veta|${j.id}`,
       kind: 'veta',
@@ -111,7 +166,7 @@ function crossGrain(project: Project, j: Joint): ReviewNote | null {
         '{a} es maciza y mide {w} de ancho: con la humedad se mueve hasta {move} mm a lo ancho. {b} tiene la veta para ese lado y no se mueve: la unión con {joint} las traba y alguna se raja.',
         { a: wide.name, w: formatLength(width, project.units), move, b: other.name, joint: lower(t(JOINT_NAMES[j.type])) },
       ),
-      fix: t('Uní las dos piezas a tope con grampas o con tornillos en agujeros ovalados, para que la madera corra. O usá una placa, que no se mueve.'),
+      fix: t('Uní las dos piezas a tope con botones de madera, grampas en 8 o tornillos en agujeros ovalados, para que la madera corra. O usá una placa, que no se mueve.'),
     };
   }
   return null;
@@ -378,9 +433,10 @@ export function reviewDesign(project: Project): ReviewNote[] {
   const seen = new Set<string>();
   for (const j of project.joints) {
     const n = crossGrain(project, j);
-    // Una tapa fija a dos faldones laterales es un solo problema por par de piezas.
-    if (n && !seen.has(n.parts.join('|'))) {
-      seen.add(n.parts.join('|'));
+    // Una tapa fija a dos faldones laterales es un solo problema por par de piezas; una tapa apoyada, uno por tapa.
+    const key = n && (n.action ? n.id : n.parts.join('|'));
+    if (n && key && !seen.has(key)) {
+      seen.add(key);
       notes.push(n);
     }
   }

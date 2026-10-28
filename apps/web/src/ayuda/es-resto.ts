@@ -142,6 +142,28 @@ export const ES_REST: Article[] = [
           tip('Dos espigas pasantes que llegan a la misma altura de una pata se cruzan adentro: la app lo avisa. Corré una de altura o dejala ciega.'),
         ],
       },
+      {
+        id: 'tapa',
+        title: 'Sujetar una tapa maciza',
+        blocks: [
+          p('Una tapa de madera maciza se mueve a lo ancho con la humedad: una de 90 cm, cerca de 1 cm entre verano e invierno. Si se encola o se atornilla fija a los faldones, no la dejan moverse y se raja. Por eso va **A tope**, sin cola, y se sujeta con algo que la deja correr.'),
+          table(
+            ['Cómo se sujeta', 'Qué es', 'Qué le hace al faldón'],
+            ['Botones de madera', 'Tacos con una lengüeta que entra en una ranura del faldón y se atornillan a la tapa', 'Una ranura en la cara de adentro'],
+            ['Grampas en 8', 'Una chapa en forma de 8: un ojo va al faldón y el otro a la tapa, y gira cuando la tapa se mueve', 'Un rebaje redondo en el canto de arriba'],
+            ['Tornillos en agujero ovalado', 'Tornillos de bolsillo con el agujero alargado hacia donde se mueve la tapa', 'Agujeros de bolsillo ovalados'],
+            ['Encolada o con tornillos fijos', 'Traban la madera: solo para piezas angostas o de placa', 'Nada'],
+          ),
+          steps(
+            'En **Uniones**, elegí una unión de la tapa con un faldón (**Tapa con faldón**).',
+            'En **Cómo se sujeta**, elegí la forma. Solo aparecen las que entran en esa pieza: en una pata no van botones ni grampas.',
+            'Con **Aplicar a las 4 uniones de tapa con faldón** tildado, va a los cuatro faldones de una vez.',
+          ),
+          img('tapa-botones', 'La tapa de una mesa sujeta con botones de madera en la ranura del faldón'),
+          note('La mesa y las demás plantillas con tapa maciza ya vienen con botones. Los botones, las grampas y sus tornillos aparecen en **Herrajes**, la ranura o los rebajes en el plano del faldón, y en **Armado** la tapa va al final, sin cola.'),
+          tip('Si una tapa maciza ancha queda apoyada sin decir cómo, encolada o con tornillos fijos, la revisión avisa **La tapa no se puede mover** y propone **Sujetar con botones de madera**.'),
+        ],
+      },
     ],
     faq: [
       { q: 'Aparece un aviso de espiga gruesa', a: 'La espiga pasa del tercio del espesor de la pieza: los hombros quedan finos. Bajala a la medida que dice el aviso.' },
