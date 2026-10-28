@@ -542,6 +542,7 @@ export const EN_PARTS: Article[] = [
             ['Overlapping parts', 'Two parts take up the same space with no joint to explain it: it can’t be assembled like that.'],
             ['Could tip over', 'The piece is tall and shallow. Anti-tip brackets are added to the shopping list.'],
             ['The top cannot move', 'A wide solid top resting without a fastening that lets it slide: it will crack. **Hold with wooden buttons** fixes it on every apron.'],
+            ['The panel has no room to move', 'A wide solid panel reaches right to the bottom of the groove: when it swells it pushes the frame open. **Leave … mm of play** makes the groove deeper.'],
             ['Cross grain', 'A wide part glued to another that won’t let it move with humidity: it will crack.'],
             ['Mortise at the edge or thick tenon', 'Little wood is left around the mortise, or the tenon is over a third of the thickness.'],
             ['Wide tenon', 'The tenon is over 9 cm wide: it moves with humidity and weakens the leg. **Make a double tenon** splits it in two.'],

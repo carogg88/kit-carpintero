@@ -164,6 +164,33 @@ export const ES_REST: Article[] = [
           tip('Si una tapa maciza ancha queda apoyada sin decir cómo, encolada o con tornillos fijos, la revisión avisa **La tapa no se puede mover** y propone **Sujetar con botones de madera**.'),
         ],
       },
+      {
+        id: 'testero',
+        title: 'Testero en la punta de la tapa',
+        blocks: [
+          p('El testero es una tabla con la veta cruzada en cada punta de la tapa. Tapa la testa y mantiene la tapa plana. Como la tapa se mueve a lo ancho y el testero no, va con una lengüeta en una canal y tarugos: solo el del medio lleva cola, y los de las puntas entran en agujeros alargados en la lengüeta.'),
+          steps(
+            'Al crear la **Mesa**, en **Puntas de la tapa** elegí **Con testero**: la tapa se achica y aparecen **Testero izquierdo** y **Testero derecho**.',
+            'En **Uniones**, la unión del testero con la tapa es un **Machimbre** con **Testero**: elegí cuántos tarugos lleva.',
+            'Para hacerlo en otro mueble, uní el testero y la tapa con **Machimbre** y elegí los tarugos en **Testero**.',
+          ),
+          img('testero', 'La mesa con testeros en las dos puntas y el detalle de la lengüeta con los tarugos'),
+          note('Los tarugos aparecen en **Herrajes**, los agujeros en la **Lista de cortes** (los de la lengüeta, ovalados) y en **Armado** el paso explica dónde va la cola.'),
+        ],
+      },
+      {
+        id: 'panel',
+        title: 'Panel flotante',
+        blocks: [
+          p('Un panel macizo en el marco de una puerta crece a lo ancho con la humedad. Si llega justo al fondo de la canal, abre el marco o se raja. Por eso va sin cola y la canal es un poco más honda que lo que entra el panel: el **juego**.'),
+          steps(
+            'En **Uniones**, elegí una unión de **Canal** de un panel macizo con su marco.',
+            'En **Juego**, escribí cuánto más honda va la canal de cada lado. La app propone la mitad de lo que se mueve el panel, y al menos 2 mm.',
+          ),
+          note('Las puertas nuevas y las plantillas ya vienen con juego. En **Armado**, el paso de la canal dice que el panel va sin cola.'),
+          tip('Si un panel macizo ancho queda sin juego, la revisión avisa **El panel no tiene juego** y propone **Dejar 3 mm de juego** (o lo que le toque).'),
+        ],
+      },
     ],
     faq: [
       { q: 'Aparece un aviso de espiga gruesa', a: 'La espiga pasa del tercio del espesor de la pieza: los hombros quedan finos. Bajala a la medida que dice el aviso.' },
@@ -405,6 +432,7 @@ export const ES_REST: Article[] = [
           ),
           p('Tocá una hoja en la lista para verla. Con los botones de zoom, pellizcando o con dos toques, la agrandás.'),
           tip('Si el mueble tiene patas inclinadas, el despiece las dibuja derechas, a lo largo, con el ángulo de cada punta: es el de la falsa escuadra, entre el canto y la punta larga.'),
+          tip('Las tapas, costados y paneles macizos anchos llevan una flecha con lo que se mueven a lo ancho con la humedad, en las vistas generales y en el despiece. Es el lugar que hay que dejarles: no los trabes con cola ni tornillos fijos.'),
         ],
       },
       {

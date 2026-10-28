@@ -1,7 +1,7 @@
 import { suggestJoints, jointOptions, defaultJointParams } from '../joints';
 import { partBox } from '../geometry';
 import { partWord } from '../jointinfo';
-import { holdTops } from '../review';
+import { allowMovement } from '../review';
 import { SCHEMA_VERSION, type JointType, type Part, type Project } from '../project';
 import { createTable, TABLE_DEFAULTS } from './table';
 import { COFFEE_DEFAULTS, createBookcase, createCoffeeTable, createDresser, createNightstand, createWallCabinet } from './cabinets';
@@ -78,8 +78,8 @@ const project = (id: string, name: string, now: string, parts: Part[], force: (a
     const params = defaultJointParams(type, partBox(a), partBox(b));
     return params ? { ...j, type, params: { ...params } } : j;
   });
-  // Las tapas y asientos macizos van sujetos con botones o grampas, que los dejan moverse.
-  holdTops({ parts, joints });
+  // Las tapas y asientos macizos van sujetos con botones o grampas, y los paneles macizos con juego en la canal.
+  allowMovement({ parts, joints });
   return { schemaVersion: SCHEMA_VERSION, id: `${id}-${now}`, name, units: 'cm', template: id, createdAt: now, updatedAt: now, parts, joints, components: [], groups: [] };
 };
 
@@ -201,6 +201,17 @@ export const TEMPLATES: TemplateDef[] = [
       { key: 'leg', label: tk('Grosor de la pata'), hint: tk('Las patas son cuadradas: es el ancho de cada cara.'), shows: { parts: 'P', measure: 'P3', axis: 0 }, group: 'piezas', default: TABLE_DEFAULTS.leg, min: 30, max: 150 },
       { key: 'top', label: tk('Espesor de la tapa'), hint: tk('Lo grueso de la tabla de arriba.'), shows: { parts: 'T1', measure: 'T1', axis: 1 }, group: 'piezas', default: TABLE_DEFAULTS.top, min: 15, max: 60 },
       { key: 'apronHeight', label: tk('Alto del faldón'), hint: tk('El faldón es la tabla que une las patas debajo de la tapa: cuánto baja.'), shows: { parts: 'F', measure: 'F1', axis: 1 }, group: 'piezas', default: TABLE_DEFAULTS.apronHeight, min: 50, max: 200 },
+      {
+        key: 'breadboard',
+        label: tk('Puntas de la tapa'),
+        hint: tk('Con testero, cada punta lleva una tabla con la veta cruzada: tapa la testa y mantiene la tapa plana.'),
+        shows: { parts: 'C|T1' },
+        group: 'piezas',
+        default: 0,
+        min: 0,
+        max: 1,
+        choices: [tk('Lisas'), tk('Con testero')],
+      },
     ],
     joints: { groups: ['Pata|Faldón'], label: tk('Patas con faldón'), options: ['mortaja', 'clavija'], default: 'mortaja' },
     build: (v, wood, now) => createTable({ ...TABLE_DEFAULTS, ...v } as typeof TABLE_DEFAULTS, wood, now),

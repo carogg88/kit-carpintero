@@ -1,6 +1,6 @@
 import { boxSize, overlapBox, partBox, type Box } from './geometry';
 import { findMotions, hingeEdge, isDoorPart, isDrawerPart, slideGap, SLIDE_LENGTHS, unionBox } from './motion';
-import { endJoint, holdCount, holdFits, holdOf, jointGeometry, tenonStyle } from './joints';
+import { BREADBOARD, endJoint, holdCount, isBreadboard, holdFits, holdOf, jointGeometry, tenonStyle } from './joints';
 import { boardPieces, dowelsNeeded, type CutPlan } from './cutlist';
 import type { Part, Project } from './project';
 import { tipRisk } from './review';
@@ -139,6 +139,11 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
           }
         }
       }
+    }
+    if (j.type === 'machiembrado' && isBreadboard(j.params)) {
+      // Los tarugos del testero atraviesan el testero de cara a cara.
+      const len = Math.round(Math.min(...[ba, bb].map((x) => Math.min(...boxSize(x)))) + 4);
+      add(rows, { id: `tarugo-testero|${BREADBOARD.peg}|${len}`, name: t('Tarugos de madera dura de {d} × {len} mm', { d: BREADBOARD.peg, len }), qty: Math.round(j.params.pegs ?? 0), unit: 'u', note: t('para los testeros, sin cola en los de las puntas') });
     }
     if (j.type === 'galleta') {
       const g = jointGeometry('galleta', ba, bb, j.params);

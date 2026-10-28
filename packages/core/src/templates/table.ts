@@ -1,6 +1,7 @@
 import { partBox } from '../geometry';
+import { endJoint } from '../joints/common';
 import { defaultMortiseParams } from '../joints/mortise';
-import { holdTops } from '../review';
+import { allowMovement } from '../review';
 import { SCHEMA_VERSION, type Joint, type Part, type Project } from '../project';
 import { tk } from '../i18n';
 
@@ -18,7 +19,12 @@ export interface TableDims {
   setback: number;
   /** Radio de los cantos redondeados; 0 = cantos rectos. */
   edgeRadius: number;
+  /** 1: la tapa lleva un testero en cada punta, con lengüeta, canal y tarugos. */
+  breadboard?: number;
 }
+
+/** Ancho del testero, el largo de su lengüeta y cuántos tarugos lleva. */
+export const BREADBOARD_END = { width: 70, tongue: 25, pegs: 3 };
 
 export const TABLE_DEFAULTS: TableDims = {
   width: 1800,
@@ -53,8 +59,13 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
   const x1 = W - inset - leg;
   const z0 = inset;
   const z1 = D - inset - leg;
+  // Con testeros, la tapa se achica y cada punta es una pieza con la veta cruzada.
+  const cap = d.breadboard ? BREADBOARD_END.width : 0;
   const parts: Part[] = [
-    box('T1', tk('Tapa'), [0, tY, 0], [W, H, D]),
+    box('T1', tk('Tapa'), [cap, tY, 0], [W - cap, H, D]),
+    ...(cap
+      ? [box('C1', tk('Testero izquierdo'), [0, tY, 0], [cap, H, D]), box('C2', tk('Testero derecho'), [W - cap, tY, 0], [W, H, D])]
+      : []),
     box('P1', tk('Pata trasera izquierda'), [x0, 0, z0], [x0 + leg, tY, z0 + leg]),
     box('P2', tk('Pata trasera derecha'), [x1, 0, z0], [x1 + leg, tY, z0 + leg]),
     box('P3', tk('Pata delantera derecha'), [x1, 0, z1], [x1 + leg, tY, z1 + leg]),
@@ -79,10 +90,18 @@ export function createTable(d: TableDims = TABLE_DEFAULTS, wood = 'guatambu', no
   }
   // La tapa apoya sobre patas y faldones, sin cola: se sujeta a los faldones con botones de madera, que la dejan
   // moverse con la humedad.
-  for (const id of ['P1', 'P2', 'P3', 'P4', 'F1', 'F2', 'F3', 'F4']) {
-    joints.push({ id: `T1-${id}`, type: 'tope', partA: 'T1', partB: id, params: {} });
+  for (const topId of cap ? ['T1', 'C1', 'C2'] : ['T1']) {
+    for (const id of ['P1', 'P2', 'P3', 'P4', 'F1', 'F2', 'F3', 'F4']) {
+      if (endJoint(partBox(byId.get(topId)!), partBox(byId.get(id)!))) joints.push({ id: `${topId}-${id}`, type: 'tope', partA: topId, partB: id, params: {} });
+    }
   }
-  holdTops({ parts, joints });
+  // Cada testero recibe la lengüeta de la tapa: la cola va solo en el medio y los tarugos de las puntas en agujeros
+  // ovalados, para que la tapa se mueva a lo ancho.
+  for (const capId of cap ? ['C1', 'C2'] : []) {
+    const tongue = { thickness: Math.round((top / 3) * 2) / 2, depth: BREADBOARD_END.tongue, pegs: BREADBOARD_END.pegs };
+    joints.push({ id: `${capId}-T1`, type: 'machiembrado', partA: capId, partB: 'T1', params: tongue });
+  }
+  allowMovement({ parts, joints });
   return {
     schemaVersion: SCHEMA_VERSION,
     id: `mesa-${now}`,

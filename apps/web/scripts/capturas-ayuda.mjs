@@ -470,6 +470,28 @@ async function createTable(page) {
   await page.context().close();
 }
 
+// Compu: la mesa con testero, con la lengüeta y los tarugos separados.
+{
+  const page = await open(desktop);
+  await createTable(page);
+  await page.getByText('Puntas de la tapa').first().click().catch(() => {});
+  await page.getByText('Con testero', { exact: true }).first().click();
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: 'Crear mesa' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3000);
+  await page.getByRole('link', { name: /^Uniones/ }).first().click();
+  await page.waitForTimeout(2500);
+  await page.getByText('Testero con tapa').first().click();
+  await page.waitForTimeout(800);
+  await page.locator('li button').filter({ hasText: 'C1 ↔ T1' }).first().click();
+  await page.waitForTimeout(3000);
+  await page.getByRole('button', { name: 'Separar piezas' }).click();
+  await page.waitForTimeout(2500);
+  await shot(page, 'testero');
+  await page.context().close();
+}
+
 // Celular: el editor con la mesa y el modo taller.
 {
   const page = await open(phone);

@@ -161,6 +161,33 @@ export const EN_REST: Article[] = [
           tip('If a wide solid top rests without saying how, glued or with fixed screws, the design review warns **The top cannot move** and offers **Hold with wooden buttons**.'),
         ],
       },
+      {
+        id: 'testero',
+        title: 'Breadboard end on a top',
+        blocks: [
+          p('A breadboard end is a board with the grain running across, on each end of the top. It hides the end grain and keeps the top flat. Since the top moves across its width and the breadboard end does not, it goes on with a tongue in a groove and pegs: only the middle one is glued, and the outer ones go through slotted holes in the tongue.'),
+          steps(
+            'When you create the **Table**, in **Top ends** pick **Breadboard ends**: the top gets shorter and **Left breadboard end** and **Right breadboard end** show up.',
+            'In **Joints**, the joint between the breadboard end and the top is a **Tongue and groove** with **Breadboard end**: pick how many pegs it has.',
+            'To do it on other furniture, join the breadboard end and the top with **Tongue and groove** and pick the pegs in **Breadboard end**.',
+          ),
+          img('testero', 'The table with breadboard ends on both ends and the detail of the tongue with the pegs'),
+          note('The pegs show up in **Hardware**, the holes in the **Cut list** (the ones in the tongue, slotted) and in **Assembly** the step explains where the glue goes.'),
+        ],
+      },
+      {
+        id: 'panel',
+        title: 'Floating panel',
+        blocks: [
+          p('A solid panel in a door frame grows across its width with humidity. If it reaches right to the bottom of the groove, it pushes the frame open or cracks. That is why it goes in with no glue and the groove is a bit deeper than the panel goes in: the **play**.'),
+          steps(
+            'In **Joints**, pick a **Dado** joint between a solid panel and its frame.',
+            'In **Play**, type how much deeper the groove goes on each side. The app suggests half of what the panel moves, and at least 2 mm.',
+          ),
+          note('New doors and the templates already come with play. In **Assembly**, the groove step says the panel goes in with no glue.'),
+          tip('If a wide solid panel has no play, the design review warns **The panel has no room to move** and offers **Leave 3 mm of play** (or whatever it needs).'),
+        ],
+      },
     ],
     faq: [
       { q: 'A thick-tenon warning shows up', a: 'The tenon is over a third of the part’s thickness: the shoulders get thin. Bring it down to the size the warning says.' },
@@ -402,6 +429,7 @@ export const EN_REST: Article[] = [
           ),
           p('Tap a sheet in the list to see it. Zoom in with the zoom buttons, by pinching or with a double tap.'),
           tip('If the piece has leaning legs, the parts sheet draws them straight, lengthwise, with the angle of each end: the bevel-gauge setting, between the edge and the long point.'),
+          tip('Wide solid tops, sides and panels carry an arrow with how much they move across their width with humidity, in the general views and on the parts sheet. That is the room you have to leave them: do not lock them in with glue or fixed screws.'),
         ],
       },
       {

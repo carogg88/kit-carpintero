@@ -84,6 +84,7 @@ import {
   holdCount,
   holdFits,
   holdOf,
+  isBreadboard,
 } from '@kitc/core';
 import { OPEN_EVENT, PartNotes, ReviewCard, reviewSummary, useReview } from './Review';
 import { GoldenCard, goldenCount } from './Golden';
@@ -205,6 +206,8 @@ export function describeJoint(j: Joint, project: Project): string {
     }
     case 'canal':
     case 'rebaje':
+      if (j.type === 'canal' && (p.play ?? 0) > 0)
+        return t('canal de {d}{unit} de profundidad, panel sin cola con {play} mm de juego', { d: n((p.depth ?? 0) + (p.play ?? 0)), unit, play: p.play ?? 0 });
       return j.type === 'canal'
         ? t('canal de {d}{unit} de profundidad', { d: n(p.depth ?? 0), unit })
         : t('rebaje de {d}{unit} de profundidad', { d: n(p.depth ?? 0), unit });
@@ -227,6 +230,7 @@ export function describeJoint(j: Joint, project: Project): string {
         ? t('{count} galleta del {size}', { count: 1, size: p.size ?? 20 })
         : t('{count} galletas del {size}', { count: p.count ?? 0, size: p.size ?? 20 });
     case 'machiembrado':
+      if (isBreadboard(p)) return t('testero con lengüeta de {t} × {d}{unit} y {pegs} tarugos', { t: n(p.thickness ?? 0), d: n(p.depth ?? 0), unit, pegs: p.pegs ?? 0 });
       return t('machimbre, lengüeta de {t} × {d}{unit}', { t: n(p.thickness ?? 0), d: n(p.depth ?? 0), unit });
     case 'bolsillo':
       return p.count === 1 ? t('{count} tornillo de bolsillo', { count: 1 }) : t('{count} tornillos de bolsillo', { count: p.count ?? 0 });

@@ -1,6 +1,7 @@
 import { boxSize, partBox, type Box, type Vec3 } from './geometry';
 import { defaultJointParams } from './joints';
 import { nextPartId } from './edit';
+import { floatPanels } from './review';
 import { t, tk } from './i18n';
 import { isSheet, nearestSheetThickness, sheetById, thinPanelMaterial } from './woods';
 import type { Component, Joint, JointType, Part } from './project';
@@ -250,6 +251,8 @@ class Builder {
       components.push({ id, name });
       for (const p of copies) p.component = id;
     }
+    // Un tablero macizo en el marco de la puerta flota: la canal le deja juego para crecer.
+    floatPanels({ parts: this.parts, joints: this.joints });
     return { parts: this.parts, joints: this.joints, components };
   }
 }

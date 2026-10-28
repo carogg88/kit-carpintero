@@ -93,6 +93,8 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .dim line { stroke: var(--paper-accent); stroke-width: 0.18; }
 .dim text { fill: var(--paper-accent); font: 500 2.8px var(--font-num); }
 .arrow { fill: var(--paper-accent); stroke: none; }
+.move line { stroke: var(--paper-accent); stroke-width: 0.3; }
+.move text { fill: var(--paper-accent); font: italic 400 2.6px var(--font-ui); }
 .templateArc { fill: none; stroke: var(--paper-ink); stroke-width: 0.6; stroke-linejoin: round; }
 .cutAway { fill: var(--signal); fill-opacity: 0.18; stroke: none; }
 .guide line { stroke: var(--paper-ink); stroke-width: 0.25; }
