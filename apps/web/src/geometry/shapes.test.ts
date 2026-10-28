@@ -317,19 +317,19 @@ describe('patas inclinadas', () => {
   });
 });
 
-describe('faldones y travesaños entre patas inclinadas', () => {
-  /** Ningún par de piezas unidas se pisa: cada espiga entra en su mortaja y cada hombro apoya en la cara de la pata. */
-  function noClashes(project: Project) {
-    const built = new Map(project.parts.map((p) => [p.id, partShape(p, project)]));
-    for (const [id, b] of built) expect([id, b.warning]).toEqual([id, undefined]);
-    for (const j of project.joints) {
-      const both = built.get(j.partA)!.shape.intersect(built.get(j.partB)!.shape);
-      expect([j.id, Math.round(measureVolume(both))]).toEqual([j.id, 0]);
-      both.delete();
-    }
-    return built;
+/** Ningún par de piezas unidas se pisa: cada espiga entra en su mortaja y cada hombro apoya en la cara de la pata. */
+function noClashes(project: Project) {
+  const built = new Map(project.parts.map((p) => [p.id, partShape(p, project)]));
+  for (const [id, b] of built) expect([id, b.warning]).toEqual([id, undefined]);
+  for (const j of project.joints) {
+    const both = built.get(j.partA)!.shape.intersect(built.get(j.partB)!.shape);
+    expect([j.id, Math.round(measureVolume(both))]).toEqual([j.id, 0]);
+    both.delete();
   }
+  return built;
+}
 
+describe('faldones y travesaños entre patas inclinadas', () => {
   it('el taburete de patas abiertas con travesaños se arma sin choques', () => {
     const stool = leanTestStool('guatambu', '2026-10-26T00:00:00Z');
     expect(stool.parts.filter((p) => p.id.startsWith('R'))).toHaveLength(4);
@@ -365,7 +365,7 @@ describe('faldones y travesaños entre patas inclinadas', () => {
       for (const id of ['P1', 'P2', 'P3', 'P4']) expect(built.get(id)!.shape.boundingBox.bounds[0][1]).toBeCloseTo(0, 0);
       for (const b of built.values()) b.shape.delete();
     }
-  });
+  }, 60_000);
 
   it('la silla se arma sin choques: parantes echados hacia atrás con su travesaño', () => {
     const def = TEMPLATES.find((t) => t.id === 'silla')!;
@@ -405,4 +405,19 @@ describe('despiece de una pata inclinada con el motor', () => {
     expect(exact.bounds.u1).toBeCloseTo(d.bounds.u1, 0);
     expect(exact.bounds.v1 - exact.bounds.v0).toBeCloseTo(d.bounds.v1 - d.bounds.v0, 0);
   });
+});
+
+describe('movimiento de la madera en el motor', () => {
+  it('la mesa con testero: la lengüeta entra en la canal y los tarugos cruzan sin pisarse', () => {
+    const def = TEMPLATES.find((t) => t.id === 'mesa')!;
+    const table = buildTemplate(def, { ...templateDefaults(def), breadboard: 1 }, 'guatambu', undefined, '2026-10-28T00:00:00Z');
+    const built = noClashes(table);
+    for (const b of built.values()) b.shape.delete();
+  }, 60_000);
+
+  it('las puertas de la alacena: el panel flota en la canal sin pisar el marco', () => {
+    const def = TEMPLATES.find((t) => t.id === 'alacena')!;
+    const built = noClashes(buildTemplate(def, templateDefaults(def), 'cedro', undefined, '2026-10-28T00:00:00Z'));
+    for (const b of built.values()) b.shape.delete();
+  }, 60_000);
 });

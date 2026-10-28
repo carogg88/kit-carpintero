@@ -7,11 +7,15 @@ export function defaultGrooveParams(a: Box, b: Box): { depth: number } | null {
   return j && { depth: half(Math.min(12, boxSize(a)[j.axis] / 3)) };
 }
 
-export function grooveGeometry(a: Box, b: Box, p: { depth: number }): JointGeometry | null {
+/**
+ * Canal: B entra `depth` en A. `play` es el juego de un panel macizo que flota: la canal es esos milímetros más honda
+ * que lo que entra el panel, para que crezca a lo ancho con la humedad sin abrir el marco.
+ */
+export function grooveGeometry(a: Box, b: Box, p: { depth: number; play?: number }): JointGeometry | null {
   const j = endJoint(a, b);
   if (!j) return null;
   const g = slab(j, p.depth);
-  return { cutA: [box(g)], cutB: [], addB: [box(g)] };
+  return { cutA: [box(p.play ? slab(j, p.depth + p.play) : g)], cutB: [], addB: [box(g)] };
 }
 
 /** Lado del canto de A más cercano a B sobre el eje del espesor de B, y cuánto queda hasta él. */

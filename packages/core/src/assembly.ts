@@ -2,8 +2,8 @@ import { cutList, cutPiece } from './cutlist';
 import { t, tk } from './i18n';
 import { groupJoints } from './jointinfo';
 import { jointRoom } from './jointfit';
-import { HOLD_NAMES, holdOf, JOINT_NAMES, plainJoint, tenonStyle, type Hold, type TenonStyle } from './joints';
-import type { JointType, Project } from './project';
+import { HOLD_NAMES, holdOf, isBreadboard, JOINT_NAMES, plainJoint, tenonStyle, type Hold, type TenonStyle } from './joints';
+import type { Joint, JointType, Project } from './project';
 
 /**
  * Cómo armarlo: el orden de trabajo del taller, sacado del modelo. Cortar, encolar tablas anchas, marcar, hacer
@@ -60,6 +60,17 @@ const HOLD_HOW: Partial<Record<Hold, string>> = {
   grampas: tk('Hacé los rebajes de las grampas en el canto de arriba de {b}, con una mecha Forstner de 20 mm, del hondo justo de la chapa.'),
   ovalados: tk('Hacé los agujeros de bolsillo en {b} y alargá la salida 4 mm hacia donde se mueve la tapa, con la mecha inclinada.'),
 };
+
+/** El testero: lengüeta en la punta de la tapa, canal en el testero y tarugos con agujeros ovalados en la lengüeta. */
+const BREADBOARD_HOW = tk(
+  'Hacé la canal en {a} y la lengüeta en la punta de {b}. Presentá el testero, agujereá los tarugos atravesando los dos, sacalo y alargá 6 mm hacia la punta los agujeros de la lengüeta, menos el del medio. Cola solo en los 10 cm del medio de la canal: el resto de la tapa tiene que poder moverse.',
+);
+
+/** El panel macizo que flota en la canal: sin cola y con su juego. */
+function floating(joints: Joint[]): string[] {
+  const play = Math.max(0, ...joints.map((j) => (j.type === 'canal' ? (j.params.play ?? 0) : 0)));
+  return play ? [t('El panel va sin cola: la canal le deja {play} mm de juego de cada lado para que crezca con la humedad.', { play })] : [];
+}
 
 /** Cómo se hace cada forma de trabar la caja y espiga, además de la caja y la espiga. */
 const STYLE_HOW: Partial<Record<TenonStyle | 'media-caja', string>> = {
@@ -138,8 +149,15 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
         key: `encastre:${g.key}:${type}`,
         kind: 'encastre',
         title: t('{joint}: {group}', { joint: t(type === 'tope' ? HOLD_NAMES[holdOf(joints[0]!.params)] : JOINT_NAMES[type]), group: g.label.toLocaleLowerCase() }),
-        text: t((type === 'tope' ? HOLD_HOW[holdOf(joints[0]!.params)] : JOINT_HOW[type]) ?? tk('Hacé los encastres en {a} y {b}. Probá primero con un retazo.'), { a, b }),
-        items: [joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: joints.length }), ...styles, ...(shortNote ? [shortNote] : [])],
+        text: t(
+          (type === 'tope'
+            ? HOLD_HOW[holdOf(joints[0]!.params)]
+            : type === 'machiembrado' && joints.every((j) => isBreadboard(j.params))
+              ? BREADBOARD_HOW
+              : JOINT_HOW[type]) ?? tk('Hacé los encastres en {a} y {b}. Probá primero con un retazo.'),
+          { a, b },
+        ),
+        items: [joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: joints.length }), ...styles, ...floating(joints), ...(shortNote ? [shortNote] : [])],
         joint: type,
       });
     }

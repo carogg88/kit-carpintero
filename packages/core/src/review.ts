@@ -74,6 +74,17 @@ const solid = (p: Part) => p.base.kind === 'box' && !p.turning && !isSheet(p.woo
 
 /** La madera maciza se mueve con la humedad, a lo ancho y casi nada a lo largo: en Buenos Aires, cerca de 1 % del ancho. */
 export const MOVEMENT_SHARE = 0.01;
+/**
+ * Cuánto se mueve una pieza maciza con la humedad: a lo ancho de la veta, el 1 % de su ancho. null si es de placa,
+ * torneada, o tan angosta que no hace falta pensarlo.
+ */
+export function woodMovement(p: Part): { axis: Axis; width: number; mm: number } | null {
+  if (!solid(p)) return null;
+  const axis = acrossGrain(p);
+  const width = boxSize(partBox(p))[axis];
+  return width < PANEL_WIDTH ? null : { axis, width, mm: Math.max(1, Math.round(width * MOVEMENT_SHARE)) };
+}
+
 /** Desde este ancho el movimiento ya rompe una unión trabada. */
 const MOVING_WIDTH = 200;
 /** Lo que tienen que compartir las dos piezas sobre ese ancho para que la unión lo trabe. */
@@ -97,6 +108,66 @@ export function holdTops(project: Pick<Project, 'parts' | 'joints'>): void {
     const hold = bestHold(partBox(a), partBox(b));
     if (hold) j.params.hold = HOLDS.indexOf(hold);
   }
+}
+
+/** Desde este ancho un panel macizo en canal pide juego: más angosto, la canal de siempre alcanza. */
+const PANEL_WIDTH = 150;
+
+/** Juego de cada lado para un panel macizo de este ancho: la mitad de lo que se mueve, y al menos 2 mm. */
+export const panelPlay = (width: number) => Math.max(2, Math.round((width * MOVEMENT_SHARE) / 2));
+
+/**
+ * Panel macizo en una canal, entrando de canto a lo ancho de la veta: el que crece con la humedad. Devuelve el juego
+ * que necesita, o null si no es un panel así.
+ */
+export function panelJoint(project: Pick<Project, 'parts'>, j: Joint): { panel: Part; width: number; play: number } | null {
+  if (j.type !== 'canal') return null;
+  const a = project.parts.find((p) => p.id === j.partA);
+  const b = project.parts.find((p) => p.id === j.partB);
+  if (!a || !b || !solid(b) || a.base.kind !== 'box') return null;
+  const e = endJoint(partBox(a), partBox(b));
+  if (!e || e.axis !== acrossGrain(b)) return null;
+  const width = boxSize(partBox(b))[e.axis];
+  return width < PANEL_WIDTH ? null : { panel: b, width, play: panelPlay(width) };
+}
+
+/** Los paneles macizos en canal, con el juego que les toca. Lo que hacen las plantillas y las puertas nuevas. */
+export function floatPanels(project: Pick<Project, 'parts' | 'joints'>): void {
+  for (const j of project.joints) {
+    const f = panelJoint(project, j);
+    if (f && (j.params.play ?? 0) < f.play) j.params.play = f.play;
+  }
+}
+
+/** Todo lo que deja moverse a la madera maciza: tapas sujetas con botones y paneles con juego. */
+export function allowMovement(project: Pick<Project, 'parts' | 'joints'>): void {
+  holdTops(project);
+  floatPanels(project);
+}
+
+/** Un panel macizo sin juego en la canal: al hincharse abre el marco. Un aviso por panel, con el arreglo. */
+function panelNotes(project: Project): ReviewNote[] {
+  const byPanel = new Map<string, { panel: Part; width: number; play: number; joints: Joint[] }>();
+  for (const j of project.joints) {
+    const f = panelJoint(project, j);
+    if (!f || (j.params.play ?? 0) >= f.play) continue;
+    const e = byPanel.get(f.panel.id) ?? { ...f, joints: [] };
+    e.joints.push(j);
+    byPanel.set(f.panel.id, e);
+  }
+  return [...byPanel.values()].map(({ panel, width, play, joints }) => ({
+    id: `juego|${panel.id}`,
+    kind: 'veta',
+    parts: [panel.id, ...joints.map((j) => j.partA)],
+    title: t('El panel no tiene juego: {a}', { a: panel.name }),
+    text: t('{a} es maciza y mide {w} de ancho: con la humedad crece hasta {move} mm. Si llega justo al fondo de la canal, abre el marco o se raja.', {
+      a: panel.name,
+      w: formatLength(width, project.units),
+      move: Math.max(1, Math.round(width * MOVEMENT_SHARE)),
+    }),
+    fix: t('Hacé la canal {play} mm más honda de cada lado y no pongas cola en el panel: que flote.', { play }),
+    action: { kind: 'joint', joints: joints.map((j) => j.id), params: { play }, label: t('Dejar {play} mm de juego', { play }) },
+  }));
 }
 
 /** Sujeción que deja correr la tapa en todas las uniones a tope de `wide` donde entra: botones, o si no, grampas. */
@@ -459,6 +530,7 @@ export function reviewDesign(project: Project): ReviewNote[] {
         : t('Hacer espiga doble en las {n} uniones', { n: same.length });
   }
   notes.push(...tenons.filter((n) => !merged.has(n)));
+  notes.push(...panelNotes(project));
   notes.push(...shortGrainNotes(project));
   notes.push(...sagging(project));
   return notes;

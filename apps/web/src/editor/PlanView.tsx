@@ -28,6 +28,7 @@ import {
   type CutRow,
   type Drawing,
   type AngleMark,
+  type MoveMark,
   type ArcMark,
   type Part,
   type Turning,
@@ -247,6 +248,34 @@ function Radius({ m, at, text }: { m: ArcMark; at: Place; text: string }) {
       >
         {text}
       </text>
+    </g>
+  );
+}
+
+/** Lo que se mueve una pieza maciza ancha con la humedad: flecha de dos puntas a lo ancho de la veta. */
+function MoveArrow({ m, at, text }: { m: MoveMark; at: Place; text: string }) {
+  const x = px(at, m.at[0]);
+  const y = py(at, m.at[1]);
+  const half = Math.max(4, m.half / at.s);
+  const vertical = m.along === 'v';
+  const [x0, y0, x1, y1] = vertical ? [x, y - half, x, y + half] : [x - half, y, x + half, y];
+  const head = 1.4;
+  const tip = (tx: number, ty: number, k: 1 | -1) =>
+    vertical ? `${tx},${ty} ${tx - head * 0.6},${ty + k * head * 1.6} ${tx + head * 0.6},${ty + k * head * 1.6}` : `${tx},${ty} ${tx + k * head * 1.6},${ty - head * 0.6} ${tx + k * head * 1.6},${ty + head * 0.6}`;
+  return (
+    <g className={styles.move}>
+      <line x1={x0} y1={y0} x2={x1} y2={y1} />
+      <polygon points={tip(x0, y0, 1)} className={styles.arrow} />
+      <polygon points={tip(x1, y1, -1)} className={styles.arrow} />
+      {vertical ? (
+        <text x={x + 1.4} y={y + 1} textAnchor="start">
+          {text}
+        </text>
+      ) : (
+        <text x={x} y={y - 1.4} textAnchor="middle">
+          {text}
+        </text>
+      )}
     </g>
   );
 }
@@ -549,6 +578,7 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
         {l.id}
       </text>
     ));
+  const moveArrows = (p: Place, d: Drawing) => d.moves?.map((m) => <MoveArrow key={`mv${m.id}`} m={m} at={p} text={t('se mueve {n}', { n: n(m.mm) })} />);
   return {
     key: 'general',
     title: t('Vistas generales'),
@@ -559,6 +589,9 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
         <Lines d={front} at={fp} />
         <Lines d={side} at={sp} />
         <Lines d={top} at={tp} />
+        {moveArrows(fp, front)}
+        {moveArrows(sp, side)}
+        {moveArrows(tp, top)}
         <g className={styles.notes}>
           {title(fp, front, t('Frente'))}
           {title(sp, side, t('Costado'))}
@@ -629,6 +662,7 @@ function partSheets(project: Project, refine: Refine, colors: ReadonlyMap<string
       const marks = describePartJoints(project, part, n);
       const notes = [...marks, ...(r.work.length ? [capitalize(r.work.join(' · '))] : [])];
       if (d.angles?.length) notes.push(t('Los ángulos dibujados son los de la falsa escuadra: entre el canto y la punta larga.'));
+      if (d.moves?.length) notes.push(t('La flecha marca lo que se mueve a lo ancho con la humedad, entre verano e invierno: no la trabes.'));
       if (r.ids.length > 1 && marks.length) {
         notes.push(t('Medido en {id}; las otras son iguales, o en espejo donde haga falta.', { id: r.ids[0]! }));
       }
@@ -706,6 +740,7 @@ function partSheets(project: Project, refine: Refine, colors: ReadonlyMap<string
             <Dim vertical from={py(p, d.bounds.v1)} to={py(p, d.bounds.v0)} at={px(p, d.bounds.u0)} offset={d.stops?.v.length ? -11 : -5} text={n(d.bounds.v1 - d.bounds.v0)} />
             {d.arcs?.map((m) => <Radius key={m.id} m={m} at={p} text={`R ${n(m.radius)}`} />)}
             {d.angles?.map((m, j) => <AngleArc key={`ang${j}`} m={m} at={p} text={formatAngle(Math.round(m.deg * 2) / 2)} />)}
+            {d.moves?.map((m) => <MoveArrow key={`mv${m.id}`} m={m} at={p} text={t('se mueve {n}', { n: n(m.mm) })} />)}
             {lines.length > 0 && (
               <text className={`${styles.notes} ${styles.cellMeta}`}>
                 {lines.map((l, j) => (

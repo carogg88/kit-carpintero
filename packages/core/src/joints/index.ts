@@ -135,7 +135,7 @@ export function jointGeometry(type: JointType, a: Box, b: Box, params: Params = 
         key: p.key,
       });
     case 'canal':
-      return grooveGeometry(a, b, { depth: n('depth') });
+      return grooveGeometry(a, b, { depth: n('depth'), play: p.play });
     case 'rebaje':
       return rabbetGeometry(a, b, { depth: n('depth') });
     case 'media-madera':
@@ -153,7 +153,7 @@ export function jointGeometry(type: JointType, a: Box, b: Box, params: Params = 
     case 'galleta':
       return biscuitGeometry(a, b, { size: n('size'), count: n('count') });
     case 'machiembrado':
-      return tongueGeometry(a, b, { thickness: n('thickness'), depth: n('depth') });
+      return tongueGeometry(a, b, { thickness: n('thickness'), depth: n('depth'), pegs: p.pegs });
     case 'bolsillo':
       return pocketGeometry(a, b, { count: n('count') });
   }

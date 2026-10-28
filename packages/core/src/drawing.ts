@@ -6,6 +6,7 @@ import { sectionBox } from './sections';
 import type { Part, Project } from './project';
 import { endAt, followMortise, leanFollow, partEnds, placedBox, unleanPoint, type PartEnds } from './follow';
 import { isLeaning, leanFrame, leanHole, leanShift, type LeanFrame } from './lean';
+import { woodMovement } from './review';
 
 /**
  * Dibujo técnico de cajas: proyección ortogonal, contornos visibles y líneas ocultas.
@@ -80,6 +81,18 @@ export interface Drawing {
   engine?: EngineView;
   /** Ángulos de las puntas cortadas en ángulo: los que se toman con la falsa escuadra. */
   angles?: AngleMark[];
+  /** Piezas macizas anchas vistas de cara: hacia dónde y cuánto se mueven con la humedad. */
+  moves?: MoveMark[];
+}
+
+/** Flecha de movimiento: sobre el eje `along` del dibujo ('u' o 'v'), centrada en `at`, de `half` mm a cada lado. */
+export interface MoveMark {
+  id: string;
+  at: [number, number];
+  along: 'u' | 'v';
+  half: number;
+  /** Lo que se mueve entre verano e invierno, en mm. */
+  mm: number;
 }
 
 /** Ángulo entre el canto (`a`, unitario) y la punta (`b`, unitario) en la esquina `at`, en grados. */
@@ -281,12 +294,31 @@ export function partJointItems(project: Project, part: Part, local = false): Dra
 export const partSectionItems = (part: Part): DrawItem[] =>
   part.sections.map((s) => ({ id: `${part.id}-${s.id}`, box: sectionBox(part, s), joint: true, owner: part.id, section: true }));
 
+/** Las piezas macizas anchas que se ven de cara: la flecha de lo que se mueven, a lo ancho de la veta. */
+function moveMarks(parts: Part[], drawing: Drawing, p: Projection): MoveMark[] {
+  const moves: MoveMark[] = [];
+  for (const part of parts) {
+    const m = woodMovement(part);
+    const r = drawing.rects.find((x) => x.id === part.id)?.rect;
+    if (!m || !r || partAxesBySize(part)[2] !== p.depth || (m.axis !== p.u && m.axis !== p.v)) continue;
+    const along = m.axis === p.u ? 'u' : 'v';
+    const span = along === 'u' ? r.u1 - r.u0 : r.v1 - r.v0;
+    // Corrida del centro, para no pisar el nombre de la pieza.
+    const at: [number, number] = along === 'v' ? [r.u0 + (r.u1 - r.u0) * 0.7, (r.v0 + r.v1) / 2] : [(r.u0 + r.u1) / 2, r.v0 + (r.v1 - r.v0) * 0.3];
+    moves.push({ id: part.id, at, along, half: span * 0.3, mm: m.mm });
+  }
+  return moves;
+}
+
 /** Vista general del mueble: piezas y, ocultas, las espigas y lengüetas. */
 export function drawView(project: Project, view: ViewName): Drawing {
   const boxes = project.parts.filter((p) => p.base.kind === 'box');
   const items: DrawItem[] = boxes.map((p) => ({ id: p.id, box: placedBox(project, p) }));
   for (const p of boxes) for (const it of [...partJointItems(project, p), ...partSectionItems(p)]) if (!it.hole) items.push(it);
-  return { ...drawItems(items, VIEWS[view]), engine: { parts: boxes.map((p) => p.id), projection: VIEWS[view] } };
+  const p = VIEWS[view];
+  const drawing = drawItems(items, p);
+  const moves = moveMarks(boxes, drawing, p);
+  return { ...drawing, ...(moves.length ? { moves } : {}), engine: { parts: boxes.map((x) => x.id), projection: p } };
 }
 
 /** Proyección de una pieza sola: largo a la derecha, ancho hacia arriba. */
@@ -315,8 +347,10 @@ export function drawPart(project: Project, part: Part): Drawing {
     };
     drawing = { ...drawing, lines, bounds, angles: outline.angles };
   }
+  const moves = moveMarks([part], drawing, projection);
   return {
     ...drawing,
+    ...(moves.length ? { moves } : {}),
     arcs: partArcMarks(part, projection),
     stops: partSectionStops(part, projection),
     turns: partTurnMarks(part, projection),

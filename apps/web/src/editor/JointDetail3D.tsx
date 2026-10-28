@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { buttonBlocks, endJoint, FLOATING_HOLDS, holdOf, partBox, partKey, placedJoint, type Box, type Joint, type Part, type Project } from '@kitc/core';
+import { buttonBlocks, endJoint, FLOATING_HOLDS, holdOf, isBreadboard, partBox, partKey, placedJoint, type Box, type Joint, type Part, type Project } from '@kitc/core';
 import { usePartMaterial } from './woodMaterial';
 import { useDraftMeshes, type ExactMesh } from './useGeometry';
 import { cssColor } from './Viewport';
@@ -23,15 +23,15 @@ function focusBox(a: Box, b: Box): THREE.Box3 {
 }
 
 /**
- * Una tapa sujeta con botones o grampas: el contacto es todo el faldón y se vería chico. Se encuadra una punta, donde
- * se ve el primer botón o la primera grampa.
+ * Una tapa sujeta con botones o grampas, o un testero: el contacto es todo el faldón o todo el ancho de la tapa y se
+ * vería chico. Se encuadra una punta, donde se ve el primer botón, la primera grampa o el primer tarugo.
  */
-function holdFocus(a: Box, b: Box): THREE.Box3 {
+function holdFocus(a: Box, b: Box, span = 340): THREE.Box3 {
   const j = endJoint(a, b);
   if (!j) return focusBox(a, b);
   const min = [...b.min];
   const max = [...b.max];
-  max[j.wide] = Math.min(max[j.wide]!, j.section.min[j.wide] + 340);
+  max[j.wide] = Math.min(max[j.wide]!, j.section.min[j.wide] + span);
   min[j.axis] = Math.max(min[j.axis]!, j.face - 60);
   max[j.axis] = Math.min(max[j.axis]!, j.face + 60);
   return new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)).expandByScalar(40);
@@ -45,6 +45,17 @@ function holdView(a: Box, b: Box): THREE.Vector3 {
   v[j.thin] = (a.min[j.thin] + a.max[j.thin]) / 2 >= (b.min[j.thin] + b.max[j.thin]) / 2 ? 1.1 : -1.1;
   v[j.axis] = -j.dir * 0.75;
   v[j.wide] = 0.7;
+  return new THREE.Vector3(...v).normalize();
+}
+
+/** Un testero: desde afuera de la esquina, de arriba y del lado del testero, para ver la lengüeta y los tarugos. */
+function breadboardView(a: Box, b: Box): THREE.Vector3 {
+  const j = endJoint(a, b);
+  if (!j) return DIR;
+  const v = [0, 0, 0];
+  v[j.axis] = (a.min[j.axis] + a.max[j.axis]) / 2 >= (b.min[j.axis] + b.max[j.axis]) / 2 ? 0.8 : -0.8;
+  v[j.thin] = 1;
+  v[j.wide] = -0.9;
   return new THREE.Vector3(...v).normalize();
 }
 
@@ -199,7 +210,8 @@ export function JointDetail3D({ project, joint, meshes, label, draft = null, apa
   // Separadas, el encuadre abarca las dos: la caja y la espiga que salió.
   const hold = joint.type === 'tope' ? holdOf(joint.params) : 'libre';
   const held = FLOATING_HOLDS.has(hold);
-  const focus = held ? holdFocus(placed.a, placed.b) : focusBox(placed.a, placed.b);
+  const breadboard = joint.type === 'machiembrado' && isBreadboard(joint.params);
+  const focus = held ? holdFocus(placed.a, placed.b) : breadboard ? holdFocus(placed.a, placed.b, 160) : focusBox(placed.a, placed.b);
   // Los botones van atornillados a la tapa: no se mueven con el faldón.
   const buttons = hold === 'botones' ? buttonBlocks(placed.a, placed.b) : [];
   if (apart) focus.union(focus.clone().translate(new THREE.Vector3(...ex.offset)));
@@ -213,7 +225,7 @@ export function JointDetail3D({ project, joint, meshes, label, draft = null, apa
       aria-label={label}
       style={{ touchAction: 'none' }}
     >
-      <Rig focus={focus} frameKey={`${joint.id}-${apart}-${hold}`} dir={held ? holdView(placed.a, placed.b) : undefined} />
+      <Rig focus={focus} frameKey={`${joint.id}-${apart}-${hold}`} dir={held ? holdView(placed.a, placed.b) : breadboard ? breadboardView(placed.a, placed.b) : undefined} />
       <hemisphereLight args={['#ffffff', '#b9ad98', 1.7]} />
       <directionalLight position={[1500, 2500, 1800]} intensity={1.3} />
       <Slide to={offset}>

@@ -212,7 +212,15 @@ export interface TongueParams {
   /** Espesor de la lengüeta. */
   thickness: number;
   depth: number;
+  /**
+   * Testero: tarugos que cruzan la canal y la lengüeta. El del medio va en un agujero redondo; los de las puntas, en
+   * agujeros ovalados en la lengüeta, para que la tapa se mueva a lo ancho. Sin esto (o 0), machimbre común.
+   */
+  pegs?: number;
 }
+
+/** Tarugos del testero: de 8 mm, y los ovalados de las puntas 6 mm más largos hacia su punta. */
+export const BREADBOARD = { peg: 8, slot: 6, fromEnd: 50 };
 
 /** Machimbre: tablas de espesor parecido unidas canto con canto. */
 export function defaultTongueParams(a: Box, b: Box): TongueParams | null {
@@ -229,8 +237,40 @@ export function tongueGeometry(a: Box, b: Box, p: TongueParams): JointGeometry |
   if (!j) return null;
   const mid = (j.section.min[j.thin] + j.section.max[j.thin]) / 2;
   const s = band(j, mid - p.thickness / 2, mid + p.thickness / 2);
-  return { cutA: [box(slab(j, p.depth + 1, s))], cutB: [], addB: [box(slab(j, p.depth, s))] };
+  const g: JointGeometry = { cutA: [box(slab(j, p.depth + 1, s))], cutB: [], addB: [box(slab(j, p.depth, s))] };
+  const n = Math.round(p.pegs ?? 0);
+  if (n < 1) return g;
+  // Testero: los tarugos atraviesan A de cara a cara por el medio del largo de la lengüeta.
+  const at = j.face + (j.dir * p.depth) / 2;
+  const lo = j.section.min[j.wide];
+  const hi = j.section.max[j.wide];
+  const r = BREADBOARD.peg / 2;
+  const cutA: Solid[] = [];
+  const cutB: Solid[] = [];
+  const from = Math.min(BREADBOARD.fromEnd, width(j) / 4);
+  for (let i = 0; i < n; i++) {
+    const c = n === 1 ? (lo + hi) / 2 : lo + from + ((hi - lo - 2 * from) * i) / (n - 1);
+    const start: Vec3 = [0, 0, 0];
+    start[j.axis] = at;
+    start[j.thin] = a.min[j.thin];
+    start[j.wide] = c;
+    const hole = (shift: number): Solid => {
+      const st = [...start] as Vec3;
+      st[j.wide] = c + shift;
+      return { kind: 'cylinder', start: st, axis: j.thin, dir: 1, radius: r, length: boxSize(a)[j.thin] };
+    };
+    cutA.push(hole(0));
+    // En la lengüeta: el del medio redondo, los demás alargados hacia afuera, hacia donde se mueve la tapa.
+    const mid2 = (lo + hi) / 2;
+    const out = Math.abs(c - mid2) < 1 ? 0 : Math.sign(c - mid2);
+    cutB.push(hole(0));
+    if (out) cutB.push(hole((out * BREADBOARD.slot) / 2), hole(out * BREADBOARD.slot));
+  }
+  return { ...g, extra: { cutA, cutB, addB: [] } };
 }
+
+/** Si el machimbre es un testero: lleva tarugos. */
+export const isBreadboard = (p: { pegs?: number }) => (p.pegs ?? 0) >= 1;
 
 // ---------- Tornillo de bolsillo ----------
 

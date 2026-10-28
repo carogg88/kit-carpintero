@@ -17,6 +17,8 @@ import {
   HOLDS,
   holdFits,
   holdOf,
+  isBreadboard,
+  panelJoint,
   jointChoices,
   jointContact,
   jointGrowth,
@@ -254,7 +256,9 @@ function ruleHint(j: Joint, a: Part, b: Part, n: (mm: number) => string): string
     case 'galleta':
       return t('Usá la galleta más grande que entre: del 20 si el ancho pasa los 8 cm. Una cada 15 cm.');
     case 'machiembrado':
-      return t('La lengüeta mide un tercio del espesor de {id} ({thick}) y entra la mitad de ese espesor.', { id: b.id, thick: n(minDim(b)) });
+      return isBreadboard(j.params)
+        ? t('Testero: la lengüeta entra unos 25 mm y el testero se tarugea. Solo el tarugo del medio lleva cola.')
+        : t('La lengüeta mide un tercio del espesor de {id} ({thick}) y entra la mitad de ese espesor.', { id: b.id, thick: n(minDim(b)) });
     case 'bolsillo':
       return t('Tornillos de cabeza plana, de unos 3 cm para madera de 19 mm. Uno cada 12 cm.');
     case 'tope':
@@ -430,7 +434,19 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
     dedos: [choose('count', t('Dedos'), upTo(12)), length('depth', t('Largo'), 3, reachA)],
     brida: [length('thickness', t('Lengüeta'), 3), length('depth', t('Largo'), 5, reachA)],
     galleta: [choose('size', t('Galleta'), BISCUITS.map(([size]) => size), (v) => t('Nº {size}', { size: v })), choose('count', t('Cantidad'), upTo(6))],
-    machiembrado: [length('thickness', t('Espesor'), 2), length('depth', t('Largo'), 3, reachA)],
+    machiembrado: [
+      length('thickness', t('Espesor'), 2),
+      length('depth', t('Largo'), 3, reachA),
+      // Testero: la tabla de la punta, tarugada a la lengüeta. Los tarugos de afuera, en agujeros alargados.
+      choose('pegs', t('Testero'), [0, 2, 3, 4, 5], (v) => (v ? t('{n} tarugos', { n: v }) : t('No')), true),
+      ...(isBreadboard(params)
+        ? [
+            <p key="pegs-about" className={`${styles.note} ${styles.fieldNote}`}>
+              {t('El tarugo del medio va con cola; los de las puntas entran en agujeros alargados en la lengüeta, sin cola, para que la tapa se mueva.')}
+            </p>,
+          ]
+        : []),
+    ],
     bolsillo: [choose('count', t('Tornillos'), upTo(6))],
     // A tope no se corta: se elige cómo se sujeta. Lo que deja correr la madera, solo si entra en esta pieza.
     tope: crossing
@@ -482,7 +498,18 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           ...((params.haunch ?? 0) > 0 ? [length('haunch', t('Hondo de la media caja'), 3, params.length)] : []),
         ]
       : joint.type === 'canal' || joint.type === 'rebaje'
-        ? [length('depth', t('Profundidad'))]
+        ? [
+            length('depth', t('Profundidad')),
+            // Un panel macizo crece a lo ancho: la canal le deja lugar de más y el panel va sin cola.
+            ...(joint.type === 'canal' && (panelJoint(project, joint) || params.play)
+              ? [
+                  length('play', t('Juego'), 0),
+                  <p key="play-about" className={`${styles.note} ${styles.fieldNote}`}>
+                    {t('Lo que la canal es más honda que lo que entra el panel, de cada lado. El panel va sin cola: flota.')}
+                  </p>,
+                ]
+              : []),
+          ]
         : joint.type === 'clavija'
           ? [
               <label key="d" className={styles.field}>
