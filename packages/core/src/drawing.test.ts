@@ -84,3 +84,43 @@ describe('dibujo técnico', () => {
     expect(engineViewKey(grown, d)).not.toBe(engineViewKey(table, d));
   });
 });
+
+describe('corte A-A de una unión oculta', () => {
+  const mortise = table.joints.find((j) => j.type === 'mortaja')!;
+
+  it('la mortaja ciega lleva corte: la pata rayada, la espiga adentro y el hueco del fondo', () => {
+    const sec = drawJointDetail(table, mortise.id)!.section!;
+    expect(sec).toBeDefined();
+    expect(sec.areas.map((x) => x.kind)).toEqual(expect.arrayContaining(['a', 'void', 'b']));
+    const hole = sec.areas.find((x) => x.kind === 'void')!.rect;
+    const tenon = sec.areas.filter((x) => x.kind === 'b').map((x) => x.rect);
+    // La mortaja es más honda que la espiga: queda un hueco que ninguna parte de la otra pieza llena.
+    const along = (r: { u0: number; u1: number }) => r.u1 - r.u0;
+    expect(Math.max(along(hole), hole.v1 - hole.v0)).toBeGreaterThan(Math.min(...tenon.map(along)));
+    // Los códigos van en la madera de cada pieza, no sobre la espiga.
+    const leg = sec.labels.find((l) => l.id === mortise.partA)!;
+    const inside = (r: { u0: number; v0: number; u1: number; v1: number }) => leg.at[0] > r.u0 && leg.at[0] < r.u1 && leg.at[1] > r.v0 && leg.at[1] < r.v1;
+    expect(tenon.some(inside) || inside(hole)).toBe(false);
+  });
+
+  it('la línea del corte se marca en la otra vista, dentro del dibujo', () => {
+    const d = drawJointDetail(table, mortise.id)!;
+    const { view, along, at } = d.section!.cut;
+    const b = d.views[view]!.bounds;
+    expect(view).toBe(1);
+    const [lo, hi] = along === 'u' ? [b.v0, b.v1] : [b.u0, b.u1];
+    expect(at).toBeGreaterThan(lo);
+    expect(at).toBeLessThan(hi);
+  });
+
+  it('una mortaja pasante se ve de afuera: sin corte', () => {
+    const p = { ...table, joints: table.joints.map((j) => (j.id === mortise.id ? { ...j, params: { ...j.params, style: 1 } } : j)) };
+    expect(drawJointDetail(p, mortise.id)!.section).toBeUndefined();
+  });
+
+  it('una unión a tope sin cortes no lleva corte', () => {
+    const p = { ...table, joints: table.joints.map((j) => (j.type === 'tope' ? { ...j, params: { hold: 0 } } : j)) };
+    const tope = p.joints.find((j) => j.type === 'tope')!;
+    expect(drawJointDetail(p, tope.id)!.section).toBeUndefined();
+  });
+});

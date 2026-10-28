@@ -190,3 +190,9 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .shapeId { fill: var(--paper-accent); font: 500 2.6px var(--font-num); }
 .edgeName { fill: var(--paper-muted); font: 500 2.4px var(--font-display); letter-spacing: 0.04em; }
 .legendTitle { fill: var(--paper-ink); font: 500 2.8px var(--font-display); }
+.sectionFill { fill: var(--paper); }
+.hatch line { stroke: var(--paper-muted); stroke-width: 0.12; }
+.cutMark line, .cutMark path { stroke: var(--paper-accent); stroke-width: 0.3; fill: none; }
+.cutMark .cutLine { stroke-width: 0.2; stroke-dasharray: 3 0.8 0.6 0.8; }
+.cutMark text { fill: var(--paper-accent); font: 500 3px var(--font-num); }
+.sectionId { paint-order: stroke; stroke: var(--paper); stroke-width: 1.2; }

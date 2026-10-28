@@ -35,6 +35,7 @@ import {
   type JointGroup,
   type ViewName,
   type Drawing,
+  type JointSection,
   type AngleMark,
   type MoveMark,
   type ArcMark,
@@ -907,7 +908,8 @@ function partSheets(project: Project, refine: Refine, colors: ReadonlyMap<string
 /** Desde dónde se mira cada vista de detalle, según el eje de profundidad: siempre desde el lado positivo. */
 const VIEW_NAMES = [tk('Vista de costado'), tk('Vista desde arriba'), tk('Vista de frente')] as const;
 
-type JointDetail = { g: JointGroup; j: Joint; d: NonNullable<ReturnType<typeof drawJointDetail>>; n: number };
+type Detail = NonNullable<ReturnType<typeof drawJointDetail>>;
+type JointDetail = { g: JointGroup; j: Joint; d: Detail; n: number };
 
 /** Los detalles de la hoja de encastres, numerados: el mismo número va en el círculo de las vistas generales. */
 function jointDetails(project: Project, refine: Refine): JointDetail[] {
@@ -974,6 +976,81 @@ function detailMarks(project: Project, details: JointDetail[], view: ViewName, d
 }
 
 /** Hoja de encastres: un detalle por grupo de uniones con cortes, en dos vistas con su nombre. */
+/** Rayado de un corte, a 45°: hacia un lado la pieza que recibe, hacia el otro la que entra. */
+function Hatch({ x0, y0, x1, y1, flip }: { x0: number; y0: number; x1: number; y1: number; flip: boolean }) {
+  const step = 1.1;
+  const lines: [number, number, number, number][] = [];
+  // Rectas x + y = k (o x − y = k), recortadas al rectángulo.
+  const [lo, hi] = flip ? [x0 - y1, x1 - y0] : [x0 + y0, x1 + y1];
+  for (let k = Math.ceil(lo / step) * step; k <= hi; k += step) {
+    const xa = flip ? Math.max(x0, k + y0) : Math.max(x0, k - y1);
+    const xb = flip ? Math.min(x1, k + y1) : Math.min(x1, k - y0);
+    if (xb - xa < 0.05) continue;
+    lines.push(flip ? [xa, xa - k, xb, xb - k] : [xa, k - xa, xb, k - xb]);
+  }
+  return (
+    <g className={styles.hatch}>
+      {lines.map(([a, b, c, d], i) => (
+        <line key={i} x1={a} y1={b} x2={c} y2={d} />
+      ))}
+    </g>
+  );
+}
+
+/** El corte de una unión oculta: la madera rayada, los huecos en blanco y el contorno de cada parte. */
+function SectionView({ sec, at }: { sec: JointSection; at: Place }) {
+  return (
+    <>
+      {sec.areas.map(({ kind, rect: r }, i) => {
+        const box = { x0: px(at, r.u0), y0: py(at, r.v1), x1: px(at, r.u1), y1: py(at, r.v0) };
+        return (
+          <g key={i}>
+            <rect x={box.x0} y={box.y0} width={box.x1 - box.x0} height={box.y1 - box.y0} className={styles.sectionFill} />
+            {kind !== 'void' && <Hatch {...box} flip={kind === 'b'} />}
+          </g>
+        );
+      })}
+      <Lines d={{ lines: sec.lines, joints: [], labels: [], rects: [], bounds: sec.bounds }} at={at} />
+      <g className={styles.notes}>
+        {sec.labels.map((l) => (
+          <text key={l.id} x={px(at, l.at[0])} y={py(at, l.at[1]) + 1.2} textAnchor="middle" className={`${styles.partId} ${styles.sectionId}`}>
+            {l.id}
+          </text>
+        ))}
+      </g>
+    </>
+  );
+}
+
+/** Dónde pasa el corte, en la otra vista: línea de trazo y punto con la letra y una flecha hacia donde se mira. */
+function CutMark({ sec, view, at, letter }: { sec: JointSection; view: Drawing; at: Place; letter: string }) {
+  const { along, at: c } = sec.cut;
+  const b = view.bounds;
+  const vertical = along === 'v';
+  const [x1, y1, x2, y2] = vertical ? [px(at, c), py(at, b.v1) - 2, px(at, c), py(at, b.v0) + 2] : [px(at, b.u0) - 2, py(at, c), px(at, b.u1) + 2, py(at, c)];
+  const dx = vertical ? sec.cut.look * 3 : 0;
+  const dy = vertical ? 0 : -sec.cut.look * 3;
+  // Hacia dónde apunta la flecha, de largo uno.
+  const [ux, uy] = [Math.sign(dx), Math.sign(dy)];
+  return (
+    <g className={styles.cutMark}>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} className={styles.cutLine} />
+      {[
+        [x1, y1],
+        [x2, y2],
+      ].map(([x, y], i) => (
+        <g key={i}>
+          <line x1={x} y1={y} x2={x! + dx} y2={y! + dy} />
+          <path d={`M ${x! + dx - ux * 1.2 + uy * 0.8} ${y! + dy - uy * 1.2 + ux * 0.8} L ${x! + dx} ${y! + dy} L ${x! + dx - ux * 1.2 - uy * 0.8} ${y! + dy - uy * 1.2 - ux * 0.8}`} />
+          <text x={x! + dx * 1.6} y={y! + dy * 1.6 + 1} textAnchor="middle">
+            {letter}
+          </text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
 function jointSheets(project: Project, details: JointDetail[]): SheetDef[] {
   const n = (mm: number) => formatNumber(mm, project.units);
   const PER = 3;
@@ -993,13 +1070,18 @@ function jointSheets(project: Project, details: JointDetail[]): SheetDef[] {
       },
     ];
   }
+  // Una letra por corte, en orden: A-A, B-B…
+  const letters = new Map(details.filter((x) => x.d.section).map((x, i) => [x.n, String.fromCharCode(65 + (i % 26))]));
   for (let i = 0; i < details.length; i += PER) {
     const chunk = details.slice(i, i + PER);
     const rowH = (H - 2 * M - TITLE_H) / chunk.length;
-    const viewW = (W - 2 * M) / 2;
-    const scaleFor = (d: NonNullable<ReturnType<typeof drawJointDetail>>) =>
-      pickScale((s) => d.views.every((v) => (v.bounds.u1 - v.bounds.u0) / s <= viewW - 34 && (v.bounds.v1 - v.bounds.v0) / s <= rowH - 29));
-    const scales = new Set(chunk.map(({ d }) => scaleFor(d)));
+    // Con corte A-A, tres dibujos por fila en vez de dos.
+    const viewW = (d: Detail) => (W - 2 * M) / (d.section ? 3 : 2);
+    const scaleFor = (d: Detail) =>
+      pickScale((s) => d.views.every((v) => (v.bounds.u1 - v.bounds.u0) / s <= viewW(d) - 34 && (v.bounds.v1 - v.bounds.v0) / s <= rowH - 29));
+    // El corte va a su escala, más grande que las vistas si entra.
+    const sectionScale = (d: Detail, b: Rect2) => pickScale((x) => (b.u1 - b.u0) / x <= viewW(d) - 12 && (b.v1 - b.v0) / x <= rowH - 24);
+    const scales = new Set(chunk.flatMap(({ d }) => [scaleFor(d), ...(d.section ? [sectionScale(d, d.section.bounds)] : [])]));
     sheets.push({
       key: `encastres-${i}`,
       title: details.length > PER ? t('Encastres {n}', { n: i / PER + 1 }) : t('Encastres'),
@@ -1023,8 +1105,31 @@ function jointSheets(project: Project, details: JointDetail[]): SheetDef[] {
               {jointPurpose(j, crossing)}
               {care && <tspan className={styles.care}> {t('Ojo: {care}', { care })}</tspan>}
             </text>
+            {d.section && (() => {
+              const sec = d.section;
+              const sb = sec.bounds;
+              const cs = sectionScale(d, sb);
+              const p: Place = { x: M + 2 * viewW(d) + 8, y: cy + 16, s: cs, b: sb };
+              const view = d.views[sec.cut.view]!;
+              const letter = letters.get(num)!;
+              const clip = `clip-${g.key}-corte`.replace(/[^\w-]/g, '_');
+              return (
+                <g>
+                  <CutMark sec={sec} view={view} at={{ x: M + sec.cut.view * viewW(d) + 18, y: cy + 16, s: scale, b: view.bounds }} letter={letter} />
+                  <clipPath id={clip}>
+                    <rect x={p.x} y={p.y} width={(sb.u1 - sb.u0) / cs} height={(sb.v1 - sb.v0) / cs} />
+                  </clipPath>
+                  <g clipPath={`url(#${clip})`}>
+                    <SectionView sec={sec} at={p} />
+                  </g>
+                  <text x={px(p, (sb.u0 + sb.u1) / 2)} y={py(p, sb.v0) + 5} textAnchor="middle" className={`${styles.notes} ${styles.viewName}`}>
+                    {t('Corte {a}-{a}', { a: letter })} · 1:{cs}
+                  </text>
+                </g>
+              );
+            })()}
             {d.views.map((v, vi) => {
-              const p: Place = { x: M + vi * viewW + 18, y: cy + 16, s: scale, b: v.bounds };
+              const p: Place = { x: M + vi * viewW(d) + 18, y: cy + 16, s: scale, b: v.bounds };
               const jr = v.joints;
               const ext = jr.length
                 ? {
