@@ -91,6 +91,7 @@ export const ES_REST: Article[] = [
             'Debajo, **Qué cambia en los cortes** dice cuánto se suma al largo de corte de cada pieza.',
           ),
           p('La nota con la (i) recuerda la regla de ese encastre: la espiga de un tercio del espesor, el tarugo de la mitad, la pendiente 1:8 de las colas.'),
+          p('Debajo, la línea **Ojo:** dice qué cuidar al hacerla: la mortaja más honda que la espiga, las cuñas cruzadas a la veta, el panel sin cola. La misma línea sale en la hoja de **Encastres** del plano.'),
         ],
       },
       {
@@ -424,14 +425,15 @@ export const ES_REST: Article[] = [
         blocks: [
           table(
             ['Hoja', 'Qué tiene'],
-            ['Vistas generales', 'Frente, costado y planta, con las medidas del mueble'],
+            ['Vistas generales', 'Frente, costado y planta, con las medidas del mueble y un círculo numerado en cada unión'],
             ['El mueble armado', 'El mueble en 3D, con el código de cada pieza'],
             ['Despiece', 'Cada pieza acotada'],
-            ['Encastres', 'Cada tipo de encastre en detalle'],
+            ['Encastres', 'Cada unión en detalle, con su número, su nombre completo, para qué sirve y qué cuidar (Ojo)'],
             ['Plantillas 1:1', 'Las curvas y el torneado a tamaño real, si el mueble los tiene'],
           ),
           p('Tocá una hoja en la lista para verla. Con los botones de zoom, pellizcando o con dos toques, la agrandás.'),
           tip('Si el mueble tiene patas inclinadas, el despiece las dibuja derechas, a lo largo, con el ángulo de cada punta: es el de la falsa escuadra, entre el canto y la punta larga.'),
+          tip('El número en círculo de las vistas generales es el mismo del detalle en la hoja de **Encastres**: seguilo para ver cómo se corta esa unión.'),
           tip('Las tapas, costados y paneles macizos anchos llevan una flecha con lo que se mueven a lo ancho con la humedad, en las vistas generales y en el despiece. Es el lugar que hay que dejarles: no los trabes con cola ni tornillos fijos.'),
         ],
       },

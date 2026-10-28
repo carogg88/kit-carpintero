@@ -158,7 +158,9 @@ describe('patas inclinadas', () => {
     const z = d.projections[side]!.u === 2 ? 'u' : 'v';
     const w = d.views[side]!.engine!.window!;
     expect(win).toBeTruthy();
-    expect(z === 'u' ? w.u1 : w.v1).toBeGreaterThan(70);
+    // Desde el costado, z crece hacia la izquierda del dibujo.
+    const zMax = z === 'u' ? (d.projections[side]!.uSign > 0 ? w.u1 : -w.u0) : w.v1;
+    expect(zMax).toBeGreaterThan(70);
   });
 });
 

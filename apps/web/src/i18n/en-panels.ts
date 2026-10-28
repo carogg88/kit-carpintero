@@ -646,7 +646,6 @@ export default {
   'Testero: la lengüeta entra unos 25 mm y el testero se tarugea. Solo el tarugo del medio lleva cola.': 'Breadboard end: the tongue goes in about 25 mm and the end is pegged. Only the middle peg is glued.',
   'Testero': 'Breadboard end',
   '{n} tarugos': '{n} pegs',
-  'El tarugo del medio va con cola; los de las puntas entran en agujeros alargados en la lengüeta, sin cola, para que la tapa se mueva.': 'The middle peg is glued; the outer ones go through slotted holes in the tongue, without glue, so the top can move.',
   Juego: 'Play',
   'Lo que la canal es más honda que lo que entra el panel, de cada lado. El panel va sin cola: flota.': 'How much deeper the groove is than the panel goes in, on each side. The panel is not glued: it floats.',
   'canal de {d}{unit} de profundidad, panel sin cola con {play} mm de juego': 'groove {d}{unit} deep, panel unglued with {play} mm of play',

@@ -13,6 +13,11 @@ import {
   faceName,
   formatNumber,
   groupJoints,
+  jointAnchor,
+  jointCare,
+  jointFullName,
+  jointPurpose,
+  overlapBox,
   JOINT_NAMES,
   MEASURED_FROM,
   otherAxes,
@@ -26,6 +31,9 @@ import {
   turnOutline,
   turnSegments,
   type CutRow,
+  type Joint,
+  type JointGroup,
+  type ViewName,
   type Drawing,
   type AngleMark,
   type MoveMark,
@@ -544,7 +552,7 @@ function sheetGroups(sheets: SheetDef[]): { from: number; to: number; title: str
 }
 
 /** Hoja 2: frente, costado y planta con las medidas generales. */
-function generalSheet(project: Project, refine: Refine): SheetDef {
+function generalSheet(project: Project, refine: Refine, details: JointDetail[]): SheetDef {
   const n = (mm: number) => formatNumber(mm, project.units);
   const front = refine(drawView(project, 'front'));
   const side = refine(drawView(project, 'side'));
@@ -589,6 +597,14 @@ function generalSheet(project: Project, refine: Refine): SheetDef {
         <Lines d={front} at={fp} />
         <Lines d={side} at={sp} />
         <Lines d={top} at={tp} />
+        {details.length > 0 && (
+          <text x={M + 6} y={H - M - 4} className={`${styles.notes} ${styles.cellMeta}`}>
+            {t('Los números en círculo llevan al detalle de cada unión, en la hoja de encastres.')}
+          </text>
+        )}
+        {detailMarks(project, details, 'front', front, fp)}
+        {detailMarks(project, details, 'side', side, sp)}
+        {detailMarks(project, details, 'top', top, tp)}
         {moveArrows(fp, front)}
         {moveArrows(sp, side)}
         {moveArrows(tp, top)}
@@ -761,17 +777,75 @@ function partSheets(project: Project, refine: Refine, colors: ReadonlyMap<string
 /** Desde dónde se mira cada vista de detalle, según el eje de profundidad: siempre desde el lado positivo. */
 const VIEW_NAMES = [tk('Vista de costado'), tk('Vista desde arriba'), tk('Vista de frente')] as const;
 
-/** Hoja de encastres: un detalle por grupo de uniones con cortes, en dos vistas con su nombre. */
-function jointSheets(project: Project, refine: Refine): SheetDef[] {
-  const n = (mm: number) => formatNumber(mm, project.units);
-  const groups = groupJoints(project).filter((g) => g.joints.some((j) => !plainJoint(j)));
-  const details = groups
+type JointDetail = { g: JointGroup; j: Joint; d: NonNullable<ReturnType<typeof drawJointDetail>>; n: number };
+
+/** Los detalles de la hoja de encastres, numerados: el mismo número va en el círculo de las vistas generales. */
+function jointDetails(project: Project, refine: Refine): JointDetail[] {
+  return groupJoints(project)
+    .filter((g) => g.joints.some((j) => !plainJoint(j)))
     .map((g) => {
       const j = g.joints.find((x) => !plainJoint(x))!;
       const d = drawJointDetail(project, j.id);
       return d && { g, j, d: { ...d, views: d.views.map(refine) } };
     })
-    .filter((x) => x !== null);
+    .filter((x) => x !== null)
+    .map((x, i) => ({ ...x, n: i + 1 }));
+}
+
+/** Si las dos piezas de la unión se cruzan: a tope es entonces apoyar en una muesca. */
+const crosses = (project: Project, j: Joint) => {
+  const a = project.parts.find((p) => p.id === j.partA);
+  const b = project.parts.find((p) => p.id === j.partB);
+  return !!a && !!b && !!overlapBox(partBox(a), partBox(b));
+};
+
+/** Círculo con el número de un detalle, como en los planos de ebanistería. */
+function DetailCircle({ x, y, n }: { x: number; y: number; n: number }) {
+  return (
+    <g className={styles.detailMark}>
+      <circle cx={x} cy={y} r={2.6} />
+      <text x={x} y={y + 1.05} textAnchor="middle">
+        {n}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * Los círculos de detalle de una vista general, afuera del dibujo y más allá de las cotas, con una línea derecha
+ * hasta donde está la unión: arriba en el frente y el costado, a la izquierda en la planta (arriba tiene el frente).
+ * Si dos caerían encima, el segundo se corre.
+ */
+function detailMarks(project: Project, details: JointDetail[], view: ViewName, d: Drawing, p: Place) {
+  const above = view !== 'top';
+  const line = above ? py(p, d.bounds.v1) - 13 : px(p, d.bounds.u0) - 12;
+  const placed: number[] = [];
+  return details.flatMap(({ g, j, n }) => {
+    const pick = [j, ...g.joints.filter((x) => x !== j && !plainJoint(x))].map((x) => jointAnchor(project, x)).find((a) => a?.view === view);
+    if (!pick) return [];
+    const x = px(p, pick.at[0]);
+    const y = py(p, pick.at[1]);
+    // Sobre el medio está el número de la cota de arriba: el círculo se corre a un costado.
+    const center = px(p, (d.bounds.u0 + d.bounds.u1) / 2);
+    let at = above ? (Math.abs(x - center) < 6 ? x + 10 : x) : y;
+    while (placed.some((q) => Math.abs(q - at) < 6)) at += 6;
+    placed.push(at);
+    const [cx, cy] = above ? [at, line] : [line, at];
+    // La línea sale derecha de la unión hasta el borde del dibujo y de ahí va al círculo.
+    const bend = above ? `${x},${py(p, d.bounds.v1) - 1.5} ${cx},${cy + 2.6}` : `${px(p, d.bounds.u0) - 1.5},${y} ${cx + 2.6},${cy}`;
+    return [
+      <g key={`det${n}`}>
+        <polyline points={`${x},${y} ${bend}`} className={styles.detailLeader} />
+        <circle cx={x} cy={y} r={0.45} className={styles.detailDot} />
+        <DetailCircle x={cx} y={cy} n={n} />
+      </g>,
+    ];
+  });
+}
+
+/** Hoja de encastres: un detalle por grupo de uniones con cortes, en dos vistas con su nombre. */
+function jointSheets(project: Project, details: JointDetail[]): SheetDef[] {
+  const n = (mm: number) => formatNumber(mm, project.units);
   const PER = 3;
   const sheets: SheetDef[] = [];
   if (!details.length) {
@@ -794,7 +868,7 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
     const rowH = (H - 2 * M - TITLE_H) / chunk.length;
     const viewW = (W - 2 * M) / 2;
     const scaleFor = (d: NonNullable<ReturnType<typeof drawJointDetail>>) =>
-      pickScale((s) => d.views.every((v) => (v.bounds.u1 - v.bounds.u0) / s <= viewW - 34 && (v.bounds.v1 - v.bounds.v0) / s <= rowH - 24));
+      pickScale((s) => d.views.every((v) => (v.bounds.u1 - v.bounds.u0) / s <= viewW - 34 && (v.bounds.v1 - v.bounds.v0) / s <= rowH - 29));
     const scales = new Set(chunk.map(({ d }) => scaleFor(d)));
     sheets.push({
       key: `encastres-${i}`,
@@ -804,16 +878,23 @@ function jointSheets(project: Project, refine: Refine): SheetDef[] {
           ? t('{joint} en detalle', { joint: t(JOINT_NAMES[chunk[0]!.j.type]) })
           : t('{joint} y otros, en detalle', { joint: t(JOINT_NAMES[chunk[0]!.j.type]) }),
       scale: scales.size === 1 ? [...scales][0]! : null,
-      body: chunk.map(({ g, j, d }, k) => {
+      body: chunk.map(({ g, j, d, n: num }, k) => {
         const cy = M + k * rowH;
         const scale = scaleFor(d);
+        const crossing = crosses(project, j);
+        const care = jointCare(j, crossing);
         return (
           <g key={g.key}>
-            <text x={M + 6} y={cy + 6} className={styles.cellTitle}>
-              {g.label} · {t(JOINT_NAMES[j.type])} · {g.joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: g.joints.length })} · 1:{scale}
+            <DetailCircle x={M + 8.6} y={cy + 4.9} n={num} />
+            <text x={M + 13} y={cy + 6} className={styles.cellTitle}>
+              {g.label} · {jointFullName(j, crossing)} · {g.joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: g.joints.length })} · 1:{scale}
+            </text>
+            <text x={M + 13} y={cy + 10.4} className={styles.cellMeta}>
+              {jointPurpose(j, crossing)}
+              {care && <tspan className={styles.care}> {t('Ojo: {care}', { care })}</tspan>}
             </text>
             {d.views.map((v, vi) => {
-              const p: Place = { x: M + vi * viewW + 18, y: cy + 11, s: scale, b: v.bounds };
+              const p: Place = { x: M + vi * viewW + 18, y: cy + 16, s: scale, b: v.bounds };
               const jr = v.joints;
               const ext = jr.length
                 ? {
@@ -1277,7 +1358,8 @@ function Ruler({ x, y }: { x: number; y: number }) {
 }
 
 function buildSheets(project: Project, refine: Refine, colors: ReadonlyMap<string, string>, shots: Shooter): SheetDef[] {
-  const rest = [generalSheet(project, refine), ...partSheets(project, refine, colors, shots), ...jointSheets(project, refine), ...templateSheets(project)];
+  const details = jointDetails(project, refine);
+  const rest = [generalSheet(project, refine, details), ...partSheets(project, refine, colors, shots), ...jointSheets(project, details), ...templateSheets(project)];
   return [overviewSheet(project, colors, shots, rest), ...rest];
 }
 
