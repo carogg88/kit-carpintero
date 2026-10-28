@@ -4,6 +4,7 @@ import { groupJoints } from './jointinfo';
 import { jointRoom } from './jointfit';
 import { HOLD_NAMES, holdOf, isBreadboard, JOINT_NAMES, plainJoint, tenonStyle, type Hold, type TenonStyle } from './joints';
 import type { Joint, JointType, Project } from './project';
+import { finishName, finishSteps, hasFinishes, partFinish } from './finishes';
 
 /**
  * Cómo armarlo: el orden de trabajo del taller, sacado del modelo. Cortar, encolar tablas anchas, marcar, hacer
@@ -223,12 +224,34 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
       ],
     });
 
-  steps.push({
+  steps.push(finishStep(project));
+  return steps;
+}
+
+/**
+ * El último paso: lijar todo y pasar la terminación. Si se eligió, una línea por terminación con sus piezas, cuántas
+ * manos, cuánto secado y con qué pulir entre manos.
+ */
+function finishStep(project: Project): AssemblyStep {
+  const step: AssemblyStep = {
     key: 'terminar',
     kind: 'terminar',
     title: t('Lijá todo y protegé la madera'),
     text: t('Lijá con grano 220, sacá el polvo con un trapo apenas húmedo y pasá la terminación: aceite, cera o laca. Probala antes en un retazo de la misma madera.'),
     items: [],
-  });
-  return steps;
+  };
+  if (!hasFinishes(project)) return step;
+  const groups = new Map<string, { ids: string[]; line: string }>();
+  for (const p of project.parts) {
+    const f = partFinish(project, p);
+    if (!f) continue;
+    const key = `${f.id}|${f.color ?? ''}`;
+    const g = groups.get(key) ?? { ids: [], line: `${finishName(f)}. ${finishSteps(f)}` };
+    g.ids.push(p.id);
+    groups.set(key, g);
+  }
+  step.text = t('Lijá con grano 220 y sacá el polvo con un trapo apenas húmedo. Probá cada terminación antes en un retazo de la misma madera: el color final depende de la madera y de la marca.');
+  const all = groups.size === 1 && [...groups.values()][0]!.ids.length === project.parts.filter((p) => p.wood !== 'melamina').length;
+  step.items = [...groups.values()].map((g) => (all ? g.line : t('{ids}: {finish}', { ids: listIds(g.ids), finish: g.line })));
+  return step;
 }

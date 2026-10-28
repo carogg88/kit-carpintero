@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   applyReviewFix,
+  finishName,
   joinPlan,
   jointList,
   isThrough,
@@ -96,6 +97,7 @@ import { TurningCard } from './TurningCard';
 import { FittingPanel } from './FittingPanel';
 import { TryPanel } from './TryPanel';
 import { MaterialOptions, sheetNote } from './MaterialOptions';
+import { FinishCard, FinishRow } from './FinishPicker';
 import { partsLabel, useEditor, type FittingKind } from './store';
 import { EyeToggle, PartViewButtons } from './visibility';
 import styles from './Editor.module.css';
@@ -933,6 +935,7 @@ function PartEditor({ part, project }: { part: Part; project: Project }) {
         {sheetNote(part.wood) && <span className={styles.fieldNote}>{sheetNote(part.wood)}</span>}
       </label>
       <GrainRow part={part} units={units} />
+      <FinishRow project={project} part={part} />
       <OpensRow project={project} partId={part.id} units={units} />
       {component && <ComponentNote project={project} part={part} name={component.name} />}
       <div className={styles.folds}>
@@ -1553,7 +1556,7 @@ function FurnitureSize({ project, heading = true, ids }: { project: Project; hea
   );
 }
 
-type OverviewFold = 'medidas' | 'revision' | 'aurea' | 'piezas';
+type OverviewFold = 'medidas' | 'revision' | 'aurea' | 'piezas' | 'terminacion';
 /** Qué secciones del panel quedaron abiertas: se recuerda al ir y volver de una pieza. */
 let overviewOpen = new Set<OverviewFold>(['medidas', 'piezas']);
 
@@ -1621,6 +1624,16 @@ function ProjectOverview({ project }: { project: Project }) {
               <GoldenCard project={project} heading={false} />
             </Accordion>
           )}
+          <Accordion
+            variant="line"
+            title={t('Terminación')}
+            summary={project.finish ? finishName(project.finish) : t('Aceite, laca, tinte o pintura')}
+            done={!!project.finish}
+            open={open.has('terminacion')}
+            onToggle={(on) => toggle('terminacion', on)}
+          >
+            <FinishCard project={project} />
+          </Accordion>
           <Accordion
             variant="line"
             title={t('Piezas')}

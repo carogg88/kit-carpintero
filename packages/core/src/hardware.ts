@@ -6,6 +6,7 @@ import type { Part, Project } from './project';
 import { tipRisk } from './review';
 import { isSheet, sheetById } from './woods';
 import { t } from './i18n';
+import { finishAreas, partFinish } from './finishes';
 
 /**
  * Herrajes y consumibles: lo que hay que comprar además de la madera, calculado desde los encastres,
@@ -200,21 +201,86 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
 
   // Lija y terminación por superficie: la melamina viene terminada, el MDF se sella y se pinta.
   // Las traseras y los fondos finos no se ven: no se lijan ni se terminan.
-  const m2 = (list: Part[]) => list.filter((p) => Math.min(...boxSize(partBox(p))) > 9).reduce((s, p) => s + surface(p), 0) / 1e6;
-  const wood = m2(boxes.filter((p) => !isSheet(p.wood) || p.wood === 'terciado' || p.wood === 'multilaminado'));
+  const visible = (p: Part) => Math.min(...boxSize(partBox(p))) > 9;
+  const m2 = (list: Part[]) => list.filter(visible).reduce((s, p) => s + surface(p), 0) / 1e6;
+  const woody = (p: Part) => !isSheet(p.wood) || p.wood === 'terciado' || p.wood === 'multilaminado';
+  const wood = m2(boxes.filter(woody));
   const mdf = m2(boxes.filter((p) => p.wood === 'mdf'));
   const sheets = (area: number) => Math.max(1, Math.ceil(area / 1.5));
-  /** Litros para dos manos, a 10 m² por litro, de a cuarto de litro. */
-  const liters = (area: number) => Math.max(0.25, Math.ceil(((area * 2) / 10) * 4) / 4);
-  if (wood > 0) {
-    for (const g of [80, 120, 180]) add(rows, { id: `lija|${g}`, name: t('Lija grano {g}', { g }), qty: sheets(wood), unit: 'hoja' });
-    add(rows, { id: 'terminacion', name: t('Aceite, cera o lustre'), qty: liters(wood), unit: 'l', note: t('dos manos') });
+  /** Litros para tantas manos, a tantos m² por litro, de a cuarto de litro. */
+  const liters = (area: number, coats = 2, cover = 10) => Math.max(0.25, Math.ceil(((area * coats) / cover) * 4) / 4);
+  if (wood > 0) for (const g of [80, 120, 180]) add(rows, { id: `lija|${g}`, name: t('Lija grano {g}', { g }), qty: sheets(wood), unit: 'hoja' });
+  if (mdf > 0) for (const g of [180, 240]) add(rows, { id: `lija|${g}`, name: t('Lija grano {g}', { g }), qty: sheets(mdf), unit: 'hoja' });
+  // Lo que no tiene terminación elegida: lo de siempre.
+  const open = boxes.filter((p) => !partFinish(project, p));
+  const openWood = m2(open.filter(woody));
+  const openMdf = m2(open.filter((p) => p.wood === 'mdf'));
+  if (openWood > 0) add(rows, { id: 'terminacion', name: t('Aceite, cera o lustre'), qty: liters(openWood), unit: 'l', note: t('dos manos') });
+  if (openMdf > 0) {
+    add(rows, { id: 'sellador-mdf', name: t('Fondo sellador para MDF'), qty: liters(openMdf), unit: 'l', note: t('dos manos') });
+    add(rows, { id: 'pintura', name: t('Pintura o laca'), qty: liters(openMdf), unit: 'l', note: t('dos manos') });
   }
-  if (mdf > 0) {
-    for (const g of [180, 240]) add(rows, { id: `lija|${g}`, name: t('Lija grano {g}', { g }), qty: sheets(mdf), unit: 'hoja' });
-    add(rows, { id: 'sellador-mdf', name: t('Fondo sellador para MDF'), qty: liters(mdf), unit: 'l', note: t('dos manos') });
-    add(rows, { id: 'pintura', name: t('Pintura o laca'), qty: liters(mdf), unit: 'l', note: t('dos manos') });
-  }
+  for (const { finish, m2: area, mdf: mdfArea } of finishAreas(project, surface, visible).values()) finishRows(rows, finish.id, finish.color, area, mdfArea, liters);
   return rows;
 }
 
+
+/** Lo que se compra para una terminación elegida: el producto, en litros según la superficie, y con qué pasarlo. */
+function finishRows(
+  rows: HardwareRow[],
+  id: string,
+  color: string | undefined,
+  area: number,
+  mdf: number,
+  liters: (area: number, coats?: number, cover?: number) => number,
+): void {
+  const lacquer = (sheen: 'mate' | 'satinada' | 'brillante') => {
+    const names = { mate: t('Laca poliuretánica mate'), satinada: t('Laca poliuretánica satinada'), brillante: t('Laca poliuretánica brillante') };
+    add(rows, { id: `laca|${sheen}`, name: names[sheen], qty: liters(area, 3), unit: 'l', note: t('tres manos') });
+    add(rows, { id: 'pincel', name: t('Pincel de 2 pulgadas'), qty: 1, unit: 'u' });
+  };
+  switch (id) {
+    case 'aceite':
+      add(rows, { id: 'aceite', name: t('Aceite de lino o tung para madera'), qty: liters(area, 3, 12), unit: 'l', note: t('tres manos') });
+      add(rows, { id: 'lana-acero', name: t('Lana de acero 000'), qty: 1, unit: 'u', note: t('entre manos') });
+      break;
+    case 'cera':
+      add(rows, { id: 'cera', name: t('Cera en pasta para madera, lata de 250 g'), qty: Math.max(1, Math.ceil(area / 4)), unit: 'u' });
+      break;
+    case 'lustre':
+      add(rows, { id: 'lustre', name: t('Goma laca disuelta en alcohol'), qty: liters(area, 6, 14), unit: 'l', note: t('para lustrar a muñeca') });
+      add(rows, { id: 'muneca', name: t('Algodón y trapo de lino para la muñeca'), qty: 1, unit: 'u' });
+      break;
+    case 'laca-mate':
+      lacquer('mate');
+      break;
+    case 'laca-satinada':
+      lacquer('satinada');
+      break;
+    case 'laca-brillante':
+      lacquer('brillante');
+      break;
+    case 'tinte-roble':
+    case 'tinte-nogal':
+    case 'tinte-caoba':
+    case 'tinte-wengue':
+    case 'ebonizado': {
+      const names: Record<string, string> = {
+        'tinte-roble': t('Tinte roble para madera'),
+        'tinte-nogal': t('Tinte nogal para madera'),
+        'tinte-caoba': t('Tinte caoba para madera'),
+        'tinte-wengue': t('Tinte wengué para madera'),
+        ebonizado: t('Tinte negro para madera'),
+      };
+      add(rows, { id: `tinte|${id}`, name: names[id]!, qty: liters(area, 1, 12), unit: 'l', note: t('una mano') });
+      lacquer('satinada');
+      break;
+    }
+    case 'pintura':
+      if (area - mdf > 0.001) add(rows, { id: 'fondo-madera', name: t('Fondo blanco para madera'), qty: liters(area - mdf, 1), unit: 'l', note: t('una mano') });
+      if (mdf > 0.001) add(rows, { id: 'sellador-mdf', name: t('Fondo sellador para MDF'), qty: liters(mdf, 1), unit: 'l', note: t('una mano') });
+      add(rows, { id: `esmalte|${color ?? ''}`, name: t('Esmalte al agua, color {color}', { color: color ?? '' }), qty: liters(area, 2), unit: 'l', note: t('dos manos') });
+      add(rows, { id: 'rodillo', name: t('Rodillo de espuma y bandeja'), qty: 1, unit: 'u' });
+      break;
+  }
+}

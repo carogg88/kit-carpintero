@@ -1,0 +1,28 @@
+/* Terminación: el selector, las muestras de pintura y el panel para comparar. */
+.card { display: flex; flex-direction: column; gap: var(--space-2); }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.swatches button, .custom {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line-strong); padding: 0; cursor: pointer;
+}
+.swatches button[aria-pressed='true'] { outline: 2px solid var(--forest); outline-offset: 2px; }
+.custom {
+  position: relative; overflow: hidden; display: grid; place-items: center;
+  background: conic-gradient(#e0605a, #e0c35a, #6ac46a, #5aa6e0, #a65ae0, #e0605a);
+}
+.custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.compare {
+  align-self: flex-start; min-height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--ink); font: 500 var(--text-s) var(--font-ui); cursor: pointer;
+}
+.compare:hover { border-color: var(--forest); }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+@media (max-width: 760px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.option {
+  display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--line); border-radius: var(--radius-s);
+  background: var(--surface); color: var(--ink); cursor: pointer; text-align: left;
+}
+.option:hover { border-color: var(--forest); }
+.option[aria-pressed='true'] { border-color: var(--forest); box-shadow: 0 0 0 1px var(--forest); }
+.option img, .wait { width: 100%; aspect-ratio: 4 / 3; border-radius: 6px; background: #f7f5ef; object-fit: cover; }
+.wait { display: grid; place-items: center; color: #5e6759; font-size: var(--text-xs); }
+.name { font: 500 var(--text-s) var(--font-ui); padding: 0 2px 2px; }

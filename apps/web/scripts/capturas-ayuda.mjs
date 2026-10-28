@@ -324,6 +324,12 @@ async function createTable(page) {
   await page.waitForTimeout(600);
   await shot(page, 'aurea');
   await accordion('Proporción áurea');
+  await accordion('Terminación');
+  await page.getByLabel('Terminación del mueble').selectOption('tinte-nogal');
+  await page.waitForTimeout(7500);
+  await shot(page, 'terminacion');
+  await page.keyboard.press('Control+z');
+  await accordion('Terminación');
   await accordion('Medidas del mueble');
   await accordion('Piezas');
   await page.locator('[data-tour="add"]').click();
