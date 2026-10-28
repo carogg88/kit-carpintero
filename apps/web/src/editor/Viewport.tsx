@@ -40,6 +40,7 @@ import {
   partKey,
   snapCoord,
   snapMove,
+  moveGuide,
   snapOnFace,
   t,
   tk,
@@ -62,7 +63,7 @@ import { contactFaces } from './contact';
 import { DEAD_PX, gentle, roundMeasure } from './gesture';
 import { ghostDiff } from './ghost';
 import { drawnPocket, showCorner } from './drawCut';
-import { partsLabel, useEditor, type DrawFace, type View } from './store';
+import { partsLabel, useEditor, type DragHint, type DrawFace, type View } from './store';
 import { usePartMaterial } from './woodMaterial';
 import { CUT_PLANES, CutRig, Moving, useMotions } from './Motion3D';
 import type { ExactMesh } from './useGeometry';
@@ -1032,6 +1033,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const hidden = useEditor((s) => s.hidden);
   const trace = useEditor((s) => s.traceImage);
   const tool = useEditor((s) => s.tool);
+  const clash = useEditor((s) => s.hint?.clash);
   const { camera, gl, invalidate } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
   // Caras donde la pieza que se arrastra apoya en otras: se iluminan al encajar y un momento después de soltar.
@@ -1056,6 +1058,13 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
     }, 700);
   };
   useEffect(() => () => clearTimeout(contactTimer.current), []);
+  /** Mientras se arrastra: qué unión sale, si choca o si queda una luz (ver `moveGuide`). */
+  const guideFor = (ids: string[]): Pick<DragHint, 'joint' | 'warn' | 'clash'> => {
+    const p = useEditor.getState().project;
+    if (!p) return {};
+    const g = moveGuide(p, ids, (mm) => formatLength(mm, p.units));
+    return { joint: g.joint, warn: g.warn, clash: g.clash.length ? g.clash : undefined };
+  };
   useNudge((ids) => {
     showContact(ids);
     fadeContact();
@@ -1202,6 +1211,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
           ...hintAt,
           text: `${part.id} · ${stretchLabel(part, drag.axis, units, max - min)}`,
           snap: snap.to === 'piso' ? t('piso') : snap.to ? t('cara de {id}', { id: snap.to }) : null,
+          ...guideFor([part.id]),
         });
       } else {
         const pt = new THREE.Vector3();
@@ -1252,6 +1262,7 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
               ? `${who} · ${formatLength(Math.abs(sx), units)} ${sx < 0 ? '↓' : '↑'}`
               : `${who} · ${formatLength(Math.abs(sx), units)} ↔ · ${formatLength(Math.abs(sy), units)} ↕`,
           snap: snaps.length ? [...new Set(snaps)].join(' · ') : null,
+          ...guideFor(ids),
         });
       }
       clearTimeout(contactTimer.current);
@@ -2034,6 +2045,9 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
       })}
       {contact.map((f, i) => (
         <ContactFace key={i} face={f} accent={colors.accent} />
+      ))}
+      {clash?.map((f, i) => (
+        <ContactFace key={`c${i}`} face={f} accent={colors.danger} opacity={0.35} />
       ))}
       {stretch &&
         tool === 'push' &&

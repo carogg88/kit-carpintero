@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { produce, type Draft } from 'immer';
-import { formatLength, groupOf, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type CornerKind, type FaceCorner, type PathPoint, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
+import { applyReviewFix, formatLength, groupOf, nearMisses, type NearMiss, isWholeGroup, partsBox, syncComponents, syncGroups, syncJoints, t, type Bevel, type Box, type CornerKind, type FaceCorner, type PathPoint, type PocketShape, type Project, type Section, type Units } from '@kitc/core';
 
 /** Corte para ver por adentro: de frente (Z), de costado (X) o de arriba (Y), y dónde. */
 export interface Cut {
@@ -232,6 +232,8 @@ export interface Notice {
   key: number;
   /** false: no hubo cambio, el aviso no lleva Deshacer. */
   undo?: boolean;
+  /** Un arreglo que se ofrece ahí mismo, como cerrar una luz que quedó al soltar. */
+  action?: { label: string; run: () => void };
 }
 
 export interface DragHint {
@@ -243,6 +245,10 @@ export interface DragHint {
   dims?: string;
   /** Así no vale: se dice en lugar del imán. */
   warn?: string;
+  /** Al mover: la unión que sale con la vecina que toca. */
+  joint?: string;
+  /** Al mover: dónde se mete en otra pieza, se pinta. */
+  clash?: Box[];
 }
 
 const touch = (p: Draft<Project>) => {
@@ -319,8 +325,24 @@ let lastNudge: { id: string; axis: number; at: number; before: Project; after: P
 const OPPOSITE: Record<string, string> = { '→': '←', '←': '→', '↑': '↓', '↓': '↑' };
 const noticeFor = (before: Project, after: Project, label?: string) => {
   const text = changeNotice(before, after, label);
+  const gap = newGap(before, after);
+  if (gap) return { notice: { text: text ? `${text}. ${gap.text}` : gap.text, key: ++noticeKey, action: gap.action } };
   return text ? { notice: { text, key: ++noticeKey } } : {};
 };
+
+/** Una luz chica entre dos piezas que el cambio dejó (antes no estaba): el aviso ofrece cerrarla. */
+function newGap(before: Project, after: Project): Pick<Notice, 'text' | 'action'> | null {
+  if (before.parts === after.parts) return null;
+  const n = (mm: number) => formatLength(mm, after.units);
+  const pair = (m: NearMiss) => `${m.a}|${m.b}`;
+  const old = new Set(nearMisses(before, n).map(pair));
+  const miss = nearMisses(after, n).find((m) => !old.has(pair(m)));
+  if (!miss) return null;
+  return {
+    text: t('{b} quedó a {mm} de {a}: sin unión', { a: miss.a, b: miss.b, mm: n(miss.gap) }),
+    action: { label: t('Cerrar la luz'), run: () => useEditor.getState().commit((d) => applyReviewFix(d, miss.fix), miss.fix.label) },
+  };
+}
 
 export const useEditor = create<EditorState>()((set, get) => ({
   project: null,

@@ -122,6 +122,34 @@ async function createTable(page) {
   await page.waitForTimeout(3000);
   await view('Frente');
   await page.waitForTimeout(1200);
+  // Guía al mover: el faldón delantero 6 cm más corto. Arrastrado hacia la pata, el cartel dice qué unión sale.
+  const apron = [500, 232];
+  await page.mouse.click(...apron);
+  await page.waitForTimeout(600);
+  const width = page.getByLabel('Ancho', { exact: true }).first();
+  await width.fill('154');
+  await width.press('Enter');
+  // Que se vaya el aviso de abajo.
+  await page.waitForTimeout(7500);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(...rightLeg);
+  await page.keyboard.up('Shift');
+  await page.waitForTimeout(800);
+  await mark(page, '[aria-label^="Unir "]');
+  await shot(page, 'mover-unir');
+  await unmark(page);
+  // Un toque en el fondo suelta las dos, para mover solo el faldón.
+  await page.mouse.click(560, 400);
+  await tool('Mover');
+  await page.mouse.move(...apron);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(apron[0] + 2 * i, apron[1]);
+  await page.waitForTimeout(600);
+  await shot(page, 'mover-guia');
+  await page.mouse.up();
+  await page.keyboard.press('Escape');
+  await undo(2);
+  await tool('Seleccionar');
   await page.mouse.click(...leftLeg);
   await page.waitForTimeout(800);
   await shot(page, 'elegir');
@@ -285,7 +313,8 @@ async function createTable(page) {
   await page.waitForTimeout(1200);
   await shot(page, 'medidas-mueble');
   await width.press('Enter');
-  await page.waitForTimeout(1500);
+  // Que se vaya el aviso de abajo.
+  await page.waitForTimeout(7500);
   await shot(page, 'vista-previa');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);

@@ -166,11 +166,41 @@ export const EN_TOOLS: Article[] = [
           steps('With the part selected, use the keyboard arrows: each press moves it 1 mm, and with `Shift`, 10 mm.', 'The arrows follow the view: in Front they move across and up; in Top, across and front to back.'),
         ],
       },
+      {
+        id: 'guia',
+        title: 'Which joint you get while moving',
+        blocks: [
+          p('While you drag, the label next to your finger says what happens with the part:'),
+          list(
+            'In green, the joint you get with the neighbor it touches: for example **Touches P1: mortise and tenon, dowels and 4 more**.',
+            'In red, if it goes into another part. The crossing is painted on the model. An end that goes into a leg does not give a mortise and tenon: stop it at the face.',
+            'Also in red, if it ended up a few millimeters from another part: no joint like that.',
+          ),
+          p('The end of a part snaps to the face in front of it from farther away than the rest, so it lands just touching. **Stretch** does the same.'),
+          img('mover-guia', 'A rail dragged up to the leg, with the joint it gets in the label'),
+          tip('If a small gap is left when you let go, the notice at the bottom offers **Close the gap**: it stretches the part until it touches the other one.'),
+        ],
+      },
+      {
+        id: 'quiero-union',
+        title: 'I want this joint',
+        blocks: [
+          steps(
+            'Pick the two parts you want to join: tap one and add the other with `Shift` + click (or **Select several**).',
+            'The panel shows **Join P1 and T1**, with the joint you would get.',
+            'Tap **Bring T1 to P1** to move the smaller part up to the face of the other, or **Stretch** to lengthen it up to there.',
+            'Check the preview on the model and tap **Apply**.',
+          ),
+          img('mover-unir', 'Two parts picked, with Join P3 and F1 in the panel'),
+          note('If the parts do not face each other, the panel tells you which one to move first. If they already touch, **See the joint** takes you to Joints.'),
+        ],
+      },
     ],
     faq: [
       { q: 'Why does it not go up?', a: 'In 3D and Top the part stays on the floor. Switch to Front or Side.' },
       { q: 'A joint came apart when moving, what do I do?', a: 'If you separate two parts that were touching, the joint goes away. The notice at the bottom says so and has **Undo**.' },
       { q: 'Do the parts of a group move together?', a: 'Yes: dragging a part of a group moves the whole group.' },
+      { q: 'The label says it goes into another part, is that wrong?', a: 'Not always: two crossing parts give a half lap or a notch seat. For mortise and tenon, dowels or biscuits, the end has to land just on the face.' },
     ],
     related: ['unir', 'altura', 'flechas', 'medir'],
   },

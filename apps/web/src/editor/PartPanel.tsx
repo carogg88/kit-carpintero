@@ -1,5 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  applyReviewFix,
+  joinPlan,
+  jointList,
   isThrough,
   tenonStyle,
   acrossFace,
@@ -1182,6 +1185,7 @@ function PickedPanel({ project, ids }: { project: Project; ids: string[] }) {
           ? t('Se mueven, se copian, se ocultan y se borran juntas. Para editar una sola, tocala otra vez en el modelo o elegila en la lista.')
           : t('Agrupalas para que se muevan juntas. Shift + clic (o Elegir varias) suma o saca piezas.')}
       </p>
+      {ids.length === 2 && <JoinCard project={project} ids={ids} />}
       <FurnitureSize key={ids.join()} project={project} ids={ids} />
       <FlipRow ids={ids} label={label} />
       {whole && <OpensRow project={project} partId={whole.parts[0]!} units={project.units} />}
@@ -1279,6 +1283,51 @@ function FlipRow({ ids, label }: { ids: string[]; label: string }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Quiero esta unión: con dos piezas elegidas, qué unión sale ya o cómo llevar la más chica hasta la cara de la otra
+ * (o estirar la que apunta), con vista previa antes de aplicar.
+ */
+function JoinCard({ project, ids }: { project: Project; ids: string[] }) {
+  const propose = useEditor((s) => s.propose);
+  const [p, q] = ids.map((id) => project.parts.find((x) => x.id === id));
+  const plan = useMemo(() => (p && q ? joinPlan(p, q, (mm) => formatLength(mm, project.units)) : null), [p, q, project.units]);
+  if (!plan) return null;
+  const joint = project.joints.find((j) => [j.partA, j.partB].sort().join() === [plan.a, plan.b].sort().join());
+  return (
+    <section className={styles.joinCard} aria-label={t('Unir {a} y {b}', { a: plan.a, b: plan.b })}>
+      <span className={styles.rotateTitle}>
+        <IconLink />
+        {t('Unir {a} y {b}', { a: plan.a, b: plan.b })}
+      </span>
+      {plan.reason ? (
+        <p className={styles.muted}>{plan.reason}</p>
+      ) : (
+        <p className={styles.muted}>
+          {plan.touching ? t('Ya se tocan. Sale: {list}.', { list: jointList(plan.joints, plan.crossing, 3) }) : t('Así saldría: {list}.', { list: jointList(plan.joints, false, 3) })}
+        </p>
+      )}
+      {plan.fixes.length > 0 && (
+        <div className={styles.joinFixes}>
+          {plan.fixes.map((fix) => (
+            <button
+              key={fix.label}
+              type="button"
+              onClick={() => propose((d) => applyReviewFix(d, fix), fix.label, { title: fix.label, select: ids })}
+            >
+              {fix.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {joint && (
+        <a className={styles.link} href={sectionHref(project.id, 'uniones')} onClick={() => useEditor.getState().setJointFocus(joint.id)}>
+          {t('Ver la unión')}
+        </a>
+      )}
+    </section>
   );
 }
 
