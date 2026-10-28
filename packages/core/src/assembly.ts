@@ -5,6 +5,7 @@ import { jointRoom } from './jointfit';
 import { HOLD_NAMES, holdOf, isBreadboard, JOINT_NAMES, plainJoint, tenonStyle, type Hold, type TenonStyle } from './joints';
 import type { Joint, JointType, Project } from './project';
 import { finishName, finishSteps, hasFinishes, partFinish } from './finishes';
+import { buildSteps, type BuildStep } from './build';
 
 /**
  * Cómo armarlo: el orden de trabajo del taller, sacado del modelo. Cortar, encolar tablas anchas, marcar, hacer
@@ -188,8 +189,8 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
       key: 'seco',
       kind: 'seco',
       title: t('Presentá en seco'),
-      text: t('Armá todo sin cola, con prensas. Cada unión tiene que cerrar sin forzar, y el mueble quedar a escuadra: las dos diagonales tienen que medir lo mismo.'),
-      items: [],
+      text: `${t('Armá todo sin cola, con prensas. Cada unión tiene que cerrar sin forzar, y el mueble quedar a escuadra: las dos diagonales tienen que medir lo mismo.')} ${t('Seguí este orden: así ninguna pieza traba a la que viene después.')}`,
+      items: buildLines(project, buildSteps(project)),
     });
 
   steps.push({
@@ -254,4 +255,41 @@ function finishStep(project: Project): AssemblyStep {
   const all = groups.size === 1 && [...groups.values()][0]!.ids.length === project.parts.filter((p) => p.wood !== 'melamina').length;
   step.items = [...groups.values()].map((g) => (all ? g.line : t('{ids}: {finish}', { ids: listIds(g.ids), finish: g.line })));
   return step;
+}
+
+/** De dónde llega una pieza que se mueve hacia `dir`, en palabras: el frente mira hacia adelante. */
+function fromSide(dir: readonly number[]): string {
+  const k = [0, 1, 2].reduce((m, i) => (Math.abs(dir[i]!) > Math.abs(dir[m]!) ? i : m), 0);
+  const from = -(dir[k] ?? 0);
+  if (k === 0) return from > 0 ? t('la derecha') : t('la izquierda');
+  if (k === 1) return from > 0 ? t('arriba') : t('abajo');
+  return from > 0 ? t('adelante') : t('atrás');
+}
+
+/**
+ * El orden de armado en renglones, para presentar en seco: la base, cada pieza con dónde entra y desde qué lado, y
+ * las partes que se arman aparte (un pie de mesa, un cajón) con su propio orden en el mismo renglón.
+ */
+export function buildLines(project: Pick<Project, 'parts'>, steps: readonly BuildStep[]): string[] {
+  const names = new Map(project.parts.map((p) => [p.id, p.name]));
+  const order = (unit: string) => steps.filter((s) => s.unit === unit).map((s) => listIds(s.parts));
+  return steps
+    .filter((s) => s.unit === 'mueble')
+    .map((s) => {
+      const ids = s.parts.length === 1 ? t('{id} · {name}', { id: s.parts[0]!, name: names.get(s.parts[0]!) ?? '' }) : listIds(s.parts);
+      const sub = s.parts.length > 1 ? order(s.parts[0]!).join(', ') : '';
+      const side = fromSide(s.dir);
+      // Contra muchas piezas a la vez (la tapa sobre todo el armazón): lo ya armado.
+      const onto = s.onto.length > 4 ? t('lo ya armado') : listIds(s.onto);
+      let line: string;
+      if (s.kind === 'base') line = t('{ids}: es la base; apoyala en el banco.', { ids });
+      else if (s.kind === 'cajon') line = t('Cajón {ids}: armalo aparte ({order}) y entralo desde adelante.', { ids, order: sub });
+      else if (s.kind === 'puerta') line = sub ? t('Puerta {ids}: armala aparte ({order}) y colgala al final.', { ids, order: sub }) : t('Puerta {ids}: colgala al final.', { ids });
+      else if (s.kind === 'tapa') line = t('Tapa {ids}: va al final, con sus bisagras.', { ids });
+      else if (s.kind === 'parte') line = t('{ids}: armalos aparte en este orden: {order}. Después entran en {onto} desde {side}.', { ids, order: sub, onto: onto || t('su lugar'), side });
+      else if (!onto) line = t('{ids}: presentala en su lugar, desde {side}.', { ids, side });
+      else if (s.rests) line = t('{ids}: apoya en {onto}; llega desde {side}.', { ids, onto, side });
+      else line = s.enters ? t('{ids}: entra en {onto} desde {side}.', { ids, onto, side }) : t('{ids}: recibe a {onto}; llega desde {side}.', { ids, onto, side });
+      return s.forced ? `${line} ${t('Entra derecho: fijate que ninguna espiga se trabe.')}` : line;
+    });
 }

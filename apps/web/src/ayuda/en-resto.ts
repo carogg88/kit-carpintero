@@ -529,8 +529,24 @@ export const EN_REST: Article[] = [
           ),
         ],
       },
+      {
+        id: 'orden',
+        title: 'What order it goes together in',
+        blocks: [
+          p('In **Dry fit**, the app says in what order each part goes in and from which side, so none blocks the next. It comes from the joints: a tenon goes in along the tenon, a top rests from above and splayed legs go into the seat together.'),
+          list(
+            '**The base**: the part that receives the most joints, like a leg or a side. It goes first, resting on the bench.',
+            '**Goes into**: the part that carries the tenon, tongue or dowel, and the side it comes from.',
+            '**Takes**: the part with the mortise or groove that fits over what is already in place, like the second leg of an apron.',
+            '**Put together separately**: a section worth assembling on its own, like a table end with its apron, before joining the rest.',
+            '**Drawers and doors**: put together separately and fitted last.',
+          ),
+          tip('If a part can’t go in without passing through another, the line says so: check that joint before gluing.'),
+        ],
+      },
     ],
     faq: [
+      { q: 'Do I have to follow that order exactly?', a: 'No, it’s one that works. If you prefer another, dry fit it before gluing.' },
       { q: 'Does it change if I change the piece?', a: 'Yes: the steps come from the model, with its joints and parts.' },
       { q: 'Can I follow it on my phone in the workshop?', a: 'Yes, and to work piece by piece there is [Workshop mode](modo-taller).' },
     ],

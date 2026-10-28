@@ -44,3 +44,4 @@ export * from './follow';
 export * from './sketch';
 export * from './dxf';
 export * from './dae';
+export * from './build';
