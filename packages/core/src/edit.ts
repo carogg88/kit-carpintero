@@ -1,4 +1,4 @@
-import { boxSize, endContact, overlapBox, partBox, type Axis, type Box, type Vec3 } from './geometry';
+import { boxSize, endContact, otherAxes, overlapBox, partBox, type Axis, type Box, type Vec3 } from './geometry';
 import { defaultJointParams, endJoint, MIN_TENON_WIDTH, suggestJoints, tenonWidth } from './joints';
 import type { Component, Joint, Part } from './project';
 import { t, tk } from './i18n';
@@ -14,6 +14,8 @@ import { mirrorHinge } from './motion';
 
 /** Distancia en mm a la que una cara se pega a otra. */
 export const SNAP_MM = 14;
+/** Cuánto más lejos tira una punta hacia la cara que va a tocar. */
+export const END_PULL = 1.5;
 
 export interface Snap {
   value: number;
@@ -65,10 +67,15 @@ export function snapMove(parts: Part[], start: Box, axis: Axis, delta: number, e
   if (mirror) return mirror;
   let best: Snap = { value: Math.round(delta), to: null };
   let bestD = tol;
+  // La punta contra la cara de otra pieza (un travesaño que llega a la pata) tira más fuerte: de ahí sale una unión.
+  const length = boxSize(start).indexOf(Math.max(...boxSize(start))) === axis;
   for (const [q, b] of others) {
+    const end = length && otherAxes(axis).every((o) => Math.min(start.max[o], b.max[o]) - Math.max(start.min[o], b.min[o]) > 5);
     for (const c of [b.min[axis], b.max[axis]]) {
       for (const edge of [start.min[axis], start.max[axis]]) {
-        const d = Math.abs(c - (edge + delta));
+        // Solo cara contra cara opuesta: la punta de arriba contra la cara de abajo de la otra, y al revés.
+        const meets = end && (c === b.min[axis]) === (edge === start.max[axis]);
+        const d = Math.abs(c - (edge + delta)) / (meets ? END_PULL : 1);
         if (d < bestD) {
           bestD = d;
           best = { value: c - edge, to: q.id };

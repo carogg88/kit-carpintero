@@ -178,6 +178,7 @@ function HintLabel({ hint }: { hint: DragHint }) {
     <span ref={ref} className={styles.hint} style={{ left: hint.x, top: hint.y }}>
       {hint.text}
       {hint.dims && <span className={styles.hintDims}>{hint.dims}</span>}
+      {hint.joint && <span className={styles.hintJoint}>{hint.joint}</span>}
       {hint.warn && <span className={styles.hintWarn}>{hint.warn}</span>}
       {!hint.warn && hint.snap && <span className={styles.snap}>{t('Imán: {snap}', { snap: hint.snap })}</span>}
     </span>

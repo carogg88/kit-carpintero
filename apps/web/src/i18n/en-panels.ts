@@ -627,4 +627,10 @@ export default {
   'Hondo de la media caja': 'Haunch depth',
   'mortaja pasante {t} × {w}{unit}': 'through mortise {t} × {w}{unit}',
   '2 mortajas pasantes {t} × {w}{unit}': '2 through mortises {t} × {w}{unit}',
+  '{b} quedó a {mm} de {a}: sin unión': '{b} ended up {mm} from {a}: no joint',
+  'Cerrar la luz': 'Close the gap',
+  'Unir {a} y {b}': 'Join {a} and {b}',
+  'Ya se tocan. Sale: {list}.': 'They already touch. You get: {list}.',
+  'Así saldría: {list}.': 'This would give: {list}.',
+  'Ver la unión': 'See the joint',
 } satisfies Record<string, string>;

@@ -292,6 +292,11 @@ export function ChangeNotice() {
   return (
     <div className={styles.notice} role="status" key={notice.key}>
       <span>{notice.text}</span>
+      {notice.action && (
+        <button type="button" onClick={notice.action.run}>
+          {notice.action.label}
+        </button>
+      )}
       {notice.undo !== false && (
         <button type="button" onClick={undo}>
           {t('Deshacer')}

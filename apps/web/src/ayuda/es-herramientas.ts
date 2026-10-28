@@ -166,11 +166,41 @@ export const ES_TOOLS: Article[] = [
           steps('Con la pieza elegida, usá las flechas del teclado: cada toque la corre 1 mm, y con `Shift`, 10 mm.', 'Las flechas siguen la vista: en Frente corren a lo ancho y a lo alto; en Arriba, a lo ancho y de fondo.'),
         ],
       },
+      {
+        id: 'guia',
+        title: 'Qué unión sale mientras movés',
+        blocks: [
+          p('Mientras arrastrás, el cartel al lado del dedo dice qué pasa con la pieza:'),
+          list(
+            'En verde, la unión que sale con la vecina que toca: por ejemplo **Toca P1: mortaja y espiga, tarugos y 4 más**.',
+            'En rojo, si se mete en otra pieza. La parte que se cruza se pinta en el modelo. Una punta que se mete en una pata no da caja y espiga: dejala en la cara.',
+            'En rojo también, si quedó a unos milímetros de otra: así no hay unión.',
+          ),
+          p('La punta de una pieza se pega a la cara que tiene enfrente desde más lejos que el resto, para que llegue justo a tocarla. Lo mismo pasa con **Estirar**.'),
+          img('mover-guia', 'Un travesaño arrastrado hasta la pata, con la unión que sale en el cartel'),
+          tip('Si al soltar quedó una luz chica, el aviso de abajo ofrece **Cerrar la luz**: estira la pieza hasta tocar la otra.'),
+        ],
+      },
+      {
+        id: 'quiero-union',
+        title: 'Quiero esta unión',
+        blocks: [
+          steps(
+            'Elegí las dos piezas que querés unir: tocá una y sumá la otra con `Shift` + clic (o **Elegir varias**).',
+            'En el panel aparece **Unir P1 y T1**, con la unión que saldría.',
+            'Tocá **Llevar T1 hasta P1** para correr la pieza más chica hasta la cara de la otra, o **Estirar** para alargarla hasta ahí.',
+            'Mirá la vista previa en el modelo y tocá **Aplicar**.',
+          ),
+          img('mover-unir', 'Dos piezas elegidas, con Unir P3 y F1 en el panel'),
+          note('Si las piezas no quedan enfrentadas, el panel te dice cuál correr primero. Si ya se tocan, **Ver la unión** te lleva a Uniones.'),
+        ],
+      },
     ],
     faq: [
       { q: '¿Por qué no sube?', a: 'En 3D y Arriba la pieza va pegada al piso. Cambiá a Frente o Costado.' },
       { q: 'Se soltó una unión al mover, ¿qué hago?', a: 'Si separás dos piezas que se tocaban, la unión se va. El aviso de abajo lo dice y tiene **Deshacer**.' },
       { q: '¿Se mueven las piezas de un grupo juntas?', a: 'Sí: al arrastrar una pieza de un grupo se mueve el grupo entero.' },
+      { q: 'El cartel dice que se mete en otra pieza, ¿está mal?', a: 'No siempre: dos piezas que se cruzan dan media madera o apoyado en muesca. Para caja y espiga, tarugos o galletas, la punta tiene que llegar justo a la cara.' },
     ],
     related: ['unir', 'altura', 'flechas', 'medir'],
   },
