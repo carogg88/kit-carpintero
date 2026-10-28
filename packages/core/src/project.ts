@@ -5,7 +5,7 @@ import { t } from './i18n';
  * Archivo de proyecto. Es la única fuente de verdad: el 3D, el plano y la lista de cortes
  * se calculan a partir de acá. Cada cambio de forma sube SCHEMA_VERSION y suma una migración.
  */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 const Vec3 = z.tuple([z.number(), z.number(), z.number()]);
 
@@ -123,6 +123,10 @@ export const Turning = z.object({
 });
 export type Turning = z.infer<typeof Turning>;
 
+/** Terminación (ver `finishes.ts`): cuál, y el color si es pintura. */
+export const Finish = z.object({ id: z.string(), color: z.string().optional() });
+export type Finish = z.infer<typeof Finish>;
+
 export const Part = z.object({
   id: z.string(),
   name: z.string(),
@@ -169,6 +173,8 @@ export const Part = z.object({
       hinge: z.enum(['izq', 'der', 'arriba', 'abajo']).optional(),
     })
     .optional(),
+  /** Terminación propia de esta pieza; sin esto, la del mueble. */
+  finish: Finish.optional(),
 });
 export type Part = z.infer<typeof Part>;
 
@@ -212,6 +218,8 @@ export const Project = z.object({
   joints: z.array(Joint),
   components: z.array(Component).default([]),
   groups: z.array(Group).default([]),
+  /** Terminación de todo el mueble; sin esto, no se eligió. */
+  finish: Finish.optional(),
 });
 export type Project = z.infer<typeof Project>;
 
@@ -242,6 +250,8 @@ const migrations: Record<number, Migration> = {
   12: (d) => d,
   // v14 suma cómo se abre cada pieza; las viejas lo calculan solas.
   13: (d) => d,
+  // v15 suma la terminación del mueble y de cada pieza; los viejos no eligieron.
+  14: (d) => d,
 };
 
 export type LoadResult = { ok: true; project: Project } | { ok: false; error: string };

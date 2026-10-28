@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
-import { grainFrame, woodById, type Part } from '@kitc/core';
+import { finishLook, grainFrame, woodById, type Finish, type FinishLook, type Part } from '@kitc/core';
 
 /**
  * La veta en 3D, calculada en la placa de video: cada punto de la pieza sabe a qué distancia está de la médula de un
@@ -96,6 +96,14 @@ uniform float uKind;
 uniform float uPly;
 uniform float uBack;
 uniform vec3 uCut;
+uniform vec3 uFinTint;
+uniform float uFinAmt;
+uniform float uFinDarken;
+uniform float uFinWarm;
+uniform float uFinOpaque;
+
+/** Lo oscuro del leño de verano en este punto: el tinte se mete más ahí y en los poros. */
+float gLate = 0.0;
 
 float gHash(vec3 p) {
   p = fract(p * 0.3183099 + 0.1);
@@ -141,6 +149,7 @@ vec3 woodColor() {
   // Poros: rayitas finas a lo largo de la veta.
   float pores = gNoise(vec3(a * 0.04, b * 0.9, c * 0.9) + s * 2.0);
   float k = clamp(late * uContrast + (pores - 0.5) * uPores, 0.0, 1.0);
+  gLate = k;
   vec3 col = mix(uLight, uDark, k);
   // Cada anillo con su tono: la madera no es pareja.
   col *= 0.95 + 0.1 * gHash(vec3(floor(ring), uSeed * 13.0, 1.0));
@@ -156,6 +165,19 @@ vec3 woodColor() {
     vec3 edgeCol = mix(col, mix(uLight, uDark, 0.35 + pores * 0.3), cross * 0.8);
     edgeCol *= 1.0 - glue * 0.25;
     col = mix(edgeCol, col, face);
+  }
+  return col;
+}
+
+/** La terminación sobre la madera: la pintura tapa todo; el aceite oscurece y entibia; el tinte tiñe más la veta. */
+vec3 finishColor(vec3 col) {
+  if (uFinOpaque > 0.5) return uFinTint * (0.97 + gNoise(vGPos * 0.8) * 0.05);
+  col *= 1.0 - uFinDarken;
+  col = mix(col, col * vec3(1.08, 0.93, 0.76), uFinWarm);
+  if (uFinAmt > 0.0) {
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    float amt = clamp(uFinAmt * (0.8 + 0.5 * gLate), 0.0, 1.0);
+    col = mix(col, uFinTint * (0.55 + 0.9 * lum), amt);
   }
   return col;
 }
@@ -182,12 +204,20 @@ function makeUniforms(): Uniforms {
     uBack: { value: 0 },
     uRest: { value: new THREE.Matrix4() },
     uCut: { value: new THREE.Color() },
+    uFinTint: { value: new THREE.Color() },
+    uFinAmt: { value: 0 },
+    uFinDarken: { value: 0 },
+    uFinWarm: { value: 0 },
+    uFinOpaque: { value: 0 },
   };
 }
 
-/** Un material con veta: el estándar de three, con el color de cada punto calculado por la veta. */
-export function makeWoodMaterial(params: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial(params);
+/**
+ * Un material con veta: el físico de three (por la capa de laca que refleja), con el color de cada punto calculado
+ * por la veta y la terminación.
+ */
+export function makeWoodMaterial(params: THREE.MeshPhysicalMaterialParameters = {}): THREE.MeshPhysicalMaterial {
+  const m = new THREE.MeshPhysicalMaterial({ roughness: 0.75, metalness: 0, ...params });
   const uniforms = makeUniforms();
   m.userData.grain = uniforms;
   m.onBeforeCompile = (shader) => {
@@ -197,7 +227,7 @@ export function makeWoodMaterial(params: THREE.MeshStandardMaterialParameters = 
       .replace('#include <project_vertex>', '#include <project_vertex>\n  vGPos = (uRest * modelMatrix * vec4(transformed, 1.0)).xyz;')
       .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\n  vGNrm = mat3(uRest) * mat3(modelMatrix) * objectNormal;');
     // Con un corte se ve el adentro de la pieza (sus caras de atrás): va de un color parejo, como madera cortada.
-    shader.fragmentShader = FRAG_HEAD + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = gl_FrontFacing ? woodColor() : uCut;');
+    shader.fragmentShader = FRAG_HEAD + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = gl_FrontFacing ? finishColor(woodColor()) : uCut;');
   };
   // Un solo programa para todas las piezas: cambian los números, no el código.
   m.customProgramCacheKey = () => 'kitc-veta';
@@ -239,6 +269,24 @@ export function setGrainUniforms(m: THREE.Material, part: Part, color?: string):
   (u.uCut!.value as THREE.Color).copy(light).lerp(dark, 0.55);
 }
 
+/** Pone la terminación: el color que cambia en el sombreador, y el brillo y la capa de laca en el material. */
+export function setFinish(m: THREE.MeshPhysicalMaterial, finish: Finish | undefined | FinishLook): void {
+  const look = finish && 'roughness' in finish ? finish : finishLook(finish);
+  const u = m.userData.grain as Uniforms | undefined;
+  if (u) {
+    (u.uFinTint!.value as THREE.Color).set(look.color ?? '#000000');
+    u.uFinAmt!.value = look.color ? look.amount : 0;
+    u.uFinDarken!.value = look.darken;
+    u.uFinWarm!.value = look.warm;
+    u.uFinOpaque!.value = look.opaque ? 1 : 0;
+  }
+  m.roughness = look.roughness;
+  // Con capa o sin capa son dos programas distintos: al cambiar, se arma el que corresponde.
+  if (m.clearcoat > 0 !== look.clearcoat > 0) m.needsUpdate = true;
+  m.clearcoat = look.clearcoat;
+  m.clearcoatRoughness = look.clearcoatRoughness;
+}
+
 /** Color liso, sin veta (con la veta apagada, o una pieza de señal en el detalle de la unión). */
 function setPlainUniforms(m: THREE.Material, part: Part, color: string): void {
   setGrainUniforms(m, part, color);
@@ -271,7 +319,7 @@ function setClip(m: THREE.Material, clip: THREE.Plane[] | null): void {
  * El material de una pieza: con veta si está prendida, o del color liso de la madera. Los demás detalles (elegida,
  * rayos X) los pone quien la dibuja, sobre este material.
  */
-export function usePartMaterial(part: Part, color?: string, grain = true, clip: THREE.Plane[] | null = null): THREE.MeshStandardMaterial {
+export function usePartMaterial(part: Part, color?: string, grain = true, clip: THREE.Plane[] | null = null, finish?: Finish): THREE.MeshPhysicalMaterial {
   const on = useGrainOn() && grain;
   // Siempre el mismo sombreador: con la veta apagada pinta liso, y así el corte y el movimiento andan igual.
   const material = useMemo(() => makeWoodMaterial(), []);
@@ -283,5 +331,6 @@ export function usePartMaterial(part: Part, color?: string, grain = true, clip: 
   useEffect(() => invalidate());
   if (on) setGrainUniforms(material, part, color);
   else setPlainUniforms(material, part, color ?? woodById(part.wood)?.color ?? '#D9BC8C');
+  setFinish(material, finish);
   return material;
 }

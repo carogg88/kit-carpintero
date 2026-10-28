@@ -548,6 +548,7 @@ export const ES_PARTS: Article[] = [
             ['Espiga ancha', 'La espiga pasa de 9 cm de ancho: se mueve con la humedad y debilita la pata. **Hacer espiga doble** la parte en dos.'],
             ['Veta corta', 'Una pieza larga y angosta con la veta girada a lo ancho: se parte. **Poner la veta a lo largo** la vuelve a su lugar.'],
             ['Estantes que se comban', 'Con libros encima, el estante baja en el medio. Dice qué largo o qué espesor lo evita.'],
+            ['Terminación', 'Una tapa de mesa con cera o lustre, que se marcan con agua y calor (**Laca satinada en la tapa** lo arregla); pintura sobre una madera linda; o melamina con terminación (**Dejarla como viene**).'],
           ),
         ],
       },
@@ -595,6 +596,73 @@ export const ES_PARTS: Article[] = [
       { q: '¿Se puede deshacer?', a: 'Sí, como cualquier cambio: con la flecha de Deshacer o `Ctrl` + `Z`.' },
     ],
     related: ['medidas-mueble', 'cajones-puertas', 'revision'],
+  },
+  {
+    id: 'terminacion',
+    topic: 'piezas',
+    title: 'Terminación: aceite, laca, tinte o pintura',
+    summary: 'Elegir con qué se termina el mueble, verlo en 3D y saber qué comprar y cómo aplicarla.',
+    intro: [
+      p('La terminación es lo que se le pasa a la madera al final: aceite, cera, lustre, laca, tinte con laca o pintura. Se elige una para todo el mueble y, si hace falta, otra para alguna pieza, por ejemplo la tapa laqueada y las patas con aceite. El modelo y la foto la muestran, y la lista de compras y el armado dicen qué comprar y cómo aplicarla.'),
+      img('terminacion', 'Terminación abierta en el panel del mueble, con tinte nogal'),
+    ],
+    sections: [
+      {
+        id: 'mueble',
+        title: 'La del mueble',
+        blocks: [
+          steps(
+            'Con ninguna pieza elegida, abrí **Terminación** en el panel del mueble.',
+            'Elegí una en **Terminación del mueble**. Abajo dice para qué sirve.',
+            'Si elegiste **Pintura**, tocá un color o el círculo de colores para elegir otro.',
+          ),
+          table(
+            ['Terminación', 'Para qué'],
+            ['**Aceite** y **cera**', 'Al tacto y fáciles de reparar. Protegen poco del agua.'],
+            ['**Lustre a muñeca**', 'El brillo de los muebles antiguos. Se marca con agua y calor.'],
+            ['**Laca** mate, satinada o brillante', 'Protegen bien: las de tapas y frentes.'],
+            ['**Tinte y laca**', 'Cambian el color de la madera y dejan ver la veta.'],
+            ['**Pintura**', 'Del color que quieras; tapa la veta. Para MDF y pino.'],
+          ),
+          note('Los colores son orientativos: dependen de la madera y de la marca. Probá antes en un retazo.'),
+        ],
+      },
+      {
+        id: 'pieza',
+        title: 'Otra en una pieza',
+        blocks: [
+          steps('Elegí la pieza.', 'En su panel, en **Terminación**, elegí otra. **Como el mueble** la vuelve a la del mueble.'),
+          p('La melamina ya viene terminada: no lleva ninguna.'),
+        ],
+      },
+      {
+        id: 'comparar',
+        title: 'Comparar',
+        blocks: [
+          steps(
+            'En **Terminación**, tocá **Comparar terminaciones**.',
+            'Se dibuja el mueble con cuatro terminaciones lado a lado, con la luz de la foto. Tarda unos segundos.',
+            'Tocá la que te guste para ponérsela a todo el mueble.',
+          ),
+        ],
+      },
+      {
+        id: 'despues',
+        title: 'Qué cambia en Cortes, Armado y la revisión',
+        blocks: [
+          list(
+            'En **Cortes**, Herrajes y otros: cuántos litros de cada producto, por la superficie a terminar, y con qué se aplica (pincel, rodillo, trapo o muñeca).',
+            'En **Armado** y en el **Modo taller**, el último paso dice cuántas manos, cuánto secar entre una y otra y con qué lijar entre manos.',
+            'La [revisión](revision) avisa si una tapa de mesa queda con una terminación que no aguanta agua, si se pinta una madera linda o si la melamina tiene una terminación.',
+          ),
+        ],
+      },
+    ],
+    faq: [
+      { q: '¿Y si no elijo ninguna?', a: 'La lista de compras pone "Aceite, cera o lustre" como antes, y el armado dice que se lije y se termine a gusto.' },
+      { q: 'La laca brillante casi no brilla en el modelo', a: 'El modelo tiene una luz simple. En la [foto del mueble](foto-mueble) se ve el reflejo.' },
+    ],
+    related: ['foto-mueble', 'revision', 'lista-cortes'],
   },
   {
     id: 'patas-inclinadas',

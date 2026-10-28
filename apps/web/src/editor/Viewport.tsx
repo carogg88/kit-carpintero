@@ -58,6 +58,7 @@ import {
   strokeToPath,
   partSizeName,
   type Vec3,
+  partFinish,
 } from '@kitc/core';
 import { contactFaces } from './contact';
 import { DEAD_PX, gentle, roundMeasure } from './gesture';
@@ -282,12 +283,13 @@ function PartView({ part, exact, selected, xray, cut = false, edgeColor, accent,
     boxEdges.dispose();
   }, [boxGeo, boxEdges]);
 
-  const wood = usePartMaterial(part, undefined, true, cut ? CUT_PLANES : null);
+  // La terminación de la pieza, o la del mueble: cambia el color, el brillo y la capa de laca.
+  const projectFinish = useEditor((s) => s.project?.finish);
+  const wood = usePartMaterial(part, undefined, true, cut ? CUT_PLANES : null, partFinish({ finish: projectFinish }, part));
   const material = (
     <primitive
       object={wood}
       attach="material"
-      roughness={0.8}
       emissive={selected ? accent : '#000000'}
       emissiveIntensity={selected ? 0.35 : 0}
       transparent={xray}

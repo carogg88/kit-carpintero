@@ -548,6 +548,7 @@ export const EN_PARTS: Article[] = [
             ['Wide tenon', 'The tenon is over 9 cm wide: it moves with humidity and weakens the leg. **Make a double tenon** splits it in two.'],
             ['Short grain', 'A long, narrow part with its grain turned across: it breaks. **Run the grain lengthwise** puts it back.'],
             ['Sagging shelves', 'Loaded with books, the shelf sags in the middle. It says which length or thickness avoids it.'],
+            ['Finish', 'A table top with wax or French polish, which water and heat mark (**Satin lacquer on the top** fixes it); paint over a nice wood; or melamine with a finish (**Leave it as it comes**).'],
           ),
         ],
       },
@@ -595,6 +596,73 @@ export const EN_PARTS: Article[] = [
       { q: 'Can I undo it?', a: 'Yes, like any change: with the Undo arrow or `Ctrl` + `Z`.' },
     ],
     related: ['medidas-mueble', 'cajones-puertas', 'revision'],
+  },
+  {
+    id: 'terminacion',
+    topic: 'piezas',
+    title: 'Finish: oil, lacquer, stain or paint',
+    summary: 'Choose how the piece is finished, see it in 3D and know what to buy and how to apply it.',
+    intro: [
+      p('The finish is what goes on the wood at the end: oil, wax, French polish, lacquer, stain and lacquer, or paint. You choose one for the whole piece and, if needed, another for some part, for example a lacquered top and oiled legs. The model and the photo show it, and the shopping list and the assembly say what to buy and how to apply it.'),
+      img('terminacion', 'Finish open in the furniture panel, with walnut stain'),
+    ],
+    sections: [
+      {
+        id: 'mueble',
+        title: 'The furniture’s finish',
+        blocks: [
+          steps(
+            'With no part selected, open **Finish** in the furniture panel.',
+            'Choose one in **Finish for the whole piece**. Below it says what it is for.',
+            'If you chose **Paint**, tap a color or the color wheel to choose another.',
+          ),
+          table(
+            ['Finish', 'What for'],
+            ['**Oil** and **wax**', 'Pleasant to the touch and easy to repair. Little protection from water.'],
+            ['**French polish**', 'The shine of antique furniture. Water and heat mark it.'],
+            ['Matte, satin or gloss **lacquer**', 'Good protection: the ones for tops and fronts.'],
+            ['**Stain and lacquer**', 'Change the color of the wood and let the grain show.'],
+            ['**Paint**', 'Any color you like; hides the grain. For MDF and pine.'],
+          ),
+          note('Colors are approximate: they depend on the wood and the brand. Test on an offcut first.'),
+        ],
+      },
+      {
+        id: 'pieza',
+        title: 'A different one on a part',
+        blocks: [
+          steps('Select the part.', 'In its panel, under **Finish**, choose another. **Same as the piece** returns it to the furniture’s finish.'),
+          p('Melamine comes finished: it takes none.'),
+        ],
+      },
+      {
+        id: 'comparar',
+        title: 'Compare',
+        blocks: [
+          steps(
+            'In **Finish**, tap **Compare finishes**.',
+            'The piece is drawn with four finishes side by side, with the photo lighting. It takes a few seconds.',
+            'Tap the one you like to apply it to the whole piece.',
+          ),
+        ],
+      },
+      {
+        id: 'despues',
+        title: 'What changes in Cuts, Assembly and the review',
+        blocks: [
+          list(
+            'In **Cuts**, Hardware and supplies: how many liters of each product, by the surface to finish, and what to apply it with (brush, roller, rag or pad).',
+            'In **Assembly** and in **Workshop mode**, the last step says how many coats, how long to dry between them and what to sand with between coats.',
+            'The [review](revision) warns if a table top has a finish that can’t take water, if a nice wood gets painted or if melamine has a finish.',
+          ),
+        ],
+      },
+    ],
+    faq: [
+      { q: 'What if I don’t choose any?', a: 'The shopping list says "Oil, wax or finish" as before, and the assembly says to sand and finish as you like.' },
+      { q: 'Gloss lacquer barely shines in the model', a: 'The model has simple lighting. The [furniture photo](foto-mueble) shows the reflection.' },
+    ],
+    related: ['foto-mueble', 'revision', 'lista-cortes'],
   },
   {
     id: 'patas-inclinadas',

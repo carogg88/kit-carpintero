@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { findMotions, formatLength, furnitureBox, motionMatrix, partBox, t, type Project } from '@kitc/core';
+import { findMotions, formatLength, furnitureBox, motionMatrix, partBox, partFinish, t, type Project } from '@kitc/core';
 import type { PartMesh } from '../geometry/protocol';
-import { makeWoodMaterial, setGrainMotion, setGrainUniforms } from './woodMaterial';
+import { makeWoodMaterial, setFinish, setGrainMotion, setGrainUniforms } from './woodMaterial';
 
 /**
  * La foto del mueble: las piezas con su veta, una luz de estudio armada por código (el cuarto con ventanas que trae
@@ -122,8 +122,9 @@ export function buildStudio(
       at = new THREE.Vector3(...b.min.map((v, i) => v + size[i]! / 2));
     } else continue;
     keep(geometry);
-    const material = keep(makeWoodMaterial({ roughness: 0.58, metalness: 0 }));
+    const material = keep(makeWoodMaterial());
     setGrainUniforms(material, part);
+    setFinish(material, partFinish(project, part));
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.copy(at);
     const motion = motions.find((x) => x.parts.includes(part.id));

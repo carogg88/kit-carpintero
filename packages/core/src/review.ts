@@ -2,9 +2,10 @@ import { boxSize, overlapBox, partBox, type Axis, type Box } from './geometry';
 import { bestHold, defaultMortiseParams, defaultTenonGap, DOUBLE_TENON_FROM, endJoint, FLOATING_HOLDS, HOLDS, holdFits, holdOf, JOINT_NAMES, mortiseAndTenon, type Hold, type MortiseParams } from './joints';
 import { furnitureBox } from './resize';
 import { formatLength } from './units';
-import { isSheet, sheetById } from './woods';
+import { isSheet, sheetById, woodById } from './woods';
 import { grainAxis, setGrain, shortGrain } from './grain';
-import type { Joint, JointType, Part, Project } from './project';
+import type { Finish, Joint, JointType, Part, Project } from './project';
+import { finishById, partFinish } from './finishes';
 import { locale, t, tk } from './i18n';
 
 /**
@@ -12,7 +13,7 @@ import { locale, t, tk } from './i18n';
  * marcada, por qué pasa y qué hacer. Son cuentas de taller sobre las medidas, no un cálculo de estructuras.
  */
 
-export type ReviewKind = 'cruce' | 'veta' | 'estante' | 'espiga' | 'vuelco';
+export type ReviewKind = 'cruce' | 'veta' | 'estante' | 'espiga' | 'vuelco' | 'terminacion';
 
 export interface ReviewNote {
   /** Estable mientras no cambie lo que lo provoca: sirve de clave en la lista. */
@@ -37,6 +38,7 @@ export type ReviewFix = { label: string } & (
   | { kind: 'joint'; joints: string[]; params: Record<string, number> }
   | { kind: 'part'; part: string; axis: Axis; min: number; size: number }
   | { kind: 'grain'; part: string; axis: Axis }
+  | { kind: 'finish'; part: string; finish?: Finish }
 );
 
 /** Aplica el arreglo sobre el proyecto (o un borrador de él). Si lo que nombra ya no está, no hace nada. */
@@ -46,7 +48,12 @@ export function applyReviewFix(project: Pick<Project, 'parts' | 'joints'>, fix: 
     return;
   }
   const part = project.parts.find((x) => x.id === fix.part);
-  if (!part || part.base.kind !== 'box') return;
+  if (part && fix.kind === 'finish') {
+    if (fix.finish) part.finish = { ...fix.finish };
+    else delete part.finish;
+    return;
+  }
+  if (!part || part.base.kind !== 'box' || fix.kind === 'finish') return;
   if (fix.kind === 'grain') return void setGrain(part, fix.axis);
   part.position[fix.axis] = fix.min;
   part.base.size[fix.axis] = fix.size;
@@ -533,6 +540,63 @@ export function reviewDesign(project: Project): ReviewNote[] {
   notes.push(...panelNotes(project));
   notes.push(...shortGrainNotes(project));
   notes.push(...sagging(project));
+  notes.push(...finishNotes(project));
+  return notes;
+}
+
+// ── Terminaciones ───────────────────────────────────────────────────────────
+
+/**
+ * La terminación que no conviene: lustre, cera o nada en una tapa de mesa (los vasos y el calor la marcan), aceite
+ * o laca sobre melamina (no agarran) y pintura sobre una madera que se elige por su veta.
+ */
+function finishNotes(project: Project): ReviewNote[] {
+  const notes: ReviewNote[] = [];
+  const box = furnitureBox(project.parts);
+  for (const p of project.parts) {
+    if (p.wood === 'melamina' && p.finish && p.finish.id !== 'natural') {
+      notes.push({
+        id: `terminacion-melamina|${p.id}`,
+        kind: 'terminacion',
+        parts: [p.id],
+        title: t('Terminación sobre melamina: {a}', { a: p.name }),
+        text: t('La melamina ya viene terminada: el aceite, la laca o la pintura común no se pegan a su superficie.'),
+        fix: t('Dejala como viene. Si la querés de otro color, elegí melamina de ese color o MDF para pintar.'),
+        action: { kind: 'finish', part: p.id, label: t('Dejarla como viene') },
+      });
+      continue;
+    }
+    const f = partFinish(project, p);
+    const def = f && finishById(f.id);
+    if (!def || !box || p.base.kind !== 'box') continue;
+    // Una tapa de mesa: horizontal, ancha, arriba de todo.
+    const b = partBox(p);
+    const [x, y, z] = boxSize(b);
+    const top = y < Math.min(x, z) && Math.min(x, z) >= 300 && b.max[1] >= box.max[1] - 5;
+    if (top && def.resists === 1) {
+      notes.push({
+        id: `terminacion-tapa|${p.id}`,
+        kind: 'terminacion',
+        parts: [p.id],
+        title: t('{finish} en la tapa: {a}', { finish: t(def.name), a: p.name }),
+        text: t('Una tapa recibe vasos, platos calientes y trapos húmedos: {finish} se marca con el agua y el calor.', { finish: lower(t(def.name)) }),
+        fix: t('Para la tapa, laca satinada o aceite: aguantan el uso de todos los días.'),
+        action: { kind: 'finish', part: p.id, finish: { id: 'laca-satinada' }, label: t('Laca satinada en la tapa') },
+      });
+    }
+    if (f.id === 'pintura' && solid(p) && p.wood !== 'pino' && !notes.some((n) => n.id === `terminacion-pintura|${p.wood}`)) {
+      const same = project.parts.filter((q) => q.wood === p.wood && partFinish(project, q)?.id === 'pintura').map((q) => q.id);
+      const wood = woodById(p.wood)?.name ?? p.wood;
+      notes.push({
+        id: `terminacion-pintura|${p.wood}`,
+        kind: 'terminacion',
+        parts: same,
+        title: t('{wood} pintado', { wood: t(wood) }),
+        text: t('La pintura tapa la veta del {wood}, que es lo que lo hace lindo y lo que se paga.', { wood: lower(t(wood)) }),
+        fix: t('Si va pintado, el pino o el MDF salen más baratos y quedan igual. Si querés la veta, probá un tinte con laca.'),
+      });
+    }
+  }
   return notes;
 }
 

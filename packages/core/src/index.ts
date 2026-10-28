@@ -38,6 +38,7 @@ export * from './explode';
 export * from './profile';
 export * from './lean';
 export * from './grain';
+export * from './finishes';
 export * from './motion';
 export * from './follow';
 export * from './sketch';
