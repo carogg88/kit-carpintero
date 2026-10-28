@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assemblySteps } from './assembly';
+import { assemblySteps, buildStepLines } from './assembly';
 import { buildOffsets, buildSteps } from './build';
 import { placedBox } from './follow';
 import type { Box, Vec3 } from './geometry';
@@ -92,5 +92,15 @@ describe('orden de armado', () => {
     expect(dry.items).toHaveLength(buildSteps(p).filter((s) => s.unit === 'mueble').length);
     expect(dry.items[0]).toContain('es la base');
     expect(dry.items.at(-1)).toContain('apoya en lo ya armado');
+  });
+
+  it('la animación tiene un renglón por paso, también para las partes que se arman aparte', () => {
+    const p = make('mesa');
+    const steps = buildSteps(p);
+    const lines = buildStepLines(p, steps);
+    expect(lines).toHaveLength(steps.length);
+    const sub = steps.findIndex((s) => s.unit !== 'mueble' && s.kind === 'base');
+    expect(lines[sub]).toMatch(/^Aparte, empezá esta parte por P/);
+    expect(lines[steps.findIndex((s) => s.kind === 'parte')]).toContain('ya armados');
   });
 });

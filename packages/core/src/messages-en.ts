@@ -841,4 +841,7 @@ export const MESSAGES_EN: Record<string, string> = {
   '{ids}: entra en {onto} desde {side}.': '{ids}: goes into {onto} from {side}.',
   '{ids}: recibe a {onto}; llega desde {side}.': '{ids}: takes {onto}; it comes from {side}.',
   'Entra derecho: fijate que ninguna espiga se trabe.': 'It goes straight in: check that no tenon binds.',
+  'Aparte, empezá esta parte por {ids}.': 'Separately, start this section with {ids}.',
+  'Cajón {ids}: entra desde adelante.': 'Drawer {ids}: slides in from the front.',
+  '{ids}: ya armados, entran en {onto} desde {side}.': '{ids}: already put together, they go into {onto} from {side}.',
 };

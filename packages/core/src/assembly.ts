@@ -271,25 +271,40 @@ function fromSide(dir: readonly number[]): string {
  * las partes que se arman aparte (un pie de mesa, un cajón) con su propio orden en el mismo renglón.
  */
 export function buildLines(project: Pick<Project, 'parts'>, steps: readonly BuildStep[]): string[] {
-  const names = new Map(project.parts.map((p) => [p.id, p.name]));
   const order = (unit: string) => steps.filter((s) => s.unit === unit).map((s) => listIds(s.parts));
-  return steps
-    .filter((s) => s.unit === 'mueble')
-    .map((s) => {
-      const ids = s.parts.length === 1 ? t('{id} · {name}', { id: s.parts[0]!, name: names.get(s.parts[0]!) ?? '' }) : listIds(s.parts);
-      const sub = s.parts.length > 1 ? order(s.parts[0]!).join(', ') : '';
-      const side = fromSide(s.dir);
-      // Contra muchas piezas a la vez (la tapa sobre todo el armazón): lo ya armado.
-      const onto = s.onto.length > 4 ? t('lo ya armado') : listIds(s.onto);
-      let line: string;
-      if (s.kind === 'base') line = t('{ids}: es la base; apoyala en el banco.', { ids });
-      else if (s.kind === 'cajon') line = t('Cajón {ids}: armalo aparte ({order}) y entralo desde adelante.', { ids, order: sub });
-      else if (s.kind === 'puerta') line = sub ? t('Puerta {ids}: armala aparte ({order}) y colgala al final.', { ids, order: sub }) : t('Puerta {ids}: colgala al final.', { ids });
-      else if (s.kind === 'tapa') line = t('Tapa {ids}: va al final, con sus bisagras.', { ids });
-      else if (s.kind === 'parte') line = t('{ids}: armalos aparte en este orden: {order}. Después entran en {onto} desde {side}.', { ids, order: sub, onto: onto || t('su lugar'), side });
-      else if (!onto) line = t('{ids}: presentala en su lugar, desde {side}.', { ids, side });
-      else if (s.rests) line = t('{ids}: apoya en {onto}; llega desde {side}.', { ids, onto, side });
-      else line = s.enters ? t('{ids}: entra en {onto} desde {side}.', { ids, onto, side }) : t('{ids}: recibe a {onto}; llega desde {side}.', { ids, onto, side });
-      return s.forced ? `${line} ${t('Entra derecho: fijate que ninguna espiga se trabe.')}` : line;
-    });
+  return steps.filter((s) => s.unit === 'mueble').map((s) => stepLine(project, s, s.parts.length > 1 ? order(s.parts[0]!).join(', ') : ''));
+}
+
+/**
+ * Un renglón por paso, también los de las partes que se arman aparte: lo que dice la animación del armado mientras
+ * entra cada pieza. Una parte ya armada solo dice dónde entra; su orden está en los pasos de antes.
+ */
+export function buildStepLines(project: Pick<Project, 'parts'>, steps: readonly BuildStep[]): string[] {
+  return steps.map((s) => (s.unit !== 'mueble' && s.kind === 'base' ? t('Aparte, empezá esta parte por {ids}.', { ids: partLabel(project, s) }) : stepLine(project, s, null)));
+}
+
+function partLabel(project: Pick<Project, 'parts'>, s: BuildStep): string {
+  const id = s.parts[0]!;
+  return s.parts.length === 1 ? t('{id} · {name}', { id, name: project.parts.find((p) => p.id === id)?.name ?? '' }) : listIds(s.parts);
+}
+
+/** El renglón de un paso. Con `order`, una parte o un cajón dice también en qué orden se arma; con null, ya está armado. */
+function stepLine(project: Pick<Project, 'parts'>, s: BuildStep, order: string | null): string {
+  const ids = partLabel(project, s);
+  const side = fromSide(s.dir);
+  // Contra muchas piezas a la vez (la tapa sobre todo el armazón): lo ya armado.
+  const onto = s.onto.length > 4 ? t('lo ya armado') : listIds(s.onto);
+  let line: string;
+  if (s.kind === 'base') line = t('{ids}: es la base; apoyala en el banco.', { ids });
+  else if (s.kind === 'cajon') line = order ? t('Cajón {ids}: armalo aparte ({order}) y entralo desde adelante.', { ids, order }) : t('Cajón {ids}: entra desde adelante.', { ids });
+  else if (s.kind === 'puerta') line = order ? t('Puerta {ids}: armala aparte ({order}) y colgala al final.', { ids, order }) : t('Puerta {ids}: colgala al final.', { ids });
+  else if (s.kind === 'tapa') line = t('Tapa {ids}: va al final, con sus bisagras.', { ids });
+  else if (s.kind === 'parte')
+    line = order
+      ? t('{ids}: armalos aparte en este orden: {order}. Después entran en {onto} desde {side}.', { ids, order, onto: onto || t('su lugar'), side })
+      : t('{ids}: ya armados, entran en {onto} desde {side}.', { ids, onto: onto || t('su lugar'), side });
+  else if (!onto) line = t('{ids}: presentala en su lugar, desde {side}.', { ids, side });
+  else if (s.rests) line = t('{ids}: apoya en {onto}; llega desde {side}.', { ids, onto, side });
+  else line = s.enters ? t('{ids}: entra en {onto} desde {side}.', { ids, onto, side }) : t('{ids}: recibe a {onto}; llega desde {side}.', { ids, onto, side });
+  return s.forced ? `${line} ${t('Entra derecho: fijate que ninguna espiga se trabe.')}` : line;
 }

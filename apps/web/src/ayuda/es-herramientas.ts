@@ -574,6 +574,15 @@ export const ES_TOOLS: Article[] = [
           tip('La **Foto del mueble** sale como lo dejaste: si sacás la foto con una puerta abierta, sale abierta.'),
         ],
       },
+      {
+        id: 'separar',
+        title: 'Separar piezas',
+        blocks: [
+          p('La barra **Separar piezas** abre el mueble en despiece: cada pieza se aleja de su lugar por el camino por donde entra al armarlo. Corrila hasta **Separado** para ver cómo encaja todo, y volvé a **Todo armado** para cerrarlo.'),
+          img('probar-separar', 'La cajonera separada en piezas, con la barra Separar piezas'),
+          tip('Si sacás la **Foto del mueble** con las piezas separadas, la foto sale en despiece.'),
+        ],
+      },
     ],
     faq: [
       { q: 'Toco una pieza y no se abre', a: 'Solo se abren los cajones, puertas y tapas. Si es una puerta hecha a mano, elegila y marcá **Se abre: Puerta** en su panel.' },

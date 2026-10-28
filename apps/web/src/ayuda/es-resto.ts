@@ -547,6 +547,21 @@ export const ES_REST: Article[] = [
           tip('Si una pieza no puede entrar sin atravesar otra, el renglón lo avisa: fijate en esa unión antes de encolar.'),
         ],
       },
+      {
+        id: 'animacion',
+        title: 'Verlo armarse en 3D',
+        blocks: [
+          p('En **Presentá en seco** y **Encolá por partes**, al lado de los pasos, el mueble se arma solo: lo ya puesto en color, la pieza que entra resaltada y lo que falta, en fantasma en su lugar. Abajo dice qué pieza entra y desde dónde, y en la lista se marca el renglón.'),
+          img('armado-animado', 'Presentá en seco con el mueble armándose al lado de la lista'),
+          steps(
+            'Tocá **Reproducir** para verlo de corrido, o pasá de a una pieza con las flechas.',
+            'Corré la barra para ir y volver a cualquier punto del armado.',
+            'Arrastrá el dibujo para girarlo y mirar desde otro lado.',
+          ),
+          note('Si el equipo tiene pedido **reducir movimiento**, pasa de una pieza a la otra sin animar.'),
+          tip('En el **Modo taller**, después de la última pieza está la pantalla **Armado**, con la misma animación.'),
+        ],
+      },
     ],
     faq: [
       { q: '¿Tengo que seguir ese orden al pie de la letra?', a: 'No, es uno que funciona. Si preferís otro, probalo en seco antes de encolar.' },

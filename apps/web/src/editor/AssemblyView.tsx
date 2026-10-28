@@ -3,6 +3,7 @@ import { assemblySteps, formatNumber, t, tk, type AssemblyKind, type Project } f
 import { JointMeta } from '../help/Help';
 import { sectionHref, type Section } from '../routes';
 import { WorkshopLink } from './Workshop';
+import { BuildPlayer } from './Build3D';
 import styles from './Sections.module.css';
 
 /** Pasos hechos de cada proyecto, en este navegador. Si no se puede guardar, viven mientras la página esté abierta. */
@@ -78,20 +79,38 @@ export function AssemblyView({ project }: { project: Project }) {
   const current = steps.find((s) => !done.has(s.key))?.key;
   const shown = open === undefined ? current : open;
   const wide = useWide();
+  // El renglón del orden de armado que está entrando en la animación.
+  const [line, setLine] = useState(-1);
 
-  const body = (s: (typeof steps)[number]) => {
+  const body = (s: (typeof steps)[number], visible = true) => {
     const isDone = done.has(s.key);
     const link = LINKS[s.kind];
-    return (
+    // Presentar en seco y encolar se ven armándose en 3D, pieza por pieza.
+    const animated = visible && (s.kind === 'seco' || s.kind === 'encolar');
+    const text = (
       <>
         <p className={styles.stepText}>{s.text}</p>
         {s.joint && <JointMeta type={s.joint} />}
         {s.items.length > 0 && (
           <ul className={styles.stepItems}>
-            {s.items.map((item) => (
-              <li key={item}>{item}</li>
+            {s.items.map((item, i) => (
+              <li key={item} data-active={(s.kind === 'seco' && i === line) || undefined}>
+                {item}
+              </li>
             ))}
           </ul>
+        )}
+      </>
+    );
+    return (
+      <>
+        {animated ? (
+          <div className={styles.buildRow}>
+            <div className={styles.buildText}>{text}</div>
+            <BuildPlayer project={project} onLine={setLine} className={styles.buildPlayer} />
+          </div>
+        ) : (
+          text
         )}
         <div className={styles.stepActions}>
           <button type="button" className={styles.doneToggle} aria-pressed={isDone} onClick={() => toggle(s.key)}>
@@ -201,7 +220,7 @@ export function AssemblyView({ project }: { project: Project }) {
                 </button>
               </h2>
               <div className={styles.stepBody} id={bodyId} hidden={!isOpen}>
-                {body(s)}
+                {body(s, isOpen)}
               </div>
             </li>
           );

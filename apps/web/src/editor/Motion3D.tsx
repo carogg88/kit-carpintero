@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { findMotions, motionMatrix, partBox, type Motion, type Project } from '@kitc/core';
+import { buildOffsets, buildSteps, findMotions, motionMatrix, partBox, type Motion, type Project, type Vec3 } from '@kitc/core';
 import { setGrainMotion } from './woodMaterial';
 import { useEditor, type Cut } from './store';
 
@@ -89,4 +89,42 @@ export function CutRig({ project }: { project: Project }) {
     invalidate();
   }, [cut, project, invalidate]);
   return null;
+}
+
+/** Separar piezas: cuánto corre cada pieza en el despiece, por su camino de entrada. Solo probando. */
+export function useApartOffsets(project: Project | null, on: boolean): ReadonlyMap<string, Vec3> | null {
+  return useMemo(() => (project && on ? buildOffsets(buildSteps(project), 0) : null), [project, on]);
+}
+
+/** Una pieza en el despiece: se aleja de su lugar lo que diga la barra Separar piezas, suave, con la veta encima. */
+export function Apart({ offset, children }: { offset: Vec3; children: ReactNode }) {
+  const group = useRef<THREE.Group>(null);
+  const target = useEditor((s) => (s.trying ? s.apart : 0));
+  const now = useRef(0);
+  const matrix = useMemo(() => new THREE.Matrix4(), []);
+  const invalidate = useThree((s) => s.invalidate);
+  const apply = () => {
+    const g = group.current;
+    if (!g) return;
+    const k = now.current;
+    g.position.set(offset[0] * k, offset[1] * k, offset[2] * k);
+    g.updateMatrix();
+    const moved = k > 0 ? matrix.makeTranslation(g.position.x, g.position.y, g.position.z) : null;
+    g.traverse((o) => {
+      const m = (o as THREE.Mesh).material;
+      if (m && !Array.isArray(m)) setGrainMotion(m, moved);
+    });
+  };
+  useEffect(() => {
+    apply();
+    invalidate();
+  });
+  useFrame((_, dt) => {
+    const d = target - now.current;
+    if (d === 0) return;
+    now.current = Math.abs(d) < 0.002 ? target : now.current + d * (1 - Math.exp(-Math.min(dt, 0.05) * SPEED));
+    apply();
+    invalidate();
+  });
+  return <group ref={group}>{children}</group>;
 }

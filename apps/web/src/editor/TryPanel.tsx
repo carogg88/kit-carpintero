@@ -36,7 +36,8 @@ export function TryPanel({ project }: { project: Project }) {
   const opened = useEditor((s) => s.opened);
   const cut = useEditor((s) => s.cut);
   const xray = useEditor((s) => s.xray);
-  const { setTrying, toggleOpen, openAll, setCut, setXray } = useEditor.getState();
+  const apart = useEditor((s) => s.apart);
+  const { setTrying, toggleOpen, openAll, setCut, setXray, setApart } = useEditor.getState();
   const label = names(motions);
   const ids = motions.map((m) => m.id);
   const values = ids.map((id) => opened[id] ?? 0);
@@ -92,6 +93,28 @@ export function TryPanel({ project }: { project: Project }) {
         ) : (
           <p className={own.empty}>{t('Este mueble no tiene cajones, puertas ni tapas que se abran. Para marcar una pieza o un grupo, elegilo y usá Se abre en su panel.')}</p>
         )}
+      </div>
+
+      <div className={own.block}>
+        <h3>{t('Separar piezas')}</h3>
+        <label className={own.block}>
+          <span className={styles.fieldNote}>{t('Abrí el mueble en despiece: cada pieza se aleja por donde entra al armarlo.')}</span>
+          <input
+            className={own.range}
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round(apart * 100)}
+            onChange={(e) => setApart(Number(e.target.value) / 100)}
+            aria-label={t('Separar piezas')}
+            aria-valuetext={t('{n} % separado', { n: Math.round(apart * 100) })}
+          />
+          <span className={own.ends} aria-hidden="true">
+            <span>{t('Todo armado')}</span>
+            <span>{t('Separado')}</span>
+          </span>
+        </label>
       </div>
 
       <div className={own.block}>

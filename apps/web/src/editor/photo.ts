@@ -47,6 +47,8 @@ export interface PhotoStudio {
   /** El mueble: centro y radio, para encuadrar. */
   center: THREE.Vector3;
   radius: number;
+  /** Cada pieza dibujada, para correrla (el armado animado). `userData.at` es su lugar sin despiece. */
+  parts: Map<string, THREE.Mesh>;
   set(options: PhotoOptions, aspect: number): void;
   /** Encuadra de nuevo con la cámara donde está (después de girarla con el mouse). */
   aim(aspect: number): void;
@@ -89,6 +91,8 @@ export function buildStudio(
   meshes: readonly PhotoMesh[],
   hidden: ReadonlySet<string> = new Set(),
   opened: Readonly<Record<string, number>> = {},
+  /** Despiece: cuánto corre cada pieza de su lugar (Separar piezas). */
+  offsets: ReadonlyMap<string, readonly number[]> = new Map(),
 ): PhotoStudio {
   const scene = new THREE.Scene();
   const owned: { dispose(): void }[] = [];
@@ -105,6 +109,7 @@ export function buildStudio(
   // Lo que quedó abierto probando sale abierto en la foto.
   const motions = findMotions(project);
   const box = new THREE.Box3();
+  const parts = new Map<string, THREE.Mesh>();
   for (const part of project.parts) {
     if (hidden.has(part.id)) continue;
     const m = byId.get(part.id);
@@ -126,7 +131,14 @@ export function buildStudio(
     setGrainUniforms(material, part);
     setFinish(material, partFinish(project, part));
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.userData.at = at.clone();
+    const off = offsets.get(part.id);
+    if (off && off.some((v) => v !== 0)) {
+      at.add(new THREE.Vector3(off[0]!, off[1]!, off[2]!));
+      setGrainMotion(material, new THREE.Matrix4().makeTranslation(off[0]!, off[1]!, off[2]!));
+    }
     mesh.position.copy(at);
+    parts.set(part.id, mesh);
     const motion = motions.find((x) => x.parts.includes(part.id));
     const open = motion ? (opened[motion.id] ?? 0) : 0;
     if (motion && open > 0) {
@@ -203,6 +215,7 @@ export function buildStudio(
     camera,
     center,
     radius,
+    parts,
     set(o, aspect) {
       camera.position.copy(center).add(ANGLES[o.angle].clone().normalize());
       aim(aspect);

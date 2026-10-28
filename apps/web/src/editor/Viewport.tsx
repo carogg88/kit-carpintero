@@ -66,7 +66,7 @@ import { ghostDiff } from './ghost';
 import { drawnPocket, showCorner } from './drawCut';
 import { partsLabel, useEditor, type DragHint, type DrawFace, type View } from './store';
 import { usePartMaterial } from './woodMaterial';
-import { CUT_PLANES, CutRig, Moving, useMotions } from './Motion3D';
+import { Apart, CUT_PLANES, CutRig, Moving, useApartOffsets, useMotions } from './Motion3D';
 import type { ExactMesh } from './useGeometry';
 
 const VIEW_DIRS: Record<View, [number, number, number]> = {
@@ -1029,6 +1029,8 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
   const trying = useEditor((s) => s.trying);
   const cutting = useEditor((s) => s.trying && !!s.cut);
   const motions = useMotions(project);
+  // Probando, el despiece de Separar piezas: se calcula solo mientras se prueba.
+  const apart = useApartOffsets(project, trying);
   const ghost = useEditor((s) => s.ghost);
   const dragging = useEditor((s) => s.dragging);
   const drawFace = useEditor((s) => s.drawFace);
@@ -2037,12 +2039,20 @@ function Scene({ meshes }: { meshes: ReadonlyMap<string, ExactMesh> }) {
             onPointerOut={leaveStretch}
           />
         );
-        return motion ? (
+        const moving = motion ? (
           <Moving key={p.id} motion={motion}>
             {view}
           </Moving>
         ) : (
           view
+        );
+        const off = apart?.get(p.id);
+        return off ? (
+          <Apart key={p.id} offset={off}>
+            {moving}
+          </Apart>
+        ) : (
+          moving
         );
       })}
       {contact.map((f, i) => (

@@ -1,0 +1,23 @@
+/* El armado animado: la vista 3D, el renglón del paso y los controles abajo. */
+.player { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 11; min-height: 180px; border-radius: var(--radius-s); overflow: hidden;
+  border: 1px solid var(--line); background: linear-gradient(#f7f5ef, #ebe6da);
+}
+.canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.canvas:active { cursor: grabbing; }
+.wait { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #5e6759; font-size: var(--text-s); }
+.caption { margin: 0; min-height: 2.9em; font-size: var(--text-s); line-height: 1.45; color: var(--ink); }
+.count { display: block; font: 500 var(--text-xs) var(--font-display); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--muted); }
+.controls { display: flex; align-items: center; gap: var(--space-2); }
+.controls button {
+  flex: none; width: 40px; height: 40px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line-strong);
+  border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer;
+}
+.controls button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.controls button:hover:not(:disabled) { background: var(--surface-2); }
+.controls button:disabled { opacity: 0.4; cursor: default; }
+.controls button:focus-visible, .range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.controls .play { width: 44px; height: 44px; background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
+.controls .play:hover:not(:disabled) { background: var(--forest); filter: brightness(1.1); }
+.range { flex: 1; min-width: 0; accent-color: var(--accent); }
