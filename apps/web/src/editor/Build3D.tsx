@@ -5,12 +5,14 @@ import { buildOffsets, buildStepLines, buildSteps, t, type BuildStep, type Proje
 import { engineMeshes } from './useGeometry';
 import { buildStudio, DEFAULT_PHOTO, setupRenderer, type PhotoStudio } from './photo';
 import { setGrainMotion } from './woodMaterial';
+import { fileName, saveFile } from '../storage/backup';
 import styles from './Build.module.css';
 
 /**
  * El armado animado: las piezas se acercan y entran en su lugar en el orden de armado, con la luz de la foto. Lo ya
  * armado va en color, la pieza que entra resaltada y lo que falta, en fantasma en su lugar. Se reproduce, se pausa,
  * se pasa de a un paso y se va y vuelve con la barra. Con "reducir movimiento" salta de un paso al otro sin animar.
+ * También se baja como video, con el renglón de cada paso abajo.
  */
 
 /** Segundos que tarda cada pieza en entrar. */
@@ -27,6 +29,47 @@ function useReducedMotion(): boolean {
     () => matchMedia(REDUCE).matches,
     () => false,
   );
+}
+
+/** Formatos de video en orden de preferencia: mp4 se abre en todos lados, webm si el navegador no graba mp4. */
+const VIDEO_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+function videoType(): string | null {
+  if (typeof MediaRecorder === 'undefined' || typeof HTMLCanvasElement.prototype.captureStream !== 'function') return null;
+  return VIDEO_TYPES.find((m) => MediaRecorder.isTypeSupported(m)) ?? null;
+}
+/** Ancho del video, en píxeles. */
+const VIDEO_WIDTH = 1280;
+const even = (x: number) => Math.max(2, Math.round(x / 2) * 2);
+
+/** Un cuadro del video: la vista 3D y, abajo, en qué paso va y qué se hace. */
+function paintFrame(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, count: string, text: string) {
+  const { width: w, height: h } = ctx.canvas;
+  const band = h - src.height;
+  ctx.fillStyle = '#f7f5ef';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(src, 0, 0, w, src.height);
+  const pad = Math.round(band * 0.16);
+  const small = Math.round(band * 0.15);
+  const size = Math.round(band * 0.2);
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#5e6759';
+  ctx.font = `500 ${small}px Jost, system-ui, sans-serif`;
+  ctx.fillText(count.toUpperCase(), pad * 1.5, src.height + pad);
+  ctx.fillStyle = '#2b3628';
+  ctx.font = `${size}px Inter, system-ui, sans-serif`;
+  // El renglón, partido en hasta dos líneas que entren en el ancho.
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width > w - pad * 3 && line) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  lines.push(line);
+  if (lines.length > 2) lines.splice(2, lines.length, `${lines[1]!.replace(/\s*\S*$/, '')}…`);
+  lines.forEach((l, k) => ctx.fillText(l, pad * 1.5, src.height + pad + small * 1.5 + k * size * 1.3));
 }
 
 /** Suave al salir y al llegar. */
@@ -83,11 +126,18 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
   const frame = useRef<HTMLDivElement>(null);
   const studio = useRef<PhotoStudio | null>(null);
   const draw = useRef<() => void>(() => {});
+  // Cambia la resolución de la vista: más grande mientras se graba el video, la de la pantalla el resto del tiempo.
+  const sharpen = useRef<(width: number | null) => void>(() => {});
   // Dónde va la animación, de 0 (todo separado) a n (todo armado). Empieza separado: así se ve qué hay que armar.
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const at = useRef(0);
+  // La grabación en curso: cada vez que se dibuja la vista, se copia al video con el renglón del paso.
+  const [recording, setRecording] = useState(false);
+  const rec = useRef<{ ctx: CanvasRenderingContext2D; recorder: MediaRecorder } | null>(null);
+  const text = useRef({ count: '', line: '' });
+  const canRecord = useMemo(() => videoType() !== null, []);
 
   // El estudio, una vez por modelo: las piezas en su lugar y la cámara encuadrando el mueble separado.
   useEffect(() => {
@@ -109,7 +159,10 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
         gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
         const s = buildStudio(gl, project, meshes, new Set(), {}, buildOffsets(steps, 0));
         studio.current = s;
-        const render = () => gl!.render(s.scene, s.camera);
+        const render = () => {
+          gl!.render(s.scene, s.camera);
+          if (rec.current && canvas.current) paintFrame(rec.current.ctx, canvas.current, text.current.count, text.current.line);
+        };
         draw.current = render;
         controls = new OrbitControls(s.camera, canvas.current);
         controls.enableDamping = false;
@@ -127,6 +180,12 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
           controls!.maxDistance = s.radius * 12;
           controls!.update();
           render();
+        };
+        sharpen.current = (width) => {
+          const box = frame.current;
+          if (!box || !gl) return;
+          gl.setPixelRatio(width ? width / Math.max(1, box.clientWidth) : Math.min(2, window.devicePixelRatio));
+          fit();
         };
         observer = new ResizeObserver(fit);
         if (frame.current) observer.observe(frame.current);
@@ -162,14 +221,20 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
       setGrainMotion(mesh.material as THREE.Material, o.some((v) => v) ? move.makeTranslation(o[0], o[1], o[2]) : null);
       setLook(mesh, look);
     }
+    const done = progress >= n;
+    text.current = {
+      count: t('Paso {n} de {total}', { n: done ? n : i + 1, total: n }),
+      line: done ? t('Listo: el mueble armado.') : (lines[i] ?? ''),
+    };
     draw.current();
     onLine?.(lineOf[Math.min(n - 1, Math.floor(progress))] ?? 0);
-  }, [progress, state, steps, enters, n, lineOf, onLine]);
+  }, [progress, state, steps, enters, n, lineOf, onLine, lines]);
 
   // Reproducir: avanza solo hasta el final. Con "reducir movimiento", de a un paso entero.
   useEffect(() => {
     if (!playing) return;
-    if (reduce) {
+    // El video se graba siempre animado: es para mirarlo después.
+    if (reduce && !recording) {
       const id = setInterval(() => {
         const next = Math.min(n, Math.floor(at.current) + 1);
         at.current = next;
@@ -190,7 +255,46 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, reduce, n]);
+  }, [playing, reduce, n, recording]);
+
+  // Al terminar de grabar, el mueble armado queda un momento en pantalla y se baja el video.
+  useEffect(() => {
+    if (!recording || playing || progress < n) return;
+    const id = setTimeout(() => rec.current?.recorder.stop(), 1500);
+    return () => clearTimeout(id);
+  }, [recording, playing, progress, n]);
+
+  const record = () => {
+    const src = canvas.current;
+    const type = videoType();
+    if (!src || !type || recording) return;
+    // El video sale en 1280 de ancho, aunque la vista en pantalla sea más chica.
+    sharpen.current(VIDEO_WIDTH);
+    const out = document.createElement('canvas');
+    out.width = even(src.width);
+    out.height = even(src.height + Math.max(90, src.height * 0.18));
+    const ctx = out.getContext('2d');
+    if (!ctx) return;
+    const recorder = new MediaRecorder(out.captureStream(30), { mimeType: type, videoBitsPerSecond: 8_000_000 });
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    recorder.onstop = () => {
+      rec.current = null;
+      setRecording(false);
+      sharpen.current(null);
+      const ext = type.startsWith('video/mp4') ? 'mp4' : 'webm';
+      saveFile(`${fileName(project)} - ${t('armado')}.${ext}`, new Blob(chunks, { type: type.split(';')[0] }), type.split(';')[0]!);
+      draw.current();
+    };
+    rec.current = { ctx, recorder };
+    setPlaying(false);
+    setRecording(true);
+    go(0);
+    draw.current();
+    recorder.start(250);
+    // Un momento con todo separado antes de empezar a armar.
+    setTimeout(() => setPlaying(true), 1000);
+  };
 
   const go = (p: number) => {
     const v = Math.max(0, Math.min(n, p));
@@ -214,7 +318,7 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
         {caption}
       </p>
       <div className={styles.controls}>
-        <button type="button" onClick={() => go(progress % 1 === 0 ? progress - 1 : Math.floor(progress))} disabled={progress <= 0} aria-label={t('Paso anterior')}>
+        <button type="button" onClick={() => go(progress % 1 === 0 ? progress - 1 : Math.floor(progress))} disabled={progress <= 0 || recording} aria-label={t('Paso anterior')}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M10 4 6 8l4 4" />
           </svg>
@@ -222,6 +326,7 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
         <button
           type="button"
           className={styles.play}
+          disabled={recording}
           onClick={() => {
             if (playing) return setPlaying(false);
             if (finished) go(0);
@@ -239,7 +344,7 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
             </svg>
           )}
         </button>
-        <button type="button" onClick={() => go(Math.floor(progress) + 1)} disabled={finished} aria-label={t('Siguiente paso')}>
+        <button type="button" onClick={() => go(Math.floor(progress) + 1)} disabled={finished || recording} aria-label={t('Siguiente paso')}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="m6 4 4 4-4 4" />
           </svg>
@@ -255,9 +360,29 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
             setPlaying(false);
             go(Number(e.target.value));
           }}
+          disabled={recording}
           aria-label={t('Ir a un punto del armado')}
           aria-valuetext={t('Paso {n} de {total}', { n: finished ? n : i + 1, total: n })}
         />
+        {canRecord && (
+          <button
+            type="button"
+            className={styles.video}
+            onClick={record}
+            disabled={recording || state !== 'ready'}
+            aria-label={recording ? t('Grabando el video…') : t('Bajar el armado como video')}
+            title={recording ? t('Grabando el video…') : t('Bajar el armado como video')}
+          >
+            {recording ? (
+              <span className={styles.rec} aria-hidden="true" />
+            ) : (
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="1.5" y="4" width="9" height="8" rx="1.5" />
+                <path d="m10.5 7 4-2.2v6.4l-4-2.2" />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -554,6 +554,7 @@ export const EN_REST: Article[] = [
             'Tap **Play** to watch it all the way through, or go one part at a time with the arrows.',
             'Drag the slider to go back and forth to any point of the assembly.',
             'Drag the drawing to turn it and look from another side.',
+            'To keep it or send it, tap the camera button: it records the whole assembly, with each step written below, and downloads it as a video (mp4, or webm if the browser can\'t record mp4). Pick the side you want to see from first.',
           ),
           note('If your device asks to **reduce motion**, it jumps from one part to the next without animating.'),
           tip('In **Workshop mode**, after the last part there is an **Assembly** screen with the same animation.'),

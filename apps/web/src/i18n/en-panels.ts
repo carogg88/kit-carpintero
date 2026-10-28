@@ -685,4 +685,7 @@ export default {
   "El orden para presentar en seco y encolar": "The order to dry fit and glue up",
   "Presentá todo en seco en este orden y después encolá por partes. Arrastrá el dibujo para girarlo.": "Dry fit everything in this order, then glue up in stages. Drag the drawing to turn it.",
   "Ir al armado": "Go to assembly",
+  'Grabando el video…': 'Recording the video…',
+  'Bajar el armado como video': 'Download the assembly as a video',
+  armado: 'assembly',
 } satisfies Record<string, string>;
