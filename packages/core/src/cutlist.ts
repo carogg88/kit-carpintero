@@ -7,7 +7,7 @@ import { followMortise, followWork, leanFollow } from './follow';
 import { arcInfo } from './pockets';
 import { describeSection, sectionBox } from './sections';
 import { describeTurning } from './turning';
-import { jointGeometry, solidBox } from './joints';
+import { isThrough, jointGeometry, solidBox, tenonStyle } from './joints';
 import type { Joint, Part, Pocket, Project } from './project';
 import { t, tk } from './i18n';
 import { sheetById } from './woods';
@@ -83,6 +83,13 @@ const WORK_NAMES: Record<string, [string, string]> = {
   'canal de machimbre': [tk('{n} canal de machimbre'), tk('{n} canales de machimbre')],
   'lengüeta de machimbre': [tk('{n} lengüeta de machimbre'), tk('{n} lengüetas de machimbre')],
   'agujero de bolsillo': [tk('{n} agujero de bolsillo'), tk('{n} agujeros de bolsillo')],
+  'mortaja pasante': [tk('{n} mortaja pasante'), tk('{n} mortajas pasantes')],
+  'media caja': [tk('{n} media caja'), tk('{n} medias cajas')],
+  'corte para cuña': [tk('{n} corte de sierra para cuña'), tk('{n} cortes de sierra para cuñas')],
+  'caja abierta para cuñas': [tk('{n} mortaja abierta para las cuñas'), tk('{n} mortajas abiertas para las cuñas')],
+  'agujero para tarugar': [tk('{n} agujero para tarugar'), tk('{n} agujeros para tarugar')],
+  'agujero corrido': [tk('{n} agujero corrido hacia el hombro'), tk('{n} agujeros corridos hacia el hombro')],
+  'agujero para llave': [tk('{n} agujero para llave'), tk('{n} agujeros para llave')],
 };
 
 /** Medidas de corte y trabajos de una pieza, según sus encastres. */
@@ -131,10 +138,18 @@ export function cutPiece(part: Part, project: Project): CutPiece {
     }
     const p = { ...j.params };
     switch (j.type) {
-      case 'mortaja':
+      case 'mortaja': {
         // Una espiga doble son dos mortajas y dos espigas.
-        add(isA ? 'mortaja' : 'espiga', Math.max(1, g?.addB.length ?? 1));
+        const n = Math.max(1, g?.addB.length ?? 1);
+        const style = tenonStyle(p);
+        add(isA ? (isThrough(style) ? 'mortaja pasante' : 'mortaja') : 'espiga', n);
+        // Lo que agrega cada forma de trabarla, contado en la pieza que lo lleva.
+        if ((p.haunch ?? 0) > 0) add('media caja');
+        if (style === 'cunas' || style === 'ciega-cunas') add(isA ? 'caja abierta para cuñas' : 'corte para cuña', isA ? n : (g?.extra?.cutB.length ?? n));
+        if (style === 'tarugada') add(isA ? 'agujero para tarugar' : 'agujero corrido', n);
+        if (style === 'llave' && !isA) add('agujero para llave', n);
         break;
+      }
       case 'canal':
         add(isA ? 'canal' : 'lengüeta de canal');
         break;

@@ -1,5 +1,5 @@
 import { assembleWire, basicFaceExtrusion, cast, GCWithScope, getOC, makeBox, makeCylinder, makeFace, makeLine, makeThreePointArc, makePolygon, ProjectionCamera, revolution, Vector, type Shape3D } from 'replicad';
-import { bevelSolid, engineCamera, FOLLOW_JOINTS, followMortise, leanFollow, leanFrame, leanStock, otherAxes, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, turnSegments, type Box, type Vec3, type EngineView, isLeaning, type LeanFrame, type Part, type Project, type Solid, type Turning } from '@kitc/core';
+import { bevelSolid, engineCamera, FOLLOW_JOINTS, followExtras, followMortise, leanFollow, leanFrame, leanStock, otherAxes, sectionBox, sectionCutBox, jointGeometry, partBox, pocketSolid, t, turnSegments, type Box, type Vec3, type EngineView, isLeaning, type LeanFrame, type Part, type Project, type Solid, type Turning } from '@kitc/core';
 
 /**
  * Formas exactas con replicad (OpenCascade), sin nada del navegador: las usan el worker y las pruebas.
@@ -225,8 +225,11 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
       }
       const m = j.type === 'mortaja' ? followMortise(f, end, b) : null;
       if (!m) continue;
+      const x2 = followExtras(f, end, b);
       try {
         for (const x of m) shape = isA ? shape.cut(solid(x.mortise)) : shape.fuse(solid(x.tenon));
+        for (const s of isA || !x2 ? [] : x2.addB) shape = shape.fuse(toShape(s));
+        for (const s of x2 ? (isA ? x2.cutA : x2.cutB) : []) shape = shape.cut(toShape(s));
       } catch {
         warning = t('No se pudo cortar el encastre con {id}', { id: other });
       }
@@ -234,8 +237,9 @@ export function partShape(part: Part, project: Project): { shape: Shape3D; warni
     }
     const tilt = leanFrame(b);
     try {
-      for (const s of isA ? [] : geo.addB) shape = shape.fuse(jointSolid(s, tilt));
-      for (const s of isA ? geo.cutA : geo.cutB) shape = shape.cut(jointSolid(s, tilt));
+      const x = geo.extra;
+      for (const s of isA ? [] : [...geo.addB, ...(x?.addB ?? [])]) shape = shape.fuse(jointSolid(s, tilt));
+      for (const s of isA ? [...geo.cutA, ...(x?.cutA ?? [])] : [...geo.cutB, ...(x?.cutB ?? [])]) shape = shape.cut(jointSolid(s, tilt));
     } catch {
       warning = t('No se pudo cortar el encastre con {id}', { id: other });
     }

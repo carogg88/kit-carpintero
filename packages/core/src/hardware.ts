@@ -1,6 +1,6 @@
 import { boxSize, overlapBox, partBox, type Box } from './geometry';
 import { findMotions, hingeEdge, isDoorPart, isDrawerPart, slideGap, SLIDE_LENGTHS, unionBox } from './motion';
-import { jointGeometry } from './joints';
+import { endJoint, jointGeometry, tenonStyle } from './joints';
 import { boardPieces, dowelsNeeded, type CutPlan } from './cutlist';
 import type { Part, Project } from './project';
 import { tipRisk } from './review';
@@ -106,6 +106,39 @@ export function hardwareList(project: Project, plan: CutPlan): HardwareRow[] {
     if (j.type === 'bolsillo') {
       const g = jointGeometry('bolsillo', ba, bb, j.params);
       add(rows, { id: 'tornillo-bolsillo', name: t('Tornillos para agujero de bolsillo'), qty: Math.round((g?.cutB.length ?? 0) / 2), unit: 'u' });
+    }
+    if (j.type === 'mortaja') {
+      // Lo que traba una caja y espiga: cuñas, tarugos que cruzan la pata, llaves. Se hacen de un retazo de madera dura.
+      const style = tenonStyle(j.params);
+      const g = style === 'ciega' || style === 'pasante' ? null : jointGeometry('mortaja', ba, bb, j.params);
+      const e = g && endJoint(ba, bb);
+      if (g?.extra && e) {
+        if (style === 'cunas' || style === 'ciega-cunas')
+          add(rows, { id: 'cuna', name: t('Cuñas de madera dura'), qty: g.extra.cutB.length, unit: 'u', note: t('de un retazo, con la veta a lo largo') });
+        if (style === 'tarugada') {
+          const pin = g.extra.cutA.find((s) => s.kind === 'cylinder');
+          if (pin?.kind === 'cylinder') {
+            const d = Math.round(pin.radius * 2);
+            const len = Math.round(pin.length + 4);
+            add(rows, { id: `tarugo-pasante|${d}|${len}`, name: t('Tarugos de madera dura de {d} × {len} mm', { d, len }), qty: g.extra.cutA.length, unit: 'u', note: t('para tarugar, con un poco de punta') });
+          }
+        }
+        if (style === 'llave') {
+          for (const s of g.extra.cutB) {
+            if (s.kind !== 'box') continue;
+            const size = boxSize(s.box);
+            // Larga como la espiga más dos dedos de cada lado, y del ancho del agujero en la punta gruesa.
+            const len = Math.round(size[e.wide] + 50);
+            add(rows, {
+              id: `llave|${Math.round(size[e.axis])}|${Math.round(size[e.thin])}|${len}`,
+              name: t('Llaves de madera dura de {w} × {t} × {len} mm', { w: Math.round(size[e.axis]), t: Math.round(size[e.thin]), len }),
+              qty: 1,
+              unit: 'u',
+              note: t('una por espiga con llave'),
+            });
+          }
+        }
+      }
     }
     if (j.type === 'galleta') {
       const g = jointGeometry('galleta', ba, bb, j.params);

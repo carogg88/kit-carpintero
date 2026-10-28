@@ -119,6 +119,29 @@ export const ES_REST: Article[] = [
           tip('Si la espiga pasa de 9 cm de ancho, la revisión del diseño avisa **Espiga ancha** y te propone **Hacer espiga doble** en las dos puntas de la pieza.'),
         ],
       },
+      {
+        id: 'trabar',
+        title: 'Pasante, con cuñas, tarugada, con llave y media caja',
+        blocks: [
+          p('La caja y espiga de siempre es ciega: la espiga queda adentro de la pata. En **Cómo se traba** elegís otras formas, que se ven en el detalle, en el modelo y en el plano.'),
+          table(
+            ['Cómo se traba', 'Qué es', 'Qué suma'],
+            ['Pasante', 'La espiga atraviesa la pata y se ve del otro lado', 'Nada: el largo es el de la pata'],
+            ['Pasante con cuñas', 'Pasante, con dos cortes de sierra y dos cuñas que la abren contra la mortaja', 'Cuñas de madera dura'],
+            ['Ciega con cuñas', 'Las cuñas van en la espiga antes de entrarla; chocan con el fondo y la abren. No se desarma', 'Cuñas de madera dura'],
+            ['Tarugada', 'Un tarugo cruza pata y espiga; en la espiga el agujero va corrido 1,5 mm hacia el hombro y cierra la unión', 'Un tarugo de madera dura por espiga'],
+            ['Pasante con llave', 'La espiga asoma y una llave la traba del otro lado. Se puede desarmar', 'Una llave por espiga'],
+          ),
+          steps(
+            'En **Uniones**, elegí una unión de **Mortaja y espiga**.',
+            'En **Cómo se traba**, elegí la forma. Con **Tarugada** aparecen **Tarugo** y **Corrido**; con **Pasante con llave**, **Asoma** y **Llave**.',
+            'Para la **Media caja**, elegí **Sí** y escribí el **Hondo de la media caja**: el diente que llena el hombro del lado de la punta de la pata.',
+          ),
+          img('espiga-cunas', 'Una espiga pasante con cuñas en el faldón de una mesa, con las piezas separadas'),
+          note('Las cuñas, los tarugos y las llaves aparecen en **Herrajes**, los cortes que agregan en la **Lista de cortes** y cómo se hace cada una en **Armado**.'),
+          tip('Dos espigas pasantes que llegan a la misma altura de una pata se cruzan adentro: la app lo avisa. Corré una de altura o dejala ciega.'),
+        ],
+      },
     ],
     faq: [
       { q: 'Aparece un aviso de espiga gruesa', a: 'La espiga pasa del tercio del espesor de la pieza: los hombros quedan finos. Bajala a la medida que dice el aviso.' },

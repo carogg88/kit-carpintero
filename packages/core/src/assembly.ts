@@ -2,7 +2,7 @@ import { cutList, cutPiece } from './cutlist';
 import { t, tk } from './i18n';
 import { groupJoints } from './jointinfo';
 import { jointRoom } from './jointfit';
-import { JOINT_NAMES } from './joints';
+import { JOINT_NAMES, tenonStyle, type TenonStyle } from './joints';
 import type { JointType, Project } from './project';
 
 /**
@@ -52,6 +52,16 @@ const JOINT_HOW: Partial<Record<JointType, string>> = {
   brida: tk('Primero la horquilla en {b}; después el rebaje en {a}, ajustado al ancho de la horquilla.'),
   'media-madera': tk('Rebajá {a} y {b} a la mitad del espesor. Cortá un poco menos y ajustá con formón hasta que queden al ras.'),
   inglete: tk('Cortá los ingletes de {a} y {b} con la sierra bien a 45°: probá antes con dos retazos que cierren a escuadra.'),
+};
+
+/** Cómo se hace cada forma de trabar la caja y espiga, además de la caja y la espiga. */
+const STYLE_HOW: Partial<Record<TenonStyle | 'media-caja', string>> = {
+  pasante: tk('Pasante: la espiga atraviesa {a}. Marcá la mortaja en las dos caras y cavá desde cada una hasta el medio, así no se astilla la salida.'),
+  cunas: tk('Con cuñas: dos cortes de sierra en cada espiga, a un quinto de cada canto, y la mortaja abierta 2 mm de cada lado en la mitad de afuera. Las cuñas, de madera dura y con la veta a lo largo, se encolan, se clavan a la vez y después se enrasan.'),
+  'ciega-cunas': tk('Ciega con cuñas: apoyá las cuñas en los cortes de la espiga antes de entrarla. Al apretar, chocan con el fondo de la mortaja y abren la espiga. Probá en seco sin las cuñas: una vez encolada no se desarma.'),
+  tarugada: tk('Tarugada: agujereá {a} con la espiga afuera. Entrá la espiga, marcá el agujero, sacala y agujereala 1 a 2 mm más cerca del hombro. El tarugo, de madera dura y con un poco de punta, tira de la espiga y cierra el hombro.'),
+  llave: tk('Con llave: la espiga asoma del otro lado de {a} y lleva un agujero para la llave, que empieza 2 mm adentro de {a} para que apriete. La llave entra a golpes y se saca para desarmar.'),
+  'media-caja': tk('Media caja: el diente de la espiga llena el hombro del lado de afuera, y la mortaja lleva ese escalón poco hondo.'),
 };
 
 /** Los pasos para armar el mueble, en orden. `dims` escribe las tres medidas de corte, con la unidad una sola vez. */
@@ -109,12 +119,20 @@ export function assemblySteps(project: Project, dims: (cut: [number, number, num
           ? t('Ojo: las espigas de {b} que van en {a} son más cortas, para no chocar adentro con las otras.', { a: listIds(short.map((j) => j.partA)), b: listIds(short.map((j) => j.partB)) })
           : t('Ojo: los agujeros de {a} para {b} son menos hondos, para no chocar adentro con los otros.', { a: listIds(short.map((j) => j.partA)), b: listIds(short.map((j) => j.partB)) })
         : null;
+      // Las formas de trabar la caja y espiga que aparecen en este grupo, cada una con su explicación.
+      const styles =
+        type === 'mortaja'
+          ? [...new Set(joints.flatMap((j) => [tenonStyle(j.params), ...((j.params.haunch ?? 0) > 0 ? (['media-caja'] as const) : [])]))]
+              .map((s) => STYLE_HOW[s])
+              .filter((x): x is string => !!x)
+              .map((x) => t(x, { a, b }))
+          : [];
       steps.push({
         key: `encastre:${g.key}:${type}`,
         kind: 'encastre',
         title: t('{joint}: {group}', { joint: t(JOINT_NAMES[type]), group: g.label.toLocaleLowerCase() }),
         text: t(JOINT_HOW[type] ?? tk('Hacé los encastres en {a} y {b}. Probá primero con un retazo.'), { a, b }),
-        items: [joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: joints.length }), ...(shortNote ? [shortNote] : [])],
+        items: [joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: joints.length }), ...styles, ...(shortNote ? [shortNote] : [])],
         joint: type,
       });
     }

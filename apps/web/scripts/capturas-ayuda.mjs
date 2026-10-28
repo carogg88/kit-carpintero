@@ -405,6 +405,25 @@ async function createTable(page) {
   await page.context().close();
 }
 
+// Compu: espiga pasante con cuñas en una unión de pata con faldón de la mesa, con las piezas separadas.
+{
+  const page = await open(desktop);
+  await createTable(page);
+  await page.getByRole('button', { name: 'Crear mesa' }).click();
+  await page.locator('[data-tour="tools"]').waitFor();
+  await page.waitForTimeout(3000);
+  await page.getByRole('link', { name: /^Uniones/ }).first().click();
+  await page.waitForTimeout(3000);
+  // Solo en esta unión: la espiga ciega del faldón de costado se acorta sola para no cruzarse con la pasante.
+  await page.getByLabel(/^Aplicar a las/).uncheck();
+  await page.getByLabel('Cómo se traba').selectOption('2');
+  await page.waitForTimeout(1500);
+  await page.getByRole('button', { name: 'Separar piezas' }).click();
+  await page.waitForTimeout(2500);
+  await shot(page, 'espiga-cunas');
+  await page.context().close();
+}
+
 // Celular: el editor con la mesa y el modo taller.
 {
   const page = await open(phone);

@@ -118,7 +118,19 @@ export function jointGeometry(type: JointType, a: Box, b: Box, params: Params = 
     case 'tope':
       return { cutA: [], cutB: [], addB: [] };
     case 'mortaja':
-      return mortiseGeometry(a, b, { length: n('length'), thickness: n('thickness'), shoulder: n('shoulder'), count: p.count ?? 1, gap: p.gap });
+      return mortiseGeometry(a, b, {
+        length: n('length'),
+        thickness: n('thickness'),
+        shoulder: n('shoulder'),
+        count: p.count ?? 1,
+        gap: p.gap,
+        style: p.style,
+        haunch: p.haunch,
+        pin: p.pin,
+        offset: p.offset,
+        protrude: p.protrude,
+        key: p.key,
+      });
     case 'canal':
       return grooveGeometry(a, b, { depth: n('depth') });
     case 'rebaje':
