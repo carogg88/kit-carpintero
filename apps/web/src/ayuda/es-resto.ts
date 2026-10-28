@@ -532,8 +532,24 @@ export const ES_REST: Article[] = [
           ),
         ],
       },
+      {
+        id: 'orden',
+        title: 'En qué orden se arma',
+        blocks: [
+          p('En **Presentá en seco**, la app dice en qué orden entra cada pieza y desde qué lado, para que ninguna trabe a la que viene después. Sale de las uniones: la espiga entra a lo largo de la espiga, la tapa se apoya desde arriba y las patas abiertas entran juntas en el asiento.'),
+          list(
+            '**La base**: la pieza que recibe más uniones, como una pata o un costado. Va primero, apoyada en el banco.',
+            '**Entra en**: la pieza que lleva la espiga, la lengüeta o el tarugo, y desde qué lado llega.',
+            '**Recibe a**: la que tiene la mortaja o la canal y se calza sobre lo ya puesto, como la segunda pata de un faldón.',
+            '**Armalos aparte**: una parte que conviene armar sola, como un pie de mesa con su faldón, antes de sumarla al resto.',
+            '**Cajones y puertas**: se arman aparte y van al final.',
+          ),
+          tip('Si una pieza no puede entrar sin atravesar otra, el renglón lo avisa: fijate en esa unión antes de encolar.'),
+        ],
+      },
     ],
     faq: [
+      { q: '¿Tengo que seguir ese orden al pie de la letra?', a: 'No, es uno que funciona. Si preferís otro, probalo en seco antes de encolar.' },
       { q: '¿Cambia si cambio el mueble?', a: 'Sí: los pasos salen del modelo, con sus uniones y piezas.' },
       { q: '¿Lo puedo seguir en el celular en el taller?', a: 'Sí, y para trabajar pieza por pieza está el [Modo taller](modo-taller).' },
     ],
