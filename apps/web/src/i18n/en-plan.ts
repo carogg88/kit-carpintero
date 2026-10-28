@@ -127,4 +127,5 @@ export default {
   'Todas las uniones de este mueble son a tope: no llevan cortes.': 'Every joint in this piece is a butt joint: no cuts needed.',
   'Y {n} más: el detalle de cada número, con sus medidas, está en la hoja de encastres.': 'And {n} more: each number’s detail, with its measurements, is on the Joints sheet.',
   'El detalle de cada número, con sus medidas, está en la hoja de encastres.': 'Each number’s detail, with its measurements, is on the Joints sheet.',
+  'Corte {a}-{a}': 'Section {a}-{a}',
 } satisfies Record<string, string>;

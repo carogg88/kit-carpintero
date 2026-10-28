@@ -457,7 +457,111 @@ export function partArcMarks(part: Part, p: Projection): ArcMark[] {
 }
 
 /** Dos vistas de detalle de un encastre, encuadradas donde se tocan las piezas. */
-export function drawJointDetail(project: Project, jointId: string): { views: Drawing[]; projections: Projection[] } | null {
+/** Un rectángulo del corte: madera de la pieza que recibe (a), de la que entra (b), o hueco. */
+export interface SectionArea {
+  kind: 'a' | 'b' | 'void';
+  rect: Rect2;
+}
+
+/**
+ * Corte A-A de una unión oculta: el plano pasa por el medio del encastre y se ve la espiga dentro de su caja, con
+ * la madera rayada. `cut` dice en qué otra vista se marca el plano: una línea sobre `along` ('u' o 'v') en `at`, y
+ * hacia qué lado del otro eje de esa vista se mira (`look`).
+ */
+export interface JointSection {
+  areas: SectionArea[];
+  /** Código de cada pieza, en el medio de lo que se ve de ella. */
+  labels: { id: string; at: [number, number] }[];
+  lines: Line2[];
+  bounds: Rect2;
+  projection: Projection;
+  cut: { view: number; along: 'u' | 'v'; at: number; look: 1 | -1 };
+}
+
+/**
+ * Si el encastre no se ve desde afuera: algún hueco toca una sola cara de su pieza, la que da a la otra. Una
+ * mortaja ciega, los tarugos o las galletas; una mortaja pasante o una canal que corre todo el largo, no.
+ */
+function hiddenCut(items: DrawItem[], own: Box, ownerId: string): DrawItem | undefined {
+  return items.find((x) => {
+    if (!x.hole || x.owner !== ownerId) return false;
+    let faces = 0;
+    for (const k of [0, 1, 2] as Axis[]) {
+      if (x.box.min[k] <= own.min[k] + 0.5) faces++;
+      if (x.box.max[k] >= own.max[k] - 0.5) faces++;
+    }
+    return faces === 1;
+  });
+}
+
+function jointSection(items: DrawItem[], a: string, b: string, ba: Box, bb: Box, projections: Projection[], focus: Box): JointSection | undefined {
+  const hole = hiddenCut(items, ba, a) ?? hiddenCut(items, bb, b);
+  if (!hole) return undefined;
+  // Se corta como se ve en la primera vista, a la mitad del primer hueco oculto (con dos espigas, por una de ellas),
+  // en el tramo que se dibuja: la ranura de los botones corre todo el faldón y el detalle muestra una punta.
+  const p = projections[0]!;
+  const d = p.depth;
+  const at = (Math.max(hole.box.min[d], focus.min[d]) + Math.min(hole.box.max[d], focus.max[d])) / 2;
+  // Más ajustado que las vistas: el corte va a su propia escala, más grande.
+  const f = project0(focus, p);
+  const pad = Math.max(12, 0.3 * Math.max(f.u1 - f.u0, f.v1 - f.v0));
+  const win = { u0: f.u0 - pad, v0: f.v0 - pad, u1: f.u1 + pad, v1: f.v1 + pad };
+  const order = (x: DrawItem) => (x.id === a ? 0 : x.hole && x.owner === a ? 1 : x.id === b ? 2 : x.hole ? 4 : 3);
+  const cut = items
+    .filter((x) => !x.section && x.box.min[p.depth] < at - EPS && x.box.max[p.depth] > at + EPS)
+    .sort((x, y) => order(x) - order(y))
+    .map((x) => {
+      const r = project(x, p).rect;
+      const rect = { u0: Math.max(r.u0, win.u0), v0: Math.max(r.v0, win.v0), u1: Math.min(r.u1, win.u1), v1: Math.min(r.v1, win.v1) };
+      return { item: x, area: { kind: x.hole ? 'void' : (x.owner ?? x.id) === a ? 'a' : 'b', rect } as SectionArea };
+    })
+    .filter(({ area: { rect: r } }) => r.u1 > r.u0 + EPS && r.v1 > r.v0 + EPS);
+  const areas = cut.map((x) => x.area);
+  // El código va en la madera de la pieza, lo más lejos que se pueda de lo que se le dibuja encima.
+  const labels = cut
+    .map((x, i) => ({ ...x, i }))
+    .filter((x) => x.item.id === a || x.item.id === b)
+    .map(({ item, area: { rect: r }, i }) => {
+      const above = areas.slice(i + 1).map((x) => x.rect);
+      const away = (u: number, v: number) =>
+        Math.min(
+          u - r.u0,
+          r.u1 - u,
+          v - r.v0,
+          r.v1 - v,
+          ...above.map((q) => Math.max(q.u0 - u, u - q.u1, q.v0 - v, v - q.v1)),
+        );
+      let at: [number, number] = [(r.u0 + r.u1) / 2, (r.v0 + r.v1) / 2];
+      let best = away(...at);
+      for (let gu = 1; gu < 8; gu++)
+        for (let gv = 1; gv < 8; gv++) {
+          const pt: [number, number] = [r.u0 + ((r.u1 - r.u0) * gu) / 8, r.v0 + ((r.v1 - r.v0) * gv) / 8];
+          const d = away(...pt);
+          if (d > best + EPS) [at, best] = [pt, d];
+        }
+      return { id: item.id, at };
+    });
+  const lines: Line2[] = areas.flatMap(({ rect: r }) =>
+    (
+      [
+        [[r.u0, r.v0], [r.u1, r.v0]],
+        [[r.u0, r.v1], [r.u1, r.v1]],
+        [[r.u0, r.v0], [r.u0, r.v1]],
+        [[r.u1, r.v0], [r.u1, r.v1]],
+      ] as [[number, number], [number, number]][]
+    ).map(([pa, pb]) => ({ a: pa, b: pb, hidden: false, joint: false })),
+  );
+  // En la otra vista, el plano se ve de canto: una línea sobre el eje del dibujo que no es su profundidad.
+  const view = projections.findIndex((q, i) => i > 0 && (q.u === p.depth || q.v === p.depth));
+  if (view < 0) return undefined;
+  const q = projections[view]!;
+  const along = q.u === p.depth ? 'v' : 'u';
+  const sign = q.u === p.depth ? q.uSign : q.vSign;
+  // El corte se mira desde el lado positivo de su profundidad, hacia el negativo.
+  return { areas, labels, lines, bounds: win, projection: p, cut: { view, along, at: sign * at, look: sign > 0 ? -1 : 1 } };
+}
+
+export function drawJointDetail(project: Project, jointId: string): { views: Drawing[]; projections: Projection[]; section?: JointSection } | null {
   const j = project.joints.find((x) => x.id === jointId);
   const a = j && project.parts.find((p) => p.id === j.partA);
   const b = j && project.parts.find((p) => p.id === j.partB);
@@ -499,13 +603,14 @@ export function drawJointDetail(project: Project, jointId: string): { views: Dra
     if (along === 1) return { u: k, uSign: k === 2 && depth === 0 ? -1 : 1, v: along, vSign: 1, depth, depthSign: 1 };
     return { u: along, uSign: 1, v: k, vSign: 1, depth, depthSign: 1 };
   });
-  const views = projections.map((p) => {
+  const windows = projections.map((p) => {
     const f = project0(focus, p);
     const pad = Math.max(40, 0.6 * Math.max(f.u1 - f.u0, f.v1 - f.v0));
-    const win = { u0: f.u0 - pad, v0: f.v0 - pad, u1: f.u1 + pad, v1: f.v1 + pad };
-    return { ...drawItems(items, p, win), engine: { parts: [a.id, b.id], projection: p, window: win } };
+    return { u0: f.u0 - pad, v0: f.v0 - pad, u1: f.u1 + pad, v1: f.v1 + pad };
   });
-  return { views, projections };
+  const views = projections.map((p, i) => ({ ...drawItems(items, p, windows[i]), engine: { parts: [a.id, b.id], projection: p, window: windows[i] } }));
+  const section = jointSection(items, a.id, b.id, ba, bb, projections, focus);
+  return section ? { views, projections, section } : { views, projections };
 }
 
 /**
