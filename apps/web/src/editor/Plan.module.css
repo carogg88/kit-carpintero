@@ -189,3 +189,4 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .contour .traceLine { stroke-width: 0.6; }
 .shapeId { fill: var(--paper-accent); font: 500 2.6px var(--font-num); }
 .edgeName { fill: var(--paper-muted); font: 500 2.4px var(--font-display); letter-spacing: 0.04em; }
+.legendTitle { fill: var(--paper-ink); font: 500 2.8px var(--font-display); }

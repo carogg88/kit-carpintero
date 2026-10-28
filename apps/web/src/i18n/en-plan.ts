@@ -119,4 +119,12 @@ export default {
   'Ojo:': 'Watch out:',
   'Ojo: {care}': 'Watch out: {care}',
   'Los números en círculo llevan al detalle de cada unión, en la hoja de encastres.': 'Circled numbers point to each joint’s detail on the Joints sheet.',
+  'Despiece explotado': 'Exploded view',
+  'El mueble separado, con cada unión numerada': 'The piece pulled apart, each joint numbered',
+  'El mueble separado': 'The piece pulled apart',
+  'Así va cada pieza en su lugar. Los números son las uniones, los mismos que en las vistas y en los encastres.': 'How each part goes in its place. The numbers are the joints, the same as on the views and the Joints sheet.',
+  'Las uniones': 'The joints',
+  'Todas las uniones de este mueble son a tope: no llevan cortes.': 'Every joint in this piece is a butt joint: no cuts needed.',
+  'Y {n} más: el detalle de cada número, con sus medidas, está en la hoja de encastres.': 'And {n} more: each number’s detail, with its measurements, is on the Joints sheet.',
+  'El detalle de cada número, con sus medidas, está en la hoja de encastres.': 'Each number’s detail, with its measurements, is on the Joints sheet.',
 } satisfies Record<string, string>;
