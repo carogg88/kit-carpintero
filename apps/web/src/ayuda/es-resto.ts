@@ -426,6 +426,7 @@ export const ES_REST: Article[] = [
           table(
             ['Hoja', 'Qué tiene'],
             ['Vistas generales', 'Frente, costado y planta, con las medidas del mueble y un círculo numerado en cada unión'],
+            ['Despiece explotado', 'El mueble en 3D con las piezas separadas, cada unión con su número y, al costado, qué unión es, para qué sirve y qué cuidar'],
             ['El mueble armado', 'El mueble en 3D, con el código de cada pieza'],
             ['Despiece', 'Cada pieza acotada'],
             ['Encastres', 'Cada unión en detalle, con su número, su nombre completo, para qué sirve y qué cuidar (Ojo)'],
@@ -433,7 +434,7 @@ export const ES_REST: Article[] = [
           ),
           p('Tocá una hoja en la lista para verla. Con los botones de zoom, pellizcando o con dos toques, la agrandás.'),
           tip('Si el mueble tiene patas inclinadas, el despiece las dibuja derechas, a lo largo, con el ángulo de cada punta: es el de la falsa escuadra, entre el canto y la punta larga.'),
-          tip('El número en círculo de las vistas generales es el mismo del detalle en la hoja de **Encastres**: seguilo para ver cómo se corta esa unión.'),
+          tip('El número en círculo de las vistas generales y del **Despiece explotado** es el mismo del detalle en la hoja de **Encastres**: seguilo para ver cómo se corta esa unión.'),
           tip('Las tapas, costados y paneles macizos anchos llevan una flecha con lo que se mueven a lo ancho con la humedad, en las vistas generales y en el despiece. Es el lugar que hay que dejarles: no los trabes con cola ni tornillos fijos.'),
         ],
       },

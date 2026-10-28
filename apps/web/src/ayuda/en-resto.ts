@@ -423,6 +423,7 @@ export const EN_REST: Article[] = [
           table(
             ['Sheet', 'What it has'],
             ['General views', 'Front, side and top, with the piece’s dimensions and a numbered circle on each joint'],
+            ['Exploded view', 'The piece in 3D with its parts pulled apart, each joint numbered and, beside it, which joint it is, what it is for and what to watch out for'],
             ['The assembled piece', 'The piece in 3D, with each part’s code'],
             ['Parts', 'Every part, dimensioned'],
             ['Joints', 'Each joint in detail, with its number, full name, what it is for and what to watch out for'],
@@ -430,7 +431,7 @@ export const EN_REST: Article[] = [
           ),
           p('Tap a sheet in the list to see it. Zoom in with the zoom buttons, by pinching or with a double tap.'),
           tip('If the piece has leaning legs, the parts sheet draws them straight, lengthwise, with the angle of each end: the bevel-gauge setting, between the edge and the long point.'),
-          tip('The circled number in the general views matches the detail on the **Joints** sheet: follow it to see how that joint is cut.'),
+          tip('The circled number in the general views and the **Exploded view** matches the detail on the **Joints** sheet: follow it to see how that joint is cut.'),
           tip('Wide solid tops, sides and panels carry an arrow with how much they move across their width with humidity, in the general views and on the parts sheet. That is the room you have to leave them: do not lock them in with glue or fixed screws.'),
         ],
       },

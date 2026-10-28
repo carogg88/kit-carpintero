@@ -10,7 +10,7 @@ import type { ExactMesh } from './useGeometry';
  */
 
 /** Desde adelante, a la derecha y arriba, como la vista 3D del editor. */
-const DIR = new THREE.Vector3(1, 0.72, 1.15).normalize();
+export const DIR = new THREE.Vector3(1, 0.72, 1.15).normalize();
 const INK = '#2b2622';
 
 export interface ShotLabel {
@@ -25,6 +25,8 @@ export interface Shot {
   labels: ShotLabel[];
   /** Piezas que no se ven desde este lado: quedan tapadas por otras. */
   hidden: string[];
+  /** Dónde caen en la imagen los puntos pedidos, de 0 a 1 como los códigos. */
+  points: [number, number][];
 }
 
 interface Request {
@@ -43,6 +45,10 @@ interface Request {
   dir?: [number, number, number];
   /** Piezas que se ven como un velo, para que las otras se vean a través: no tapan ni llevan código. */
   ghosts?: ReadonlySet<string>;
+  /** Cuánto correr cada pieza, para el despiece: el mueble separado. */
+  offsets?: ReadonlyMap<string, [number, number, number]>;
+  /** Puntos del mueble (ya corridos, si hay despiece) que hay que ubicar en la imagen. */
+  points?: [number, number, number][];
 }
 
 let renderer: THREE.WebGLRenderer | null = null;
@@ -72,6 +78,8 @@ export function shoot(req: Request): Shot | null {
     !!req.labels,
     [...(req.ghosts ?? [])],
     req.dir ?? null,
+    req.offsets ? ids.map((id) => req.offsets!.get(id) ?? null) : null,
+    req.points ?? null,
   ]);
   if (cache.has(key)) return cache.get(key)!;
   const shot = render(req, ids);
@@ -83,7 +91,7 @@ export function shoot(req: Request): Shot | null {
   return shot;
 }
 
-function render({ project, meshes, colors, width, height, labels, ghosts, dir }: Request, ids: string[]): Shot | null {
+function render({ project, meshes, colors, width, height, labels, ghosts, dir, offsets, points }: Request, ids: string[]): Shot | null {
   const gl = getRenderer();
   if (!gl) return null;
   const parts = ids.map((id) => project.parts.find((p) => p.id === id)).filter((p) => p !== undefined);
@@ -101,7 +109,8 @@ function render({ project, meshes, colors, width, height, labels, ghosts, dir }:
     const geometry = exact?.geometry ?? own(new THREE.BoxGeometry(...size).translate(...(box.min.map((v, i) => v + size[i]! / 2) as [number, number, number])));
     const edges = exact?.edges ?? own(new THREE.EdgesGeometry(geometry));
     geometry.computeBoundingBox();
-    bounds.union(geometry.boundingBox!);
+    const offset = new THREE.Vector3(...(offsets?.get(part.id) ?? [0, 0, 0]));
+    bounds.union(geometry.boundingBox!.clone().translate(offset));
     const ghost = !!ghosts?.has(part.id);
     const fill = own(
       new THREE.MeshStandardMaterial({
@@ -115,6 +124,8 @@ function render({ project, meshes, colors, width, height, labels, ghosts, dir }:
     );
     const mesh = new THREE.Mesh(geometry, fill);
     const line = new THREE.LineSegments(edges, own(new THREE.LineBasicMaterial({ color: INK, transparent: true, opacity: ghost ? 0.3 : 0.85, depthWrite: !ghost })));
+    mesh.position.copy(offset);
+    line.position.copy(offset);
     // Los velos se dibujan después de lo macizo, para que se vea a través.
     if (ghost) mesh.renderOrder = line.renderOrder = 1;
     scene.add(mesh, line);
@@ -163,7 +174,11 @@ function render({ project, meshes, colors, width, height, labels, ghosts, dir }:
   shotLabels = shotLabels.filter((l) => !ghosts?.has(l.id));
 
   for (const x of owned) x.dispose();
-  return { url, labels: shotLabels, hidden };
+  const placed = (points ?? []).map((pt): [number, number] => {
+    const v = new THREE.Vector3(...pt).project(camera);
+    return [(v.x + 1) / 2, (1 - v.y) / 2];
+  });
+  return { url, labels: shotLabels, hidden, points: placed };
 }
 
 /**

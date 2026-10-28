@@ -47,10 +47,12 @@ import {
   type Rect2,
   type Units,
   plainJoint,
+  explodeParts,
+  explodedJointCenter,
 } from '@kitc/core';
 import { IconDownload, IconZoomIn, IconZoomOut } from './icons';
 import { capitalize, formatIds, woodName } from './cutsData';
-import { shoot, type Shot } from './planShots';
+import { DIR, shoot, type Shot } from './planShots';
 import { useEngineLines, type ExactMesh } from './useGeometry';
 import styles from './Plan.module.css';
 import { projectName } from '../i18n';
@@ -79,7 +81,8 @@ const LAYERS: [Layer, string][] = [
 type Refine = (d: Drawing) => Drawing;
 
 /** Foto en 3D de algunas piezas (o de todas), del tamaño pedido en mm de papel. */
-type Shooter = (parts: string[] | undefined, w: number, h: number, labels?: boolean) => Shot | null;
+type ShotExtras = { offsets?: ReadonlyMap<string, [number, number, number]>; points?: [number, number, number][] };
+type Shooter = (parts: string[] | undefined, w: number, h: number, labels?: boolean, extras?: ShotExtras) => Shot | null;
 
 /** Píxeles de las fotos 3D por mm de papel: alcanza para imprimir nítido. */
 const SHOT_PX = 8;
@@ -507,21 +510,7 @@ function overviewSheet(project: Project, colors: ReadonlyMap<string, string>, sh
         {shot ? (
           <>
             <image href={shot.url} x={img.x} y={img.y} width={img.w} height={img.h} />
-            <g className={styles.notes}>
-              {shot.labels.map((l) => {
-                const w = l.id.length * 1.7 + 2.6;
-                const cx = img.x + l.x * img.w;
-                const cy = img.y + l.y * img.h;
-                return (
-                  <g key={l.id}>
-                    <rect x={cx - w / 2} y={cy - 2.1} width={w} height={4.2} rx={1.2} className={styles.tag} stroke={colors.get(l.id)} />
-                    <text x={cx} y={cy + 1} textAnchor="middle" className={styles.tagText}>
-                      {l.id}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
+            <ShotTags shot={shot} img={img} colors={colors} />
           </>
         ) : (
           <text x={img.x + img.w / 2} y={img.y + img.h / 2} textAnchor="middle" className={styles.cellMeta}>
@@ -529,6 +518,147 @@ function overviewSheet(project: Project, colors: ReadonlyMap<string, string>, sh
           </text>
         )}
         {body}
+      </>
+    ),
+  };
+}
+
+/** Los códigos de las piezas sobre una foto 3D, cada uno con el color de su pieza. */
+function ShotTags({ shot, img, colors }: { shot: Shot; img: { x: number; y: number; w: number; h: number }; colors: ReadonlyMap<string, string> }) {
+  return (
+    <g className={styles.notes}>
+      {shot.labels.map((l) => {
+        const w = l.id.length * 1.7 + 2.6;
+        const cx = img.x + l.x * img.w;
+        const cy = img.y + l.y * img.h;
+        return (
+          <g key={l.id}>
+            <rect x={cx - w / 2} y={cy - 2.1} width={w} height={4.2} rx={1.2} className={styles.tag} stroke={colors.get(l.id)} />
+            <text x={cx} y={cy + 1} textAnchor="middle" className={styles.tagText}>
+              {l.id}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/**
+ * Hoja del despiece explotado: el mueble en 3D con las piezas separadas, cada unión con el mismo número que en la
+ * hoja de encastres y, al costado, qué unión es, para qué sirve y qué cuidar. Es la que muestra cómo va todo junto.
+ */
+function explodedSheet(project: Project, details: JointDetail[], colors: ReadonlyMap<string, string>, shots: Shooter): SheetDef {
+  const img = { x: M + 4, y: M + 15, w: KEY_X - M - 8, h: H - M - 19 };
+  const offsets = explodeParts(project);
+  // De cada detalle, la unión que queda más adelante desde donde se mira: es la que menos tapan las otras piezas.
+  const toward = (pt: [number, number, number]) => pt[0] * DIR.x + pt[1] * DIR.y + pt[2] * DIR.z;
+  const marks = details.flatMap(({ g, j, n }) => {
+    const pts = [j, ...g.joints.filter((x) => x !== j && !plainJoint(x))].map((x) => explodedJointCenter(project, x, offsets)).filter((x) => x !== null);
+    if (!pts.length) return [];
+    return [{ n, at: pts.reduce((a, b) => (toward(b) > toward(a) + 1 ? b : a)) }];
+  });
+  const shot = shots(undefined, img.w, img.h, true, { offsets, points: marks.map((m) => m.at) });
+
+  // Los números sobre la foto: si dos caen encima, o sobre el código de una pieza, se corren hacia abajo.
+  const taken: [number, number][] = (shot?.labels ?? []).map((l) => [img.x + l.x * img.w, img.y + l.y * img.h]);
+  const circles = shot
+    ? marks.map((m, i) => {
+        const [fx, fy] = shot.points[i]!;
+        const x = img.x + fx * img.w;
+        let y = img.y + fy * img.h;
+        while (taken.some(([tx, ty]) => Math.abs(tx - x) < 6 && Math.abs(ty - y) < 5.4)) y += 3;
+        taken.push([x, y]);
+        return { n: m.n, x, y, dot: [img.x + fx * img.w, img.y + fy * img.h] as const };
+      })
+    : [];
+
+  // Columna derecha: un renglón por número, con lo que dice la hoja de encastres en corto.
+  const x = KEY_X;
+  let y = M + 6;
+  const bottom = H - M - TITLE_H - 10;
+  const key: ReactNode[] = [];
+  key.push(
+    <text key="h" x={x} y={y} className={styles.keyHeading}>
+      {t('Las uniones')}
+    </text>,
+  );
+  y += 6;
+  let shown = 0;
+  for (const { g, j, n } of details) {
+    const crossing = crosses(project, j);
+    const care = jointCare(j, crossing);
+    const purpose = wrap(jointPurpose(j, crossing), 74);
+    const ojo = care ? wrap(t('Ojo: {care}', { care }), 74) : [];
+    const lines = 2 + purpose.length + ojo.length;
+    if (y + lines * 3.5 > bottom) break;
+    key.push(
+      <g key={`d-${n}`}>
+        <DetailCircle x={x + 2.6} y={y - 0.9} n={n} />
+        <text x={x + 7} y={y} className={styles.legendTitle}>
+          {g.label}
+        </text>
+        <text x={x + 7} y={y + 3.5} className={styles.keyText}>
+          {jointFullName(j, crossing)} · {g.joints.length === 1 ? t('1 unión') : t('{n} uniones', { n: g.joints.length })}
+        </text>
+        {purpose.map((l, i) => (
+          <text key={`p${i}`} x={x + 7} y={y + 7 + i * 3.5} className={styles.keyMuted}>
+            {l}
+          </text>
+        ))}
+        {ojo.map((l, i) => (
+          <text key={`o${i}`} x={x + 7} y={y + 7 + (purpose.length + i) * 3.5} className={`${styles.keyText} ${styles.care}`}>
+            {l}
+          </text>
+        ))}
+      </g>,
+    );
+    y += lines * 3.5 + 2.5;
+    shown++;
+  }
+  key.push(
+    <text key="pie" x={x} y={bottom + 4} className={styles.keyMuted}>
+      {!details.length
+        ? t('Todas las uniones de este mueble son a tope: no llevan cortes.')
+        : shown < details.length
+          ? t('Y {n} más: el detalle de cada número, con sus medidas, está en la hoja de encastres.', { n: details.length - shown })
+          : t('El detalle de cada número, con sus medidas, está en la hoja de encastres.')}
+    </text>,
+  );
+
+  return {
+    key: 'explotado',
+    title: t('Despiece explotado'),
+    hint: t('El mueble separado, con cada unión numerada'),
+    scale: 'none',
+    body: (
+      <>
+        <text x={M + 6} y={M + 6} className={styles.cellTitle}>
+          {t('El mueble separado')}
+        </text>
+        <text x={M + 6} y={M + 11} className={styles.cellMeta}>
+          {t('Así va cada pieza en su lugar. Los números son las uniones, los mismos que en las vistas y en los encastres.')}
+        </text>
+        {shot ? (
+          <>
+            <image href={shot.url} x={img.x} y={img.y} width={img.w} height={img.h} />
+            <ShotTags shot={shot} img={img} colors={colors} />
+            <g className={styles.notes}>
+              {circles.map((c) => (
+                <g key={c.n}>
+                  {c.y - c.dot[1] > 3 && <line x1={c.dot[0]} y1={c.dot[1]} x2={c.x} y2={c.y - 2.6} className={styles.detailLeader} />}
+                  <circle cx={c.dot[0]} cy={c.dot[1]} r={0.5} className={styles.detailDot} />
+                  <DetailCircle x={c.x} y={c.y} n={c.n} />
+                </g>
+              ))}
+            </g>
+          </>
+        ) : (
+          <text x={img.x + img.w / 2} y={img.y + img.h / 2} textAnchor="middle" className={styles.cellMeta}>
+            {t('Este navegador no puede dibujar en 3D: el mueble se ve en la hoja de vistas generales.')}
+          </text>
+        )}
+        {key}
       </>
     ),
   };
@@ -1359,7 +1489,7 @@ function Ruler({ x, y }: { x: number; y: number }) {
 
 function buildSheets(project: Project, refine: Refine, colors: ReadonlyMap<string, string>, shots: Shooter): SheetDef[] {
   const details = jointDetails(project, refine);
-  const rest = [generalSheet(project, refine, details), ...partSheets(project, refine, colors, shots), ...jointSheets(project, details), ...templateSheets(project)];
+  const rest = [generalSheet(project, refine, details), explodedSheet(project, details, colors, shots), ...partSheets(project, refine, colors, shots), ...jointSheets(project, details), ...templateSheets(project)];
   return [overviewSheet(project, colors, shots, rest), ...rest];
 }
 
@@ -1467,7 +1597,8 @@ export function PlanView({ project, meshes }: { project: Project; meshes: Readon
   }, [project, colors]);
   const refine = useEngineLines(project, wanted);
   const sheets = useMemo(() => {
-    const shots: Shooter = (parts, w, h, labels) => shoot({ project, meshes, colors, parts, width: Math.round(w * SHOT_PX), height: Math.round(h * SHOT_PX), labels });
+    const shots: Shooter = (parts, w, h, labels, extras) =>
+      shoot({ project, meshes, colors, parts, width: Math.round(w * SHOT_PX), height: Math.round(h * SHOT_PX), labels, ...extras });
     return buildSheets(project, refine, colors, shots);
   }, [project, refine, colors, meshes]);
   const { box, zoom, zoomTo } = useSheetZoom();
