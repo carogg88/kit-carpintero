@@ -17,18 +17,24 @@ import {
   jointName,
   jointNotes,
   jointOptions,
+  isThrough,
   locale,
   nearMisses,
   overlapBox,
   recommendedJoint,
   partBox,
   partWord,
+  styleDefaults,
   swapJoint,
   t,
+  TENON_STYLES,
+  tenonStyle,
+  tk,
   type Joint,
   type JointGroup,
   type JointType,
   type NearMiss,
+  type TenonStyle,
   type Part,
   type Project,
 } from '@kitc/core';
@@ -50,6 +56,28 @@ const nameOf = (type: JointType, x?: Part, y?: Part) => t(jointName(type, !!x &&
 
 
 const SLOPES = [6, 8];
+
+/** Cómo se llama cada forma de trabar la caja y espiga en el panel. */
+const STYLE_NAMES: Record<TenonStyle, string> = {
+  ciega: tk('Ciega'),
+  pasante: tk('Pasante'),
+  cunas: tk('Pasante con cuñas'),
+  'ciega-cunas': tk('Ciega con cuñas'),
+  tarugada: tk('Tarugada'),
+  llave: tk('Pasante con llave'),
+};
+
+/** Qué es cada una, en una línea, debajo de las medidas. */
+const STYLE_ABOUT: Record<TenonStyle, string> = {
+  ciega: tk('El largo llega hasta {max}, el espesor de {id}: con ese largo la espiga es pasante.'),
+  pasante: tk('La espiga atraviesa {id} ({max}) y se ve del otro lado.'),
+  cunas: tk('La espiga atraviesa {id} ({max}); dos cuñas en cortes de sierra la abren contra la mortaja y la traban.'),
+  'ciega-cunas': tk('Las cuñas van en la espiga antes de entrarla: al apretar, chocan con el fondo y la abren. No se desarma.'),
+  tarugada: tk('Un tarugo cruza {id} y la espiga. El agujero de la espiga va corrido hacia el hombro: al meter el tarugo, cierra la unión.'),
+  llave: tk('La espiga atraviesa {id} y asoma; una llave de madera la traba del otro lado. Se puede desarmar.'),
+};
+
+const PIN_SIZES = [6, 8, 10, 12];
 
 const DOWEL_SIZES = [6, 8, 10, 12];
 const SHOWN = 4;
@@ -300,6 +328,8 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   if (!options.includes(joint.type)) options.unshift(joint.type);
   const off = choices.filter((c) => !c.ok && c.type !== joint.type);
   const crossing = !!overlapBox(ba, bb);
+  const style = tenonStyle(joint.params);
+  const through = joint.type === 'mortaja' && isThrough(style);
   // Hasta dónde puede entrar una espiga, unas colas o un tarugo: el espesor de la pieza que recibe.
   const contact = endJoint(ba, bb);
   const reachA = contact ? boxSize(ba)[contact.axis] : undefined;
@@ -310,7 +340,9 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   // Con un cambio esperando, los campos y lo que cambia en los cortes muestran cómo quedaría.
   const preview = pendingAll ? produce(project, pendingAll.recipe) : null;
   const shown = preview?.joints.find((j) => j.id === joint.id) ?? joint;
-  const params = { ...defaultJointParams(joint.type, ba, bb), ...(shown.type === joint.type ? shown.params : joint.params) };
+  const given = { ...defaultJointParams(joint.type, ba, bb), ...(shown.type === joint.type ? shown.params : joint.params) };
+  // En la caja y espiga, lo de cada forma de trabarla arranca con las medidas de taller (y sin media caja).
+  const params: Record<string, number> = joint.type === 'mortaja' ? { ...styleDefaults({ length: given.length ?? 0, thickness: given.thickness ?? 0 }), haunch: 0, style: 0, ...given } : given;
   const targets = applyAll ? group.joints : [joint];
   // Con un arreglo esperando, las piezas pueden haber cambiado de papel: se muestran como quedan.
   const shownA = preview?.parts.find((p) => p.id === shown.partA) ?? a;
@@ -337,12 +369,14 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
       // Con las medidas de siempre, la espiga nueva puede cruzarse adentro de la pieza con otra: se acorta sola.
       fitJointDepths(d, new Set(targets.map((x) => x.id)));
     });
-  const setParam = (key: string, value: number, label: string) =>
-    change(t('{field}: {value}', { field: label, value: key === 'count' || key === 'slope' || key === 'size' || key === 'diameter' ? String(value) : n(value) }), (d) => {
+  const setParam = (key: string, value: number, label: string, shownValue?: string) =>
+    change(t('{field}: {value}', { field: label, value: shownValue ?? (key === 'count' || key === 'slope' || key === 'size' || key === 'diameter' ? String(value) : n(value)) }), (d) => {
       for (const target of targets) {
         const j = d.joints.find((x) => x.id === target.id);
         if (j && j.type === joint.type) j.params[key] = value;
       }
+      // Una pasante atraviesa la pieza: la espiga ciega que se cruce con ella se acorta sola.
+      if (key === 'style') fitJointDepths(d, new Set(targets.map((x) => x.id)));
     });
 
   const length = (key: string, label: string, min = 1, max?: number) => (
@@ -367,10 +401,10 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
       }
     />
   );
-  const choose = (key: string, label: string, values: number[], text: (v: number) => string = String) => (
-    <label key={key} className={styles.field}>
+  const choose = (key: string, label: string, values: number[], text: (v: number) => string = String, wide = false) => (
+    <label key={key} className={`${styles.field} ${wide ? styles.fieldWide : ''}`}>
       {label}
-      <select value={params[key] ?? values[0]} onChange={(e) => setParam(key, Number(e.target.value), label)}>
+      <select value={params[key] ?? values[0]} onChange={(e) => setParam(key, Number(e.target.value), label, text(Number(e.target.value)))}>
         {values.map((v) => (
           <option key={v} value={v}>
             {text(v)}
@@ -392,12 +426,34 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
     fineFields[joint.type] ??
     (joint.type === 'mortaja'
       ? [
-          length('length', t('Largo'), 5, reachA),
+          // Cómo se traba: la de siempre (ciega), pasante, con cuñas, tarugada o con llave.
+          choose('style', t('Cómo se traba'), TENON_STYLES.map((_, i) => i), (v) => t(STYLE_NAMES[TENON_STYLES[v] ?? 'ciega']), true),
+          // Una pasante atraviesa la pieza: el largo es el de la pieza.
+          ...(through ? [] : [length('length', t('Largo'), 5, reachA)]),
           length('thickness', t('Espesor'), 3),
           length('shoulder', t('Hombro'), 0),
           // Doble: dos espigas lado a lado con madera en el medio, para piezas anchas.
           choose('count', t('Espigas'), [1, 2], (v) => (v === 1 ? t('Una') : t('Doble'))),
           ...((params.count ?? 1) > 1 ? [length('gap', t('Entre espigas'), 3)] : []),
+          ...(style === 'tarugada'
+            ? [choose('pin', t('Tarugo'), PIN_SIZES, (v) => `${v} mm`), length('offset', t('Corrido'), 0.5, 3)]
+            : style === 'llave'
+              ? [length('protrude', t('Asoma'), 20), length('key', t('Llave'), 6)]
+              : []),
+          <label key="haunch-on" className={styles.field}>
+            {t('Media caja')}
+            <select
+              value={(params.haunch ?? 0) > 0 ? 1 : 0}
+              onChange={(e) => {
+                const on = e.target.value === '1';
+                setParam('haunch', on ? styleDefaults({ length: params.length ?? 0, thickness: params.thickness ?? 0 }).haunch : 0, t('Media caja'), on ? t('Sí') : t('No'));
+              }}
+            >
+              <option value={0}>{t('No')}</option>
+              <option value={1}>{t('Sí')}</option>
+            </select>
+          </label>,
+          ...((params.haunch ?? 0) > 0 ? [length('haunch', t('Hondo de la media caja'), 3, params.length)] : []),
         ]
       : joint.type === 'canal' || joint.type === 'rebaje'
         ? [length('depth', t('Profundidad'))]
@@ -430,7 +486,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   if (joint.type === 'mortaja' && reachA)
     fields.push(
       <p key="reach" className={`${styles.note} ${styles.fieldNote}`}>
-        {t('El largo llega hasta {max}, el espesor de {id}: con ese largo la espiga es pasante.', { max: n(reachA), id: a.id })}
+        {t(STYLE_ABOUT[style], { max: n(reachA), id: a.id })}
       </p>,
     );
   const notes = jointNotes(project, joint, n);
@@ -460,6 +516,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           <div className={styles.titleRow}>
             <h2 id="detalle" className={styles.h2}>
               {nameOf(joint.type, a, b)}
+              {joint.type === 'mortaja' && style !== 'ciega' && <span className={styles.styleName}> · {t(STYLE_NAMES[style]).toLocaleLowerCase(locale())}</span>}
             </h2>
             {canSwap(a, b) && (
               <button

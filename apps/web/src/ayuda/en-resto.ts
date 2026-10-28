@@ -116,6 +116,29 @@ export const EN_REST: Article[] = [
           tip('If the tenon is over 9 cm wide, the design review warns **Wide tenon** and offers to **Make a double tenon** at both ends of the part.'),
         ],
       },
+      {
+        id: 'trabar',
+        title: 'Through, wedged, drawbored, keyed and haunched',
+        blocks: [
+          p('The usual mortise and tenon is blind: the tenon stays inside the leg. **How it locks** offers other ways, shown in the detail, the model and the plans.'),
+          table(
+            ['How it locks', 'What it is', 'What it adds'],
+            ['Through', 'The tenon goes right through the leg and shows on the other side', 'Nothing: the length is the leg’s'],
+            ['Wedged through', 'Through, with two saw kerfs and two wedges that spread it against the mortise', 'Hardwood wedges'],
+            ['Fox-wedged', 'The wedges sit in the tenon before it goes in; they hit the bottom and spread it. It does not come apart', 'Hardwood wedges'],
+            ['Drawbored', 'A peg crosses leg and tenon; in the tenon the hole is offset 1.5 mm toward the shoulder and pulls the joint closed', 'One hardwood peg per tenon'],
+            ['Keyed through', 'The tenon sticks out and a key locks it on the other side. It can be taken apart', 'One key per tenon'],
+          ),
+          steps(
+            'In **Joints**, pick a **Mortise and tenon** joint.',
+            'In **How it locks**, pick the way. **Drawbored** adds **Peg** and **Offset**; **Keyed through** adds **Sticks out** and **Key**.',
+            'For a **Haunch**, pick **Yes** and type the **Haunch depth**: the tooth that fills the shoulder on the leg’s end side.',
+          ),
+          img('espiga-cunas', 'A wedged through tenon on a table apron, with the parts pulled apart'),
+          note('Wedges, pegs and keys show up in **Hardware**, the cuts they add in the **Cut list**, and how to make each one in **Assembly**.'),
+          tip('Two through tenons reaching the same height of a leg cross inside it: the app warns about it. Move one up or down, or leave it blind.'),
+        ],
+      },
     ],
     faq: [
       { q: 'A thick-tenon warning shows up', a: 'The tenon is over a third of the part’s thickness: the shoulders get thin. Bring it down to the size the warning says.' },

@@ -1,5 +1,5 @@
 import { partBox, type Axis, type Box } from './geometry';
-import { defaultJointParams, endJoint, jointGeometry, MIN_TENON_WIDTH, solidBox, tenonWidth } from './joints';
+import { defaultJointParams, endJoint, isThrough, jointGeometry, MIN_TENON_WIDTH, solidBox, tenonStyle, tenonWidth } from './joints';
 import type { Joint, JointType, Project } from './project';
 import { t } from './i18n';
 
@@ -71,9 +71,11 @@ export function jointRoom(project: Model, joint: Joint): JointRoom | null {
     }
   }
   if (!room) return null;
+  // Una espiga pasante atraviesa la pieza entera: su largo es el de la pieza, no el del campo.
+  const through = joint.type === 'mortaja' && isThrough(tenonStyle(joint.params));
   return {
     max: floorHalf(room.free - fit.extra - WALL),
-    current: joint.params[fit.key] ?? usual,
+    current: through ? ba.max[e.axis] - ba.min[e.axis] : (joint.params[fit.key] ?? usual),
     usual,
     partId: a.id,
     other: room.other,
@@ -116,8 +118,11 @@ export function fitJointDepths(project: Model, ids?: Set<string>): void {
     const o = project.joints.find((x) => x.id === room.otherJoint);
     const ofit = o && FITS[o.type];
     const oroom = o && ofit ? jointRoom(project, o) : null;
-    // La otra unión es la que se acorta: vuelve a tener su largo común y se acorta ella.
-    if (o && ofit && oroom && oroom.max > 0 && !shortens(project, j, o)) {
+    // La otra unión es la que se acorta: vuelve a tener su largo común y se acorta ella. Una pasante no se puede
+    // acortar: si la otra no es pasante, se acorta la otra.
+    const through = (x: Joint) => x.type === 'mortaja' && isThrough(tenonStyle(x.params));
+    const other = o && (through(j) ? !through(o) : !shortens(project, j, o));
+    if (o && ofit && oroom && oroom.max > 0 && other) {
       o.params = { ...o.params, [ofit.key]: Math.min(oroom.current, oroom.max) };
       const again = jointRoom(project, j);
       if (again && again.current > again.max && again.max > 0) j.params = { ...j.params, [fit.key]: again.max };
@@ -141,7 +146,9 @@ export function jointNotes(project: Model, joint: Joint, n: (mm: number) => stri
     notes.push({
       level: 'warn',
       text: tenon
-        ? t('Adentro de {part}, esta espiga choca con la de {other}. Acortala a {max} o menos, o cortale la punta a inglete.', { part: room.partId, other: room.other, max: n(Math.floor(room.max)) })
+        ? isThrough(tenonStyle(joint.params))
+          ? t('Adentro de {part}, esta espiga pasante choca con la de {other}. Una pasante va donde no se cruza con otro corte: cambiá la altura de una o hacela ciega.', { part: room.partId, other: room.other })
+          : t('Adentro de {part}, esta espiga choca con la de {other}. Acortala a {max} o menos, o cortale la punta a inglete.', { part: room.partId, other: room.other, max: n(Math.floor(room.max)) })
         : t('Adentro de {part}, estos agujeros chocan con el corte de {other}. Hacelos de {max} de hondo o menos.', { part: room.partId, other: room.other, max: n(Math.floor(room.max)) }),
     });
   else if (room && room.current < room.usual)

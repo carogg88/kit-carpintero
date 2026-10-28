@@ -17,6 +17,11 @@ export interface JointGeometry {
   cutA: Solid[];
   cutB: Solid[];
   addB: Solid[];
+  /**
+   * Detalles que no cambian dónde va el encastre ni cuánto mide: la media caja, los cortes de las cuñas, el agujero
+   * del tarugo o de la llave. Van en el modelo y en el detalle; las marcas y la lista de cortes miran lo de arriba.
+   */
+  extra?: { cutA: Solid[]; cutB: Solid[]; addB: Solid[] };
 }
 
 export const box = (b: Box): Solid => ({ kind: 'box', box: b });

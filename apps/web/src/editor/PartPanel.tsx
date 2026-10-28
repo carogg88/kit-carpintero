@@ -1,5 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  isThrough,
+  tenonStyle,
   acrossFace,
   leanable,
   addCopies,
@@ -178,6 +180,11 @@ export function describeJoint(j: Joint, project: Project): string {
       const e = endJoint(ba, bb);
       const wide = e ? tenonWidth(e.section.max[e.wide] - e.section.min[e.wide], { shoulder: p.shoulder ?? 0, count: p.count, gap: p.gap }) : 0;
       if (wide <= 0) return t('mortaja y espiga');
+      // Una pasante atraviesa la pieza: no tiene hondo.
+      if (e && isThrough(tenonStyle(p)))
+        return (p.count ?? 1) > 1
+          ? t('2 mortajas pasantes {t} × {w}{unit}', { t: n(p.thickness ?? 0), w: n(wide), unit })
+          : t('mortaja pasante {t} × {w}{unit}', { t: n(p.thickness ?? 0), w: n(wide), unit });
       if ((p.count ?? 1) > 1) return t('2 mortajas {t} × {w} × {d}{unit}', { t: n(p.thickness ?? 0), w: n(wide), d: n((p.length ?? 0) + 2), unit });
       return t('mortaja {t} × {w} × {d}{unit}', { t: n(p.thickness ?? 0), w: n(wide), d: n((p.length ?? 0) + 2), unit });
     }

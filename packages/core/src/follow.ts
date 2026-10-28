@@ -1,5 +1,5 @@
 import { boxSize, otherAxes, partBox, type Axis, type Box, type Vec3 } from './geometry';
-import { defaultMortiseParams, endJoint, splitTenons } from './joints';
+import { defaultMortiseParams, endJoint, splitTenons, tenonExtras, tenonLength, type JointGeometry } from './joints';
 import { isLeaning, leanedBox, leanFrame, leanPoint, rotateVec, type LeanFrame } from './lean';
 import type { Joint, Part, Project } from './project';
 import { t } from './i18n';
@@ -142,8 +142,26 @@ export function followMortise(f: Follow, end: FollowEnd, part: Part): { tenon: B
     b.max[end.axis] = Math.max(back, to);
     return b;
   };
+  // Pasante: atraviesa la pata a lo largo de la pieza (con la pata inclinada, una espiga pasante sale un poco en ángulo).
+  const length = tenonLength(p, legBox.max[end.axis] - legBox.min[end.axis]);
   // Con espiga doble, cada una con su mortaja.
-  return splitTenons({ tenon: span(end.face + end.dir * p.length), mortise: span(end.face + end.dir * (p.length + 2)) }, e.wide, p);
+  return splitTenons({ tenon: span(end.face + end.dir * length), mortise: span(end.face + end.dir * (length + 2)) }, e.wide, p);
+}
+
+/** La media caja, las cuñas, el tarugo o la llave de una espiga que entra en una pata inclinada, como en `tenonExtras`. */
+export function followExtras(f: Follow, end: FollowEnd, part: Part): Required<JointGeometry>['extra'] | null {
+  const pieces = followMortise(f, end, part);
+  const legBox = partBox(end.leg);
+  const e = endJoint(legBox, partBox(part));
+  if (!pieces?.length || !e) return null;
+  const p = { ...defaultMortiseParams(legBox, partBox(part))!, ...end.joint.params };
+  // La pata está girada: el tarugo la cruza con margen.
+  const side: 'min' | 'max' = legBox.max[e.wide] - f.box.max[e.wide] <= f.box.min[e.wide] - legBox.min[e.wide] ? 'max' : 'min';
+  return tenonExtras(
+    { axis: end.axis, dir: end.dir, thin: e.thin, wide: e.wide, face: end.face, depth: legBox.max[end.axis] - legBox.min[end.axis], span: [legBox.min[e.thin] - 10, legBox.max[e.thin] + 10], side, edge: f.box[side][e.wide] },
+    pieces,
+    p,
+  );
 }
 
 /** Encastres que ya siguen a la pata inclinada: los demás todavía no se cortan. */
