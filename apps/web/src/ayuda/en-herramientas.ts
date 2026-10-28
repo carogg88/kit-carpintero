@@ -569,6 +569,15 @@ export const EN_TOOLS: Article[] = [
           tip('The **Photo of the piece** comes out as you left it: take the photo with a door open and it comes out open.'),
         ],
       },
+      {
+        id: 'separar',
+        title: 'Pull apart',
+        blocks: [
+          p('The **Pull apart** slider opens the piece into an exploded view: each part moves away from its place along the path it takes to go in when assembling. Slide it to **Apart** to see how everything fits, and back to **Assembled** to close it.'),
+          img('probar-separar', 'The chest of drawers pulled apart, with the Pull apart slider'),
+          tip('If you take the **Furniture photo** with the parts pulled apart, the photo comes out exploded.'),
+        ],
+      },
     ],
     faq: [
       { q: 'I tap a part and it does not open', a: 'Only drawers, doors and lids open. If it is a hand-made door, select it and set **Opens: Door** in its panel.' },

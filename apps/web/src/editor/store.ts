@@ -91,6 +91,8 @@ interface EditorState {
   opened: Record<string, number>;
   /** Corte para ver por adentro: de qué lado y dónde, de 0 (un extremo del mueble) a 1 (el otro). Solo probando. */
   cut: Cut | null;
+  /** Separar piezas: el mueble abierto en despiece, de 0 (armado) a 1 (todo separado). Solo probando. */
+  apart: number;
   /** Mover deja una copia en lugar de mover la pieza (botón del celular; en la compu, Ctrl u Opción). */
   copyMove: boolean;
   view: View;
@@ -181,6 +183,8 @@ interface EditorState {
   /** Todos a la vez, a la misma apertura (la barra Abrir todo). */
   openAll: (ids: readonly string[], open: number) => void;
   setCut: (cut: Cut | null) => void;
+  /** Separar piezas: con el mueble abierto, los cajones y puertas se cierran. */
+  setApart: (apart: number) => void;
   setCopyMove: (on: boolean) => void;
   setView: (v: View) => void;
   setUnits: (u: Units) => void;
@@ -359,6 +363,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   trying: false,
   opened: {},
   cut: null,
+  apart: 0,
   copyMove: false,
   view: 'iso',
   viewNonce: 0,
@@ -390,8 +395,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   measure: { a: null, b: null },
 
   open: (project) =>
-    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, traceImage: dropTrace(get().traceImage), notice: null, bubble: null, trying: false, opened: {}, cut: null }),
-  close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null, trying: false, opened: {}, cut: null }),
+    set({ jointFocus: null, jointHint: null, picked: [], addMode: false, measure: { a: null, b: null }, hidden: [], fitting: null, fittingPreview: null, ghost: null, pending: null, project, past: [], future: [], selectedId: null, lastPush: null, dragging: false, view: 'iso', drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, traceImage: dropTrace(get().traceImage), notice: null, bubble: null, trying: false, opened: {}, cut: null, apart: 0 }),
+  close: () => set({ project: null, past: [], future: [], selectedId: null, picked: [], addMode: false, notice: null, bubble: null, trying: false, opened: {}, cut: null, apart: 0 }),
 
   commit: (recipe, label) => {
     const { project, past } = get();
@@ -484,7 +489,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setTool: (tool) =>
     set((s) => ({
       // Elegir otra herramienta termina la prueba: con un cajón abierto no se edita.
-      ...(s.trying ? { trying: false, opened: {}, cut: null } : {}),
+      ...(s.trying ? { trying: false, opened: {}, cut: null, apart: 0 } : {}),
       ...(tool === 'draw' ? { tool, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, bubble: null } : { tool, drawFace: null, draft: null, arcChord: null, pathPoints: [], pathFlip: false, cornerPick: null, bubble: null }),
       ...(tool !== 'measure' && (s.measure.a || s.measure.b) ? { measure: { a: null, b: null } } : {}),
     })),
@@ -499,11 +504,13 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setTrying: (trying) =>
     set(
       trying
-        ? { trying, opened: {}, cut: null, tool: 'select', drawFace: null, draft: null, arcChord: null, pathPoints: [], cornerPick: null, bubble: null, measure: { a: null, b: null } }
-        : { trying, opened: {}, cut: null },
+        ? { trying, opened: {}, cut: null, apart: 0, tool: 'select', drawFace: null, draft: null, arcChord: null, pathPoints: [], cornerPick: null, bubble: null, measure: { a: null, b: null } }
+        : { trying, opened: {}, cut: null, apart: 0 },
     ),
-  toggleOpen: (id) => set((s) => ({ opened: { ...s.opened, [id]: (s.opened[id] ?? 0) > 0.5 ? 0 : 1 } })),
-  openAll: (ids, open) => set({ opened: Object.fromEntries(ids.map((id) => [id, open])) }),
+  // Abrir un cajón cierra el despiece: las dos cosas juntas no se ven bien.
+  toggleOpen: (id) => set((s) => ({ apart: 0, opened: { ...s.opened, [id]: (s.opened[id] ?? 0) > 0.5 ? 0 : 1 } })),
+  openAll: (ids, open) => set({ apart: 0, opened: Object.fromEntries(ids.map((id) => [id, open])) }),
+  setApart: (apart) => set((s) => ({ apart, opened: apart > 0 ? {} : s.opened })),
   setCut: (cut) => set({ cut }),
   setCopyMove: (copyMove) => set({ copyMove }),
   setView: (view) => set((s) => ({ view, viewNonce: s.viewNonce + 1, drawFace: null, cornerPick: null, bubble: null })),

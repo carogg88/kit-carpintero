@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { t, tk, type Project } from '@kitc/core';
+import { buildOffsets, buildSteps, t, tk, type Project, type Vec3 } from '@kitc/core';
 import { fileName } from '../storage/backup';
 import { engineMeshes } from './useGeometry';
 import { buildStudio, sizeCaption, DEFAULT_PHOTO, PHOTO_SIZES, setupRenderer, takePhoto, type PhotoAngle, type PhotoBackground, type PhotoOptions, type PhotoSize, type PhotoStudio } from './photo';
@@ -94,6 +94,12 @@ function Seg<T extends string>({ label, value, options, onChange }: { label: str
 function PhotoBody({ project, onClose }: { project: Project; onClose: () => void }) {
   const hidden = useEditor((s) => s.hidden);
   const opened = useEditor((s) => (s.trying ? s.opened : NONE));
+  // Probando con Separar piezas, la foto sale en despiece.
+  const apart = useEditor((s) => (s.trying ? s.apart : 0));
+  const offsets = useMemo(() => {
+    if (!apart) return new Map<string, Vec3>();
+    return new Map([...buildOffsets(buildSteps(project), 0)].map(([id, o]) => [id, o.map((v) => v * apart) as Vec3]));
+  }, [project, apart]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const studio = useRef<PhotoStudio | null>(null);
@@ -126,7 +132,7 @@ function PhotoBody({ project, onClose }: { project: Project; onClose: () => void
         }
         setupRenderer(gl);
         gl.setPixelRatio(Math.min(2, window.devicePixelRatio));
-        const s = buildStudio(gl, project, meshes, new Set(hidden), opened);
+        const s = buildStudio(gl, project, meshes, new Set(hidden), opened, offsets);
         studio.current = s;
         renderer.current = gl;
         const render = () => gl!.render(s.scene, s.camera);
@@ -160,7 +166,7 @@ function PhotoBody({ project, onClose }: { project: Project; onClose: () => void
       gl?.dispose();
       renderer.current = null;
     };
-  }, [project, hidden, opened]);
+  }, [project, hidden, opened, offsets]);
 
   // Vista, luz y fondo: se aplican sin volver a armar el estudio.
   useEffect(() => {

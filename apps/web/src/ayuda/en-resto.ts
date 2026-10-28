@@ -544,6 +544,21 @@ export const EN_REST: Article[] = [
           tip('If a part can’t go in without passing through another, the line says so: check that joint before gluing.'),
         ],
       },
+      {
+        id: 'animacion',
+        title: 'Watch it go together in 3D',
+        blocks: [
+          p('In **Dry fit** and **Glue up in stages**, next to the steps, the piece assembles itself: what is already in place in color, the part going in highlighted and what is still missing as a ghost in its place. Below it says which part goes in and from where, and the line is marked in the list.'),
+          img('armado-animado', 'Dry fit with the piece assembling next to the list'),
+          steps(
+            'Tap **Play** to watch it all the way through, or go one part at a time with the arrows.',
+            'Drag the slider to go back and forth to any point of the assembly.',
+            'Drag the drawing to turn it and look from another side.',
+          ),
+          note('If your device asks to **reduce motion**, it jumps from one part to the next without animating.'),
+          tip('In **Workshop mode**, after the last part there is an **Assembly** screen with the same animation.'),
+        ],
+      },
     ],
     faq: [
       { q: 'Do I have to follow that order exactly?', a: 'No, it’s one that works. If you prefer another, dry fit it before gluing.' },

@@ -3,6 +3,7 @@ import { cutList, describePartJoints, drawPart, facePattern, formatAngle, format
 import { sectionHref, type Section } from '../routes';
 import { woodName } from './cutsData';
 import { IconCheck, IconChevron, IconClose } from './icons';
+import { BuildPlayer } from './Build3D';
 import styles from './Workshop.module.css';
 
 /**
@@ -180,14 +181,16 @@ export function Workshop({ project, onExit }: { project: Project; onExit: () => 
   const [listOpen, setListOpen] = useState(false);
   const wake = useWakeLock();
   const top = useRef<HTMLDivElement>(null);
-  const at = Math.min(saved.at, rows.length - 1);
+  // Después de la última pieza, una pantalla más: el armado animado.
+  const at = Math.min(saved.at, rows.length);
+  const building = at === rows.length;
   const done = new Set(saved.done);
   const save = (next: Saved) => {
     setSaved(next);
     write(project.id, next);
   };
   const go = (i: number) => {
-    save({ ...saved, at: Math.max(0, Math.min(rows.length - 1, i)) });
+    save({ ...saved, at: Math.max(0, Math.min(rows.length, i)) });
     setListOpen(false);
     top.current?.scrollTo({ top: 0 });
   };
@@ -228,9 +231,9 @@ export function Workshop({ project, onExit }: { project: Project; onExit: () => 
     );
   }
 
-  const row = rows[at]!;
+  const row = rows[Math.min(at, rows.length - 1)]!;
   const part = project.parts.find((p) => p.id === row.ids[0]);
-  const list = all[at]!;
+  const list = all[Math.min(at, rows.length - 1)]!;
   const left = list.filter((x) => !done.has(x.key)).length;
   const drawing = part && part.base.kind === 'box' ? drawPart(project, part) : null;
   const finishedLen = row.cut[0] - row.extraLength;
@@ -242,7 +245,7 @@ export function Workshop({ project, onExit }: { project: Project; onExit: () => 
           <IconClose />
         </button>
         <button type="button" className={styles.where} aria-expanded={listOpen} onClick={() => setListOpen(!listOpen)}>
-          <span className={styles.whereTitle}>{t('Pieza {n} de {total}', { n: at + 1, total: rows.length })}</span>
+          <span className={styles.whereTitle}>{building ? t('Armado') : t('Pieza {n} de {total}', { n: at + 1, total: rows.length })}</span>
           <span className={styles.whereSub}>{t('{n} listas · ver todas', { n: finished })}</span>
         </button>
         <span className={styles.wake} data-state={wake} title={wake === 'on' ? t('La pantalla no se apaga mientras trabajás.') : wake === 'unsupported' ? t('Este navegador no deja mantener la pantalla encendida.') : t('La pantalla se puede apagar.')}>
@@ -254,6 +257,7 @@ export function Workshop({ project, onExit }: { project: Project; onExit: () => 
         {rows.map((r, i) => (
           <span key={r.ids.join(',')} data-done={rowDone(i) || undefined} data-current={i === at || undefined} />
         ))}
+        <span data-current={building || undefined} />
       </div>
 
       {listOpen && (
@@ -274,52 +278,69 @@ export function Workshop({ project, onExit }: { project: Project; onExit: () => 
                 </button>
               </li>
             ))}
+            <li>
+              <button type="button" aria-current={building ? 'step' : undefined} onClick={() => go(rows.length)}>
+                <span className={styles.listCheck}>{rows.length + 1}</span>
+                <span className={styles.listName}>
+                  <strong>{t('Armado')}</strong>
+                  <span>{t('El orden para presentar en seco y encolar')}</span>
+                </span>
+              </button>
+            </li>
           </ul>
         </nav>
       )}
 
       <div className={styles.scroll} ref={top}>
-        <main className={styles.piece} aria-live="polite">
-          <p className={styles.ids}>
-            {row.ids.join(' · ')}
-            {row.ids.length > 1 && <span className={styles.count}>×{row.ids.length}</span>}
-          </p>
-          <h1 className={styles.name}>{row.name}</h1>
-          <p className={styles.wood}>{woodName(row.wood)}</p>
+        {building ? (
+          <main className={styles.piece}>
+            <h1 className={styles.name}>{t('Armado')}</h1>
+            <p className={styles.note}>{t('Presentá todo en seco en este orden y después encolá por partes. Arrastrá el dibujo para girarlo.')}</p>
+            <BuildPlayer project={project} />
+          </main>
+        ) : (
+          <main className={styles.piece} aria-live="polite">
+            <p className={styles.ids}>
+              {row.ids.join(' · ')}
+              {row.ids.length > 1 && <span className={styles.count}>×{row.ids.length}</span>}
+            </p>
+            <h1 className={styles.name}>{row.name}</h1>
+            <p className={styles.wood}>{woodName(row.wood)}</p>
 
-          <dl className={styles.dims} aria-label={t('Medidas de corte')}>
-            {[t('Largo'), t('Ancho'), t('Espesor')].map((label, i) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>
-                  {n(row.cut[i]!)}
-                  <small>{units === 'cm' ? 'cm' : '″'}</small>
-                </dd>
-              </div>
-            ))}
-          </dl>
-          {row.extraLength > 0 && (
-            <p className={styles.note}>{t('Terminada mide {len} de largo: lo demás son las espigas, colas o lengüetas.', { len: dims([finishedLen]) })}</p>
-          )}
-          {row.ids.length > 1 && <p className={styles.note}>{t('Son {n} piezas iguales: hacé cada paso en todas, o en espejo donde haga falta.', { n: row.ids.length })}</p>}
+            <dl className={styles.dims} aria-label={t('Medidas de corte')}>
+              {[t('Largo'), t('Ancho'), t('Espesor')].map((label, i) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>
+                    {n(row.cut[i]!)}
+                    <small>{units === 'cm' ? 'cm' : '″'}</small>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {row.extraLength > 0 && (
+              <p className={styles.note}>{t('Terminada mide {len} de largo: lo demás son las espigas, colas o lengüetas.', { len: dims([finishedLen]) })}</p>
+            )}
+            {row.ids.length > 1 && <p className={styles.note}>{t('Son {n} piezas iguales: hacé cada paso en todas, o en espejo donde haga falta.', { n: row.ids.length })}</p>}
 
-          {drawing && <PieceDrawing d={drawing} label={t('Dibujo de {name}, con sus encastres', { name: row.name })} />}
+            {drawing && <PieceDrawing d={drawing} label={t('Dibujo de {name}, con sus encastres', { name: row.name })} />}
 
-          <h2 className={styles.stepsTitle}>{left ? t('Pasos · faltan {n}', { n: left }) : t('Pasos · todo listo')}</h2>
-          <ul className={styles.steps}>
-            {list.map((x) => (
-              <li key={x.key}>
-                <label data-done={done.has(x.key) || undefined} data-kind={x.kind}>
-                  <input type="checkbox" checked={done.has(x.key)} onChange={() => toggle(x.key)} />
-                  <span className={styles.box} aria-hidden="true">
-                    <IconCheck />
-                  </span>
-                  <span>{x.text}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </main>
+            <h2 className={styles.stepsTitle}>{left ? t('Pasos · faltan {n}', { n: left }) : t('Pasos · todo listo')}</h2>
+            <ul className={styles.steps}>
+              {list.map((x) => (
+                <li key={x.key}>
+                  <label data-done={done.has(x.key) || undefined} data-kind={x.kind}>
+                    <input type="checkbox" checked={done.has(x.key)} onChange={() => toggle(x.key)} />
+                    <span className={styles.box} aria-hidden="true">
+                      <IconCheck />
+                    </span>
+                    <span>{x.text}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </main>
+        )}
       </div>
 
       <footer className={styles.footer}>
@@ -328,8 +349,8 @@ export function Workshop({ project, onExit }: { project: Project; onExit: () => 
             <IconChevron />
           </span>
         </button>
-        <button type="button" className={styles.next} onClick={() => (at === rows.length - 1 ? onExit() : go(at + 1))}>
-          {at === rows.length - 1 ? t('Terminar') : left ? t('Siguiente pieza') : t('Lista · siguiente')}
+        <button type="button" className={styles.next} onClick={() => (building ? onExit() : go(at + 1))}>
+          {building ? t('Terminar') : at === rows.length - 1 ? t('Ir al armado') : left ? t('Siguiente pieza') : t('Lista · siguiente')}
           <IconChevron />
         </button>
       </footer>

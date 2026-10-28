@@ -578,3 +578,14 @@
 .nearList .pair { padding: 0; }
 .styleName { color: var(--muted); }
 .fieldWide { grid-column: span 2; }
+
+/* Presentar en seco y encolar: el texto y, al lado, el mueble armándose. En el celular, uno arriba del otro. */
+.buildRow { display: flex; flex-direction: column-reverse; gap: var(--space-3); }
+.buildText { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.stepItems li[data-active] { color: var(--ink); font-weight: 500; }
+.stepItems li[data-active]::marker { color: var(--accent); }
+@media (min-width: 900px) {
+  .buildRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: start; gap: var(--space-4); }
+  /* El 3D queda a la vista mientras se lee la lista: en la pantalla de 13" el paso no entra entero. */
+  .buildPlayer { position: sticky; top: 0; }
+}

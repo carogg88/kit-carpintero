@@ -261,6 +261,10 @@ async function createTable(page) {
   await page.getByRole('group', { name: 'Corte' }).getByRole('button', { name: 'Costado' }).click();
   await page.waitForTimeout(1500);
   await shot(page, 'probar-corte');
+  await page.getByRole('group', { name: 'Corte' }).getByRole('button', { name: 'Ninguno' }).click();
+  await page.getByRole('slider', { name: 'Separar piezas' }).fill('100');
+  await page.waitForTimeout(2500);
+  await shot(page, 'probar-separar');
   await page.context().close();
 }
 
@@ -361,6 +365,11 @@ async function createTable(page) {
   await page.getByRole('link', { name: 'Armado' }).first().click();
   await page.waitForTimeout(1500);
   await shot(page, 'armado');
+  await page.getByRole('button', { name: /Presentá en seco/ }).click();
+  await page.waitForTimeout(7000);
+  await page.locator('input[type=range]').first().fill('2.5');
+  await page.waitForTimeout(2500);
+  await shot(page, 'armado-animado');
   await page.locator('[data-tour="share"]').click();
   await page.waitForTimeout(1500);
   await shot(page, 'compartir');
