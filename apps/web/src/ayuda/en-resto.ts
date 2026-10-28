@@ -8,7 +8,7 @@ export const EN_REST: Article[] = [
     title: 'Joint types',
     summary: 'Which joints the app offers, which one to use and which tools each one takes.',
     intro: [
-      p('When two parts touch, the app proposes a joint and offers only the ones that can be made in that spot. **Joints** has them all, grouped by where they go: legs with aprons, shelves with sides, and so on.'),
+      p('When two parts touch, the app proposes a joint. The ones that cannot be made in that spot are shown too, with the reason. **Joints** has them all, grouped by where they go: legs with aprons, shelves with sides, and so on.'),
       img('uniones', 'The Joints section: the list of groups on the left and the detail on the right'),
     ],
     sections: [
@@ -22,6 +22,21 @@ export const EN_REST: Article[] = [
             'Pick one. The one marked **Recommended** suits those parts best; each one shows its difficulty, and the (i) shows a drawing and how it is made.',
           ),
           tip('You can also change it from the part panel, under **Joints**, with each row’s list.'),
+        ],
+      },
+      {
+        id: 'no-van',
+        title: 'The ones that do not fit, and how to make them fit',
+        blocks: [
+          p('Below the joints you can use, **Not possible here, and why** lists the rest with what they are missing: “they cross”, “the part is 10 mm thick and this joint needs 12”, “it sits 8 mm in from the edge”.'),
+          steps(
+            'When there is a fix, the joint has a button: **Trim to the face**, **Make … thick**, **Make … wide** or **Bring flush with the edge**.',
+            'Tap it: the 3D detail and **What changes in the cuts** show the result, under **Preview**.',
+            'Tap **Apply** to make the change and switch to that joint, or **Cancel** to leave it as it was.',
+          ),
+          tip('Two parts that cross only allow a half lap or resting in a notch. If the end of one barely goes into the other, **Trim to the face** leaves it touching the face, and then mortise and tenon, dowels and the rest fit.'),
+          p('Above the detail, **Let … receive** swaps which of the two parts gets the mortise, the rabbet or the sockets. In a crossing, **Flip the crossing** swaps which one is on top.'),
+          p('In the joint list, **Almost touching** shows parts up to 5 mm short of touching. **Stretch** lengthens the part to the other one and the joint appears.'),
         ],
       },
       {
@@ -48,8 +63,8 @@ export const EN_REST: Article[] = [
       },
     ],
     faq: [
-      { q: 'Why isn’t dovetail offered for a joint?', a: 'Only the joints that can be made with those parts in that position are offered.' },
-      { q: 'Two parts touch and have no joint', a: 'Bring them together with Move until they really touch: the joint appears when the faces meet.' },
+      { q: 'Why can’t I pick dovetail for a joint?', a: 'Under **Change**, at the bottom, **Not possible here, and why** gives the reason: for example, dovetails need a part 30 mm wide or more. When there is a fix, it has its button.' },
+      { q: 'Two parts touch and have no joint', a: 'If they are a few millimeters short, they show up in **Almost touching**, above the joint list, with a **Stretch** button. Otherwise, bring them together with Move until they really touch.' },
     ],
     related: ['medidas-union', 'encastre-cerca', 'unir'],
   },
