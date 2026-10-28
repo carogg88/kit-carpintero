@@ -93,6 +93,11 @@ summary.eyebrow:focus-visible { outline: 2px solid var(--accent); outline-offset
 .dim line { stroke: var(--paper-accent); stroke-width: 0.18; }
 .dim text { fill: var(--paper-accent); font: 500 2.8px var(--font-num); }
 .arrow { fill: var(--paper-accent); stroke: none; }
+.detailMark circle { fill: var(--paper); stroke: var(--paper-accent); stroke-width: 0.3; }
+.detailMark text { fill: var(--paper-accent); font: 500 2.6px var(--font-num); }
+.detailLeader { fill: none; stroke: var(--paper-accent); stroke-width: 0.18; }
+.detailDot { fill: var(--paper-accent); }
+.care { fill: var(--paper-accent); }
 .move line { stroke: var(--paper-accent); stroke-width: 0.3; }
 .move text { fill: var(--paper-accent); font: italic 400 2.6px var(--font-ui); }
 .templateArc { fill: none; stroke: var(--paper-ink); stroke-width: 0.6; stroke-linejoin: round; }

@@ -18,6 +18,7 @@ import {
   holdFits,
   holdOf,
   isBreadboard,
+  jointCare,
   panelJoint,
   jointChoices,
   jointContact,
@@ -343,6 +344,7 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
   if (!options.includes(joint.type)) options.unshift(joint.type);
   const off = choices.filter((c) => !c.ok && c.type !== joint.type);
   const crossing = !!overlapBox(ba, bb);
+  const care = jointCare(joint, crossing);
   const style = tenonStyle(joint.params);
   const through = joint.type === 'mortaja' && isThrough(style);
   // Hasta dónde puede entrar una espiga, unas colas o un tarugo: el espesor de la pieza que recibe.
@@ -439,13 +441,6 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
       length('depth', t('Largo'), 3, reachA),
       // Testero: la tabla de la punta, tarugada a la lengüeta. Los tarugos de afuera, en agujeros alargados.
       choose('pegs', t('Testero'), [0, 2, 3, 4, 5], (v) => (v ? t('{n} tarugos', { n: v }) : t('No')), true),
-      ...(isBreadboard(params)
-        ? [
-            <p key="pegs-about" className={`${styles.note} ${styles.fieldNote}`}>
-              {t('El tarugo del medio va con cola; los de las puntas entran en agujeros alargados en la lengüeta, sin cola, para que la tapa se mueva.')}
-            </p>,
-          ]
-        : []),
     ],
     bolsillo: [choose('count', t('Tornillos'), upTo(6))],
     // A tope no se corta: se elige cómo se sujeta. Lo que deja correr la madera, solo si entra en esta pieza.
@@ -695,6 +690,14 @@ function JointDetail({ project, joint, group, meshes, applyAll, setApplyAll, onB
           <IconInfo />
           <span>{ruleHint(joint, a, b, n)}</span>
         </p>
+        {care && (
+          <p className={styles.tip}>
+            <IconWarn />
+            <span>
+              <strong>{t('Ojo:')}</strong> {care}
+            </span>
+          </p>
+        )}
         {/* En el celular, el aviso queda lejos de las medidas: se repite al lado de lo que se acaba de cambiar. */}
         {notes
           .filter((note) => note.level === 'warn')

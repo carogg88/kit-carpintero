@@ -116,4 +116,7 @@ export default {
   Acercar: 'Zoom in',
   'Pellizcá para agrandar': 'Pinch to zoom',
   'Pellizcá o tocá dos veces para agrandar': 'Pinch or double-tap to zoom',
+  'Ojo:': 'Watch out:',
+  'Ojo: {care}': 'Watch out: {care}',
+  'Los números en círculo llevan al detalle de cada unión, en la hoja de encastres.': 'Circled numbers point to each joint’s detail on the Joints sheet.',
 } satisfies Record<string, string>;

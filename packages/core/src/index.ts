@@ -4,6 +4,7 @@ export * from './woods';
 export * from './project';
 export * from './geometry';
 export * from './joints';
+export * from './joints/explain';
 export * from './catalog/boards';
 export * from './templates/table';
 export * from './templates/leanTest';

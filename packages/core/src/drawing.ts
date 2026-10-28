@@ -1,9 +1,9 @@
 import { partAxesBySize } from './edit';
 import { endJoint, jointGeometry, solidBox } from './joints';
-import { boxSize, otherAxes, partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
+import { boxSize, otherAxes, overlapBox, partBox, partKey, type Axis, type Box, type Vec3 } from './geometry';
 import { arcInfo, pocketSolid } from './pockets';
 import { sectionBox } from './sections';
-import type { Part, Project } from './project';
+import type { Joint, Part, Project } from './project';
 import { endAt, followMortise, leanFollow, partEnds, placedBox, unleanPoint, type PartEnds } from './follow';
 import { isLeaning, leanFrame, leanHole, leanShift, type LeanFrame } from './lean';
 import { woodMovement } from './review';
@@ -295,12 +295,22 @@ export const partSectionItems = (part: Part): DrawItem[] =>
   part.sections.map((s) => ({ id: `${part.id}-${s.id}`, box: sectionBox(part, s), joint: true, owner: part.id, section: true }));
 
 /** Las piezas macizas anchas que se ven de cara: la flecha de lo que se mueven, a lo ancho de la veta. */
-function moveMarks(parts: Part[], drawing: Drawing, p: Projection): MoveMark[] {
+function moveMarks(parts: Part[], drawing: Drawing, p: Projection, boxes?: ReadonlyMap<string, Box>): MoveMark[] {
   const moves: MoveMark[] = [];
+  // Lo que queda detrás de otra pieza no se ve: un estante debajo de la tapa, en la planta.
+  const near = (b: Box) => (p.depthSign > 0 ? b.max[p.depth] : -b.min[p.depth]);
+  const hidden = (part: Part, r: Rect2) => {
+    const own = boxes?.get(part.id);
+    if (!own) return false;
+    return drawing.rects.some((x) => {
+      const other = boxes!.get(x.id);
+      return x.id !== part.id && !!other && near(other) > near(own) + EPS && x.rect.u0 <= r.u0 + EPS && x.rect.v0 <= r.v0 + EPS && x.rect.u1 >= r.u1 - EPS && x.rect.v1 >= r.v1 - EPS;
+    });
+  };
   for (const part of parts) {
     const m = woodMovement(part);
     const r = drawing.rects.find((x) => x.id === part.id)?.rect;
-    if (!m || !r || partAxesBySize(part)[2] !== p.depth || (m.axis !== p.u && m.axis !== p.v)) continue;
+    if (!m || !r || partAxesBySize(part)[2] !== p.depth || (m.axis !== p.u && m.axis !== p.v) || hidden(part, r)) continue;
     const along = m.axis === p.u ? 'u' : 'v';
     const span = along === 'u' ? r.u1 - r.u0 : r.v1 - r.v0;
     // Corrida del centro, para no pisar el nombre de la pieza.
@@ -317,7 +327,7 @@ export function drawView(project: Project, view: ViewName): Drawing {
   for (const p of boxes) for (const it of [...partJointItems(project, p), ...partSectionItems(p)]) if (!it.hole) items.push(it);
   const p = VIEWS[view];
   const drawing = drawItems(items, p);
-  const moves = moveMarks(boxes, drawing, p);
+  const moves = moveMarks(boxes, drawing, p, new Map(items.filter((x) => !x.joint).map((x) => [x.id, x.box])));
   return { ...drawing, ...(moves.length ? { moves } : {}), engine: { parts: boxes.map((x) => x.id), projection: p } };
 }
 
@@ -477,9 +487,16 @@ export function drawJointDetail(project: Project, jointId: string): { views: Dra
         max: [0, 1, 2].map((k) => Math.min(ba.max[k]!, bb.max[k]!) + 1) as Box['max'],
       };
   // La ranura de los botones o la fila de grampas corre todo el faldón: se dibuja una punta, que alcanza para marcarla.
-  if (j.type === 'tope' && e && solids.length) focus.max[e.wide] = Math.min(focus.max[e.wide], focus.min[e.wide] + 120);
+  // Una canal o un rebaje que corre todo el costado se ve igual en todo su largo: también se dibuja una punta.
+  const LONG = 250;
+  if (e && solids.length && (j.type === 'tope' || focus.max[e.wide] - focus.min[e.wide] > LONG)) {
+    focus.max[e.wide] = Math.min(focus.max[e.wide], focus.min[e.wide] + 120);
+  }
   const projections = across.map((k): Projection => {
     const depth = ([0, 1, 2] as Axis[]).find((x) => x !== along && x !== k)!;
+    // Una unión que va de arriba abajo (una tapa sobre su faldón) se dibuja parada, como está en el mueble.
+    // Mirando desde el lado positivo, lo que va a la derecha es el que deja arriba a y: x desde el frente, -z desde el costado.
+    if (along === 1) return { u: k, uSign: k === 2 && depth === 0 ? -1 : 1, v: along, vSign: 1, depth, depthSign: 1 };
     return { u: along, uSign: 1, v: k, vSign: 1, depth, depthSign: 1 };
   });
   const views = projections.map((p) => {
@@ -565,3 +582,29 @@ export function clipSegment(l: Line2, w: Rect2): Line2 | null {
 }
 
 const project0 = (box: Box, p: Projection) => project({ id: '', box }, p).rect;
+
+/** La vista general que mira cada eje de frente: la profundidad es ese eje. */
+const VIEW_BY_DEPTH: Record<Axis, ViewName> = { 0: 'side', 1: 'top', 2: 'front' };
+
+/**
+ * Dónde marcar una unión en las vistas generales, para el círculo que lleva a su detalle: el centro de donde se
+ * tocan las dos piezas, en la vista que mira de frente la cara ancha de la pieza que entra (un faldón se ve de
+ * frente, un testero desde arriba).
+ */
+export function jointAnchor(project: Project, joint: Joint): { view: ViewName; at: [number, number] } | null {
+  const a = project.parts.find((p) => p.id === joint.partA);
+  const b = project.parts.find((p) => p.id === joint.partB);
+  if (!a || !b) return null;
+  const ba = placedBox(project, a);
+  const bb = placedBox(project, b);
+  const grown: Box = { min: ba.min.map((v) => v - 1) as Vec3, max: ba.max.map((v) => v + 1) as Vec3 };
+  const touch = overlapBox(grown, bb);
+  if (!touch) return null;
+  const e = endJoint(ba, bb);
+  const size = boxSize(touch);
+  const depth = e ? e.thin : ([0, 1, 2] as Axis[]).reduce((x, y) => (size[y] < size[x] ? y : x));
+  const view = VIEW_BY_DEPTH[depth];
+  const p = VIEWS[view];
+  const mid = (k: Axis) => (touch.min[k] + touch.max[k]) / 2;
+  return { view, at: [p.uSign * mid(p.u), p.vSign * mid(p.v)] };
+}
