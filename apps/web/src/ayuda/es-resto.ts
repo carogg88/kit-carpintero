@@ -690,6 +690,19 @@ export const ES_REST: Article[] = [
         ],
       },
       {
+        id: 'video',
+        title: 'Un video del mueble girando',
+        blocks: [
+          p('**Bajar video** graba el mueble dando una vuelta entera sobre sí mismo, en 12 segundos, con la vista, la luz, el fondo y la forma que elegiste. La luz gira con la cámara, así el mueble se ve siempre bien iluminado.'),
+          steps(
+            'Elegí la vista de arranque, la luz y el fondo como para la foto.',
+            'Tocá **Bajar video** y esperá: se graba mientras gira, así que tarda lo que dura el video.',
+            'Se baja como mp4 (o webm si el navegador no graba mp4), listo para mandar o subir.',
+          ),
+          tip('Tamaño Normal graba en 1280 de ancho; Alta y Muy alta, en Full HD. Sin fondo, el video sale con fondo blanco. Para ver cómo se arma, el video está en **Armado**.'),
+        ],
+      },
+      {
         id: 'inicio',
         title: 'La foto en el inicio',
         blocks: [p('En el inicio, cada proyecto muestra una foto chica del mueble. Se saca sola cuando cambia el proyecto; si sacás una foto a mano, esa queda como miniatura.')],
@@ -697,7 +710,7 @@ export const ES_REST: Article[] = [
     ],
     faq: [
       { q: 'La foto tarda en aparecer', a: 'La primera vez, el motor arma cada pieza: en un equipo lento puede tardar unos segundos.' },
-      { q: '¿Puedo elegir la terminación de la madera?', a: 'Todavía no: la foto muestra la madera natural.' },
+      { q: '¿Puedo elegir la terminación de la madera?', a: 'Sí: en el panel del mueble, en Terminación. La foto y el video la muestran.' },
     ],
     related: ['compartir-enlace', 'exportar'],
   },

@@ -688,4 +688,9 @@ export default {
   'Grabando el video…': 'Recording the video…',
   'Bajar el armado como video': 'Download the assembly as a video',
   armado: 'assembly',
+  'Guardaste el video ({name}).': 'You saved the video ({name}).',
+  'No se pudo grabar el video. Probá con el tamaño Normal.': "Couldn't record the video. Try the Normal size.",
+  'Grabando… {n} %': 'Recording… {n} %',
+  'Bajar video': 'Download video',
+  'El video muestra el mueble dando una vuelta entera, en {s} segundos, con esta luz y este fondo.': 'The video shows the piece turning all the way around, in {s} seconds, with this light and background.',
 } satisfies Record<string, string>;

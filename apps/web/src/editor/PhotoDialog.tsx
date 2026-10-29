@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildOffsets, buildSteps, t, tk, type Project, type Vec3 } from '@kitc/core';
-import { fileName } from '../storage/backup';
+import { fileName, saveFile } from '../storage/backup';
+import { even, videoExt, videoMime, videoType } from './video';
 import { engineMeshes } from './useGeometry';
-import { buildStudio, sizeCaption, DEFAULT_PHOTO, PHOTO_SIZES, setupRenderer, takePhoto, type PhotoAngle, type PhotoBackground, type PhotoOptions, type PhotoSize, type PhotoStudio } from './photo';
+import { buildStudio, recordTurn, sizeCaption, DEFAULT_PHOTO, PHOTO_SIZES, setupRenderer, takePhoto, type PhotoAngle, type PhotoBackground, type PhotoOptions, type PhotoSize, type PhotoStudio } from './photo';
 import { saveThumb } from './thumbs';
 import { IconCamera } from './icons';
 import { useEditor } from './store';
@@ -41,6 +42,11 @@ const SIZE_LABELS: [PhotoSize, string][] = [
 ];
 
 const NONE: Record<string, number> = {};
+
+/** Lo que tarda el mueble en dar la vuelta entera en el video. */
+const TURN_SECONDS = 12;
+/** Lado más largo del video: Normal en 1280, los otros en Full HD (más grande, los celulares no lo graban). */
+const VIDEO_LONG: Record<PhotoSize, number> = { pantalla: 1280, alta: 1920, muy: 1920 };
 
 const canShareFiles = (f: File) => typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [f] });
 
@@ -112,6 +118,9 @@ function PhotoBody({ project, onClose }: { project: Project; onClose: () => void
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  // Grabando el video: cuánto va, de 0 a 100.
+  const [rec, setRec] = useState<number | null>(null);
+  const canVideo = useMemo(() => videoType() !== null, []);
   const aspect = SHAPES.find((s) => s[0] === shape)![2];
 
   // El estudio se arma una vez, con las mallas del motor.
@@ -229,6 +238,35 @@ function PhotoBody({ project, onClose }: { project: Project; onClose: () => void
     }
   };
 
+  const video = async () => {
+    const s = studio.current;
+    const gl = renderer.current;
+    const type = videoType();
+    if (!s || !gl || !type) return;
+    const long = VIDEO_LONG[size];
+    const [w, h] = aspect >= 1 ? [long, even(long / aspect)] : [even(long * aspect), long];
+    setDone(null);
+    setRec(0);
+    try {
+      const blob = await recordTurn(gl, s, {
+        width: w,
+        height: h,
+        caption: caption ? sizeCaption(project) : undefined,
+        seconds: TURN_SECONDS,
+        type,
+        onProgress: (f) => setRec(Math.round(f * 100)),
+      });
+      const name = `${fileName(project)}.${videoExt(type)}`;
+      saveFile(name, blob, videoMime(type));
+      setDone(t('Guardaste el video ({name}).', { name }));
+    } catch {
+      setDone(t('No se pudo grabar el video. Probá con el tamaño Normal.'));
+    } finally {
+      setRec(null);
+      draw.current();
+    }
+  };
+
   const set = (patch: Partial<PhotoOptions>) => setOptions((o) => ({ ...o, ...patch }));
   const mobile = typeof navigator !== 'undefined' && typeof navigator.share === 'function' && 'ontouchstart' in window;
   return (
@@ -282,15 +320,27 @@ function PhotoBody({ project, onClose }: { project: Project; onClose: () => void
             {t('Escribir las medidas del mueble')}
           </label>
           <div className={styles.actions}>
-            <button type="button" className={editorStyles.primaryBtn} disabled={state !== 'ready' || busy} aria-busy={busy} onClick={() => void (mobile ? share() : save())}>
+            <button type="button" className={editorStyles.primaryBtn} disabled={state !== 'ready' || busy || rec !== null} aria-busy={busy} onClick={() => void (mobile ? share() : save())}>
               {busy ? t('Armando…') : mobile ? t('Compartir foto') : t('Guardar foto')}
             </button>
             {mobile && (
-              <button type="button" className={editorStyles.secondaryBtn} disabled={state !== 'ready' || busy} onClick={() => void save()}>
+              <button type="button" className={editorStyles.secondaryBtn} disabled={state !== 'ready' || busy || rec !== null} onClick={() => void save()}>
                 {t('Guardar foto')}
               </button>
             )}
+            {canVideo && (
+              <button
+                type="button"
+                className={editorStyles.secondaryBtn}
+                disabled={state !== 'ready' || busy || rec !== null}
+                aria-busy={rec !== null}
+                onClick={() => void video()}
+              >
+                {rec !== null ? t('Grabando… {n} %', { n: rec }) : t('Bajar video')}
+              </button>
+            )}
           </div>
+          {canVideo && <p className={styles.note}>{t('El video muestra el mueble dando una vuelta entera, en {s} segundos, con esta luz y este fondo.', { s: TURN_SECONDS })}</p>}
           <p className={styles.done} role="status">
             {done ?? (options.background === 'transparente' ? t('Sin fondo sale en PNG, para pegarla sobre otra imagen.') : '')}
           </p>
