@@ -13,8 +13,8 @@ export function readExported(id: string): string | null {
 /** Nombre del proyecto que sirve como nombre de archivo. */
 export const fileName = (p: Project) => p.name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || t('proyecto');
 
-/** Baja un texto (o unos bytes) como archivo. */
-export function saveFile(name: string, text: string | Uint8Array<ArrayBuffer>, type: string) {
+/** Baja un texto (o unos bytes, o un blob) como archivo. */
+export function saveFile(name: string, text: string | Uint8Array<ArrayBuffer> | Blob, type: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type }));
   a.download = name;

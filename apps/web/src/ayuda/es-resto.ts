@@ -557,6 +557,7 @@ export const ES_REST: Article[] = [
             'Tocá **Reproducir** para verlo de corrido, o pasá de a una pieza con las flechas.',
             'Corré la barra para ir y volver a cualquier punto del armado.',
             'Arrastrá el dibujo para girarlo y mirar desde otro lado.',
+            'Para guardarlo o mandarlo, tocá el botón de la cámara: graba el armado de corrido, con el texto de cada paso abajo, y lo baja como video (mp4, o webm si el navegador no graba mp4). Elegí antes el lado desde donde se ve.',
           ),
           note('Si el equipo tiene pedido **reducir movimiento**, pasa de una pieza a la otra sin animar.'),
           tip('En el **Modo taller**, después de la última pieza está la pantalla **Armado**, con la misma animación.'),

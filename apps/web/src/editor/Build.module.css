@@ -21,3 +21,7 @@
 .controls .play { width: 44px; height: 44px; background: var(--forest); border-color: var(--forest); color: var(--forest-ink); }
 .controls .play:hover:not(:disabled) { background: var(--forest); filter: brightness(1.1); }
 .range { flex: 1; min-width: 0; accent-color: var(--accent); }
+.controls .video { margin-inline-start: var(--space-1); }
+.rec { width: 12px; height: 12px; border-radius: 50%; background: #c0392b; animation: rec 1s ease-in-out infinite alternate; }
+@keyframes rec { to { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .rec { animation: none; } }
