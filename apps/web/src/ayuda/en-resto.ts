@@ -687,6 +687,19 @@ export const EN_REST: Article[] = [
         ],
       },
       {
+        id: 'video',
+        title: 'A video of the piece turning',
+        blocks: [
+          p('**Download video** records the piece turning all the way around, in 12 seconds, with the view, light, background and shape you picked. The light turns with the camera, so the piece always looks well lit.'),
+          steps(
+            'Pick the starting view, the light and the background as for the photo.',
+            'Tap **Download video** and wait: it records while it turns, so it takes as long as the video.',
+            'It downloads as mp4 (or webm if the browser can\'t record mp4), ready to send or upload.',
+          ),
+          tip('Normal size records 1280 wide; High and Very high, in Full HD. With no background, the video gets a white one. To see how it goes together, the video is in **Assembly**.'),
+        ],
+      },
+      {
         id: 'inicio',
         title: 'The photo on the home screen',
         blocks: [p('On the home screen, each project shows a small photo of the furniture. It is taken by itself when the project changes; if you take a photo yourself, that one becomes the thumbnail.')],
@@ -694,7 +707,7 @@ export const EN_REST: Article[] = [
     ],
     faq: [
       { q: 'The photo takes a while to show', a: 'The first time, the engine builds every part: on a slow device it can take a few seconds.' },
-      { q: 'Can I pick the wood finish?', a: 'Not yet: the photo shows the natural wood.' },
+      { q: 'Can I pick the wood finish?', a: 'Yes: in the furniture panel, under Finish. The photo and the video show it.' },
     ],
     related: ['compartir-enlace', 'exportar'],
   },

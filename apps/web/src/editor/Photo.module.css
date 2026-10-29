@@ -49,3 +49,4 @@
   .frame { width: min(100%, calc(46dvh * var(--ar, 1.333))); }
   .body { padding: 16px; }
 }
+.note { margin: calc(var(--space-2) * -1) 0 0; font-size: var(--text-xs); color: var(--muted); }

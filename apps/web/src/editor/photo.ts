@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { findMotions, formatLength, furnitureBox, motionMatrix, partBox, partFinish, t, type Project } from '@kitc/core';
 import type { PartMesh } from '../geometry/protocol';
+import { recordCanvas } from './video';
 import { makeWoodMaterial, setFinish, setGrainMotion, setGrainUniforms } from './woodMaterial';
 
 /**
@@ -49,6 +50,8 @@ export interface PhotoStudio {
   radius: number;
   /** Cada pieza dibujada, para correrla (el armado animado). `userData.at` es su lugar sin despiece. */
   parts: Map<string, THREE.Mesh>;
+  /** La luz principal: gira con la cámara en el video. */
+  sun: THREE.DirectionalLight;
   set(options: PhotoOptions, aspect: number): void;
   /** Encuadra de nuevo con la cámara donde está (después de girarla con el mouse). */
   aim(aspect: number): void;
@@ -216,6 +219,7 @@ export function buildStudio(
     center,
     radius,
     parts,
+    sun,
     set(o, aspect) {
       camera.position.copy(center).add(ANGLES[o.angle].clone().normalize());
       aim(aspect);
@@ -260,6 +264,17 @@ export interface PhotoFile {
   type: 'image/jpeg' | 'image/png';
 }
 
+/** Las medidas del mueble, centradas abajo de la foto o del video. */
+function drawCaption(g: CanvasRenderingContext2D, caption: string) {
+  const { width: w, height: h } = g.canvas;
+  const size = Math.round(h * 0.026);
+  g.font = `500 ${size}px Inter, system-ui, -apple-system, 'Segoe UI', sans-serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = '#2b3628';
+  g.fillText(caption, w / 2, h - size * 1.6);
+}
+
 /** Lado más largo de cada tamaño. */
 export const PHOTO_SIZES = { pantalla: 1600, alta: 2800, muy: 4096 } as const;
 export type PhotoSize = keyof typeof PHOTO_SIZES;
@@ -291,17 +306,71 @@ export async function takePhoto(renderer: THREE.WebGLRenderer, studio: PhotoStud
     g.fillRect(0, 0, w, h);
   }
   g.drawImage(renderer.domElement, 0, 0);
-  if (file.caption) {
-    const size = Math.round(h * 0.026);
-    g.font = `500 ${size}px Inter, system-ui, -apple-system, 'Segoe UI', sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'alphabetic';
-    g.fillStyle = '#2b3628';
-    g.fillText(file.caption, w / 2, h - size * 1.6);
-  }
+  if (file.caption) drawCaption(g, file.caption);
 
   renderer.setPixelRatio(ratio);
   renderer.setSize(before.x, before.y, false);
   studio.aim(aspect);
   return new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('foto'))), file.type, 0.92));
+}
+
+export interface TurnVideo {
+  width: number;
+  height: number;
+  caption?: string;
+  /** Lo que tarda una vuelta entera. */
+  seconds: number;
+  /** El formato de grabación (ver videoType). */
+  type: string;
+  onProgress?: (fraction: number) => void;
+}
+
+/**
+ * El mueble dando una vuelta entera, con la luz y el fondo de la foto: la cámara y la luz giran juntas alrededor
+ * del mueble, como si girara sobre una base. Se graba en tiempo real, así que tarda lo que dura el video.
+ */
+export async function recordTurn(renderer: THREE.WebGLRenderer, studio: PhotoStudio, video: TurnVideo): Promise<Blob> {
+  const { camera, sun, center } = studio;
+  const before = renderer.getSize(new THREE.Vector2());
+  const ratio = renderer.getPixelRatio();
+  const aspect = camera.aspect;
+  const cam0 = camera.position.clone();
+  const sun0 = sun.position.clone();
+  renderer.setPixelRatio(1);
+  renderer.setSize(video.width, video.height, false);
+  studio.aim(video.width / video.height);
+  const camFrom = camera.position.clone().sub(center);
+  const sunFrom = sun.position.clone().sub(center);
+  const up = new THREE.Vector3(0, 1, 0);
+
+  const out = document.createElement('canvas');
+  out.width = video.width;
+  out.height = video.height;
+  const g = out.getContext('2d')!;
+  // Un video no tiene transparencia: sin fondo, va blanco.
+  const paint = (turn: number) => {
+    const a = -turn * Math.PI * 2;
+    camera.position.copy(center).add(camFrom.clone().applyAxisAngle(up, a));
+    sun.position.copy(center).add(sunFrom.clone().applyAxisAngle(up, a));
+    camera.lookAt(center);
+    renderer.render(studio.scene, camera);
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, out.width, out.height);
+    g.drawImage(renderer.domElement, 0, 0);
+    if (video.caption) drawCaption(g, video.caption);
+  };
+  try {
+    return await recordCanvas(out, video.type, (s) => {
+      const turn = Math.min(1, s / video.seconds);
+      paint(turn);
+      video.onProgress?.(turn);
+      return turn < 1;
+    });
+  } finally {
+    camera.position.copy(cam0);
+    sun.position.copy(sun0);
+    renderer.setPixelRatio(ratio);
+    renderer.setSize(before.x, before.y, false);
+    studio.aim(aspect);
+  }
 }

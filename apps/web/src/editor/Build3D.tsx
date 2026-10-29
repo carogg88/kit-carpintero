@@ -6,6 +6,7 @@ import { engineMeshes } from './useGeometry';
 import { buildStudio, DEFAULT_PHOTO, setupRenderer, type PhotoStudio } from './photo';
 import { setGrainMotion } from './woodMaterial';
 import { fileName, saveFile } from '../storage/backup';
+import { even, videoExt, videoMime, videoType } from './video';
 import styles from './Build.module.css';
 
 /**
@@ -31,15 +32,8 @@ function useReducedMotion(): boolean {
   );
 }
 
-/** Formatos de video en orden de preferencia: mp4 se abre en todos lados, webm si el navegador no graba mp4. */
-const VIDEO_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
-function videoType(): string | null {
-  if (typeof MediaRecorder === 'undefined' || typeof HTMLCanvasElement.prototype.captureStream !== 'function') return null;
-  return VIDEO_TYPES.find((m) => MediaRecorder.isTypeSupported(m)) ?? null;
-}
 /** Ancho del video, en píxeles. */
 const VIDEO_WIDTH = 1280;
-const even = (x: number) => Math.max(2, Math.round(x / 2) * 2);
 
 /** Un cuadro del video: la vista 3D y, abajo, en qué paso va y qué se hace. */
 function paintFrame(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, count: string, text: string) {
@@ -282,8 +276,7 @@ export function BuildPlayer({ project, onLine, className }: BuildPlayerProps) {
       rec.current = null;
       setRecording(false);
       sharpen.current(null);
-      const ext = type.startsWith('video/mp4') ? 'mp4' : 'webm';
-      saveFile(`${fileName(project)} - ${t('armado')}.${ext}`, new Blob(chunks, { type: type.split(';')[0] }), type.split(';')[0]!);
+      saveFile(`${fileName(project)} - ${t('armado')}.${videoExt(type)}`, new Blob(chunks, { type: videoMime(type) }), videoMime(type));
       draw.current();
     };
     rec.current = { ctx, recorder };
